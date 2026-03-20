@@ -734,6 +734,148 @@
     display: none;
   }
   .team-notes-full.open { display: block; }
+
+  /* BRAIN DUMP / SETTINGS / REVIEW MODALS */
+  .modal-wide { width: 600px; max-width: 95vw; }
+
+  .modal-xl {
+    width: 740px;
+    max-width: 95vw;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-scroll-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+    margin-bottom: 4px;
+  }
+
+  .brain-dump-textarea {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 10px;
+    border-radius: 4px;
+    width: 100%;
+    height: 210px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s;
+    line-height: 1.6;
+  }
+  .brain-dump-textarea:focus { border-color: var(--accent); }
+  .brain-dump-textarea::placeholder { color: var(--text3); }
+
+  /* REVIEW CARDS */
+  .review-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 8px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .review-card {
+    border-radius: 5px;
+    margin-bottom: 5px;
+    border: 1px solid var(--border);
+    transition: all 0.12s;
+  }
+  .review-card.accepted { border-color: var(--success); background: #061a0f; }
+  .review-card.rejected { border-color: var(--border); background: var(--bg3); opacity: 0.5; }
+
+  .review-card-inner {
+    display: flex;
+    align-items: flex-start;
+    padding: 9px 10px;
+    gap: 10px;
+  }
+
+  .review-toggle {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.12s;
+    font-size: 11px;
+    margin-top: 1px;
+  }
+  .review-card.accepted .review-toggle { border-color: var(--success); background: #0d2a1a; color: var(--success); }
+  .review-card.rejected .review-toggle { border-color: var(--border2); background: var(--bg3); color: var(--text3); }
+
+  .review-card-body { flex: 1; min-width: 0; }
+
+  .review-item-name { font-size: 13px; color: var(--text); margin-bottom: 5px; font-weight: 500; }
+
+  .review-item-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 3px; }
+
+  .review-tag {
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--bg4);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  .review-notes { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .review-change { font-size: 11px; color: var(--text3); margin-bottom: 2px; }
+  .review-field { color: var(--text2); font-weight: 600; }
+  .review-old { text-decoration: line-through; color: var(--danger); opacity: 0.7; }
+  .review-new { color: var(--success); }
+
+  /* SETTINGS */
+  .settings-input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 4px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .settings-input:focus { border-color: var(--accent); }
+
+  /* SPINNER */
+  @keyframes bd-spin { to { transform: rotate(360deg); } }
+  .bd-spinner {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border: 2px solid rgba(255,255,255,0.25);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: bd-spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 5px;
+  }
+
+  /* BD processing state */
+  .bd-status {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 8px;
+    min-height: 16px;
+  }
 </style>
 </head>
 <body>
@@ -741,6 +883,7 @@
 <div class="header">
   <div class="header-title">PM <span>//</span> Workload</div>
   <div class="header-meta" id="headerMeta"></div>
+  <button class="btn" onclick="openSettingsModal()" style="font-size:10px;padding:4px 10px;margin-left:12px;" title="API Settings">⚙ Settings</button>
 </div>
 
 <div class="active-timer-strip" id="activeStrip">
@@ -783,6 +926,7 @@
         <option value="waiting">Waiting on...</option>
         <option value="active">Not waiting</option>
       </select>
+      <button class="btn" onclick="openBrainDumpModal()" style="border-color:#7c3aed;color:#a78bfa;" title="AI-powered task import from free text">⚡ Brain Dump</button>
       <button class="btn primary" onclick="toggleAddForm()">+ Add Task</button>
     </div>
 
@@ -1002,6 +1146,51 @@
     <div class="modal-actions">
       <button class="btn" onclick="closeAddProjectModal()">Cancel</button>
       <button class="btn primary" onclick="confirmAddProject()">Add Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- BRAIN DUMP MODAL -->
+<div class="modal-overlay" id="brainDumpModal">
+  <div class="modal modal-wide">
+    <div class="modal-title">Brain Dump</div>
+    <div class="modal-subtitle">Paste notes, a messy to-do list, voice transcript — anything. Claude will parse it against your current tasks.</div>
+    <textarea class="brain-dump-textarea" id="brainDumpText" placeholder="e.g. Need to follow up with Marcus on DOEE eval forms, he said he'd have them by Thursday. P2 slide deck is now urgent — stakeholder call moved to next week. Also I should set up a kick-off call for the new IPP cohort lead…"></textarea>
+    <div class="bd-status" id="bdStatus"></div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn" onclick="closeBrainDumpModal()">Cancel</button>
+      <button class="btn primary" id="brainDumpSubmitBtn" onclick="submitBrainDump()">⚡ Process Brain Dump</button>
+    </div>
+  </div>
+</div>
+
+<!-- BRAIN DUMP REVIEW MODAL -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal modal-xl">
+    <div class="modal-title">Review Proposed Changes</div>
+    <div class="modal-subtitle">Toggle each item to accept ✓ or reject ✗. Only accepted items will be written to your task list.</div>
+    <div class="modal-scroll-body" id="reviewContent"></div>
+    <div class="modal-actions">
+      <button class="btn" style="margin-right:auto;" onclick="toggleAllReview()">Toggle All</button>
+      <button class="btn" onclick="closeReviewModal()">Cancel</button>
+      <button class="btn primary" id="reviewConfirmBtn" onclick="confirmImport()">Confirm Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-title">Settings</div>
+    <div class="modal-subtitle">Anthropic API key for Brain Dump. Stored only in localStorage.</div>
+    <div style="margin-bottom:14px;">
+      <label class="edit-label" style="display:block;margin-bottom:6px;">Anthropic API Key</label>
+      <input class="settings-input" type="password" id="settingsApiKey" placeholder="sk-ant-api03-...">
+      <div style="font-size:10px;color:var(--text3);margin-top:6px;">Key is sent only to api.anthropic.com. Never logged or shared.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeSettingsModal()">Cancel</button>
+      <button class="btn primary" onclick="saveApiKeyFromModal()">Save</button>
     </div>
   </div>
 </div>
@@ -1873,7 +2062,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 // CLOSE MODALS ON OVERLAY CLICK
 // =============================================
 
-['completionModal','editTaskModal','addTeamModal','addProjectModal'].forEach(id => {
+['completionModal','editTaskModal','addTeamModal','addProjectModal','brainDumpModal','reviewModal','settingsModal'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
 });
@@ -1918,6 +2107,327 @@ tasks.forEach(t => {
 
 // Update header meta periodically
 setInterval(updateHeaderMeta, 5000);
+
+// =============================================
+// SETTINGS
+// =============================================
+
+const BD_KEY_STORE = 'wt_api_key';
+
+function loadApiKey() {
+  return localStorage.getItem(BD_KEY_STORE) || '';
+}
+
+function openSettingsModal() {
+  document.getElementById('settingsApiKey').value = loadApiKey();
+  document.getElementById('settingsModal').classList.add('open');
+  setTimeout(() => document.getElementById('settingsApiKey').focus(), 80);
+}
+
+function closeSettingsModal() {
+  document.getElementById('settingsModal').classList.remove('open');
+}
+
+function saveApiKeyFromModal() {
+  const val = document.getElementById('settingsApiKey').value.trim();
+  if (val) localStorage.setItem(BD_KEY_STORE, val);
+  else localStorage.removeItem(BD_KEY_STORE);
+  closeSettingsModal();
+}
+
+// =============================================
+// BRAIN DUMP — INPUT MODAL
+// =============================================
+
+function openBrainDumpModal() {
+  if (!loadApiKey()) {
+    openSettingsModal();
+    document.getElementById('settingsModal').querySelector('.modal-subtitle').textContent =
+      'Set your API key first, then use Brain Dump.';
+    return;
+  }
+  document.getElementById('brainDumpText').value = '';
+  document.getElementById('bdStatus').textContent = '';
+  const btn = document.getElementById('brainDumpSubmitBtn');
+  btn.disabled = false;
+  btn.innerHTML = '⚡ Process Brain Dump';
+  document.getElementById('brainDumpModal').classList.add('open');
+  setTimeout(() => document.getElementById('brainDumpText').focus(), 80);
+}
+
+function closeBrainDumpModal() {
+  document.getElementById('brainDumpModal').classList.remove('open');
+}
+
+async function submitBrainDump() {
+  const text = document.getElementById('brainDumpText').value.trim();
+  if (!text) { alert('Please enter some text first.'); return; }
+
+  const apiKey = loadApiKey();
+  if (!apiKey) { openSettingsModal(); return; }
+
+  const btn = document.getElementById('brainDumpSubmitBtn');
+  const statusEl = document.getElementById('bdStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="bd-spinner"></span>Processing…';
+  statusEl.textContent = 'Sending to Claude…';
+
+  const activeTasks = tasks.filter(t => !t.completed).map(t => ({
+    id: t.id, name: t.name, project: t.project,
+    priority: t.priority, due: t.due, est: t.est,
+    category: t.category, waiting: t.waiting, notes: t.notes
+  }));
+
+  const projectList = Object.entries(PROJECTS).map(([k, v]) => `${k} = "${v.label}"`).join(', ');
+
+  const systemPrompt =
+`You are a task management assistant for a program manager. You will receive:
+1. A JSON array of the user's current active tasks (each has: id, name, project, priority, due, est, category, waiting, notes).
+2. A free-text "brain dump" — notes, thoughts, voice transcript, messy to-do list, etc.
+
+Your job: parse the brain dump and reconcile it against the existing task list.
+
+Return ONLY a single valid JSON object — no preamble, no markdown, no code fences — with exactly these three keys:
+
+{
+  "new_tasks": [...],
+  "updates": [...],
+  "duplicates": [...]
+}
+
+Definitions:
+- new_tasks: Array of full task objects for items that don't match anything existing. Fields: name (string), project (must be one of: ${Object.keys(PROJECTS).join(', ')} — choose the best fit; use "admin" if unclear), priority ("urgent" | "high" | "med" | "low"), due ("YYYY-MM-DD" or ""), est (number of hours or 0), category (string), waiting (string), notes (string).
+- updates: Array of change objects. Each must include id (matching an existing task's id) plus ONLY the fields that should change (omit unchanged fields).
+- duplicates: Array of {name: string, note: string} for items that clearly already exist in the task list unchanged.
+
+Matching rules:
+- Use name similarity, context, and keywords to match brain dump items to existing tasks.
+- If a brain dump item modifies an existing task (priority change, adds notes, changes due date), emit an update.
+- If it clearly refers to a task that already exists with no changes, emit a duplicate.
+- If it's genuinely new, emit a new_task.
+- When uncertain, prefer new_task over update.
+- Return empty arrays if a category has no items. Never omit any of the three keys.`;
+
+  const userMessage =
+`Current active tasks (JSON):
+${JSON.stringify(activeTasks, null, 2)}
+
+Brain dump text:
+${text}`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }]
+      })
+    });
+
+    if (!response.ok) {
+      let msg = `API error ${response.status}`;
+      try { const e = await response.json(); msg = e.error?.message || msg; } catch (_) {}
+      throw new Error(msg);
+    }
+
+    const data = await response.json();
+    const rawText = data.content?.[0]?.text || '';
+
+    let diff;
+    try {
+      diff = JSON.parse(rawText);
+    } catch (_) {
+      const m = rawText.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('Response was not valid JSON. Try again.');
+      diff = JSON.parse(m[0]);
+    }
+
+    closeBrainDumpModal();
+    showReviewModal(diff);
+
+  } catch (err) {
+    statusEl.textContent = '⚠ ' + err.message;
+    btn.disabled = false;
+    btn.innerHTML = '⚡ Process Brain Dump';
+  }
+}
+
+// =============================================
+// BRAIN DUMP — REVIEW MODAL
+// =============================================
+
+let reviewDiff = null;
+let reviewAccepted = {};
+
+function showReviewModal(diff) {
+  reviewDiff = {
+    new_tasks:  Array.isArray(diff.new_tasks)  ? diff.new_tasks  : [],
+    updates:    Array.isArray(diff.updates)    ? diff.updates    : [],
+    duplicates: Array.isArray(diff.duplicates) ? diff.duplicates : []
+  };
+  reviewAccepted = {};
+  // Default: accept new tasks + updates, reject duplicates
+  reviewDiff.new_tasks.forEach((_,  i) => { reviewAccepted[`new_${i}`] = true; });
+  reviewDiff.updates.forEach((_,   i) => { reviewAccepted[`upd_${i}`] = true; });
+  reviewDiff.duplicates.forEach((_,i) => { reviewAccepted[`dup_${i}`] = false; });
+
+  renderReviewContent();
+  document.getElementById('reviewModal').classList.add('open');
+}
+
+function renderReviewContent() {
+  const container = document.getElementById('reviewContent');
+  container.innerHTML = '';
+
+  const { new_tasks, updates, duplicates } = reviewDiff;
+  const total = new_tasks.length + updates.length + duplicates.length;
+
+  if (!total) {
+    container.innerHTML = '<div class="empty-state">Claude found no changes from your brain dump.</div>';
+    updateReviewBtn();
+    return;
+  }
+
+  function makeSection(label, items, prefix, renderItem) {
+    if (!items.length) return;
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '14px';
+    wrap.innerHTML = `<div class="review-section-label">${label} <span style="color:var(--text2);font-weight:400;">(${items.length})</span></div>`;
+    items.forEach((item, i) => {
+      const key = `${prefix}_${i}`;
+      const accepted = reviewAccepted[key];
+      const card = document.createElement('div');
+      card.className = `review-card ${accepted ? 'accepted' : 'rejected'}`;
+      card.innerHTML = `
+        <div class="review-card-inner">
+          <div class="review-toggle" onclick="toggleReviewItem('${key}')" title="${accepted ? 'Click to reject' : 'Click to accept'}">${accepted ? '✓' : '✗'}</div>
+          <div class="review-card-body">${renderItem(item)}</div>
+        </div>`;
+      wrap.appendChild(card);
+    });
+    container.appendChild(wrap);
+  }
+
+  makeSection('New Tasks', new_tasks, 'new', item => {
+    const tags = [
+      item.project ? `<span class="review-tag">${PROJECTS[item.project]?.label || item.project}</span>` : '',
+      item.priority ? `<span class="review-tag">${item.priority}</span>` : '',
+      item.due      ? `<span class="review-tag">Due ${fmtDate(item.due)}</span>` : '',
+      item.est      ? `<span class="review-tag">${item.est}h</span>` : '',
+      item.category ? `<span class="review-tag">${item.category}</span>` : '',
+      item.waiting  ? `<span class="review-tag">⏳ ${item.waiting}</span>` : ''
+    ].filter(Boolean).join('');
+    return `<div class="review-item-name">${escHtml(item.name || '(unnamed)')}</div>
+            <div class="review-item-meta">${tags}</div>
+            ${item.notes ? `<div class="review-notes">${escHtml(item.notes)}</div>` : ''}`;
+  });
+
+  makeSection('Updates to Existing Tasks', updates, 'upd', item => {
+    const existing = tasks.find(t => t.id === item.id);
+    const taskName = existing ? existing.name : `(id: ${item.id})`;
+    const changes = Object.entries(item)
+      .filter(([k]) => k !== 'id')
+      .map(([k, v]) => {
+        const old = existing ? (existing[k] ?? '—') : '?';
+        return `<div class="review-change"><span class="review-field">${k}:</span> <span class="review-old">${escHtml(String(old))}</span> → <span class="review-new">${escHtml(String(v))}</span></div>`;
+      }).join('');
+    return `<div class="review-item-name">${escHtml(taskName)}</div>
+            <div style="margin-top:4px;">${changes || '<span style="color:var(--text3);font-size:11px;">(no field changes)</span>'}</div>`;
+  });
+
+  makeSection('Already Exists / Duplicates', duplicates, 'dup', item => {
+    return `<div class="review-item-name">${escHtml(item.name || '(unnamed)')}</div>
+            <div class="review-notes">${escHtml(item.note || '')}</div>`;
+  });
+
+  updateReviewBtn();
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toggleReviewItem(key) {
+  reviewAccepted[key] = !reviewAccepted[key];
+  renderReviewContent();
+}
+
+function toggleAllReview() {
+  const anyAccepted = Object.values(reviewAccepted).some(Boolean);
+  // If any are accepted, reject all; otherwise accept all
+  Object.keys(reviewAccepted).forEach(k => { reviewAccepted[k] = !anyAccepted; });
+  renderReviewContent();
+}
+
+function updateReviewBtn() {
+  const count = Object.values(reviewAccepted).filter(Boolean).length;
+  const btn = document.getElementById('reviewConfirmBtn');
+  if (btn) btn.textContent = `Confirm Import (${count} change${count !== 1 ? 's' : ''})`;
+}
+
+function closeReviewModal() {
+  document.getElementById('reviewModal').classList.remove('open');
+  reviewDiff = null;
+  reviewAccepted = {};
+}
+
+function confirmImport() {
+  if (!reviewDiff) return;
+
+  const { new_tasks, updates } = reviewDiff;
+  let count = 0;
+
+  new_tasks.forEach((item, i) => {
+    if (!reviewAccepted[`new_${i}`]) return;
+    tasks.unshift({
+      id: uid(),
+      name: item.name || 'Untitled',
+      project: PROJECTS[item.project] ? item.project : 'admin',
+      priority: ['urgent','high','med','low'].includes(item.priority) ? item.priority : 'med',
+      due: item.due || '',
+      est: parseFloat(item.est) || 0,
+      category: item.category || '',
+      waiting: item.waiting || '',
+      notes: item.notes || '',
+      timer: 0, timerStart: null, completed: false
+    });
+    count++;
+  });
+
+  updates.forEach((item, i) => {
+    if (!reviewAccepted[`upd_${i}`]) return;
+    const task = tasks.find(t => t.id === item.id);
+    if (!task) return;
+    const { id, ...changes } = item;
+    Object.assign(task, changes);
+    count++;
+  });
+
+  if (count > 0) {
+    save('wt_tasks', tasks);
+    renderTasks();
+    updateHeaderMeta();
+  }
+
+  closeReviewModal();
+
+  if (count > 0) {
+    // Brief visual feedback via the header meta
+    const el = document.getElementById('headerMeta');
+    const prev = el.textContent;
+    el.textContent = `✓ Imported ${count} change${count !== 1 ? 's' : ''}`;
+    el.style.color = 'var(--success)';
+    setTimeout(() => { el.style.color = ''; updateHeaderMeta(); }, 3000);
+  }
+}
 
 </script>
 </body>
