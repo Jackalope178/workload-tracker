@@ -196,6 +196,7 @@
     padding: 7px 8px;
     border-radius: 5px;
     border: 1px solid transparent;
+    position: relative;
     margin-bottom: 3px;
     transition: all 0.12s;
     background: var(--bg2);
@@ -512,8 +513,14 @@
   .session-desc:hover { color: var(--accent); }
   .delegate-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; vertical-align: middle; border: 1px solid transparent; }
   .recur-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--bg3); color: var(--text3); border: 1px solid var(--border); vertical-align: middle; }
-  .recur-occurrence-actions { display: none; gap: 3px; }
-  .task-row:hover .recur-occurrence-actions { display: flex; }
+  .recur-occurrence-actions {
+    display: none; gap: 3px;
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 4px;
+    padding: 2px 4px; z-index: 10;
+  }
+  .task-row:hover .recur-occurrence-actions,
+  .ts-entry-row:hover .recur-occurrence-actions { display: flex; }
   .day-toggle { cursor:pointer; user-select:none; }
   .day-toggle input { display:none; }
   .day-toggle span { display:inline-block; padding:3px 9px; border-radius:20px; background:var(--bg3); border:1px solid var(--border); font-size:11px; transition:all 0.12s; color:var(--text2); }
@@ -628,7 +635,7 @@
     grid-template-columns: 1fr auto auto auto auto auto;
     gap: 8px; align-items: center;
     padding: 8px 14px; border-bottom: 1px solid var(--border);
-    font-size: 12px;
+    font-size: 12px; position: relative;
   }
   .ts-entry-row:hover { background: var(--bg3); }
   .ts-entry-row:hover .ts-entry-actions { opacity: 1; }
@@ -2206,11 +2213,11 @@ function renderTasks() {
           <div style="display:flex;align-items:center;gap:6px;">
             <span class="timer-display${isRunning ? ' running' : ''}" data-id="${task.id}">${timerStr}</span>
             <div class="timer-btn${isRunning ? ' running' : ''}" onclick="${isRunning ? `stopTimer('${task.id}')` : `startTimer('${task.id}')`}" title="${isRunning ? 'Stop' : 'Start'} timer">${isRunning ? '⏹' : '▶'}</div>
-            ${task.recurrence ? `<span class="recur-occurrence-actions">
-              <button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}')" title="Skip this occurrence" style="font-size:10px;padding:2px 5px;">Skip</button>
-              <button class="row-edit-btn" onclick="event.stopPropagation();rescheduleRecurOccurrence('${task.id}')" title="Reschedule this occurrence" style="font-size:10px;padding:2px 5px;">Reschedule</button>
-            </span>` : ''}
-          </div>`;
+          </div>
+          ${task.recurrence ? `<span class="recur-occurrence-actions">
+            <button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}')" title="Skip this occurrence" style="font-size:10px;padding:2px 5px;">Skip</button>
+            <button class="row-edit-btn" onclick="event.stopPropagation();rescheduleRecurOccurrence('${task.id}')" title="Reschedule this occurrence" style="font-size:10px;padding:2px 5px;">Reschedule</button>
+          </span>` : ''}`;
 
       } else if (item._type === 'session') {
         const { s, proj } = item;
@@ -3059,11 +3066,11 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
           <span></span>
           <div class="ts-entry-actions" style="opacity:1;">
             ${editFn ? `<button class="row-edit-btn" onclick="${editFn}" title="Edit task">✏</button>` : ''}
-            ${taskObj && taskObj.recurrence ? `
-              <button class="row-edit-btn" onclick="skipRecurOccurrence('${taskObj.id}')" title="Skip this occurrence" style="font-size:10px;padding:2px 5px;">Skip</button>
-              <button class="row-edit-btn" onclick="rescheduleRecurOccurrence('${taskObj.id}')" title="Reschedule this occurrence" style="font-size:10px;padding:2px 5px;">Reschedule</button>
-            ` : ''}
           </div>
+          ${taskObj && taskObj.recurrence ? `<span class="recur-occurrence-actions">
+            <button class="row-edit-btn" onclick="skipRecurOccurrence('${taskObj.id}')" title="Skip this occurrence" style="font-size:10px;padding:2px 5px;">Skip</button>
+            <button class="row-edit-btn" onclick="rescheduleRecurOccurrence('${taskObj.id}')" title="Reschedule this occurrence" style="font-size:10px;padding:2px 5px;">Reschedule</button>
+          </span>` : ''}
         `;
       } else {
         row.innerHTML = `
