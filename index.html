@@ -4211,7 +4211,20 @@ function allocCopyForward() {
   let copied = 0;
   Object.entries(PROJECTS).forEach(([projKey, proj]) => {
     const subs = proj.subCodes || [];
-    if (subs.length === 0) return;
+    if (subs.length === 0) {
+      // Project-level allocation (no sub-codes)
+      const srcKey = allocKey(projKey, '', curMonth);
+      const srcVal = allocations[srcKey];
+      if (srcVal) {
+        for (let m = 1; m <= 12; m++) {
+          const ym = String(allocYear) + '-' + String(m).padStart(2, '0');
+          if (ym <= curMonth) continue;
+          const destKey = allocKey(projKey, '', ym);
+          if (!allocations[destKey]) { allocations[destKey] = srcVal; copied++; }
+        }
+      }
+      return;
+    }
     subs.forEach(sc => {
       const srcKey = allocKey(projKey, sc.id, curMonth);
       const srcVal = allocations[srcKey];
@@ -4288,9 +4301,14 @@ function renderAllocations() {
     html += `<tr class="alloc-proj-header"><td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${proj.color};margin-right:6px;"></span>${proj.label}${codeStr}</td>`;
 
     // Project-level summary per month
+    const noSubs = subs.length === 0;
     months.forEach((m, mi) => {
       let projAlloc = 0, projActual = 0;
-      if (subs.length > 0) {
+      if (noSubs) {
+        // Project-level allocation (no sub-codes) — editable at project row
+        projAlloc = allocations[allocKey(projKey, '', m.ym)] || 0;
+        projActual = allocGetAllProjectActuals(projKey, m.ym);
+      } else {
         subs.forEach(sc => {
           projAlloc += allocations[allocKey(projKey, sc.id, m.ym)] || 0;
           projActual += allocGetActuals(projKey, sc.id, m.ym);
@@ -4300,8 +4318,6 @@ function renderAllocations() {
         const assignedActual = projActual;
         const unassignedActual = allProjActual - assignedActual;
         if (unassignedActual > 0) projActual += unassignedActual;
-      } else {
-        projActual = allocGetAllProjectActuals(projKey, m.ym);
       }
       projAllocTotals[mi] = projAlloc;
       projActualTotals[mi] = projActual;
@@ -4311,7 +4327,14 @@ function renderAllocations() {
       const pct = projAlloc > 0 ? Math.round((projActual / projAlloc) * 100) : (projActual > 0 ? 100 : 0);
       const clr = projAlloc > 0 ? barColor(pct) : '';
       html += `<td class="alloc-cell">`;
-      html += `<div style="font-weight:600;font-size:11px;">${projAlloc > 0 ? projAlloc + 'h' : '—'}</div>`;
+      if (noSubs) {
+        // Editable input for projects without sub-codes
+        html += `<input type="number" min="0" step="1" value="${projAlloc || ''}" placeholder="—"
+                  onchange="allocSet('${projKey}','','${m.ym}',this.value)"
+                  title="Allocated hours for ${proj.label} in ${m.label}">`;
+      } else {
+        html += `<div style="font-weight:600;font-size:11px;">${projAlloc > 0 ? projAlloc + 'h' : '—'}</div>`;
+      }
       if (projActual > 0 || projAlloc > 0) {
         html += `<div class="alloc-actual">${projActual.toFixed(1)}h used</div>`;
         if (projAlloc > 0) {
