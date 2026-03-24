@@ -508,6 +508,7 @@
   .session-row:hover { background: var(--bg3); }
   .session-row-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.12s; }
   .session-row:hover .session-row-actions { opacity: 1; }
+  .delegate-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--accent2, #7c3aed22); color: var(--accent, #7c3aed); vertical-align: middle; }
 
   .session-num {
     color: var(--text3);
@@ -1327,6 +1328,10 @@
         <label class="edit-label">Hours</label>
         <input class="edit-input" type="number" id="editSessionHours" min="0.25" step="0.25" placeholder="1">
       </div>
+      <div class="edit-form-group full">
+        <label class="edit-label">Delegate to <span style="font-weight:400;color:var(--text3);">(optional — appears in Team tab)</span></label>
+        <input class="edit-input" id="editSessionDelegate" placeholder="e.g. Sarah">
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeEditSessionModal()">Cancel</button>
@@ -2017,7 +2022,7 @@ function renderProjects() {
               ${s.done ? '<span style="color:#0d0f14;font-size:11px;">✓</span>' : ''}
             </div>
             <div class="session-num">#${s.num}</div>
-            <div class="session-desc" style="${s.done ? 'text-decoration:line-through;color:var(--text3);' : ''}">${s.desc}</div>
+            <div class="session-desc" style="${s.done ? 'text-decoration:line-through;color:var(--text3);' : ''}">${s.desc}${s.delegatedTo ? ` <span class="delegate-tag">↗ ${s.delegatedTo}</span>` : ''}</div>
             <div class="session-date">${fmtDate(s.date)}</div>
             <div class="session-hours">${s.hours}h</div>
             <div class="session-row-actions" onclick="event.stopPropagation()">
@@ -2052,6 +2057,7 @@ function toggleSession(projId, sessionId) {
   if (s) s.done = !s.done;
   save('wt_bigprojs', bigProjs);
   renderProjects();
+  renderTeam();
 }
 
 function openAddProjectModal() {
@@ -2115,7 +2121,27 @@ function renderTeam() {
   const fStatus = document.getElementById('teamFilterStatus')?.value || 'all';
   const sort    = document.getElementById('teamSort')?.value || 'default';
 
-  let visible = [...teamItems];
+  // Collect delegated sessions from big projects as synthetic team items
+  const delegatedItems = [];
+  bigProjs.forEach(proj => {
+    proj.sessions.forEach(s => {
+      if (s.delegatedTo) {
+        delegatedItems.push({
+          id: s.id,
+          name: s.desc,
+          owner: s.delegatedTo,
+          project: proj.project,
+          due: s.date,
+          status: s.done ? 'complete' : 'not-started',
+          notes: `From project: ${proj.name}`,
+          _delegated: true,
+          _projId: proj.id
+        });
+      }
+    });
+  });
+
+  let visible = [...teamItems, ...delegatedItems];
   if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || t.owner.toLowerCase().includes(search) || (t.notes||'').toLowerCase().includes(search));
   if (fProj !== 'all') visible = visible.filter(t => t.project === fProj);
   if (fStatus !== 'all') visible = visible.filter(t => t.status === fStatus);
@@ -2135,14 +2161,25 @@ function renderTeam() {
     const row = document.createElement('div');
     row.className = 'team-row';
     const dc = dueCls(item.due);
-    row.innerHTML = `
-      <div class="team-task-name" onclick="toggleTeamNotes('${item.id}')" style="cursor:pointer;">${item.name}</div>
-      <span class="team-owner">👤 ${item.owner}</span>
-      <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
-      <span class="team-due ${dc}">${fmtDate(item.due)}</span>
-      <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showStatusDropdown(event,'${item.id}')" style="cursor:pointer;" title="Change status">${STATUS_LABELS[item.status]}</span>
-      <button class="row-edit-btn" onclick="openEditTeamModal('${item.id}')" title="Edit deliverable">✏</button>
-    `;
+    if (item._delegated) {
+      row.innerHTML = `
+        <div class="team-task-name" onclick="toggleTeamNotes('${item.id}')" style="cursor:pointer;">${item.name} <span class="delegate-tag">↗ delegated</span></div>
+        <span class="team-owner">👤 ${item.owner}</span>
+        <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
+        <span class="team-due ${dc}">${fmtDate(item.due)}</span>
+        <span class="status-badge ${STATUS_CLS[item.status]}">${STATUS_LABELS[item.status]}</span>
+        <button class="row-edit-btn" onclick="openEditSessionModal('${item._projId}','${item.id}')" title="Edit in project">✏</button>
+      `;
+    } else {
+      row.innerHTML = `
+        <div class="team-task-name" onclick="toggleTeamNotes('${item.id}')" style="cursor:pointer;">${item.name}</div>
+        <span class="team-owner">👤 ${item.owner}</span>
+        <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
+        <span class="team-due ${dc}">${fmtDate(item.due)}</span>
+        <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showStatusDropdown(event,'${item.id}')" style="cursor:pointer;" title="Change status">${STATUS_LABELS[item.status]}</span>
+        <button class="row-edit-btn" onclick="openEditTeamModal('${item.id}')" title="Edit deliverable">✏</button>
+      `;
+    }
     container.appendChild(row);
     if (item.notes) {
       const notesRow = document.createElement('div');
@@ -2514,6 +2551,7 @@ function openAddSessionModal(projId) {
   document.getElementById('editSessionDesc').value = '';
   document.getElementById('editSessionDate').value = new Date().toISOString().slice(0, 10);
   document.getElementById('editSessionHours').value = '1';
+  document.getElementById('editSessionDelegate').value = '';
   document.getElementById('editSessionModal').classList.add('open');
 }
 
@@ -2527,6 +2565,7 @@ function openEditSessionModal(projId, sessionId) {
   document.getElementById('editSessionDesc').value = s.desc;
   document.getElementById('editSessionDate').value = s.date;
   document.getElementById('editSessionHours').value = s.hours;
+  document.getElementById('editSessionDelegate').value = s.delegatedTo || '';
   document.getElementById('editSessionModal').classList.add('open');
 }
 
@@ -2539,24 +2578,24 @@ function closeEditSessionModal() {
 function saveSession() {
   const proj = bigProjs.find(p => p.id === editingSessionProjId);
   if (!proj) return;
-  const desc  = document.getElementById('editSessionDesc').value.trim();
-  const date  = document.getElementById('editSessionDate').value;
-  const hours = parseFloat(document.getElementById('editSessionHours').value) || 1;
+  const desc       = document.getElementById('editSessionDesc').value.trim();
+  const date       = document.getElementById('editSessionDate').value;
+  const hours      = parseFloat(document.getElementById('editSessionHours').value) || 1;
+  const delegatedTo = document.getElementById('editSessionDelegate').value.trim();
   if (!desc) return alert('Description is required.');
 
   if (editingSessionId) {
-    // editing existing
     const s = proj.sessions.find(s => s.id === editingSessionId);
-    if (s) { s.desc = desc; s.date = date; s.hours = hours; }
+    if (s) { s.desc = desc; s.date = date; s.hours = hours; s.delegatedTo = delegatedTo || null; }
   } else {
-    // adding new — num = max existing + 1
     const maxNum = proj.sessions.reduce((m, s) => Math.max(m, s.num), 0);
-    proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, hours, done: false });
+    proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, hours, done: false, delegatedTo: delegatedTo || null });
   }
 
   save('wt_bigprojs', bigProjs);
   closeEditSessionModal();
   renderProjects();
+  renderTeam();
 }
 
 function deleteSession(projId, sessionId) {
