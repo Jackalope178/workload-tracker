@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PM Workload Tracker</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap');
 
   :root {
     --bg: #0d0f14;
@@ -37,9 +37,10 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
   }
 
   /* HEADER */
@@ -82,7 +83,7 @@
 
   .tab {
     padding: 10px 16px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     color: var(--text3);
@@ -117,7 +118,7 @@
     background: var(--bg3);
     border: 1px solid var(--border);
     color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 12px;
     padding: 6px 10px;
     border-radius: 4px;
@@ -133,7 +134,7 @@
     background: var(--bg3);
     border: 1px solid var(--border);
     color: var(--text2);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 11px;
     padding: 6px 10px;
     border-radius: 4px;
@@ -148,7 +149,7 @@
     background: var(--bg3);
     border: 1px solid var(--border);
     color: var(--text2);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     padding: 6px 12px;
@@ -352,7 +353,7 @@
     background: var(--bg2);
     border: 1px solid var(--border);
     color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 12px;
     padding: 6px 10px;
     border-radius: 4px;
@@ -431,7 +432,7 @@
     background: var(--bg3);
     border: 1px solid var(--accent);
     color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 14px;
     font-weight: 700;
     padding: 6px 10px;
@@ -652,7 +653,7 @@
     background: var(--bg4);
     border: 1px solid var(--accent);
     color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 11px;
     padding: 2px 6px;
     border-radius: 3px;
@@ -717,7 +718,7 @@
     background: var(--bg3);
     border: 1px solid var(--border);
     color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 12px;
     padding: 6px 8px;
     border-radius: 4px;
@@ -757,7 +758,7 @@
     background: var(--bg3);
     border: 1px solid var(--border);
     color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 12px;
     padding: 10px;
     border-radius: 4px;
@@ -845,7 +846,7 @@
     background: var(--bg3);
     border: 1px solid var(--border);
     color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 12px;
     padding: 7px 10px;
     border-radius: 4px;
@@ -876,6 +877,124 @@
     margin-top: 8px;
     min-height: 16px;
   }
+
+  /* FLOATING DROPDOWN */
+  .dropdown-menu {
+    position: fixed;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 4px;
+    z-index: 3000;
+    min-width: 140px;
+    display: none;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+  }
+  .dropdown-menu.open { display: block; }
+  .dropdown-item {
+    padding: 7px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    transition: background 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dropdown-item:hover { background: var(--bg4); color: var(--text); }
+  .dropdown-item.current { color: var(--accent); }
+  .dropdown-item .dd-swatch {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  /* ROW EDIT BUTTON */
+  .row-edit-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--text3);
+    transition: all 0.12s;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .row-edit-btn:hover { border-color: var(--border); background: var(--bg4); color: var(--text2); }
+
+  /* TEAM ROW: add 7th col for edit btn */
+  .team-row {
+    grid-template-columns: 1fr auto auto auto auto auto auto !important;
+  }
+
+  /* TEAM PERSON GROUP HEADER */
+  .team-person-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    padding: 8px 4px 4px;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .team-person-header:first-child { margin-top: 0; }
+
+  /* MANAGE PROJECTS */
+  .proj-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .proj-meta-row:last-of-type { border-bottom: none; }
+  .proj-meta-key {
+    font-size: 10px;
+    color: var(--text3);
+    font-family: monospace;
+    min-width: 56px;
+  }
+  .proj-meta-input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    outline: none;
+    flex: 1;
+    transition: border-color 0.15s;
+  }
+  .proj-meta-input:focus { border-color: var(--accent); }
+  input[type="color"].color-picker {
+    width: 34px;
+    height: 28px;
+    padding: 2px 3px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* PROJECT CARD ACTIONS */
+  .proj-card-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    align-items: center;
+  }
 </style>
 </head>
 <body>
@@ -883,7 +1002,10 @@
 <div class="header">
   <div class="header-title">PM <span>//</span> Workload</div>
   <div class="header-meta" id="headerMeta"></div>
-  <button class="btn" onclick="openSettingsModal()" style="font-size:10px;padding:4px 10px;margin-left:12px;" title="API Settings">⚙ Settings</button>
+  <div style="display:flex;gap:6px;margin-left:12px;">
+    <button class="btn" onclick="openManageProjectsModal()" style="font-size:10px;padding:4px 10px;" title="Add / edit project codes">⬡ Projects</button>
+    <button class="btn" onclick="openSettingsModal()" style="font-size:10px;padding:4px 10px;" title="API Settings">⚙ Settings</button>
+  </div>
 </div>
 
 <div class="active-timer-strip" id="activeStrip">
@@ -980,6 +1102,11 @@
         <option value="in-review">In Review</option>
         <option value="complete">Complete</option>
         <option value="blocked">Blocked</option>
+      </select>
+      <select class="filter-select" id="teamSort">
+        <option value="default">Default order</option>
+        <option value="person">Sort by person</option>
+        <option value="due">Sort by due date</option>
       </select>
       <button class="btn primary" onclick="openAddTeamModal()">+ Add Deliverable</button>
     </div>
@@ -1150,6 +1277,99 @@
   </div>
 </div>
 
+<!-- FLOATING DROPDOWN (shared for priority & status) -->
+<div id="dropdownMenu" class="dropdown-menu"></div>
+
+<!-- EDIT BIG PROJECT MODAL -->
+<div class="modal-overlay" id="editBigProjModal">
+  <div class="modal">
+    <div class="modal-title">Edit Project</div>
+    <div style="margin-bottom:14px;"></div>
+    <div class="edit-form-grid">
+      <div class="edit-form-group full">
+        <label class="edit-label">Project Title</label>
+        <input class="edit-input" id="editBigProjName">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Linked Project Code</label>
+        <select class="edit-input" id="editBigProjProject"></select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Custom Color (overrides code)</label>
+        <input type="color" class="edit-input" id="editBigProjColor" style="height:36px;padding:2px 4px;cursor:pointer;">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" style="margin-right:auto;color:var(--danger);border-color:var(--danger);" onclick="deleteBigProj()">Delete</button>
+      <button class="btn" onclick="closeEditBigProjModal()">Cancel</button>
+      <button class="btn primary" onclick="saveEditBigProj()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT TEAM DELIVERABLE MODAL -->
+<div class="modal-overlay" id="editTeamModal">
+  <div class="modal">
+    <div class="modal-title">Edit Deliverable</div>
+    <div style="margin-bottom:14px;"></div>
+    <div class="edit-form-grid">
+      <div class="edit-form-group full">
+        <label class="edit-label">Task / Deliverable</label>
+        <input class="edit-input" id="editTeamName">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Owner</label>
+        <input class="edit-input" id="editTeamOwner">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Project</label>
+        <select class="edit-input" id="editTeamProject"></select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Due Date</label>
+        <input class="edit-input" type="date" id="editTeamDue">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Status</label>
+        <select class="edit-input" id="editTeamStatus">
+          <option value="not-started">Not Started</option>
+          <option value="pending">Pending</option>
+          <option value="in-progress">In Progress</option>
+          <option value="in-review">In Review</option>
+          <option value="complete">Complete</option>
+          <option value="blocked">Blocked</option>
+        </select>
+      </div>
+      <div class="edit-form-group full">
+        <label class="edit-label">Notes</label>
+        <input class="edit-input" id="editTeamNotes">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" style="margin-right:auto;color:var(--danger);border-color:var(--danger);" onclick="deleteTeamItem()">Delete</button>
+      <button class="btn" onclick="closeEditTeamModal()">Cancel</button>
+      <button class="btn primary" onclick="saveEditTeamItem()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE PROJECTS MODAL -->
+<div class="modal-overlay" id="manageProjectsModal">
+  <div class="modal modal-wide">
+    <div class="modal-title">Manage Project Codes</div>
+    <div class="modal-subtitle">Edit names and colors. Changes apply across all tabs immediately.</div>
+    <div id="projectMetaList" style="max-height:380px;overflow-y:auto;margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
+      <input class="edit-input" id="newProjLabel" placeholder="New project name" style="flex:1;">
+      <input type="color" class="color-picker" id="newProjColor" value="#60a5fa" title="Pick color">
+      <button class="btn primary" onclick="addNewProjectCode()">+ Add</button>
+    </div>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="btn primary" onclick="closeManageProjectsModal()">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- BRAIN DUMP MODAL -->
 <div class="modal-overlay" id="brainDumpModal">
   <div class="modal modal-wide">
@@ -1200,15 +1420,20 @@
 // DATA LAYER
 // =============================================
 
-const PROJECTS = {
-  cwc:      { label: 'CWC',                   color: '#22c55e' },
-  charlotte: { label: 'Charlotte Water / IWP', color: '#3b82f6' },
+const DEFAULT_PROJECTS = {
+  cwc:      { label: 'CWC',                     color: '#22c55e' },
+  charlotte: { label: 'Charlotte Water / IWP',  color: '#3b82f6' },
   ipp:      { label: 'IPP / Instructor Network', color: '#a78bfa' },
-  doee:     { label: 'DOEE / Kansas City',     color: '#f97316' },
-  admin:    { label: 'Admin / Internal',       color: '#94a3b8' },
-  src:      { label: 'SRC',                   color: '#f87171' },
-  p2:       { label: 'P2',                    color: '#fbbf24' }
+  doee:     { label: 'DOEE / Kansas City',       color: '#f97316' },
+  admin:    { label: 'Admin / Internal',         color: '#94a3b8' },
+  src:      { label: 'SRC',                      color: '#f87171' },
+  p2:       { label: 'P2',                       color: '#fbbf24' }
 };
+
+let PROJECTS = load('wt_projects_meta', null);
+if (!PROJECTS) { PROJECTS = DEFAULT_PROJECTS; save('wt_projects_meta', PROJECTS); }
+
+function saveProjects() { save('wt_projects_meta', PROJECTS); }
 
 function uid() {
   return '_' + Math.random().toString(36).slice(2, 11);
@@ -1431,7 +1656,8 @@ function projColor(key) { return PROJECTS[key]?.color || '#666'; }
 function projLabel(key) { return PROJECTS[key]?.label || key; }
 
 function populateProjectSelects() {
-  const ids = ['filterProject', 'newTaskProject', 'editProject', 'teamAddProject', 'projAddProject', 'teamFilterProject', 'tsFilterProject'];
+  const ids = ['filterProject','newTaskProject','editProject','teamAddProject','projAddProject',
+               'teamFilterProject','tsFilterProject','editBigProjProject','editTeamProject'];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1456,15 +1682,6 @@ function priorityBadge(p) {
   return `<span class="priority-badge ${cls}">${label}</span>`;
 }
 
-function cycleTaskPriority(id) {
-  const task = tasks.find(t => t.id === id);
-  if (!task) return;
-  const order = ['urgent', 'high', 'med', 'low'];
-  const i = order.indexOf(task.priority);
-  task.priority = order[(i + 1) % order.length];
-  save('wt_tasks', tasks);
-  renderTasks();
-}
 
 function renderTasks() {
   const search = document.getElementById('taskSearch')?.value?.toLowerCase() || '';
@@ -1529,7 +1746,7 @@ function renderTasks() {
         <div class="task-name" onclick="openEditModal('${task.id}')" title="${task.notes || ''}">${task.name}</div>
         ${task.category ? `<span class="task-category">${task.category}</span>` : '<span></span>'}
         ${task.waiting ? `<span class="task-waiting" title="Waiting on: ${task.waiting}">⏳ ${task.waiting}</span>` : '<span></span>'}
-        <div onclick="cycleTaskPriority('${task.id}')">${priorityBadge(task.priority)}</div>
+        <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
         <div class="task-due ${dc}" onclick="openDueDatePicker(this, '${task.id}')">${fmtDate(task.due)}</div>
         <div class="task-est">${task.est ? task.est + 'h' : '—'}</div>
         <div style="display:flex;align-items:center;gap:6px;">
@@ -1750,16 +1967,20 @@ function renderProjects() {
     const card = document.createElement('div');
     card.className = 'project-card';
 
+    const cardColor = proj.color || projColor(proj.project);
     card.innerHTML = `
       <div class="project-card-header" onclick="toggleProjectSessions('${proj.id}')">
-        <div class="project-dot" style="background:${projColor(proj.project)};width:9px;height:9px;border-radius:50%;"></div>
+        <div class="project-dot" style="background:${cardColor};width:9px;height:9px;border-radius:50%;"></div>
         <div class="project-name-big">${proj.name}</div>
         <div style="font-size:11px;color:var(--text3);margin-right:8px;">${projLabel(proj.project)}</div>
         <div class="progress-bar-wrap">
-          <div class="progress-bar-fill" style="width:${pct}%;background:${projColor(proj.project)};"></div>
+          <div class="progress-bar-fill" style="width:${pct}%;background:${cardColor};"></div>
         </div>
         <div class="progress-pct">${pct}%</div>
-        <span class="collapse-icon" style="margin-left:8px;">▼</span>
+        <div class="proj-card-actions" onclick="event.stopPropagation()">
+          <button class="row-edit-btn" onclick="openEditBigProjModal('${proj.id}')" title="Edit project">✏</button>
+        </div>
+        <span class="collapse-icon" style="margin-left:4px;">▼</span>
       </div>
       <div class="session-list" id="sessions-${proj.id}">
         ${proj.sessions.map(s => `
@@ -1774,8 +1995,8 @@ function renderProjects() {
           </div>
         `).join('')}
         <div style="padding:8px 14px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:16px;">
-          <span style="font-size:11px;color:var(--text3);">Total: ${proj.sessions.reduce((a,s) => a + s.hours, 0)}h</span>
-          <span style="font-size:11px;color:var(--text3);">Done: ${proj.sessions.filter(s=>s.done).reduce((a,s) => a + s.hours, 0)}h</span>
+          <span style="font-size:11px;color:var(--text3);">Total: ${proj.sessions.reduce((a,s)=>a+s.hours,0)}h</span>
+          <span style="font-size:11px;color:var(--text3);">Done: ${proj.sessions.filter(s=>s.done).reduce((a,s)=>a+s.hours,0)}h</span>
         </div>
       </div>
     `;
@@ -1852,24 +2073,20 @@ const STATUS_CLS = {
   'blocked': 's-blocked'
 };
 
-function cycleStatus(id) {
-  const item = teamItems.find(t => t.id === id);
-  if (!item) return;
-  const i = STATUS_CYCLE.indexOf(item.status);
-  item.status = STATUS_CYCLE[(i + 1) % STATUS_CYCLE.length];
-  save('wt_team', teamItems);
-  renderTeam();
-}
 
 function renderTeam() {
   const search  = document.getElementById('teamSearch')?.value?.toLowerCase() || '';
   const fProj   = document.getElementById('teamFilterProject')?.value || 'all';
   const fStatus = document.getElementById('teamFilterStatus')?.value || 'all';
+  const sort    = document.getElementById('teamSort')?.value || 'default';
 
   let visible = [...teamItems];
-  if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || t.owner.toLowerCase().includes(search) || t.notes.toLowerCase().includes(search));
+  if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || t.owner.toLowerCase().includes(search) || (t.notes||'').toLowerCase().includes(search));
   if (fProj !== 'all') visible = visible.filter(t => t.project === fProj);
   if (fStatus !== 'all') visible = visible.filter(t => t.status === fStatus);
+
+  if (sort === 'person') visible.sort((a, b) => (a.owner||'').localeCompare(b.owner||''));
+  else if (sort === 'due') visible.sort((a, b) => (a.due||'9999') < (b.due||'9999') ? -1 : 1);
 
   const container = document.getElementById('teamList');
   container.innerHTML = '';
@@ -1879,7 +2096,7 @@ function renderTeam() {
     return;
   }
 
-  visible.forEach(item => {
+  function renderRow(item) {
     const row = document.createElement('div');
     row.className = 'team-row';
     const dc = dueCls(item.due);
@@ -1888,7 +2105,8 @@ function renderTeam() {
       <span class="team-owner">👤 ${item.owner}</span>
       <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
       <span class="team-due ${dc}">${fmtDate(item.due)}</span>
-      <span class="status-badge ${STATUS_CLS[item.status]}" onclick="cycleStatus('${item.id}')">${STATUS_LABELS[item.status]}</span>
+      <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showStatusDropdown(event,'${item.id}')" style="cursor:pointer;" title="Change status">${STATUS_LABELS[item.status]}</span>
+      <button class="row-edit-btn" onclick="openEditTeamModal('${item.id}')" title="Edit deliverable">✏</button>
     `;
     container.appendChild(row);
     if (item.notes) {
@@ -1898,7 +2116,21 @@ function renderTeam() {
       notesRow.textContent = '↳ ' + item.notes;
       container.appendChild(notesRow);
     }
-  });
+  }
+
+  if (sort === 'person') {
+    const grouped = {};
+    visible.forEach(item => { (grouped[item.owner||'—'] = grouped[item.owner||'—'] || []).push(item); });
+    Object.entries(grouped).forEach(([owner, items]) => {
+      const hdr = document.createElement('div');
+      hdr.className = 'team-person-header';
+      hdr.innerHTML = `👤 ${owner} <span class="group-count">${items.length}</span>`;
+      container.appendChild(hdr);
+      items.forEach(renderRow);
+    });
+  } else {
+    visible.forEach(renderRow);
+  }
 }
 
 function toggleTeamNotes(id) {
@@ -2062,7 +2294,8 @@ document.querySelectorAll('.tab').forEach(tab => {
 // CLOSE MODALS ON OVERLAY CLICK
 // =============================================
 
-['completionModal','editTaskModal','addTeamModal','addProjectModal','brainDumpModal','reviewModal','settingsModal'].forEach(id => {
+['completionModal','editTaskModal','addTeamModal','addProjectModal','brainDumpModal','reviewModal',
+ 'settingsModal','editBigProjModal','editTeamModal','manageProjectsModal'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
 });
@@ -2077,7 +2310,7 @@ document.querySelectorAll('.tab').forEach(tab => {
   if (el) el.addEventListener('change', renderTasks);
 });
 
-['teamSearch','teamFilterProject','teamFilterStatus'].forEach(id => {
+['teamSearch','teamFilterProject','teamFilterStatus','teamSort'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', renderTeam);
   if (el) el.addEventListener('change', renderTeam);
@@ -2107,6 +2340,252 @@ tasks.forEach(t => {
 
 // Update header meta periodically
 setInterval(updateHeaderMeta, 5000);
+
+// =============================================
+// SHARED FLOATING DROPDOWN
+// =============================================
+
+let _ddCallback = null;
+
+function showDropdown(anchorEl, items, currentVal, callback) {
+  const menu = document.getElementById('dropdownMenu');
+  const rect = anchorEl.getBoundingClientRect();
+  menu.innerHTML = items.map(it =>
+    `<div class="dropdown-item${it.value === currentVal ? ' current' : ''}" onclick="_ddSelect('${it.value}')">
+      ${it.swatch ? `<span class="dd-swatch" style="background:${it.swatch}"></span>` : ''}${it.label}
+    </div>`
+  ).join('');
+  // Position below anchor, flip up if off-screen
+  let top = rect.bottom + window.scrollY + 4;
+  const left = Math.min(rect.left, window.innerWidth - 160);
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+  menu.classList.add('open');
+  _ddCallback = callback;
+  // If menu goes below viewport, reposition above
+  requestAnimationFrame(() => {
+    const mRect = menu.getBoundingClientRect();
+    if (mRect.bottom > window.innerHeight - 8) {
+      menu.style.top = (rect.top + window.scrollY - mRect.height - 4) + 'px';
+    }
+  });
+}
+
+function _ddSelect(value) {
+  if (_ddCallback) _ddCallback(value);
+  closeDropdown();
+}
+
+function closeDropdown() {
+  document.getElementById('dropdownMenu').classList.remove('open');
+  _ddCallback = null;
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#dropdownMenu')) closeDropdown();
+}, true);
+
+// =============================================
+// PRIORITY DROPDOWN
+// =============================================
+
+const PRIORITY_OPTS = [
+  { value: 'urgent', label: 'Urgent', swatch: '#f87171' },
+  { value: 'high',   label: 'High',   swatch: '#fbbf24' },
+  { value: 'med',    label: 'Med',    swatch: '#60a5fa' },
+  { value: 'low',    label: 'Low',    swatch: '#4ade80' }
+];
+
+function showPriorityDropdown(e, taskId) {
+  e.stopPropagation();
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+  showDropdown(e.currentTarget, PRIORITY_OPTS, task.priority, val => {
+    task.priority = val;
+    save('wt_tasks', tasks);
+    renderTasks();
+  });
+}
+
+// =============================================
+// STATUS DROPDOWN
+// =============================================
+
+const STATUS_OPTS = STATUS_CYCLE.map(v => ({ value: v, label: STATUS_LABELS[v] }));
+
+function showStatusDropdown(e, itemId) {
+  e.stopPropagation();
+  const item = teamItems.find(t => t.id === itemId);
+  if (!item) return;
+  showDropdown(e.currentTarget, STATUS_OPTS, item.status, val => {
+    item.status = val;
+    save('wt_team', teamItems);
+    renderTeam();
+  });
+}
+
+// =============================================
+// EDIT BIG PROJECT
+// =============================================
+
+let editingBigProjId = null;
+
+function openEditBigProjModal(projId) {
+  editingBigProjId = projId;
+  const proj = bigProjs.find(p => p.id === projId);
+  if (!proj) return;
+  populateProjectSelects();
+  document.getElementById('editBigProjName').value = proj.name;
+  document.getElementById('editBigProjProject').value = proj.project || 'admin';
+  document.getElementById('editBigProjColor').value = proj.color || projColor(proj.project) || '#4f9cf9';
+  document.getElementById('editBigProjModal').classList.add('open');
+}
+
+function closeEditBigProjModal() {
+  document.getElementById('editBigProjModal').classList.remove('open');
+  editingBigProjId = null;
+}
+
+function saveEditBigProj() {
+  const proj = bigProjs.find(p => p.id === editingBigProjId);
+  if (!proj) return;
+  proj.name    = document.getElementById('editBigProjName').value.trim() || proj.name;
+  proj.project = document.getElementById('editBigProjProject').value;
+  proj.color   = document.getElementById('editBigProjColor').value;
+  save('wt_bigprojs', bigProjs);
+  closeEditBigProjModal();
+  renderProjects();
+}
+
+function deleteBigProj() {
+  if (!confirm('Delete this project and all its sessions?')) return;
+  bigProjs = bigProjs.filter(p => p.id !== editingBigProjId);
+  save('wt_bigprojs', bigProjs);
+  closeEditBigProjModal();
+  renderProjects();
+}
+
+// =============================================
+// EDIT TEAM DELIVERABLE
+// =============================================
+
+let editingTeamId = null;
+
+function openEditTeamModal(itemId) {
+  editingTeamId = itemId;
+  const item = teamItems.find(t => t.id === itemId);
+  if (!item) return;
+  populateProjectSelects();
+  document.getElementById('editTeamName').value   = item.name || '';
+  document.getElementById('editTeamOwner').value  = item.owner || '';
+  document.getElementById('editTeamProject').value= item.project || 'admin';
+  document.getElementById('editTeamDue').value    = item.due || '';
+  document.getElementById('editTeamStatus').value = item.status || 'not-started';
+  document.getElementById('editTeamNotes').value  = item.notes || '';
+  document.getElementById('editTeamModal').classList.add('open');
+}
+
+function closeEditTeamModal() {
+  document.getElementById('editTeamModal').classList.remove('open');
+  editingTeamId = null;
+}
+
+function saveEditTeamItem() {
+  const item = teamItems.find(t => t.id === editingTeamId);
+  if (!item) return;
+  item.name    = document.getElementById('editTeamName').value.trim() || item.name;
+  item.owner   = document.getElementById('editTeamOwner').value.trim();
+  item.project = document.getElementById('editTeamProject').value;
+  item.due     = document.getElementById('editTeamDue').value;
+  item.status  = document.getElementById('editTeamStatus').value;
+  item.notes   = document.getElementById('editTeamNotes').value.trim();
+  save('wt_team', teamItems);
+  closeEditTeamModal();
+  renderTeam();
+}
+
+function deleteTeamItem() {
+  if (!confirm('Delete this deliverable?')) return;
+  teamItems = teamItems.filter(t => t.id !== editingTeamId);
+  save('wt_team', teamItems);
+  closeEditTeamModal();
+  renderTeam();
+  updateHeaderMeta();
+}
+
+// =============================================
+// MANAGE PROJECT CODES
+// =============================================
+
+function openManageProjectsModal() {
+  renderProjectMetaList();
+  document.getElementById('newProjLabel').value = '';
+  document.getElementById('newProjColor').value = '#60a5fa';
+  document.getElementById('manageProjectsModal').classList.add('open');
+}
+
+function closeManageProjectsModal() {
+  document.getElementById('manageProjectsModal').classList.remove('open');
+  populateProjectSelects();
+  renderTasks();
+  renderTeam();
+  renderProjects();
+  renderTimesheet();
+}
+
+function renderProjectMetaList() {
+  const container = document.getElementById('projectMetaList');
+  if (!container) return;
+  container.innerHTML = Object.entries(PROJECTS).map(([key, proj]) => `
+    <div class="proj-meta-row" id="pmr-${key}">
+      <span class="proj-meta-key">${key}</span>
+      <input type="color" class="color-picker" value="${proj.color}"
+             onchange="updateProjectColor('${key}', this.value)" title="Pick color">
+      <input class="proj-meta-input" type="text" value="${proj.label}"
+             onblur="updateProjectLabel('${key}', this.value)"
+             onkeydown="if(event.key==='Enter') this.blur()">
+      <button class="row-edit-btn" onclick="deleteProjectCode('${key}')" style="color:var(--danger);" title="Delete project code">✕</button>
+    </div>
+  `).join('');
+}
+
+function updateProjectColor(key, color) {
+  if (!PROJECTS[key]) return;
+  PROJECTS[key].color = color;
+  saveProjects();
+}
+
+function updateProjectLabel(key, label) {
+  if (!PROJECTS[key] || !label.trim()) return;
+  PROJECTS[key].label = label.trim();
+  saveProjects();
+}
+
+function deleteProjectCode(key) {
+  const using = tasks.filter(t => !t.completed && t.project === key).length;
+  const msg = using
+    ? `${using} active task(s) use this project code. Delete anyway? Tasks will keep the code but show no color.`
+    : `Delete project code "${PROJECTS[key].label}"?`;
+  if (!confirm(msg)) return;
+  delete PROJECTS[key];
+  saveProjects();
+  renderProjectMetaList();
+}
+
+function addNewProjectCode() {
+  const label = document.getElementById('newProjLabel').value.trim();
+  if (!label) return alert('Enter a project name first.');
+  const color = document.getElementById('newProjColor').value;
+  // Generate a short unique key from the label
+  let key = label.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
+  if (!key) key = 'proj';
+  if (PROJECTS[key]) key = key + '_' + Math.random().toString(36).slice(2, 5);
+  PROJECTS[key] = { label, color };
+  saveProjects();
+  renderProjectMetaList();
+  document.getElementById('newProjLabel').value = '';
+  document.getElementById('newProjColor').value = '#60a5fa';
+}
 
 // =============================================
 // SETTINGS
