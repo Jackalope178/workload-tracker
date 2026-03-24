@@ -1239,7 +1239,7 @@
       <div style="display:flex;align-items:center;gap:5px;margin-left:auto;">
         <span style="font-size:11px;color:var(--text3);">Capacity:</span>
         <input type="number" id="tsCapacityInput" min="1" max="168" step="1" style="width:46px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);color:var(--text);font-size:12px;" onchange="saveTsCapacity(this.value)">
-        <span style="font-size:11px;color:var(--text3);">h/wk</span>
+        <span style="font-size:11px;color:var(--text3);">h/day</span>
       </div>
       <select id="tsPlannedHorizon" class="filter-select" style="display:none;" onchange="renderTimesheet()">
         <option value="4">Next 4 weeks</option>
@@ -2864,7 +2864,7 @@ function confirmAddTeam() {
 
 let tsView = 'week';
 let tsAnchor = today(); // week or month anchor date
-let tsCapacity = parseFloat(load('wt_ts_capacity', 40)) || 40;
+let tsCapacity = parseFloat(load('wt_ts_capacity', 8)) || 8;
 let tsExpandedWeeks = new Set();   // week-start strings that are expanded in week view
 let tsExpandedMonths = new Set();  // 'YYYY-MM' strings expanded in month view
 let tsMonthExpandedWeeks = new Set(); // week-start strings expanded inside month view
@@ -2912,7 +2912,7 @@ function tsPeriodToday() {
 }
 
 function saveTsCapacity(val) {
-  tsCapacity = parseFloat(val) || 40;
+  tsCapacity = parseFloat(val) || 8;
   save('wt_ts_capacity', tsCapacity);
   renderTimesheet();
 }
@@ -2974,6 +2974,19 @@ function plannedItems(fromDate, toDate) {
     });
   });
   return items;
+}
+
+// Count Mon–Fri days between two inclusive YYYY-MM-DD strings
+function workingDays(startStr, endStr) {
+  let count = 0;
+  const d = new Date(startStr + 'T00:00:00');
+  const end = new Date(endStr + 'T00:00:00');
+  while (d <= end) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
 }
 
 function renderTsCapacityBar(usedH, plannedH, capacityH, label) {
@@ -3098,8 +3111,7 @@ function renderTimesheet() {
     const monthPlanned = plannedItems(ms, me).filter(p => fProj === 'all' || p.project === fProj);
     const monthUsed = monthEntries.reduce((a, e) => a + e.actualHours, 0);
     const monthPlannedH = monthPlanned.reduce((a, p) => a + p.hours, 0);
-    const weeksInMonth = Math.ceil((new Date(me + 'T00:00:00').getDate()) / 7);
-    renderTsCapacityBar(monthUsed, monthPlannedH, tsCapacity * weeksInMonth, monthLabel);
+    renderTsCapacityBar(monthUsed, monthPlannedH, workingDays(ms, me) * tsCapacity, monthLabel);
 
     let weekCursor = new Date(ms + 'T00:00:00');
     weekCursor.setDate(weekCursor.getDate() - weekCursor.getDay());
@@ -3115,8 +3127,9 @@ function renderTimesheet() {
       const wUsed = wEntries.reduce((a, e) => a + e.actualHours, 0);
       const wPlannedH = wPlanned.reduce((a, p) => a + p.hours, 0);
       const wTotal = wUsed + wPlannedH;
-      const wPct = Math.min(Math.round((wTotal / tsCapacity) * 100), 100);
-      const wCls = wTotal > tsCapacity ? 'over' : wTotal > tsCapacity * 0.8 ? 'warn' : 'ok';
+      const wCap = workingDays(wStart, wEnd) * tsCapacity;
+      const wPct = Math.min(Math.round((wTotal / wCap) * 100), 100);
+      const wCls = wTotal > wCap ? 'over' : wTotal > wCap * 0.8 ? 'warn' : 'ok';
 
       const wsParts = wStart.split('-'), weParts = wEnd.split('-');
       const wLabel = `${months[+wsParts[1]-1]} ${+wsParts[2]} – ${months[+weParts[1]-1]} ${+weParts[2]}`;
@@ -3138,9 +3151,9 @@ function renderTimesheet() {
             </div>
             <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${wPct}%</span>
           </div>
-          <span style="font-size:10px;color:var(--text3);">${wUsed.toFixed(1)}h logged${wPlannedH > 0 ? ' + ' + wPlannedH.toFixed(1) + 'h planned' : ''} / ${tsCapacity}h</span>
+          <span style="font-size:10px;color:var(--text3);">${wUsed.toFixed(1)}h logged${wPlannedH > 0 ? ' + ' + wPlannedH.toFixed(1) + 'h planned' : ''} / ${wCap.toFixed(0)}h</span>
         </div>
-        <span class="ts-month-hours" style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};">${wCls === 'over' ? '+' + (wTotal - tsCapacity).toFixed(1) : (tsCapacity - wTotal).toFixed(1)}h left</span>
+        <span class="ts-month-hours" style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};">${wCls === 'over' ? '+' + (wTotal - wCap).toFixed(1) : (wCap - wTotal).toFixed(1)}h left</span>
         <span class="ts-month-chevron${isOpen ? ' open' : ''}">›</span>
       `;
       container.appendChild(row);
@@ -3175,8 +3188,7 @@ function renderTimesheet() {
       const mUsed = mEntries.reduce((a, e) => a + e.actualHours, 0);
       const mPlannedH = mPlanned.reduce((a, p) => a + p.hours, 0);
       const mTotal = mUsed + mPlannedH;
-      const weeksInMonth = Math.ceil(new Date(me + 'T00:00:00').getDate() / 7);
-      const mCap = tsCapacity * weeksInMonth;
+      const mCap = workingDays(ms, me) * tsCapacity;
       const mPct = Math.min(Math.round((mTotal / mCap) * 100), 100);
       const mCls = mTotal > mCap ? 'over' : mTotal > mCap * 0.8 ? 'warn' : 'ok';
       const isMonthOpen = tsExpandedMonths.has(mKey);
@@ -3221,8 +3233,9 @@ function renderTimesheet() {
           const wUsed = wEntries.reduce((a, e) => a + e.actualHours, 0);
           const wPlannedH = wPlanned.reduce((a, p) => a + p.hours, 0);
           const wTotal = wUsed + wPlannedH;
-          const wPct = Math.min(Math.round((wTotal / tsCapacity) * 100), 100);
-          const wCls = wTotal > tsCapacity ? 'over' : wTotal > tsCapacity * 0.8 ? 'warn' : 'ok';
+          const wCap = workingDays(wStart, wEnd) * tsCapacity;
+          const wPct = Math.min(Math.round((wTotal / wCap) * 100), 100);
+          const wCls = wTotal > wCap ? 'over' : wTotal > wCap * 0.8 ? 'warn' : 'ok';
           const wsParts = wStart.split('-'), weParts = wEnd.split('-');
           const wLabel = `${months[+wsParts[1]-1]} ${+wsParts[2]} – ${months[+weParts[1]-1]} ${+weParts[2]}`;
           const isWeekOpen = tsMonthExpandedWeeks.has(wStart);
@@ -3244,9 +3257,9 @@ function renderTimesheet() {
                 </div>
                 <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${wPct}%</span>
               </div>
-              <span style="font-size:10px;color:var(--text3);">${wUsed.toFixed(1)}h logged${wPlannedH > 0 ? ' + ' + wPlannedH.toFixed(1) + 'h planned' : ''} / ${tsCapacity}h</span>
+              <span style="font-size:10px;color:var(--text3);">${wUsed.toFixed(1)}h logged${wPlannedH > 0 ? ' + ' + wPlannedH.toFixed(1) + 'h planned' : ''} / ${wCap.toFixed(0)}h</span>
             </div>
-            <span class="ts-month-hours" style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};">${wCls === 'over' ? '+' + (wTotal - tsCapacity).toFixed(1) : (tsCapacity - wTotal).toFixed(1)}h left</span>
+            <span class="ts-month-hours" style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};">${wCls === 'over' ? '+' + (wTotal - wCap).toFixed(1) : (wCap - wTotal).toFixed(1)}h left</span>
             <span class="ts-month-chevron${isWeekOpen ? ' open' : ''}">›</span>
           `;
           wrapEl.appendChild(wRow);
@@ -3321,9 +3334,10 @@ function renderTimesheet() {
         const items = byWeek[wStart];
         const wEnd = addDays(wStart, 6);
         const wHours = items.reduce((a, i) => a + i.hours, 0);
-        const pct = Math.min(Math.round((wHours / tsCapacity) * 100), 100);
-        const cls = wHours > tsCapacity ? 'over' : wHours > tsCapacity * 0.8 ? 'warn' : 'ok';
-        const remaining = Math.max(tsCapacity - wHours, 0);
+        const wCap = workingDays(wStart, wEnd) * tsCapacity;
+        const pct = Math.min(Math.round((wHours / wCap) * 100), 100);
+        const cls = wHours > wCap ? 'over' : wHours > wCap * 0.8 ? 'warn' : 'ok';
+        const remaining = Math.max(wCap - wHours, 0);
 
         const wsParts = wStart.split('-'), weParts = wEnd.split('-');
         const wLabel = `${months[+wsParts[1]-1]} ${+wsParts[2]} – ${months[+weParts[1]-1]} ${+weParts[2]}`;
@@ -3336,7 +3350,7 @@ function renderTimesheet() {
             <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;">${wLabel}</span>
             <span style="font-size:11px;color:var(--text3);">
               <strong style="color:${cls === 'over' ? 'var(--danger)' : cls === 'warn' ? 'var(--warn)' : 'var(--success)'}">${wHours.toFixed(1)}h</strong> planned
-              / ${tsCapacity}h capacity
+              / ${wCap.toFixed(0)}h capacity
               · <span style="color:${remaining > 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:600;">${remaining > 0 ? remaining.toFixed(1) + 'h free' : 'over capacity'}</span>
             </span>
           </div>
