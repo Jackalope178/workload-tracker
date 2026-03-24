@@ -1447,7 +1447,7 @@
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Owner</label>
-        <input class="edit-input" id="teamAddOwner">
+        <select class="edit-input" id="teamAddOwner"></select>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Project</label>
@@ -1637,7 +1637,7 @@
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Owner</label>
-        <input class="edit-input" id="editTeamOwner">
+        <select class="edit-input" id="editTeamOwner"></select>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Project</label>
@@ -3097,7 +3097,31 @@ function toggleTeamNotes(id) {
   if (el) el.classList.toggle('open');
 }
 
+function populateOwnerSelects() {
+  ['teamAddOwner', 'editTeamOwner'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const current = el.value;
+    el.innerHTML = '<option value="">— Select —</option>';
+    PERSONS.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      el.appendChild(opt);
+    });
+    // Re-select current value; if it's a name not in PERSONS, add it as an option
+    if (current && !PERSONS.includes(current)) {
+      const opt = document.createElement('option');
+      opt.value = current;
+      opt.textContent = current;
+      el.appendChild(opt);
+    }
+    if (current) el.value = current;
+  });
+}
+
 function openAddTeamModal() {
+  populateOwnerSelects();
   document.getElementById('addTeamModal').classList.add('open');
 }
 
@@ -4331,6 +4355,7 @@ function openEditTeamModal(itemId) {
   const item = teamItems.find(t => t.id === itemId);
   if (!item) return;
   populateProjectSelects();
+  populateOwnerSelects();
   document.getElementById('editTeamName').value    = item.name || '';
   document.getElementById('editTeamOwner').value   = item.owner || '';
   document.getElementById('editTeamProject').value = item.project || 'admin';
