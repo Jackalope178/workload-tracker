@@ -508,7 +508,14 @@
   .session-row:hover { background: var(--bg3); }
   .session-row-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.12s; }
   .session-row:hover .session-row-actions { opacity: 1; }
+  .session-desc { cursor: pointer; }
+  .session-desc:hover { color: var(--accent); }
   .delegate-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--accent2, #7c3aed22); color: var(--accent, #7c3aed); vertical-align: middle; }
+  .member-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 12px; background: var(--bg3); border: 1px solid var(--border); font-size: 11px; color: var(--text2); }
+  .member-chip button { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
+  .member-chip button:hover { color: var(--danger); }
+  .delegate-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 12px; background: var(--bg3); border: 1px solid var(--border); font-size: 11px; color: var(--text2); cursor: pointer; transition: background 0.12s, border-color 0.12s; user-select: none; }
+  .delegate-pill.selected { background: #7c3aed22; border-color: var(--accent, #7c3aed); color: var(--accent, #7c3aed); font-weight: 600; }
 
   .session-num {
     color: var(--text3);
@@ -1319,6 +1326,14 @@
         <label class="edit-label">Custom Color (overrides code)</label>
         <input type="color" class="edit-input" id="editBigProjColor" style="height:36px;padding:2px 4px;cursor:pointer;">
       </div>
+      <div class="edit-form-group full">
+        <label class="edit-label">Team Members <span style="font-weight:400;color:var(--text3);">(used in delegate dropdowns)</span></label>
+        <div id="editBigProjMembersList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:6px;">
+          <input class="edit-input" id="editBigProjMemberInput" placeholder="Add person…" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();addProjMember();}">
+          <button class="btn" onclick="addProjMember()" style="white-space:nowrap;">+ Add</button>
+        </div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn" style="margin-right:auto;color:var(--danger);border-color:var(--danger);" onclick="deleteBigProj()">Delete</button>
@@ -1347,8 +1362,9 @@
         <input class="edit-input" type="number" id="editSessionHours" min="0.25" step="0.25" placeholder="1">
       </div>
       <div class="edit-form-group full">
-        <label class="edit-label">Delegate to <span style="font-weight:400;color:var(--text3);">(optional — appears in Team tab)</span></label>
-        <input class="edit-input" id="editSessionDelegate" placeholder="e.g. Sarah">
+        <label class="edit-label">Assign to <span style="font-weight:400;color:var(--text3);">(optional — appears in Team tab)</span></label>
+        <div id="editSessionDelegateWrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
+        <div id="editSessionDelegateNote" style="font-size:11px;color:var(--text3);display:none;">Add team members to this project first via the project edit modal.</div>
       </div>
     </div>
     <div class="modal-actions">
@@ -1749,6 +1765,17 @@ function dueCls(due) {
 function projColor(key) { return PROJECTS[key]?.color || '#666'; }
 function projLabel(key) { return PROJECTS[key]?.label || key; }
 
+// Normalise delegatedTo (string legacy or array) → array
+function normDelegated(val) {
+  if (!val) return [];
+  return Array.isArray(val) ? val : [val];
+}
+
+function delegateTagsHtml(val) {
+  const people = normDelegated(val);
+  return people.map(p => `<span class="delegate-tag">↗ ${p}</span>`).join('');
+}
+
 function populateProjectSelects() {
   const ids = ['filterProject','newTaskProject','editProject','teamAddProject','projAddProject',
                'teamFilterProject','tsFilterProject','editBigProjProject','editTeamProject','tsEntryProject'];
@@ -2083,7 +2110,7 @@ function renderProjects() {
               ${s.done ? '<span style="color:#0d0f14;font-size:11px;">✓</span>' : ''}
             </div>
             <div class="session-num">#${s.num}</div>
-            <div class="session-desc" style="${s.done ? 'text-decoration:line-through;color:var(--text3);' : ''}">${s.desc}${s.delegatedTo ? ` <span class="delegate-tag">↗ ${s.delegatedTo}</span>` : ''}</div>
+            <div class="session-desc" style="${s.done ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditSessionModal('${proj.id}','${s.id}')">${s.desc}${delegateTagsHtml(s.delegatedTo)}</div>
             <div class="session-date">${fmtDate(s.date)}</div>
             <div class="session-hours">${s.hours}h</div>
             <div class="session-row-actions" onclick="event.stopPropagation()">
@@ -2182,23 +2209,25 @@ function renderTeam() {
   const fStatus = document.getElementById('teamFilterStatus')?.value || 'all';
   const sort    = document.getElementById('teamSort')?.value || 'default';
 
-  // Collect delegated sessions from big projects as synthetic team items
+  // Collect delegated sessions from big projects as synthetic team items (one per assignee)
   const delegatedItems = [];
   bigProjs.forEach(proj => {
     proj.sessions.forEach(s => {
-      if (s.delegatedTo) {
+      const people = normDelegated(s.delegatedTo);
+      people.forEach(person => {
         delegatedItems.push({
-          id: s.id,
+          id: s.id + '_' + person.replace(/\s+/g,'_'),
           name: s.desc,
-          owner: s.delegatedTo,
+          owner: person,
           project: proj.project,
           due: s.date,
           status: s.done ? 'complete' : 'not-started',
           notes: `From project: ${proj.name}`,
           _delegated: true,
-          _projId: proj.id
+          _projId: proj.id,
+          _sessionId: s.id
         });
-      }
+      });
     });
   });
 
@@ -2224,12 +2253,12 @@ function renderTeam() {
     const dc = dueCls(item.due);
     if (item._delegated) {
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditSessionModal('${item._projId}','${item.id}')">${item.name} <span class="delegate-tag">↗ delegated</span></div>
+        <div class="team-task-name" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')">${item.name} <span class="delegate-tag">↗ delegated</span></div>
         <span class="team-owner">👤 ${item.owner}</span>
         <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
         <span class="team-due ${dc}">${fmtDate(item.due)}</span>
         <span class="status-badge ${STATUS_CLS[item.status]}">${STATUS_LABELS[item.status]}</span>
-        <button class="row-edit-btn" onclick="openEditSessionModal('${item._projId}','${item.id}')" title="Edit in project">✏</button>
+        <button class="row-edit-btn" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')" title="Edit in project">✏</button>
       `;
     } else {
       row.innerHTML = `
@@ -2380,7 +2409,7 @@ function plannedItems(fromDate, toDate) {
   });
   bigProjs.forEach(proj => {
     proj.sessions.forEach(s => {
-      if (!s.done && s.date && s.date >= fromDate && s.date <= toDate) {
+      if (!s.done && !normDelegated(s.delegatedTo).length && s.date && s.date >= fromDate && s.date <= toDate) {
         items.push({ id: s.id, name: s.desc, project: proj.project, date: s.date, hours: s.hours || 0, _planned: true });
       }
     });
@@ -2589,7 +2618,7 @@ function renderTimesheet() {
     bigProjs.forEach(proj => {
       if (fProj !== 'all' && proj.project !== fProj) return;
       proj.sessions.forEach(s => {
-        if (!s.done && !s.delegatedTo && s.date && s.date >= todayStr) {
+        if (!s.done && !normDelegated(s.delegatedTo).length && s.date && s.date >= todayStr) {
           plannedAll.push({ id: s.id, name: s.desc, project: proj.project, date: s.date, hours: s.hours || 0, type: 'session', _projId: proj.id, _projName: proj.name });
         }
       });
@@ -2990,6 +3019,33 @@ function showStatusDropdown(e, itemId) {
 
 let editingBigProjId = null;
 
+function renderProjMembersList(members) {
+  const list = document.getElementById('editBigProjMembersList');
+  if (!list) return;
+  list.innerHTML = members.length ? members.map((m, i) => `
+    <span class="member-chip">${m}<button onclick="removeProjMember(${i})" title="Remove">×</button></span>
+  `).join('') : '<span style="font-size:11px;color:var(--text3);">No members yet</span>';
+}
+
+function addProjMember() {
+  const input = document.getElementById('editBigProjMemberInput');
+  const name = input.value.trim();
+  if (!name) return;
+  const proj = bigProjs.find(p => p.id === editingBigProjId);
+  if (!proj) return;
+  if (!proj.members) proj.members = [];
+  if (!proj.members.includes(name)) proj.members.push(name);
+  input.value = '';
+  renderProjMembersList(proj.members);
+}
+
+function removeProjMember(idx) {
+  const proj = bigProjs.find(p => p.id === editingBigProjId);
+  if (!proj || !proj.members) return;
+  proj.members.splice(idx, 1);
+  renderProjMembersList(proj.members);
+}
+
 function openEditBigProjModal(projId) {
   editingBigProjId = projId;
   const proj = bigProjs.find(p => p.id === projId);
@@ -2998,6 +3054,8 @@ function openEditBigProjModal(projId) {
   document.getElementById('editBigProjName').value = proj.name;
   document.getElementById('editBigProjProject').value = proj.project || 'admin';
   document.getElementById('editBigProjColor').value = proj.color || projColor(proj.project) || '#4f9cf9';
+  document.getElementById('editBigProjMemberInput').value = '';
+  renderProjMembersList(proj.members || []);
   document.getElementById('editBigProjModal').classList.add('open');
 }
 
@@ -3012,6 +3070,7 @@ function saveEditBigProj() {
   proj.name    = document.getElementById('editBigProjName').value.trim() || proj.name;
   proj.project = document.getElementById('editBigProjProject').value;
   proj.color   = document.getElementById('editBigProjColor').value;
+  // members are mutated live via addProjMember/removeProjMember
   save('wt_bigprojs', bigProjs);
   closeEditBigProjModal();
   renderProjects();
@@ -3032,14 +3091,43 @@ function deleteBigProj() {
 let editingSessionProjId = null;
 let editingSessionId = null;
 
+function populateSessionDelegatePills(members, selected) {
+  // selected is null, string (legacy), or string[]
+  const current = !selected ? [] : Array.isArray(selected) ? selected : [selected];
+  const wrap = document.getElementById('editSessionDelegateWrap');
+  const note = document.getElementById('editSessionDelegateNote');
+  if (!members || !members.length) {
+    wrap.innerHTML = '';
+    note.style.display = '';
+    return;
+  }
+  note.style.display = 'none';
+  wrap.innerHTML = members.map(m => `
+    <span class="delegate-pill${current.includes(m) ? ' selected' : ''}" onclick="toggleDelegatePill(this,'${m.replace(/'/g,"\\'")}')">
+      ${current.includes(m) ? '✓ ' : ''}${m}
+    </span>
+  `).join('');
+}
+
+function toggleDelegatePill(el, name) {
+  el.classList.toggle('selected');
+  el.textContent = el.classList.contains('selected') ? '✓ ' + name : name;
+}
+
+function getSelectedDelegatees() {
+  const pills = document.querySelectorAll('#editSessionDelegateWrap .delegate-pill.selected');
+  return Array.from(pills).map(p => p.textContent.replace(/^✓\s*/, '').trim());
+}
+
 function openAddSessionModal(projId) {
   editingSessionProjId = projId;
   editingSessionId = null;
+  const proj = bigProjs.find(p => p.id === projId);
   document.getElementById('editSessionModalTitle').textContent = 'Add Work Item';
   document.getElementById('editSessionDesc').value = '';
   document.getElementById('editSessionDate').value = today();
   document.getElementById('editSessionHours').value = '1';
-  document.getElementById('editSessionDelegate').value = '';
+  populateSessionDelegatePills(proj ? proj.members : [], null);
   document.getElementById('editSessionModal').classList.add('open');
 }
 
@@ -3053,7 +3141,7 @@ function openEditSessionModal(projId, sessionId) {
   document.getElementById('editSessionDesc').value = s.desc;
   document.getElementById('editSessionDate').value = s.date;
   document.getElementById('editSessionHours').value = s.hours;
-  document.getElementById('editSessionDelegate').value = s.delegatedTo || '';
+  populateSessionDelegatePills(proj ? proj.members : [], s.delegatedTo || null);
   document.getElementById('editSessionModal').classList.add('open');
 }
 
@@ -3066,18 +3154,18 @@ function closeEditSessionModal() {
 function saveSession() {
   const proj = bigProjs.find(p => p.id === editingSessionProjId);
   if (!proj) return;
-  const desc       = document.getElementById('editSessionDesc').value.trim();
-  const date       = document.getElementById('editSessionDate').value;
-  const hours      = parseFloat(document.getElementById('editSessionHours').value) || 1;
-  const delegatedTo = document.getElementById('editSessionDelegate').value.trim();
+  const desc  = document.getElementById('editSessionDesc').value.trim();
+  const date  = document.getElementById('editSessionDate').value;
+  const hours = parseFloat(document.getElementById('editSessionHours').value) || 1;
+  const delegatedTo = getSelectedDelegatees(); // array
   if (!desc) return alert('Description is required.');
 
   if (editingSessionId) {
     const s = proj.sessions.find(s => s.id === editingSessionId);
-    if (s) { s.desc = desc; s.date = date; s.hours = hours; s.delegatedTo = delegatedTo || null; }
+    if (s) { s.desc = desc; s.date = date; s.hours = hours; s.delegatedTo = delegatedTo.length ? delegatedTo : null; }
   } else {
     const maxNum = proj.sessions.reduce((m, s) => Math.max(m, s.num), 0);
-    proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, hours, done: false, delegatedTo: delegatedTo || null });
+    proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, hours, done: false, delegatedTo: delegatedTo.length ? delegatedTo : null });
   }
 
   save('wt_bigprojs', bigProjs);
