@@ -519,14 +519,9 @@
   .session-desc:hover { color: var(--accent); }
   .delegate-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; vertical-align: middle; border: 1px solid transparent; }
   .recur-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--bg3); color: var(--text3); border: 1px solid var(--border); vertical-align: middle; }
-  .recur-occurrence-actions {
-    display: none; gap: 3px;
-    position: absolute; right: calc(100% + 4px); top: 50%; transform: translateY(-50%);
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 4px;
-    padding: 2px 4px; z-index: 20; white-space: nowrap;
-  }
-  .task-row:hover .recur-occurrence-actions,
-  .ts-entry-row:hover .recur-occurrence-actions { display: flex; }
+  .recur-inline-actions { display: none; gap: 3px; margin-left: 5px; vertical-align: middle; }
+  .task-row:hover .recur-inline-actions,
+  .ts-entry-row:hover .recur-inline-actions { display: inline-flex; }
   .day-toggle { cursor:pointer; user-select:none; }
   .day-toggle input { display:none; }
   .day-toggle span { display:inline-block; padding:3px 9px; border-radius:20px; background:var(--bg3); border:1px solid var(--border); font-size:11px; transition:all 0.12s; color:var(--text2); }
@@ -2276,19 +2271,15 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${projColor(task.project)};" title="${projLabel(task.project)}"></div>
-        <div class="task-name" onclick="openEditModal('${task.id}')" title="${task.notes || ''}">${task.name}${task.recurrence ? `<span class="recur-badge">${recurLabel(task)}</span>` : ''}</div>
+        <div class="task-name" onclick="openEditModal('${task.id}')" title="${task.notes || ''}">${task.name}${task.recurrence ? `<span class="recur-badge">${recurLabel(task)}</span><span class="recur-inline-actions"><button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}')" style="font-size:10px;padding:2px 5px;">Skip</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}')" style="font-size:10px;padding:2px 5px;">Reschedule</button></span>` : ''}</div>
         ${task.category ? `<span class="task-category">${task.category}</span>` : '<span></span>'}
         ${task.waiting ? `<span class="task-waiting" title="Waiting on: ${task.waiting}">⏳ ${task.waiting}</span>` : '<span></span>'}
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
         <div class="task-due ${dc}" onclick="openDueDatePicker(this, '${task.id}')">${fmtDate(task.due)}</div>
         <div class="task-est">${task.est ? task.est + 'h' : '—'}</div>
-        <div style="position:relative;display:flex;align-items:center;gap:6px;">
+        <div style="display:flex;align-items:center;gap:6px;">
           <span class="timer-display${isRunning ? ' running' : ''}" data-id="${task.id}">${timerStr}</span>
           <div class="timer-btn${isRunning ? ' running' : ''}" onclick="${isRunning ? `stopTimer('${task.id}')` : `startTimer('${task.id}')`}" title="${isRunning ? 'Stop' : 'Start'} timer">${isRunning ? '⏹' : '▶'}</div>
-          ${task.recurrence ? `<span class="recur-occurrence-actions">
-            <button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}')" style="font-size:10px;padding:2px 5px;">Skip</button>
-            <button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}')" style="font-size:10px;padding:2px 5px;">Reschedule</button>
-          </span>` : ''}
         </div>`;
     } else if (item._type === 'session') {
       const { s, proj } = item;
@@ -3255,17 +3246,13 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
         const taskObj = tasks.find(t => t.id === item.id || (item.id || '').startsWith(t.id + '_'));
         const editFn = taskObj ? `openEditModal('${taskObj.id}')` : '';
         row.innerHTML = `
-          <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}</span>
+          <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${item._recur ? ` <span class="recur-badge">↻</span>${(() => { const occDate = item.id.includes('_') ? item.id.slice(taskObj.id.length + 1) : (taskObj.due || ''); return `<span class="recur-inline-actions"><button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${taskObj.id}','${occDate}')" style="font-size:10px;padding:2px 5px;">Skip</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${taskObj.id}','${occDate}')" style="font-size:10px;padding:2px 5px;">Reschedule</button></span>`; })()}` : ''}</span>
           <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
           <span style="font-size:11px;color:var(--text3);">planned</span>
           <span style="font-size:12px;color:var(--text3);">${item.hours}h</span>
           <span></span>
-          <div class="ts-entry-actions" style="opacity:1;position:relative;">
+          <div class="ts-entry-actions" style="opacity:1;">
             ${editFn ? `<button class="row-edit-btn" onclick="${editFn}" title="Edit task">✏</button>` : ''}
-            ${taskObj && taskObj.recurrence ? (() => { const occDate = item.id.includes('_') ? item.id.slice(taskObj.id.length + 1) : (taskObj.due || ''); return `<span class="recur-occurrence-actions">
-              <button class="row-edit-btn" onclick="skipRecurOccurrence('${taskObj.id}','${occDate}')" style="font-size:10px;padding:2px 5px;">Skip</button>
-              <button class="row-edit-btn" onclick="openRescheduleModal('${taskObj.id}','${occDate}')" style="font-size:10px;padding:2px 5px;">Reschedule</button>
-            </span>`; })() : ''}
           </div>
         `;
       } else {
