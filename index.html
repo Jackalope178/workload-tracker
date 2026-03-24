@@ -1282,7 +1282,7 @@
       </div>
       <div class="edit-form-group full">
         <label class="edit-label">Work Sessions (one per line: date | description | hours)</label>
-        <textarea class="edit-input" id="projAddSessions" rows="5" placeholder="2025-06-01 | Review draft | 2&#10;2025-06-03 | Revise content | 1.5"></textarea>
+        <textarea class="edit-input" id="projAddSessions" rows="5" placeholder="2026-06-01 | Review draft | 2&#10;2026-06-03 | Revise content | 1.5"></textarea>
       </div>
     </div>
     <div class="modal-actions">
@@ -1537,18 +1537,18 @@ function save(key, data) {
 // =============================================
 
 const SEED_TASKS = [
-  { id: uid(), name: 'Finalize Q2 CWC cohort schedule', project: 'cwc', priority: 'urgent', due: '2025-06-02', est: 2, category: 'Planning', waiting: '', notes: 'Coordinate with site leads first', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Update IWP audit documentation binder', project: 'charlotte', priority: 'high', due: '2025-06-05', est: 3, category: 'Audit', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Draft Instructor Network onboarding guide', project: 'ipp', priority: 'high', due: '2025-06-10', est: 4, category: 'Content', waiting: '', notes: 'Use Canva template from last cohort', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Review DOEE curriculum alignment doc', project: 'doee', priority: 'med', due: '2025-06-12', est: 1.5, category: 'Review', waiting: 'Marcus (DOEE team)', notes: '', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Submit June budget actuals', project: 'admin', priority: 'urgent', due: '2025-06-01', est: 1, category: 'Finance', waiting: '', notes: 'Check with Tanya on SRC line items', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Build SRC participant tracker spreadsheet', project: 'src', priority: 'high', due: '2025-06-08', est: 2.5, category: 'Data', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'P2 stakeholder slide deck — first draft', project: 'p2', priority: 'med', due: '2025-06-15', est: 3, category: 'Decks', waiting: '', notes: 'Align with business model framing', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Weekly intern check-in prep', project: 'admin', priority: 'low', due: '2025-06-03', est: 0.5, category: 'Mentoring', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Kansas City licensee intro call — agenda', project: 'doee', priority: 'high', due: '2025-06-04', est: 1, category: 'Comms', waiting: '', notes: 'Send agenda 48hrs before call', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'CWC format guide update (Canva)', project: 'cwc', priority: 'med', due: '2025-06-14', est: 2, category: 'Content', waiting: '', notes: 'Match new brand colors', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Charlotte Water IWP training delivery — Session 4', project: 'charlotte', priority: 'urgent', due: '2025-06-06', est: 4, category: 'Training', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'SRC program evolution strategy doc', project: 'src', priority: 'med', due: '2025-06-20', est: 5, category: 'Strategy', waiting: '', notes: 'Phase 2 scope included', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Finalize Q2 CWC cohort schedule', project: 'cwc', priority: 'urgent', due: '2026-06-02', est: 2, category: 'Planning', waiting: '', notes: 'Coordinate with site leads first', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Update IWP audit documentation binder', project: 'charlotte', priority: 'high', due: '2026-06-05', est: 3, category: 'Audit', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Draft Instructor Network onboarding guide', project: 'ipp', priority: 'high', due: '2026-06-10', est: 4, category: 'Content', waiting: '', notes: 'Use Canva template from last cohort', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Review DOEE curriculum alignment doc', project: 'doee', priority: 'med', due: '2026-06-12', est: 1.5, category: 'Review', waiting: 'Marcus (DOEE team)', notes: '', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Submit June budget actuals', project: 'admin', priority: 'urgent', due: '2026-06-01', est: 1, category: 'Finance', waiting: '', notes: 'Check with Tanya on SRC line items', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Build SRC participant tracker spreadsheet', project: 'src', priority: 'high', due: '2026-06-08', est: 2.5, category: 'Data', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'P2 stakeholder slide deck — first draft', project: 'p2', priority: 'med', due: '2026-06-15', est: 3, category: 'Decks', waiting: '', notes: 'Align with business model framing', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Weekly intern check-in prep', project: 'admin', priority: 'low', due: '2026-06-03', est: 0.5, category: 'Mentoring', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Kansas City licensee intro call — agenda', project: 'doee', priority: 'high', due: '2026-06-04', est: 1, category: 'Comms', waiting: '', notes: 'Send agenda 48hrs before call', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'CWC format guide update (Canva)', project: 'cwc', priority: 'med', due: '2026-06-14', est: 2, category: 'Content', waiting: '', notes: 'Match new brand colors', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Charlotte Water IWP training delivery — Session 4', project: 'charlotte', priority: 'urgent', due: '2026-06-06', est: 4, category: 'Training', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'SRC program evolution strategy doc', project: 'src', priority: 'med', due: '2026-06-20', est: 5, category: 'Strategy', waiting: '', notes: 'Phase 2 scope included', timer: 0, timerStart: null, completed: false },
 ];
 
 const SEED_PROJECTS = [
@@ -1557,11 +1557,11 @@ const SEED_PROJECTS = [
     name: 'IWP Licensee Onboarding Playbook',
     project: 'charlotte',
     sessions: [
-      { id: uid(), num: 1, desc: 'Scope outline and structure', date: '2025-05-20', hours: 2, done: true },
-      { id: uid(), num: 2, desc: 'Draft Part 1: Roles & Responsibilities', date: '2025-05-27', hours: 3, done: true },
-      { id: uid(), num: 3, desc: 'Draft Part 2: Timeline & Milestones', date: '2025-06-03', hours: 2.5, done: false },
-      { id: uid(), num: 4, desc: 'Review with Charlotte Water PM', date: '2025-06-10', hours: 1.5, done: false },
-      { id: uid(), num: 5, desc: 'Final revisions and formatting', date: '2025-06-17', hours: 2, done: false },
+      { id: uid(), num: 1, desc: 'Scope outline and structure', date: '2026-05-20', hours: 2, done: true },
+      { id: uid(), num: 2, desc: 'Draft Part 1: Roles & Responsibilities', date: '2026-05-27', hours: 3, done: true },
+      { id: uid(), num: 3, desc: 'Draft Part 2: Timeline & Milestones', date: '2026-06-03', hours: 2.5, done: false },
+      { id: uid(), num: 4, desc: 'Review with Charlotte Water PM', date: '2026-06-10', hours: 1.5, done: false },
+      { id: uid(), num: 5, desc: 'Final revisions and formatting', date: '2026-06-17', hours: 2, done: false },
     ]
   },
   {
@@ -1569,29 +1569,29 @@ const SEED_PROJECTS = [
     name: 'P2 Business Model Development',
     project: 'p2',
     sessions: [
-      { id: uid(), num: 1, desc: 'Market landscape research', date: '2025-05-15', hours: 3, done: true },
-      { id: uid(), num: 2, desc: 'Revenue model options analysis', date: '2025-05-22', hours: 2, done: true },
-      { id: uid(), num: 3, desc: 'Draft model deck v1', date: '2025-06-05', hours: 3, done: false },
-      { id: uid(), num: 4, desc: 'Stakeholder feedback session', date: '2025-06-12', hours: 1.5, done: false },
-      { id: uid(), num: 5, desc: 'Revised model + exec summary', date: '2025-06-19', hours: 2.5, done: false },
+      { id: uid(), num: 1, desc: 'Market landscape research', date: '2026-05-15', hours: 3, done: true },
+      { id: uid(), num: 2, desc: 'Revenue model options analysis', date: '2026-05-22', hours: 2, done: true },
+      { id: uid(), num: 3, desc: 'Draft model deck v1', date: '2026-06-05', hours: 3, done: false },
+      { id: uid(), num: 4, desc: 'Stakeholder feedback session', date: '2026-06-12', hours: 1.5, done: false },
+      { id: uid(), num: 5, desc: 'Revised model + exec summary', date: '2026-06-19', hours: 2.5, done: false },
     ]
   }
 ];
 
 const SEED_TEAM = [
-  { id: uid(), name: 'IWP training site logistics confirmation', owner: 'Jordan P.', project: 'charlotte', due: '2025-06-03', status: 'in-progress', notes: 'Confirm room booking and AV' },
-  { id: uid(), name: 'SRC cohort data entry', owner: 'Intern – Aisha', project: 'src', due: '2025-06-05', status: 'pending', notes: 'Template sent 5/28' },
-  { id: uid(), name: 'DOEE participant eval forms', owner: 'Marcus T.', project: 'doee', due: '2025-06-08', status: 'not-started', notes: '' },
-  { id: uid(), name: 'CWC flyer design (Canva)', owner: 'Intern – Dev', project: 'cwc', due: '2025-06-07', status: 'in-review', notes: 'First draft received, minor edits needed' },
-  { id: uid(), name: 'P2 stakeholder contact list', owner: 'Sarah M.', project: 'p2', due: '2025-06-06', status: 'complete', notes: '' },
+  { id: uid(), name: 'IWP training site logistics confirmation', owner: 'Jordan P.', project: 'charlotte', due: '2026-06-03', status: 'in-progress', notes: 'Confirm room booking and AV' },
+  { id: uid(), name: 'SRC cohort data entry', owner: 'Intern – Aisha', project: 'src', due: '2026-06-05', status: 'pending', notes: 'Template sent 5/28' },
+  { id: uid(), name: 'DOEE participant eval forms', owner: 'Marcus T.', project: 'doee', due: '2026-06-08', status: 'not-started', notes: '' },
+  { id: uid(), name: 'CWC flyer design (Canva)', owner: 'Intern – Dev', project: 'cwc', due: '2026-06-07', status: 'in-review', notes: 'First draft received, minor edits needed' },
+  { id: uid(), name: 'P2 stakeholder contact list', owner: 'Sarah M.', project: 'p2', due: '2026-06-06', status: 'complete', notes: '' },
 ];
 
 const SEED_COMPLETED = [
-  { id: uid(), name: 'May timesheet reconciliation', project: 'admin', dateCompleted: '2025-05-31', estHours: 1, actualHours: 1.25, category: 'Finance' },
-  { id: uid(), name: 'CWC Session 3 delivery', project: 'cwc', dateCompleted: '2025-05-29', estHours: 4, actualHours: 4, category: 'Training' },
-  { id: uid(), name: 'Charlotte Water kickoff deck', project: 'charlotte', dateCompleted: '2025-05-27', estHours: 3, actualHours: 2.75, category: 'Decks' },
-  { id: uid(), name: 'Instructor Network welcome email', project: 'ipp', dateCompleted: '2025-05-26', estHours: 0.5, actualHours: 0.5, category: 'Comms' },
-  { id: uid(), name: 'SRC kick-off planning call notes', project: 'src', dateCompleted: '2025-05-28', estHours: 0.5, actualHours: 0.25, category: 'Planning' },
+  { id: uid(), name: 'May timesheet reconciliation', project: 'admin', dateCompleted: '2026-05-31', estHours: 1, actualHours: 1.25, category: 'Finance' },
+  { id: uid(), name: 'CWC Session 3 delivery', project: 'cwc', dateCompleted: '2026-05-29', estHours: 4, actualHours: 4, category: 'Training' },
+  { id: uid(), name: 'Charlotte Water kickoff deck', project: 'charlotte', dateCompleted: '2026-05-27', estHours: 3, actualHours: 2.75, category: 'Decks' },
+  { id: uid(), name: 'Instructor Network welcome email', project: 'ipp', dateCompleted: '2026-05-26', estHours: 0.5, actualHours: 0.5, category: 'Comms' },
+  { id: uid(), name: 'SRC kick-off planning call notes', project: 'src', dateCompleted: '2026-05-28', estHours: 0.5, actualHours: 0.25, category: 'Planning' },
 ];
 
 // Initialize state
