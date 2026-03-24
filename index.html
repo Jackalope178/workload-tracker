@@ -1091,6 +1091,33 @@
   }
   .subcode-add-btn:hover { color: var(--accent); border-color: var(--accent); }
 
+  /* PROJECT META GROUP — collapse & drag */
+  .proj-meta-group {
+    border-bottom: 1px solid var(--border);
+    transition: opacity 0.15s;
+  }
+  .proj-meta-group:last-child { border-bottom: none; }
+  .proj-meta-group.dragging { opacity: 0.3; }
+  .proj-meta-group.drag-over { border-top: 2px solid var(--accent); margin-top: -1px; }
+  .proj-meta-row { border-bottom: none; }
+  .proj-drag-handle {
+    cursor: grab;
+    color: var(--text3);
+    font-size: 13px;
+    padding: 0 2px;
+    user-select: none;
+    line-height: 1;
+  }
+  .proj-drag-handle:active { cursor: grabbing; }
+  .proj-collapse-btn {
+    background: none; border: none; color: var(--text3);
+    font-size: 12px; cursor: pointer; padding: 2px 4px;
+    transition: transform 0.15s;
+    line-height: 1;
+  }
+  .proj-collapse-btn.open { transform: rotate(90deg); }
+  .proj-collapse-btn:hover { color: var(--text2); }
+
   /* ALLOCATIONS TAB */
   .alloc-toolbar {
     display: flex; align-items: center; gap: 10px; padding: 10px 14px;
@@ -2001,6 +2028,21 @@ Object.keys(PROJECTS).forEach(k => {
 });
 saveProjects();
 
+// Project display order
+let projOrder = load('wt_project_order', null) || Object.keys(PROJECTS);
+// Migration: append any new keys not in projOrder, remove stale keys
+(function migrateProjOrder() {
+  const allKeys = Object.keys(PROJECTS);
+  const existing = new Set(projOrder);
+  allKeys.forEach(k => { if (!existing.has(k)) projOrder.push(k); });
+  projOrder = projOrder.filter(k => PROJECTS[k]);
+  save('wt_project_order', projOrder);
+})();
+function saveProjOrder() { save('wt_project_order', projOrder); }
+
+// Collapse state for project rows in Manage Projects modal (session-only)
+const collapsedProjMeta = new Set();
+
 // Allocations data: { "projKey|scId|YYYY-MM": hours }
 let allocations = load('wt_allocations', {});
 function saveAllocations() { save('wt_allocations', allocations); }
@@ -2045,7 +2087,7 @@ function addSubCode(projKey) {
   if (!PROJECTS[projKey].subCodes) PROJECTS[projKey].subCodes = [];
   const existing = PROJECTS[projKey].subCodes;
   const nextNum = existing.length + 1;
-  const code = '.' + String(nextNum).padStart(2, '0');
+  const code = String(nextNum);
   existing.push({ id: uid(), code, label: '' });
   saveProjects();
   renderProjectMetaList();
@@ -2448,7 +2490,9 @@ function populateProjectSelects() {
     if (!el) return;
     const isFilter = id.startsWith('filter') || id.startsWith('teamFilter') || id.startsWith('tsFilter');
     el.innerHTML = isFilter ? '<option value="all">All projects</option>' : '';
-    Object.entries(PROJECTS).forEach(([k, v]) => {
+    projOrder.forEach(k => {
+      const v = PROJECTS[k];
+      if (!v) return;
       const opt = document.createElement('option');
       opt.value = k;
       opt.textContent = v.billingCode ? `${v.label} (${v.billingCode})` : v.label;
@@ -4167,7 +4211,20 @@ function allocCopyForward() {
   let copied = 0;
   Object.entries(PROJECTS).forEach(([projKey, proj]) => {
     const subs = proj.subCodes || [];
-    if (subs.length === 0) return;
+    if (subs.length === 0) {
+      // Project-level allocation (no sub-codes)
+      const srcKey = allocKey(projKey, '', curMonth);
+      const srcVal = allocations[srcKey];
+      if (srcVal) {
+        for (let m = 1; m <= 12; m++) {
+          const ym = String(allocYear) + '-' + String(m).padStart(2, '0');
+          if (ym <= curMonth) continue;
+          const destKey = allocKey(projKey, '', ym);
+          if (!allocations[destKey]) { allocations[destKey] = srcVal; copied++; }
+        }
+      }
+      return;
+    }
     subs.forEach(sc => {
       const srcKey = allocKey(projKey, sc.id, curMonth);
       const srcVal = allocations[srcKey];
@@ -4213,10 +4270,10 @@ function renderAllocations() {
     });
   }
 
-  // Collect projects that have sub-codes or billing codes
-  const projEntries = Object.entries(PROJECTS).filter(([k, p]) =>
-    (p.subCodes && p.subCodes.length > 0) || p.billingCode
-  );
+  // Collect projects that have sub-codes or billing codes, in user-defined order
+  const projEntries = projOrder
+    .filter(k => PROJECTS[k] && ((PROJECTS[k].subCodes && PROJECTS[k].subCodes.length > 0) || PROJECTS[k].billingCode))
+    .map(k => [k, PROJECTS[k]]);
 
   if (projEntries.length === 0) {
     grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3);font-size:13px;">No sub-codes configured yet. Go to <strong>Manage Sub-Codes</strong> to add sub-codes under your project billing codes, then set monthly hour allocations here.</div>';
@@ -4244,9 +4301,14 @@ function renderAllocations() {
     html += `<tr class="alloc-proj-header"><td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${proj.color};margin-right:6px;"></span>${proj.label}${codeStr}</td>`;
 
     // Project-level summary per month
+    const noSubs = subs.length === 0;
     months.forEach((m, mi) => {
       let projAlloc = 0, projActual = 0;
-      if (subs.length > 0) {
+      if (noSubs) {
+        // Project-level allocation (no sub-codes) — editable at project row
+        projAlloc = allocations[allocKey(projKey, '', m.ym)] || 0;
+        projActual = allocGetAllProjectActuals(projKey, m.ym);
+      } else {
         subs.forEach(sc => {
           projAlloc += allocations[allocKey(projKey, sc.id, m.ym)] || 0;
           projActual += allocGetActuals(projKey, sc.id, m.ym);
@@ -4256,8 +4318,6 @@ function renderAllocations() {
         const assignedActual = projActual;
         const unassignedActual = allProjActual - assignedActual;
         if (unassignedActual > 0) projActual += unassignedActual;
-      } else {
-        projActual = allocGetAllProjectActuals(projKey, m.ym);
       }
       projAllocTotals[mi] = projAlloc;
       projActualTotals[mi] = projActual;
@@ -4267,7 +4327,14 @@ function renderAllocations() {
       const pct = projAlloc > 0 ? Math.round((projActual / projAlloc) * 100) : (projActual > 0 ? 100 : 0);
       const clr = projAlloc > 0 ? barColor(pct) : '';
       html += `<td class="alloc-cell">`;
-      html += `<div style="font-weight:600;font-size:11px;">${projAlloc > 0 ? projAlloc + 'h' : '—'}</div>`;
+      if (noSubs) {
+        // Editable input for projects without sub-codes
+        html += `<input type="number" min="0" step="1" value="${projAlloc || ''}" placeholder="—"
+                  onchange="allocSet('${projKey}','','${m.ym}',this.value)"
+                  title="Allocated hours for ${proj.label} in ${m.label}">`;
+      } else {
+        html += `<div style="font-weight:600;font-size:11px;">${projAlloc > 0 ? projAlloc + 'h' : '—'}</div>`;
+      }
       if (projActual > 0 || projAlloc > 0) {
         html += `<div class="alloc-actual">${projActual.toFixed(1)}h used</div>`;
         if (projAlloc > 0) {
@@ -4941,11 +5008,59 @@ function closeManageProjectsModal() {
   renderAllocations();
 }
 
+let _dragSrcProjKey = null;
+
 function renderProjectMetaList() {
   const container = document.getElementById('projectMetaList');
   if (!container) return;
-  container.innerHTML = Object.entries(PROJECTS).map(([key, proj]) => {
+  container.innerHTML = '';
+
+  projOrder.forEach(key => {
+    const proj = PROJECTS[key];
+    if (!proj) return;
     const subs = (proj.subCodes || []);
+    const isCollapsed = collapsedProjMeta.has(key);
+
+    // Group wrapper for drag
+    const group = document.createElement('div');
+    group.className = 'proj-meta-group';
+    group.dataset.projKey = key;
+    group.draggable = true;
+
+    // Drag events
+    group.addEventListener('dragstart', e => {
+      _dragSrcProjKey = key;
+      group.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    group.addEventListener('dragend', () => {
+      _dragSrcProjKey = null;
+      group.classList.remove('dragging');
+      container.querySelectorAll('.proj-meta-group').forEach(g => g.classList.remove('drag-over'));
+    });
+    group.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (_dragSrcProjKey && _dragSrcProjKey !== key) {
+        container.querySelectorAll('.proj-meta-group').forEach(g => g.classList.remove('drag-over'));
+        group.classList.add('drag-over');
+      }
+    });
+    group.addEventListener('dragleave', () => { group.classList.remove('drag-over'); });
+    group.addEventListener('drop', e => {
+      e.preventDefault();
+      group.classList.remove('drag-over');
+      if (!_dragSrcProjKey || _dragSrcProjKey === key) return;
+      const fromIdx = projOrder.indexOf(_dragSrcProjKey);
+      const toIdx = projOrder.indexOf(key);
+      if (fromIdx === -1 || toIdx === -1) return;
+      projOrder.splice(fromIdx, 1);
+      projOrder.splice(toIdx, 0, _dragSrcProjKey);
+      saveProjOrder();
+      renderProjectMetaList();
+    });
+
+    // Sub-code rows HTML
     const subRows = subs.map(sc => `
       <div class="subcode-row">
         <input class="proj-meta-input sc-code-input" type="text" value="${sc.code}"
@@ -4959,8 +5074,11 @@ function renderProjectMetaList() {
         <button class="row-edit-btn" onclick="deleteSubCode('${key}','${sc.id}')" style="color:var(--danger);font-size:10px;" title="Delete sub-code">✕</button>
       </div>
     `).join('');
-    return `
+
+    group.innerHTML = `
     <div class="proj-meta-row" id="pmr-${key}">
+      <span class="proj-drag-handle" title="Drag to reorder">⠿</span>
+      <button class="proj-collapse-btn ${isCollapsed ? '' : 'open'}" onclick="toggleProjMetaCollapse('${key}')" title="${isCollapsed ? 'Expand' : 'Collapse'} sub-codes">›</button>
       <span class="proj-meta-key">${key}</span>
       <input type="color" class="color-picker" value="${proj.color}"
              onchange="updateProjectColor('${key}', this.value)" title="Pick color">
@@ -4974,11 +5092,23 @@ function renderProjectMetaList() {
              onkeydown="if(event.key==='Enter') this.blur()">
       <button class="row-edit-btn" onclick="deleteProjectCode('${key}')" style="color:var(--danger);" title="Delete project code">✕</button>
     </div>
-    <div class="subcodes-section" id="scs-${key}">
+    <div class="subcodes-section" id="scs-${key}" style="${isCollapsed ? 'display:none;' : ''}">
       ${subRows}
       <button class="subcode-add-btn" onclick="addSubCode('${key}')">+ Add sub-code</button>
     </div>`;
-  }).join('');
+
+    container.appendChild(group);
+  });
+}
+
+function toggleProjMetaCollapse(key) {
+  if (collapsedProjMeta.has(key)) collapsedProjMeta.delete(key);
+  else collapsedProjMeta.add(key);
+  // Toggle inline without full re-render to preserve input focus
+  const scs = document.getElementById('scs-' + key);
+  const btn = document.querySelector('#pmr-' + key + ' .proj-collapse-btn');
+  if (scs) scs.style.display = collapsedProjMeta.has(key) ? 'none' : '';
+  if (btn) btn.classList.toggle('open', !collapsedProjMeta.has(key));
 }
 
 function updateProjectColor(key, color) {
@@ -5006,7 +5136,9 @@ function deleteProjectCode(key) {
     : `Delete project code "${PROJECTS[key].label}"?`;
   if (!confirm(msg)) return;
   delete PROJECTS[key];
+  projOrder = projOrder.filter(k => k !== key);
   saveProjects();
+  saveProjOrder();
   renderProjectMetaList();
 }
 
@@ -5019,8 +5151,10 @@ function addNewProjectCode() {
   let key = label.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
   if (!key) key = 'proj';
   if (PROJECTS[key]) key = key + '_' + Math.random().toString(36).slice(2, 5);
-  PROJECTS[key] = { label, color, billingCode };
+  PROJECTS[key] = { label, color, billingCode, subCodes: [] };
+  projOrder.push(key);
   saveProjects();
+  saveProjOrder();
   renderProjectMetaList();
   document.getElementById('newProjLabel').value = '';
   document.getElementById('newProjBillingCode').value = '';
