@@ -2424,7 +2424,7 @@ function renderProjects() {
         </div>
       </div>
       <div class="session-list" id="sessions-${proj.id}">
-        ${proj.sessions.map(s => `
+        ${[...proj.sessions].sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')).map(s => `
           <div class="session-row">
             <div class="session-check${s.done ? ' done' : ''}" onclick="toggleSession('${proj.id}','${s.id}')" title="${s.done ? 'Mark incomplete' : 'Mark complete'}">
               ${s.done ? '<span style="color:#0d0f14;font-size:11px;">✓</span>' : ''}
@@ -2584,7 +2584,7 @@ function renderTeam() {
   if (fStatus !== 'all') visible = visible.filter(t => t.status === fStatus);
 
   if (sort === 'person') visible.sort((a, b) => (a.owner||'').localeCompare(b.owner||''));
-  else if (sort === 'due') visible.sort((a, b) => (a.due||'9999') < (b.due||'9999') ? -1 : 1);
+  else visible.sort((a, b) => (a.due||'9999').localeCompare(b.due||'9999'));
 
   const container = document.getElementById('teamList');
   container.innerHTML = '';
