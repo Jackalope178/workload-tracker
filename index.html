@@ -1887,6 +1887,50 @@ function renderTasks() {
   if (!hasAny) {
     container.innerHTML = '<div class="empty-state">No tasks match your filters.</div>';
   }
+
+  // ── Project Work Items ──────────────────────────────────────────────────
+  // Undone, unassigned sessions from big projects surfaced as task rows
+  const sessionRows = [];
+  bigProjs.forEach(proj => {
+    proj.sessions.forEach(s => {
+      if (s.done) return;
+      if (normDelegated(s.delegatedTo).length) return; // delegated = someone else's
+      if (fProj !== 'all' && proj.project !== fProj) return;
+      if (search && !s.desc.toLowerCase().includes(search) && !proj.name.toLowerCase().includes(search)) return;
+      sessionRows.push({ s, proj });
+    });
+  });
+
+  if (sessionRows.length) {
+    // Sort by date
+    sessionRows.sort((a, b) => (a.s.date || '9999').localeCompare(b.s.date || '9999'));
+
+    const projSection = document.createElement('div');
+    projSection.className = 'task-group';
+    projSection.innerHTML = `<div class="task-group-header" style="color:var(--accent);">Project Work <span class="group-count">${sessionRows.length}</span></div>`;
+
+    sessionRows.forEach(({ s, proj }) => {
+      const dc = dueCls(s.date);
+      const row = document.createElement('div');
+      row.className = 'task-row';
+      row.innerHTML = `
+        <div class="task-check${s.done ? ' done' : ''}" onclick="toggleSession('${proj.id}','${s.id}')" title="Mark complete" style="cursor:pointer;"></div>
+        <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${projLabel(proj.project)}"></div>
+        <div class="task-name" onclick="openEditSessionModal('${proj.id}','${s.id}')" title="From: ${proj.name}">${s.desc}</div>
+        <span class="task-category" style="color:var(--text3);font-style:italic;">${proj.name}</span>
+        <span></span>
+        <span style="font-size:11px;color:var(--text3);padding:2px 6px;border-radius:3px;background:var(--bg3);">project</span>
+        <div class="task-due ${dc}">${fmtDate(s.date)}</div>
+        <div class="task-est">${s.hours ? s.hours + 'h' : '—'}</div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <button class="row-edit-btn" onclick="openEditSessionModal('${proj.id}','${s.id}')" title="Edit">✏</button>
+        </div>
+      `;
+      projSection.appendChild(row);
+    });
+
+    container.appendChild(projSection);
+  }
 }
 
 // =============================================
@@ -2146,6 +2190,7 @@ function toggleSession(projId, sessionId) {
   save('wt_bigprojs', bigProjs);
   renderProjects();
   renderTeam();
+  renderTasks();
 }
 
 function openAddProjectModal() {
@@ -3172,6 +3217,7 @@ function saveSession() {
   closeEditSessionModal();
   renderProjects();
   renderTeam();
+  renderTasks();
 }
 
 function deleteSession(projId, sessionId) {
@@ -3181,6 +3227,7 @@ function deleteSession(projId, sessionId) {
   proj.sessions = proj.sessions.filter(s => s.id !== sessionId);
   save('wt_bigprojs', bigProjs);
   renderProjects();
+  renderTasks();
 }
 
 // =============================================
