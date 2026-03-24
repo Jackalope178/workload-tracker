@@ -1169,6 +1169,18 @@
   .alloc-proj-header td:first-child {
     background: var(--bg3) !important;
   }
+  .alloc-collapse-btn {
+    display: inline-block;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text3);
+    margin-right: 4px;
+    transition: transform 0.15s;
+    user-select: none;
+  }
+  .alloc-collapse-btn.open { transform: rotate(90deg); }
+  .alloc-collapse-btn:hover { color: var(--text); }
   .alloc-sc-row td:first-child {
     padding-left: 18px;
     font-size: 11px;
@@ -2043,6 +2055,9 @@ function saveProjOrder() { save('wt_project_order', projOrder); }
 
 // Collapse state for project rows in Manage Projects modal (session-only)
 const collapsedProjMeta = new Set();
+
+// Collapse state for project sub-code rows in Allocations grid
+const collapsedAllocProjs = new Set();
 
 // Allocations data: { "projKey|scId|YYYY-MM": hours }
 let allocations = load('wt_allocations', {});
@@ -4255,6 +4270,12 @@ function barColor(pct) {
   return 'green';
 }
 
+function toggleAllocProjCollapse(projKey) {
+  if (collapsedAllocProjs.has(projKey)) collapsedAllocProjs.delete(projKey);
+  else collapsedAllocProjs.add(projKey);
+  renderAllocations();
+}
+
 function renderAllocations() {
   const grid = document.getElementById('allocGrid');
   if (!grid) return;
@@ -4299,7 +4320,9 @@ function renderAllocations() {
 
     // Project header row
     const codeStr = proj.billingCode ? ` (${proj.billingCode})` : '';
-    html += `<tr class="alloc-proj-header"><td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${proj.color};margin-right:6px;"></span>${proj.label}${codeStr}</td>`;
+    const allocCollapsed = collapsedAllocProjs.has(projKey);
+    const chevron = subs.length > 0 ? `<span class="alloc-collapse-btn ${allocCollapsed ? '' : 'open'}" onclick="toggleAllocProjCollapse('${projKey}')" title="${allocCollapsed ? 'Expand' : 'Collapse'} sub-codes">›</span>` : '';
+    html += `<tr class="alloc-proj-header"><td>${chevron}<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${proj.color};margin-right:6px;"></span>${proj.label}${codeStr}</td>`;
 
     // Project-level summary per month
     const noSubs = subs.length === 0;
@@ -4359,8 +4382,8 @@ function renderAllocations() {
     if (projAllocYTD > 0) html += `<div class="alloc-pct ${ytdClr}">${ytdPct}%</div>`;
     html += `</td></tr>`;
 
-    // Sub-code rows (detail view only)
-    if (viewMode === 'detail' && subs.length > 0) {
+    // Sub-code rows (detail view only, respects per-project collapse)
+    if (viewMode === 'detail' && subs.length > 0 && !collapsedAllocProjs.has(projKey)) {
       subs.forEach(sc => {
         const fullCode = (proj.billingCode || '') + sc.code;
         html += `<tr class="alloc-sc-row"><td>${sc.code} ${sc.label}</td>`;
@@ -4993,6 +5016,7 @@ function deleteTeamItem() {
 // =============================================
 
 function openManageProjectsModal() {
+  projOrder.forEach(k => collapsedProjMeta.add(k));
   renderProjectMetaList();
   document.getElementById('newProjLabel').value = '';
   document.getElementById('newProjColor').value = '#60a5fa';
@@ -5138,9 +5162,14 @@ function deleteProjectCode(key) {
   if (!confirm(msg)) return;
   delete PROJECTS[key];
   projOrder = projOrder.filter(k => k !== key);
+  // Clean up orphaned allocation data for this project
+  Object.keys(allocations).filter(k => k.startsWith(key + '|')).forEach(k => delete allocations[k]);
+  saveAllocations();
+  collapsedAllocProjs.delete(key);
   saveProjects();
   saveProjOrder();
   renderProjectMetaList();
+  renderAllocations();
 }
 
 function addNewProjectCode() {
