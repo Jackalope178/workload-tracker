@@ -579,77 +579,72 @@
   .team-notes { font-size: 11px; color: var(--text3); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* TIMESHEET TAB */
+  .ts-view-toggle { display: flex; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .ts-view-btn { background: var(--bg2); color: var(--text3); border: none; padding: 5px 12px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 0.12s, color 0.12s; }
+  .ts-view-btn:not(:last-child) { border-right: 1px solid var(--border); }
+  .ts-view-btn.active { background: var(--accent); color: #fff; }
+  .ts-view-btn:not(.active):hover { background: var(--bg3); color: var(--text); }
+
+  .ts-cap-bar-wrap { background: var(--bg3); border-radius: 4px; height: 6px; overflow: hidden; margin-top: 6px; }
+  .ts-cap-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .ts-cap-bar-fill.ok   { background: var(--success); }
+  .ts-cap-bar-fill.warn { background: var(--warn); }
+  .ts-cap-bar-fill.over { background: var(--danger); }
+
+  .ts-day-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px; background: var(--bg3);
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em;
+    margin-top: 4px;
+  }
+  .ts-day-header:first-child { margin-top: 0; border-top: none; }
+  .ts-day-total { margin-left: auto; font-weight: 700; color: var(--text); }
+
+  .ts-entry-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto auto auto;
+    gap: 8px; align-items: center;
+    padding: 8px 14px; border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .ts-entry-row:hover { background: var(--bg3); }
+  .ts-entry-row:hover .ts-entry-actions { opacity: 1; }
+  .ts-entry-name { font-size: 12px; color: var(--text); }
+  .ts-entry-planned { color: var(--text3); font-style: italic; }
+  .ts-entry-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.12s; }
+
+  .ts-month-week-row {
+    display: grid; grid-template-columns: 160px 1fr 60px;
+    gap: 12px; align-items: center;
+    padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12px;
+  }
+  .ts-month-week-row:hover { background: var(--bg3); }
+  .ts-month-label { font-weight: 600; color: var(--text2); }
+  .ts-month-hours { text-align: right; font-weight: 700; font-size: 12px; }
+
   .ts-project-block { margin-bottom: 20px; }
-
   .ts-project-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 10px;
-    background: var(--bg3);
-    border-radius: 5px 5px 0 0;
-    border: 1px solid var(--border);
-    border-bottom: none;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 10px; background: var(--bg3);
+    border-radius: 5px 5px 0 0; border: 1px solid var(--border); border-bottom: none;
   }
-
-  .ts-project-name {
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    font-size: 13px;
-    flex: 1;
-  }
-
-  .ts-accuracy {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 3px;
-  }
-
+  .ts-project-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; flex: 1; }
+  .ts-accuracy { font-size: 11px; padding: 2px 8px; border-radius: 3px; }
   .ts-accuracy.good { background: #0d2a1a; color: #34d399; }
   .ts-accuracy.warn { background: #3d2a10; color: #fbbf24; }
   .ts-accuracy.bad  { background: #3d1515; color: #f87171; }
 
-  .ts-table {
-    width: 100%;
-    border-collapse: collapse;
-    border: 1px solid var(--border);
-    border-radius: 0 0 5px 5px;
-    overflow: hidden;
-  }
-
-  .ts-table th {
-    text-align: left;
-    padding: 7px 10px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text3);
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .ts-table td {
-    padding: 8px 10px;
-    font-size: 12px;
-    color: var(--text);
-    border-bottom: 1px solid var(--border);
-  }
-
+  .ts-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 0 0 5px 5px; overflow: hidden; }
+  .ts-table th { text-align: left; padding: 7px 10px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); background: var(--bg2); border-bottom: 1px solid var(--border); }
+  .ts-table td { padding: 8px 10px; font-size: 12px; color: var(--text); border-bottom: 1px solid var(--border); }
   .ts-table tr:last-child td { border-bottom: none; }
   .ts-table tr:hover td { background: var(--bg3); }
-
   .ts-var { font-size: 11px; }
-  .ts-var.over { color: var(--danger); }
+  .ts-var.over  { color: var(--danger); }
   .ts-var.under { color: var(--warn); }
-  .ts-var.good { color: var(--success); }
-
-  .ts-summary-row td {
-    background: var(--bg3);
-    font-weight: 600;
-    color: var(--text2);
-    border-top: 1px solid var(--border2);
-  }
+  .ts-var.good  { color: var(--success); }
+  .ts-summary-row td { background: var(--bg3); font-weight: 600; color: var(--text2); border-top: 1px solid var(--border2); }
 
   /* INLINE DATE EDITOR */
   .date-input-inline {
@@ -1118,12 +1113,29 @@
 
   <!-- TIMESHEET -->
   <div class="panel" id="panel-timesheet">
-    <div class="toolbar">
+    <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
+      <div class="ts-view-toggle">
+        <button id="tsViewWeek"  class="ts-view-btn active" onclick="setTsView('week')">Week</button>
+        <button id="tsViewMonth" class="ts-view-btn"        onclick="setTsView('month')">Month</button>
+        <button id="tsViewAll"   class="ts-view-btn"        onclick="setTsView('all')">All</button>
+      </div>
+      <div id="tsPeriodNav" style="display:flex;align-items:center;gap:4px;">
+        <button class="btn" onclick="tsPeriodPrev()">‹</button>
+        <span id="tsPeriodLabel" style="font-size:12px;min-width:150px;text-align:center;color:var(--text2);"></span>
+        <button class="btn" onclick="tsPeriodNext()">›</button>
+        <button class="btn" onclick="tsPeriodToday()" style="font-size:11px;padding:3px 8px;">Today</button>
+      </div>
       <select class="filter-select" id="tsFilterProject">
         <option value="all">All projects</option>
       </select>
-      <div style="margin-left:auto; color:var(--text3); font-size:11px;" id="tsTotals"></div>
+      <div style="display:flex;align-items:center;gap:5px;margin-left:auto;">
+        <span style="font-size:11px;color:var(--text3);">Capacity:</span>
+        <input type="number" id="tsCapacityInput" min="1" max="168" step="1" style="width:46px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);color:var(--text);font-size:12px;" onchange="saveTsCapacity(this.value)">
+        <span style="font-size:11px;color:var(--text3);">h/wk</span>
+      </div>
+      <button class="btn primary" onclick="openAddTsEntryModal()" style="font-size:11px;padding:4px 10px;">+ Log time</button>
     </div>
+    <div id="tsCapacityBar" style="padding:10px 14px;border-bottom:1px solid var(--border);display:none;"></div>
     <div id="timesheetList"></div>
   </div>
 
@@ -1336,6 +1348,45 @@
     <div class="modal-actions">
       <button class="btn" onclick="closeEditSessionModal()">Cancel</button>
       <button class="btn primary" onclick="saveSession()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT TIMESHEET ENTRY MODAL -->
+<div class="modal-overlay" id="tsEntryModal">
+  <div class="modal">
+    <div class="modal-title" id="tsEntryModalTitle">Log Time</div>
+    <div style="margin-bottom:14px;"></div>
+    <div class="edit-form-grid">
+      <div class="edit-form-group full">
+        <label class="edit-label">Task / Description</label>
+        <input class="edit-input" id="tsEntryName" placeholder="What did you work on?">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Project</label>
+        <select class="edit-input" id="tsEntryProject"></select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Date</label>
+        <input class="edit-input" type="date" id="tsEntryDate">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Estimated hours</label>
+        <input class="edit-input" type="number" id="tsEntryEst" min="0" step="0.25" placeholder="0">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Actual hours</label>
+        <input class="edit-input" type="number" id="tsEntryActual" min="0.25" step="0.25" placeholder="1">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Category</label>
+        <input class="edit-input" id="tsEntryCategory" placeholder="e.g. Writing, Review">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="tsEntryDeleteBtn" style="margin-right:auto;color:var(--danger);border-color:var(--danger);display:none;" onclick="deleteTsEntry()">Delete</button>
+      <button class="btn" onclick="closeTsEntryModal()">Cancel</button>
+      <button class="btn primary" onclick="saveTsEntry()">Save</button>
     </div>
   </div>
 </div>
@@ -1694,7 +1745,7 @@ function projLabel(key) { return PROJECTS[key]?.label || key; }
 
 function populateProjectSelects() {
   const ids = ['filterProject','newTaskProject','editProject','teamAddProject','projAddProject',
-               'teamFilterProject','tsFilterProject','editBigProjProject','editTeamProject'];
+               'teamFilterProject','tsFilterProject','editBigProjProject','editTeamProject','tsEntryProject'];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -2244,101 +2295,420 @@ function confirmAddTeam() {
 // TIMESHEET RENDER
 // =============================================
 
+// =============================================
+// TIMESHEET STATE
+// =============================================
+
+let tsView = 'week';
+let tsAnchor = today(); // week or month anchor date
+let tsCapacity = parseFloat(load('wt_ts_capacity', 40)) || 40;
+
+function setTsView(v) {
+  tsView = v;
+  ['week','month','all'].forEach(x => {
+    document.getElementById('tsView' + x.charAt(0).toUpperCase() + x.slice(1))?.classList.toggle('active', x === v);
+  });
+  document.getElementById('tsPeriodNav').style.display = v === 'all' ? 'none' : 'flex';
+  renderTimesheet();
+}
+
+function tsWeekStart(anchor) {
+  const d = new Date(anchor + 'T00:00:00');
+  d.setDate(d.getDate() - d.getDay()); // Sunday
+  return localDateStr(d);
+}
+
+function tsMonthStart(anchor) {
+  const d = new Date(anchor + 'T00:00:00');
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+}
+
+function tsPeriodPrev() {
+  const d = new Date(tsAnchor + 'T00:00:00');
+  if (tsView === 'week') d.setDate(d.getDate() - 7);
+  else d.setMonth(d.getMonth() - 1);
+  tsAnchor = localDateStr(d);
+  renderTimesheet();
+}
+
+function tsPeriodNext() {
+  const d = new Date(tsAnchor + 'T00:00:00');
+  if (tsView === 'week') d.setDate(d.getDate() + 7);
+  else d.setMonth(d.getMonth() + 1);
+  tsAnchor = localDateStr(d);
+  renderTimesheet();
+}
+
+function tsPeriodToday() {
+  tsAnchor = today();
+  renderTimesheet();
+}
+
+function saveTsCapacity(val) {
+  tsCapacity = parseFloat(val) || 40;
+  save('wt_ts_capacity', tsCapacity);
+  renderTimesheet();
+}
+
+// Gather all time entries (completed tasks + manually logged)
+function allTsEntries() {
+  return completed.map(c => ({
+    id: c.id,
+    name: c.name,
+    project: c.project,
+    date: c.dateCompleted,
+    estHours: c.estHours || 0,
+    actualHours: c.actualHours || 0,
+    category: c.category || '',
+    _source: 'completed'
+  }));
+}
+
+// Planned items: active tasks with a due date, plus undone project sessions
+function plannedItems(fromDate, toDate) {
+  const items = [];
+  tasks.forEach(t => {
+    if (t.due && t.due >= fromDate && t.due <= toDate) {
+      items.push({ id: t.id, name: t.name, project: t.project, date: t.due, hours: t.est || 0, _planned: true });
+    }
+  });
+  bigProjs.forEach(proj => {
+    proj.sessions.forEach(s => {
+      if (!s.done && s.date && s.date >= fromDate && s.date <= toDate) {
+        items.push({ id: s.id, name: s.desc, project: proj.project, date: s.date, hours: s.hours || 0, _planned: true });
+      }
+    });
+  });
+  return items;
+}
+
+function renderTsCapacityBar(usedH, plannedH, capacityH, label) {
+  const bar = document.getElementById('tsCapacityBar');
+  if (!bar) return;
+  const total = usedH + plannedH;
+  const pct = Math.min(Math.round((total / capacityH) * 100), 100);
+  const usedPct = Math.min(Math.round((usedH / capacityH) * 100), 100);
+  const cls = total > capacityH ? 'over' : total > capacityH * 0.8 ? 'warn' : 'ok';
+  const remaining = Math.max(capacityH - total, 0);
+  bar.style.display = '';
+  bar.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+      <span style="font-size:11px;font-weight:600;color:var(--text2);">${label}</span>
+      <span style="font-size:11px;color:var(--text3);">
+        <span style="color:var(--text);font-weight:600;">${usedH.toFixed(1)}h</span> logged
+        ${plannedH > 0 ? ` + <span style="color:var(--text3);">${plannedH.toFixed(1)}h</span> planned` : ''}
+        &nbsp;/&nbsp;${capacityH}h capacity
+        &nbsp;·&nbsp;<span style="color:${remaining > 0 ? 'var(--success)' : 'var(--danger)'};font-weight:600;">${remaining > 0 ? remaining.toFixed(1) + 'h free' : 'over capacity'}</span>
+      </span>
+    </div>
+    <div class="ts-cap-bar-wrap">
+      <div style="position:relative;height:6px;">
+        <div class="ts-cap-bar-fill ${cls}" style="width:${pct}%;position:absolute;top:0;left:0;height:100%;"></div>
+        ${usedPct < pct ? `<div class="ts-cap-bar-fill ok" style="width:${usedPct}%;position:absolute;top:0;left:0;height:100%;opacity:0.7;"></div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
 function renderTimesheet() {
   const fProj = document.getElementById('tsFilterProject')?.value || 'all';
-  let visible = [...completed];
-  if (fProj !== 'all') visible = visible.filter(t => t.project === fProj);
-
-  // Group by project
-  const byProject = {};
-  visible.forEach(item => {
-    if (!byProject[item.project]) byProject[item.project] = [];
-    byProject[item.project].push(item);
-  });
-
   const container = document.getElementById('timesheetList');
   container.innerHTML = '';
 
-  let grandEst = 0, grandActual = 0;
+  // Sync capacity input
+  const capInput = document.getElementById('tsCapacityInput');
+  if (capInput && capInput.value != tsCapacity) capInput.value = tsCapacity;
 
-  Object.entries(byProject).forEach(([projKey, items]) => {
-    const block = document.createElement('div');
-    block.className = 'ts-project-block';
+  const entries = allTsEntries().filter(e => fProj === 'all' || e.project === fProj);
 
-    const projEst = items.reduce((a, i) => a + (i.estHours || 0), 0);
-    const projActual = items.reduce((a, i) => a + (i.actualHours || 0), 0);
-    grandEst += projEst; grandActual += projActual;
-    const projAcc = projEst ? Math.round((1 - Math.abs(projActual - projEst) / projEst) * 100) : null;
+  if (tsView === 'week') {
+    const ws = tsWeekStart(tsAnchor);
+    const we = addDays(ws, 6);
+    // Period label
+    const wsParts = ws.split('-'), weParts = we.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const labelStr = wsParts[0] === weParts[0]
+      ? `${months[+wsParts[1]-1]} ${+wsParts[2]} – ${+weParts[2]}, ${wsParts[0]}`
+      : `${months[+wsParts[1]-1]} ${+wsParts[2]} – ${months[+weParts[1]-1]} ${+weParts[2]}, ${wsParts[0]}`;
+    document.getElementById('tsPeriodLabel').textContent = labelStr;
 
-    let accCls = 'good';
-    if (projAcc !== null) {
-      if (projAcc < 85) accCls = 'bad';
-      else if (projAcc < 95) accCls = 'warn';
+    const weekEntries = entries.filter(e => e.date >= ws && e.date <= we);
+    const planned = plannedItems(ws, we).filter(p => fProj === 'all' || p.project === fProj);
+    const usedH = weekEntries.reduce((a, e) => a + e.actualHours, 0);
+    const plannedH = planned.reduce((a, p) => a + p.hours, 0);
+    renderTsCapacityBar(usedH, plannedH, tsCapacity, 'This week');
+
+    // Group by day
+    const byDay = {};
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(ws, i);
+      byDay[d] = [];
+    }
+    weekEntries.forEach(e => { if (byDay[e.date]) byDay[e.date].push(e); });
+    planned.forEach(p => { if (byDay[p.date]) byDay[p.date].push(p); });
+
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    let hasAny = false;
+
+    Object.entries(byDay).forEach(([date, items]) => {
+      if (!items.length) return;
+      hasAny = true;
+      const d = new Date(date + 'T00:00:00');
+      const dayLabel = `${dayNames[d.getDay()]} ${months[d.getMonth()]} ${d.getDate()}`;
+      const dayTotal = items.filter(i => !i._planned).reduce((a, i) => a + i.actualHours, 0);
+
+      const hdr = document.createElement('div');
+      hdr.className = 'ts-day-header';
+      hdr.innerHTML = `<span>${dayLabel}</span><span class="ts-day-total">${dayTotal > 0 ? dayTotal.toFixed(1) + 'h logged' : ''}</span>`;
+      container.appendChild(hdr);
+
+      items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'ts-entry-row';
+        if (item._planned) {
+          row.innerHTML = `
+            <span class="ts-entry-name ts-entry-planned">${item.name}</span>
+            <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
+            <span style="font-size:11px;color:var(--text3);">planned</span>
+            <span style="font-size:12px;color:var(--text3);">${item.hours}h</span>
+            <span></span>
+            <span></span>
+          `;
+        } else {
+          row.innerHTML = `
+            <span class="ts-entry-name">${item.name}</span>
+            <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
+            <span style="font-size:11px;color:var(--text3);">${item.category || ''}</span>
+            <span style="font-size:12px;color:var(--text2);">${item.estHours ? item.estHours + 'h est' : ''}</span>
+            <span style="font-size:12px;font-weight:700;">${item.actualHours}h</span>
+            <div class="ts-entry-actions">
+              <button class="row-edit-btn" onclick="openEditTsEntry('${item.id}')" title="Edit">✏</button>
+              <button class="row-edit-btn" onclick="deleteTsEntry('${item.id}')" title="Delete" style="color:var(--danger);">×</button>
+            </div>
+          `;
+        }
+        container.appendChild(row);
+      });
+    });
+
+    if (!hasAny) container.innerHTML = '<div class="empty-state">No entries this week.</div>';
+
+  } else if (tsView === 'month') {
+    const ms = tsMonthStart(tsAnchor);
+    const mDate = new Date(ms + 'T00:00:00');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthLabel = `${months[mDate.getMonth()]} ${mDate.getFullYear()}`;
+    document.getElementById('tsPeriodLabel').textContent = monthLabel;
+
+    // Find weeks that overlap this month
+    const me = localDateStr(new Date(mDate.getFullYear(), mDate.getMonth() + 1, 0));
+    document.getElementById('tsCapacityBar').style.display = 'none';
+
+    // Monthly capacity bar
+    const monthEntries = entries.filter(e => e.date >= ms && e.date <= me);
+    const monthPlanned = plannedItems(ms, me).filter(p => fProj === 'all' || p.project === fProj);
+    const monthUsed = monthEntries.reduce((a, e) => a + e.actualHours, 0);
+    const monthPlannedH = monthPlanned.reduce((a, p) => a + p.hours, 0);
+    // Count weeks in month
+    const weeksInMonth = Math.ceil((new Date(me + 'T00:00:00').getDate()) / 7);
+    renderTsCapacityBar(monthUsed, monthPlannedH, tsCapacity * weeksInMonth, monthLabel);
+
+    // Enumerate weeks
+    let weekCursor = new Date(ms + 'T00:00:00');
+    weekCursor.setDate(weekCursor.getDate() - weekCursor.getDay()); // back to Sunday
+
+    let hasAny = false;
+    while (true) {
+      const wStart = localDateStr(weekCursor);
+      const wEnd = addDays(wStart, 6);
+      // Only show weeks that overlap the month
+      if (wStart > me) break;
+
+      const wEntries = entries.filter(e => e.date >= wStart && e.date <= wEnd);
+      const wPlanned = plannedItems(wStart, wEnd).filter(p => fProj === 'all' || p.project === fProj);
+      const wUsed = wEntries.reduce((a, e) => a + e.actualHours, 0);
+      const wPlannedH = wPlanned.reduce((a, p) => a + p.hours, 0);
+      const wTotal = wUsed + wPlannedH;
+      const wPct = Math.min(Math.round((wTotal / tsCapacity) * 100), 100);
+      const wCls = wTotal > tsCapacity ? 'over' : wTotal > tsCapacity * 0.8 ? 'warn' : 'ok';
+
+      const wsParts = wStart.split('-'), weParts = wEnd.split('-');
+      const wLabel = `${months[+wsParts[1]-1]} ${+wsParts[2]} – ${months[+weParts[1]-1]} ${+weParts[2]}`;
+
+      const row = document.createElement('div');
+      row.className = 'ts-month-week-row';
+      row.style.cursor = 'pointer';
+      row.title = 'Click to view this week';
+      row.onclick = () => { tsAnchor = wStart; setTsView('week'); };
+      row.innerHTML = `
+        <span class="ts-month-label">${wLabel}</span>
+        <div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+            <div class="ts-cap-bar-wrap" style="flex:1;">
+              <div class="ts-cap-bar-fill ${wCls}" style="width:${wPct}%;"></div>
+            </div>
+            <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${wPct}%</span>
+          </div>
+          <span style="font-size:10px;color:var(--text3);">${wUsed.toFixed(1)}h logged${wPlannedH > 0 ? ' + ' + wPlannedH.toFixed(1) + 'h planned' : ''} / ${tsCapacity}h</span>
+        </div>
+        <span class="ts-month-hours" style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};">${wTotal.toFixed(1)}h</span>
+      `;
+      container.appendChild(row);
+      hasAny = true;
+
+      weekCursor.setDate(weekCursor.getDate() + 7);
     }
 
-    block.innerHTML = `
-      <div class="ts-project-header">
-        <div class="project-dot" style="background:${projColor(projKey)};width:9px;height:9px;border-radius:50%;"></div>
-        <div class="ts-project-name">${projLabel(projKey)}</div>
-        <span style="font-size:11px;color:var(--text3);margin-right:8px;">${items.length} tasks</span>
-        <span style="font-size:11px;color:var(--text2);margin-right:8px;">Est: ${projEst.toFixed(2)}h</span>
-        <span style="font-size:11px;color:var(--text2);margin-right:12px;">Billed: ${projActual.toFixed(2)}h</span>
-        ${projAcc !== null ? `<span class="ts-accuracy ${accCls}">${projAcc}% accuracy</span>` : ''}
-      </div>
-      <table class="ts-table">
-        <thead>
-          <tr>
-            <th>Task</th>
-            <th>Category</th>
-            <th>Completed</th>
-            <th>Est</th>
-            <th>Billed</th>
-            <th>Variance</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${items.map(item => {
-            const varH = item.estHours ? (item.actualHours - item.estHours) : null;
-            const varPct = item.estHours ? ((item.actualHours - item.estHours) / item.estHours * 100) : null;
-            let varCls = '', varStr = '—';
-            if (varH !== null) {
-              const sign = varH >= 0 ? '+' : '';
-              varStr = `${sign}${varH.toFixed(2)}h (${sign}${varPct.toFixed(0)}%)`;
-              varCls = Math.abs(varPct) <= 5 ? 'good' : varH > 0 ? 'over' : 'under';
-            }
-            return `
-              <tr>
+    if (!hasAny) container.innerHTML = '<div class="empty-state">No data this month.</div>';
+
+  } else {
+    // ALL view — project-grouped table with edit/delete
+    document.getElementById('tsCapacityBar').style.display = 'none';
+    document.getElementById('tsPeriodLabel').textContent = '';
+
+    const byProject = {};
+    entries.forEach(item => {
+      if (!byProject[item.project]) byProject[item.project] = [];
+      byProject[item.project].push(item);
+    });
+
+    let grandEst = 0, grandActual = 0;
+
+    Object.entries(byProject).forEach(([projKey, items]) => {
+      const block = document.createElement('div');
+      block.className = 'ts-project-block';
+      const projEst = items.reduce((a, i) => a + (i.estHours || 0), 0);
+      const projActual = items.reduce((a, i) => a + (i.actualHours || 0), 0);
+      grandEst += projEst; grandActual += projActual;
+      const projAcc = projEst ? Math.round((1 - Math.abs(projActual - projEst) / projEst) * 100) : null;
+      let accCls = projAcc === null ? 'good' : projAcc < 85 ? 'bad' : projAcc < 95 ? 'warn' : 'good';
+
+      block.innerHTML = `
+        <div class="ts-project-header">
+          <div class="project-dot" style="background:${projColor(projKey)};width:9px;height:9px;border-radius:50%;"></div>
+          <div class="ts-project-name">${projLabel(projKey)}</div>
+          <span style="font-size:11px;color:var(--text3);margin-right:8px;">${items.length} entries</span>
+          <span style="font-size:11px;color:var(--text2);margin-right:8px;">Est: ${projEst.toFixed(2)}h</span>
+          <span style="font-size:11px;color:var(--text2);margin-right:12px;">Logged: ${projActual.toFixed(2)}h</span>
+          ${projAcc !== null ? `<span class="ts-accuracy ${accCls}">${projAcc}% accuracy</span>` : ''}
+        </div>
+        <table class="ts-table">
+          <thead><tr><th>Task</th><th>Category</th><th>Date</th><th>Est</th><th>Logged</th><th>Variance</th><th></th></tr></thead>
+          <tbody>
+            ${items.map(item => {
+              const varH = item.estHours ? (item.actualHours - item.estHours) : null;
+              const varPct = item.estHours ? ((item.actualHours - item.estHours) / item.estHours * 100) : null;
+              let varCls = '', varStr = '—';
+              if (varH !== null) {
+                const sign = varH >= 0 ? '+' : '';
+                varStr = `${sign}${varH.toFixed(2)}h (${sign}${varPct.toFixed(0)}%)`;
+                varCls = Math.abs(varPct) <= 5 ? 'good' : varH > 0 ? 'over' : 'under';
+              }
+              return `<tr>
                 <td>${item.name}</td>
                 <td style="color:var(--text3)">${item.category || '—'}</td>
-                <td style="color:var(--text3)">${fmtDate(item.dateCompleted)}</td>
+                <td style="color:var(--text3)">${fmtDate(item.date)}</td>
                 <td>${item.estHours ? item.estHours + 'h' : '—'}</td>
                 <td style="font-weight:600;">${item.actualHours}h</td>
                 <td class="ts-var ${varCls}">${varStr}</td>
-              </tr>
-            `;
-          }).join('')}
-          <tr class="ts-summary-row">
-            <td colspan="3">Total</td>
-            <td>${projEst.toFixed(2)}h</td>
-            <td>${projActual.toFixed(2)}h</td>
-            <td class="ts-var ${accCls}">${projAcc !== null ? projAcc + '% acc.' : '—'}</td>
-          </tr>
-        </tbody>
-      </table>
-    `;
+                <td style="white-space:nowrap;">
+                  <button class="row-edit-btn" onclick="openEditTsEntry('${item.id}')" title="Edit">✏</button>
+                  <button class="row-edit-btn" onclick="deleteTsEntry('${item.id}')" title="Delete" style="color:var(--danger);">×</button>
+                </td>
+              </tr>`;
+            }).join('')}
+            <tr class="ts-summary-row">
+              <td colspan="3">Total</td>
+              <td>${projEst.toFixed(2)}h</td>
+              <td>${projActual.toFixed(2)}h</td>
+              <td class="ts-var ${accCls}">${projAcc !== null ? projAcc + '% acc.' : '—'}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+      container.appendChild(block);
+    });
 
-    container.appendChild(block);
-  });
+    if (!Object.keys(byProject).length) {
+      container.innerHTML = '<div class="empty-state">No logged time yet.</div>';
+    }
+  }
+}
 
-  if (!Object.keys(byProject).length) {
-    container.innerHTML = '<div class="empty-state">No completed tasks yet.</div>';
+// =============================================
+// TIMESHEET ENTRY CRUD
+// =============================================
+
+let editingTsEntryId = null;
+
+function openAddTsEntryModal() {
+  editingTsEntryId = null;
+  document.getElementById('tsEntryModalTitle').textContent = 'Log Time';
+  document.getElementById('tsEntryName').value = '';
+  document.getElementById('tsEntryDate').value = today();
+  document.getElementById('tsEntryEst').value = '';
+  document.getElementById('tsEntryActual').value = '';
+  document.getElementById('tsEntryCategory').value = '';
+  document.getElementById('tsEntryDeleteBtn').style.display = 'none';
+  populateProjectSelects();
+  document.getElementById('tsEntryModal').classList.add('open');
+}
+
+function openEditTsEntry(entryId) {
+  const entry = completed.find(c => c.id === entryId);
+  if (!entry) return;
+  editingTsEntryId = entryId;
+  document.getElementById('tsEntryModalTitle').textContent = 'Edit Entry';
+  document.getElementById('tsEntryName').value = entry.name;
+  document.getElementById('tsEntryDate').value = entry.dateCompleted;
+  document.getElementById('tsEntryEst').value = entry.estHours || '';
+  document.getElementById('tsEntryActual').value = entry.actualHours || '';
+  document.getElementById('tsEntryCategory').value = entry.category || '';
+  document.getElementById('tsEntryDeleteBtn').style.display = '';
+  populateProjectSelects();
+  document.getElementById('tsEntryProject').value = entry.project || 'admin';
+  document.getElementById('tsEntryModal').classList.add('open');
+}
+
+function closeTsEntryModal() {
+  document.getElementById('tsEntryModal').classList.remove('open');
+  editingTsEntryId = null;
+}
+
+function saveTsEntry() {
+  const name     = document.getElementById('tsEntryName').value.trim();
+  const project  = document.getElementById('tsEntryProject').value;
+  const date     = document.getElementById('tsEntryDate').value;
+  const estHours = parseFloat(document.getElementById('tsEntryEst').value) || 0;
+  const actual   = parseFloat(document.getElementById('tsEntryActual').value);
+  const category = document.getElementById('tsEntryCategory').value.trim();
+  if (!name) return alert('Description is required.');
+  if (!actual || actual <= 0) return alert('Actual hours required.');
+
+  if (editingTsEntryId) {
+    const entry = completed.find(c => c.id === editingTsEntryId);
+    if (entry) {
+      entry.name = name; entry.project = project; entry.dateCompleted = date;
+      entry.estHours = estHours; entry.actualHours = actual; entry.category = category;
+    }
+  } else {
+    completed.unshift({ id: uid(), name, project, dateCompleted: date, estHours, actualHours: actual, category });
   }
 
-  const totalsEl = document.getElementById('tsTotals');
-  if (totalsEl) {
-    const grandAcc = grandEst ? Math.round((1 - Math.abs(grandActual - grandEst) / grandEst) * 100) : null;
-    totalsEl.textContent = `Total billed: ${grandActual.toFixed(2)}h${grandAcc !== null ? ' · ' + grandAcc + '% overall accuracy' : ''}`;
-  }
+  save('wt_completed', completed);
+  closeTsEntryModal();
+  renderTimesheet();
+}
+
+function deleteTsEntry(entryId) {
+  const id = entryId || editingTsEntryId;
+  if (!id) return;
+  if (!confirm('Delete this time entry?')) return;
+  completed = completed.filter(c => c.id !== id);
+  save('wt_completed', completed);
+  if (!entryId) closeTsEntryModal();
+  renderTimesheet();
 }
 
 // =============================================
@@ -2402,6 +2772,9 @@ populateProjectSelects();
 renderTasks();
 renderProjects();
 renderTeam();
+// Init timesheet capacity input before first render
+const _capInput = document.getElementById('tsCapacityInput');
+if (_capInput) _capInput.value = tsCapacity;
 renderTimesheet();
 updateHeaderMeta();
 
