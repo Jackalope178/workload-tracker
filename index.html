@@ -1683,6 +1683,7 @@
     <div id="projectMetaList" style="max-height:380px;overflow-y:auto;margin-bottom:14px;"></div>
     <div style="display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
       <input class="edit-input" id="newProjLabel" placeholder="New project name" style="flex:1;">
+      <input class="edit-input" id="newProjBillingCode" placeholder="Billing code" style="width:100px;">
       <input type="color" class="color-picker" id="newProjColor" value="#60a5fa" title="Pick color">
       <button class="btn primary" onclick="addNewProjectCode()">+ Add</button>
     </div>
@@ -1759,17 +1760,43 @@
 // =============================================
 
 const DEFAULT_PROJECTS = {
-  cwc:      { label: 'CWC',                     color: '#22c55e' },
-  charlotte: { label: 'Charlotte Water / IWP',  color: '#3b82f6' },
-  ipp:      { label: 'IPP / Instructor Network', color: '#a78bfa' },
-  doee:     { label: 'DOEE / Kansas City',       color: '#f97316' },
-  admin:    { label: 'Admin / Internal',         color: '#94a3b8' },
-  src:      { label: 'SRC',                      color: '#f87171' },
-  p2:       { label: 'P2',                       color: '#fbbf24' }
+  cwc:        { label: 'CWC',                     color: '#22c55e', billingCode: 'T-21-010' },
+  charlotte:  { label: 'Charlotte Water / IWP',   color: '#3b82f6', billingCode: '' },
+  ipp:        { label: 'IPP / Instructor Network', color: '#a78bfa', billingCode: 'O-10-001' },
+  doee:       { label: 'DOEE / Kansas City',       color: '#f97316', billingCode: '' },
+  admin:      { label: 'Admin / Internal',         color: '#94a3b8', billingCode: 'O-09-018' },
+  src:        { label: 'SRC',                      color: '#f87171', billingCode: 'R-24-001' },
+  p2:         { label: 'P2',                       color: '#fbbf24', billingCode: 'T-15-999' },
+  meetings:   { label: 'Staff Meetings',           color: '#64748b', billingCode: 'O-09-018' },
+  supervision:{ label: 'Supervision',              color: '#78716c', billingCode: 'O-09-019' },
+  leave:      { label: 'Employee Leave',           color: '#a3a3a3', billingCode: 'O-09-022A' },
+  holiday:    { label: 'Holidays',                 color: '#c084fc', billingCode: 'O-09-022E' },
+  conference: { label: 'Conference Attendance',    color: '#2dd4bf', billingCode: 'O-14-002' },
+  overhead:   { label: 'Training Overhead',        color: '#fb923c', billingCode: 'T-09-999' }
 };
 
 let PROJECTS = load('wt_projects_meta', null);
 if (!PROJECTS) { PROJECTS = DEFAULT_PROJECTS; save('wt_projects_meta', PROJECTS); }
+// Migration: add billingCode field and new overhead projects for existing users
+(function migrateProjects() {
+  if (!PROJECTS) return;
+  let changed = false;
+  // Add billingCode to existing projects if missing
+  Object.keys(PROJECTS).forEach(k => {
+    if (PROJECTS[k].billingCode === undefined) {
+      PROJECTS[k].billingCode = DEFAULT_PROJECTS[k]?.billingCode || '';
+      changed = true;
+    }
+  });
+  // Add new overhead project codes if they don't exist
+  Object.keys(DEFAULT_PROJECTS).forEach(k => {
+    if (!PROJECTS[k]) {
+      PROJECTS[k] = { ...DEFAULT_PROJECTS[k] };
+      changed = true;
+    }
+  });
+  if (changed) { localStorage.setItem('wt_projects_meta', JSON.stringify(PROJECTS)); }
+})();
 
 function saveProjects() { save('wt_projects_meta', PROJECTS); }
 
@@ -1812,6 +1839,8 @@ const SEED_TASKS = [
   { id: uid(), name: 'CWC format guide update (Canva)', project: 'cwc', priority: 'med', due: '2026-06-14', est: 2, category: 'Content', waiting: '', notes: 'Match new brand colors', timer: 0, timerStart: null, completed: false },
   { id: uid(), name: 'Charlotte Water IWP training delivery — Session 4', project: 'charlotte', priority: 'urgent', due: '2026-06-06', est: 4, category: 'Training', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
   { id: uid(), name: 'SRC program evolution strategy doc', project: 'src', priority: 'med', due: '2026-06-20', est: 5, category: 'Strategy', waiting: '', notes: 'Phase 2 scope included', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Submit Timesheet (mid-month)', project: 'admin', priority: 'urgent', due: '2026-06-15', est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 15, endDate: null } },
+  { id: uid(), name: 'Submit Timesheet (end-of-month)', project: 'admin', priority: 'urgent', due: '2026-06-30', est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB — last day of month', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 31, endDate: null } },
 ];
 
 const SEED_PROJECTS = [
@@ -1869,6 +1898,22 @@ if (!tasks)     { tasks = SEED_TASKS;     save('wt_tasks', tasks); }
 if (!bigProjs)  { bigProjs = SEED_PROJECTS; save('wt_bigprojs', bigProjs); }
 if (!teamItems) { teamItems = SEED_TEAM;  save('wt_team', teamItems); }
 if (!completed) { completed = SEED_COMPLETED; save('wt_completed', completed); }
+
+// Migration: inject recurring timesheet reminder tasks for existing users
+(function migrateTimesheetTasks() {
+  const hasMid = tasks.some(t => t.name === 'Submit Timesheet (mid-month)');
+  const hasEnd = tasks.some(t => t.name === 'Submit Timesheet (end-of-month)');
+  let changed = false;
+  if (!hasMid) {
+    tasks.push({ id: uid(), name: 'Submit Timesheet (mid-month)', project: 'admin', priority: 'urgent', due: today(), est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 15, endDate: null } });
+    changed = true;
+  }
+  if (!hasEnd) {
+    tasks.push({ id: uid(), name: 'Submit Timesheet (end-of-month)', project: 'admin', priority: 'urgent', due: today(), est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB — last day of month', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 31, endDate: null } });
+    changed = true;
+  }
+  if (changed) save('wt_tasks', tasks);
+})();
 
 // =============================================
 // TIMER STATE
@@ -2102,6 +2147,7 @@ function dueCls(due) {
 
 function projColor(key) { return PROJECTS[key]?.color || '#666'; }
 function projLabel(key) { return PROJECTS[key]?.label || key; }
+function projBillingCode(key) { return PROJECTS[key]?.billingCode || ''; }
 
 // Normalise delegatedTo (string legacy or array) → array
 function normDelegated(val) {
@@ -2140,7 +2186,7 @@ function populateProjectSelects() {
     Object.entries(PROJECTS).forEach(([k, v]) => {
       const opt = document.createElement('option');
       opt.value = k;
-      opt.textContent = v.label;
+      opt.textContent = v.billingCode ? `${v.label} (${v.billingCode})` : v.label;
       el.appendChild(opt);
     });
   });
@@ -3278,6 +3324,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
         row.innerHTML = `
           <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${item._recur ? ` <span class="recur-badge">↻</span>${(() => { const occDate = item.id.includes('_') ? item.id.slice(taskObj.id.length + 1) : (taskObj.due || ''); return `<span class="recur-inline-actions"><button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${taskObj.id}','${occDate}')" style="font-size:10px;padding:2px 5px;">Skip</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${taskObj.id}','${occDate}')" style="font-size:10px;padding:2px 5px;">Reschedule</button></span>`; })()}` : ''}</span>
           <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
+          ${projBillingCode(item.project) ? `<span style="font-size:10px;color:var(--text3);font-family:monospace;">${projBillingCode(item.project)}</span>` : ''}
           <span style="font-size:11px;color:var(--text3);">planned</span>
           <span style="font-size:12px;color:var(--text3);">${item.hours}h</span>
           <span></span>
@@ -3289,6 +3336,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
         row.innerHTML = `
           <span class="ts-entry-name" onclick="openEditTsEntry('${item.id}')">${item.name}</span>
           <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
+          ${projBillingCode(item.project) ? `<span style="font-size:10px;color:var(--text3);font-family:monospace;">${projBillingCode(item.project)}</span>` : ''}
           <span style="font-size:11px;color:var(--text3);">${item.category || ''}</span>
           <span style="font-size:12px;color:var(--text2);">${item.estHours ? item.estHours + 'h est' : ''}</span>
           <span style="font-size:12px;font-weight:700;">${item.actualHours}h</span>
@@ -3599,6 +3647,7 @@ function renderTimesheet() {
           row.innerHTML = `
             <span class="ts-entry-name" ${editFn ? `onclick="${editFn}"` : ''} title="${item._projName ? 'From: ' + item._projName : ''}">${item.name}${recurBadge}${subLabel}</span>
             <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
+            ${projBillingCode(item.project) ? `<span style="font-size:10px;color:var(--text3);font-family:monospace;">${projBillingCode(item.project)}</span>` : ''}
             <span style="font-size:11px;color:var(--text3);">${dayLabel}</span>
             <span style="font-size:11px;color:var(--text3);">${typeLabel}</span>
             <span style="font-size:12px;font-weight:700;">${item.hours}h</span>
@@ -3643,7 +3692,7 @@ function renderTimesheet() {
           ${projAcc !== null ? `<span class="ts-accuracy ${accCls}">${projAcc}% accuracy</span>` : ''}
         </div>
         <table class="ts-table">
-          <thead><tr><th>Task</th><th>Category</th><th>Date</th><th>Est</th><th>Logged</th><th>Variance</th><th></th></tr></thead>
+          <thead><tr><th>Task</th><th>Code</th><th>Category</th><th>Date</th><th>Est</th><th>Logged</th><th>Variance</th><th></th></tr></thead>
           <tbody>
             ${items.map(item => {
               const varH = item.estHours ? (item.actualHours - item.estHours) : null;
@@ -3656,6 +3705,7 @@ function renderTimesheet() {
               }
               return `<tr>
                 <td style="cursor:pointer;color:var(--text);" onclick="openEditTsEntry('${item.id}')" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">${item.name}</td>
+                <td style="color:var(--text3);font-size:11px;">${projBillingCode(item.project) || '—'}</td>
                 <td style="color:var(--text3)">${item.category || '—'}</td>
                 <td style="color:var(--text3)">${fmtDate(item.date)}</td>
                 <td>${item.estHours ? item.estHours + 'h' : '—'}</td>
@@ -3668,7 +3718,7 @@ function renderTimesheet() {
               </tr>`;
             }).join('')}
             <tr class="ts-summary-row">
-              <td colspan="3">Total</td>
+              <td colspan="4">Total</td>
               <td>${projEst.toFixed(2)}h</td>
               <td>${projActual.toFixed(2)}h</td>
               <td class="ts-var ${accCls}">${projAcc !== null ? projAcc + '% acc.' : '—'}</td>
@@ -4351,6 +4401,11 @@ function renderProjectMetaList() {
       <input class="proj-meta-input" type="text" value="${proj.label}"
              onblur="updateProjectLabel('${key}', this.value)"
              onkeydown="if(event.key==='Enter') this.blur()">
+      <input class="proj-meta-input" type="text" value="${proj.billingCode || ''}"
+             placeholder="Billing code"
+             style="width:100px;flex:none;"
+             onblur="updateProjectBillingCode('${key}', this.value)"
+             onkeydown="if(event.key==='Enter') this.blur()">
       <button class="row-edit-btn" onclick="deleteProjectCode('${key}')" style="color:var(--danger);" title="Delete project code">✕</button>
     </div>
   `).join('');
@@ -4365,6 +4420,12 @@ function updateProjectColor(key, color) {
 function updateProjectLabel(key, label) {
   if (!PROJECTS[key] || !label.trim()) return;
   PROJECTS[key].label = label.trim();
+  saveProjects();
+}
+
+function updateProjectBillingCode(key, code) {
+  if (!PROJECTS[key]) return;
+  PROJECTS[key].billingCode = code.trim();
   saveProjects();
 }
 
@@ -4383,14 +4444,16 @@ function addNewProjectCode() {
   const label = document.getElementById('newProjLabel').value.trim();
   if (!label) return alert('Enter a project name first.');
   const color = document.getElementById('newProjColor').value;
+  const billingCode = (document.getElementById('newProjBillingCode').value || '').trim();
   // Generate a short unique key from the label
   let key = label.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
   if (!key) key = 'proj';
   if (PROJECTS[key]) key = key + '_' + Math.random().toString(36).slice(2, 5);
-  PROJECTS[key] = { label, color };
+  PROJECTS[key] = { label, color, billingCode };
   saveProjects();
   renderProjectMetaList();
   document.getElementById('newProjLabel').value = '';
+  document.getElementById('newProjBillingCode').value = '';
   document.getElementById('newProjColor').value = '#60a5fa';
 }
 
