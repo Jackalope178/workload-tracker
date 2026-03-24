@@ -495,7 +495,7 @@
 
   .session-row {
     display: grid;
-    grid-template-columns: 20px 30px 1fr auto auto auto;
+    grid-template-columns: 20px 30px 1fr auto auto auto auto;
     gap: 8px;
     align-items: center;
     padding: 8px 14px;
@@ -506,6 +506,8 @@
 
   .session-row:last-child { border-bottom: none; }
   .session-row:hover { background: var(--bg3); }
+  .session-row-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.12s; }
+  .session-row:hover .session-row-actions { opacity: 1; }
 
   .session-num {
     color: var(--text3);
@@ -1307,6 +1309,32 @@
   </div>
 </div>
 
+<!-- ADD / EDIT SESSION MODAL -->
+<div class="modal-overlay" id="editSessionModal">
+  <div class="modal">
+    <div class="modal-title" id="editSessionModalTitle">Add Work Item</div>
+    <div style="margin-bottom:14px;"></div>
+    <div class="edit-form-grid">
+      <div class="edit-form-group full">
+        <label class="edit-label">Description</label>
+        <input class="edit-input" id="editSessionDesc" placeholder="What needs to be done?">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Date</label>
+        <input class="edit-input" type="date" id="editSessionDate">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Hours</label>
+        <input class="edit-input" type="number" id="editSessionHours" min="0.25" step="0.25" placeholder="1">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeEditSessionModal()">Cancel</button>
+      <button class="btn primary" onclick="saveSession()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- EDIT TEAM DELIVERABLE MODAL -->
 <div class="modal-overlay" id="editTeamModal">
   <div class="modal">
@@ -1992,11 +2020,18 @@ function renderProjects() {
             <div class="session-desc" style="${s.done ? 'text-decoration:line-through;color:var(--text3);' : ''}">${s.desc}</div>
             <div class="session-date">${fmtDate(s.date)}</div>
             <div class="session-hours">${s.hours}h</div>
+            <div class="session-row-actions" onclick="event.stopPropagation()">
+              <button class="row-edit-btn" onclick="openEditSessionModal('${proj.id}','${s.id}')" title="Edit work item">✏</button>
+              <button class="row-edit-btn" onclick="deleteSession('${proj.id}','${s.id}')" title="Delete work item" style="color:var(--danger);">×</button>
+            </div>
           </div>
         `).join('')}
-        <div style="padding:8px 14px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:16px;">
-          <span style="font-size:11px;color:var(--text3);">Total: ${proj.sessions.reduce((a,s)=>a+s.hours,0)}h</span>
-          <span style="font-size:11px;color:var(--text3);">Done: ${proj.sessions.filter(s=>s.done).reduce((a,s)=>a+s.hours,0)}h</span>
+        <div style="padding:8px 14px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+          <button class="btn" style="font-size:11px;padding:3px 10px;" onclick="event.stopPropagation();openAddSessionModal('${proj.id}')">+ Add work item</button>
+          <div style="display:flex;gap:16px;">
+            <span style="font-size:11px;color:var(--text3);">Total: ${proj.sessions.reduce((a,s)=>a+s.hours,0)}h</span>
+            <span style="font-size:11px;color:var(--text3);">Done: ${proj.sessions.filter(s=>s.done).reduce((a,s)=>a+s.hours,0)}h</span>
+          </div>
         </div>
       </div>
     `;
@@ -2462,6 +2497,74 @@ function deleteBigProj() {
   bigProjs = bigProjs.filter(p => p.id !== editingBigProjId);
   save('wt_bigprojs', bigProjs);
   closeEditBigProjModal();
+  renderProjects();
+}
+
+// =============================================
+// ADD / EDIT SESSION (work item within a project)
+// =============================================
+
+let editingSessionProjId = null;
+let editingSessionId = null;
+
+function openAddSessionModal(projId) {
+  editingSessionProjId = projId;
+  editingSessionId = null;
+  document.getElementById('editSessionModalTitle').textContent = 'Add Work Item';
+  document.getElementById('editSessionDesc').value = '';
+  document.getElementById('editSessionDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('editSessionHours').value = '1';
+  document.getElementById('editSessionModal').classList.add('open');
+}
+
+function openEditSessionModal(projId, sessionId) {
+  editingSessionProjId = projId;
+  editingSessionId = sessionId;
+  const proj = bigProjs.find(p => p.id === projId);
+  const s = proj && proj.sessions.find(s => s.id === sessionId);
+  if (!s) return;
+  document.getElementById('editSessionModalTitle').textContent = 'Edit Work Item';
+  document.getElementById('editSessionDesc').value = s.desc;
+  document.getElementById('editSessionDate').value = s.date;
+  document.getElementById('editSessionHours').value = s.hours;
+  document.getElementById('editSessionModal').classList.add('open');
+}
+
+function closeEditSessionModal() {
+  document.getElementById('editSessionModal').classList.remove('open');
+  editingSessionProjId = null;
+  editingSessionId = null;
+}
+
+function saveSession() {
+  const proj = bigProjs.find(p => p.id === editingSessionProjId);
+  if (!proj) return;
+  const desc  = document.getElementById('editSessionDesc').value.trim();
+  const date  = document.getElementById('editSessionDate').value;
+  const hours = parseFloat(document.getElementById('editSessionHours').value) || 1;
+  if (!desc) return alert('Description is required.');
+
+  if (editingSessionId) {
+    // editing existing
+    const s = proj.sessions.find(s => s.id === editingSessionId);
+    if (s) { s.desc = desc; s.date = date; s.hours = hours; }
+  } else {
+    // adding new — num = max existing + 1
+    const maxNum = proj.sessions.reduce((m, s) => Math.max(m, s.num), 0);
+    proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, hours, done: false });
+  }
+
+  save('wt_bigprojs', bigProjs);
+  closeEditSessionModal();
+  renderProjects();
+}
+
+function deleteSession(projId, sessionId) {
+  if (!confirm('Delete this work item?')) return;
+  const proj = bigProjs.find(p => p.id === projId);
+  if (!proj) return;
+  proj.sessions = proj.sessions.filter(s => s.id !== sessionId);
+  save('wt_bigprojs', bigProjs);
   renderProjects();
 }
 
