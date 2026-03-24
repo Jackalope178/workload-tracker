@@ -1120,9 +1120,10 @@
   <div class="panel" id="panel-timesheet">
     <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
       <div class="ts-view-toggle">
-        <button id="tsViewWeek"  class="ts-view-btn active" onclick="setTsView('week')">Week</button>
-        <button id="tsViewMonth" class="ts-view-btn"        onclick="setTsView('month')">Month</button>
-        <button id="tsViewAll"   class="ts-view-btn"        onclick="setTsView('all')">All</button>
+        <button id="tsViewWeek"    class="ts-view-btn active" onclick="setTsView('week')">Week</button>
+        <button id="tsViewMonth"   class="ts-view-btn"        onclick="setTsView('month')">Month</button>
+        <button id="tsViewPlanned" class="ts-view-btn"        onclick="setTsView('planned')">Planned</button>
+        <button id="tsViewAll"     class="ts-view-btn"        onclick="setTsView('all')">All</button>
       </div>
       <div id="tsPeriodNav" style="display:flex;align-items:center;gap:4px;">
         <button class="btn" onclick="tsPeriodPrev()">‹</button>
@@ -2310,10 +2311,10 @@ let tsCapacity = parseFloat(load('wt_ts_capacity', 40)) || 40;
 
 function setTsView(v) {
   tsView = v;
-  ['week','month','all'].forEach(x => {
+  ['week','month','planned','all'].forEach(x => {
     document.getElementById('tsView' + x.charAt(0).toUpperCase() + x.slice(1))?.classList.toggle('active', x === v);
   });
-  document.getElementById('tsPeriodNav').style.display = v === 'all' ? 'none' : 'flex';
+  document.getElementById('tsPeriodNav').style.display = (v === 'all' || v === 'planned') ? 'none' : 'flex';
   renderTimesheet();
 }
 
@@ -2565,6 +2566,111 @@ function renderTimesheet() {
     }
 
     if (!hasAny) container.innerHTML = '<div class="empty-state">No data this month.</div>';
+
+  } else if (tsView === 'planned') {
+    // PLANNED view — upcoming tasks + undelegated project sessions grouped by week
+    document.getElementById('tsCapacityBar').style.display = 'none';
+
+    // Collect all planned items with a date on or after today
+    const todayStr = today();
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    const plannedAll = [];
+
+    // Active tasks with a due date
+    tasks.forEach(t => {
+      if (t.due && t.due >= todayStr && (fProj === 'all' || t.project === fProj)) {
+        plannedAll.push({ id: t.id, name: t.name, project: t.project, date: t.due, hours: t.est || 0, type: 'task', _taskId: t.id });
+      }
+    });
+
+    // Undone, undelegated big project sessions
+    bigProjs.forEach(proj => {
+      if (fProj !== 'all' && proj.project !== fProj) return;
+      proj.sessions.forEach(s => {
+        if (!s.done && !s.delegatedTo && s.date && s.date >= todayStr) {
+          plannedAll.push({ id: s.id, name: s.desc, project: proj.project, date: s.date, hours: s.hours || 0, type: 'session', _projId: proj.id, _projName: proj.name });
+        }
+      });
+    });
+
+    if (!plannedAll.length) {
+      container.innerHTML = '<div class="empty-state">No upcoming planned work.</div>';
+    } else {
+      // Group by week (Sun–Sat)
+      const byWeek = {};
+      plannedAll.forEach(item => {
+        const d = new Date(item.date + 'T00:00:00');
+        d.setDate(d.getDate() - d.getDay());
+        const wk = localDateStr(d);
+        if (!byWeek[wk]) byWeek[wk] = [];
+        byWeek[wk].push(item);
+      });
+
+      // Total planned hours for summary
+      const totalH = plannedAll.reduce((a, i) => a + i.hours, 0);
+      const summaryEl = document.createElement('div');
+      summaryEl.style.cssText = 'padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;gap:16px;';
+      summaryEl.innerHTML = `
+        <span>📋 <strong style="color:var(--text)">${plannedAll.length}</strong> items planned</span>
+        <span>⏱ <strong style="color:var(--text)">${totalH.toFixed(1)}h</strong> total estimated</span>
+        <span>📅 <strong style="color:var(--text)">${Object.keys(byWeek).length}</strong> weeks</span>
+      `;
+      container.appendChild(summaryEl);
+
+      Object.keys(byWeek).sort().forEach(wStart => {
+        const items = byWeek[wStart];
+        const wEnd = addDays(wStart, 6);
+        const wHours = items.reduce((a, i) => a + i.hours, 0);
+        const pct = Math.min(Math.round((wHours / tsCapacity) * 100), 100);
+        const cls = wHours > tsCapacity ? 'over' : wHours > tsCapacity * 0.8 ? 'warn' : 'ok';
+        const remaining = Math.max(tsCapacity - wHours, 0);
+
+        const wsParts = wStart.split('-'), weParts = wEnd.split('-');
+        const wLabel = `${months[+wsParts[1]-1]} ${+wsParts[2]} – ${months[+weParts[1]-1]} ${+weParts[2]}`;
+
+        // Week header with capacity bar
+        const hdr = document.createElement('div');
+        hdr.style.cssText = 'padding:10px 14px;border-bottom:1px solid var(--border);border-top:1px solid var(--border);margin-top:4px;background:var(--bg3);';
+        hdr.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+            <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;">${wLabel}</span>
+            <span style="font-size:11px;color:var(--text3);">
+              <strong style="color:${cls === 'over' ? 'var(--danger)' : cls === 'warn' ? 'var(--warn)' : 'var(--success)'}">${wHours.toFixed(1)}h</strong> planned
+              / ${tsCapacity}h capacity
+              · <span style="color:${remaining > 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:600;">${remaining > 0 ? remaining.toFixed(1) + 'h free' : 'over capacity'}</span>
+            </span>
+          </div>
+          <div class="ts-cap-bar-wrap">
+            <div class="ts-cap-bar-fill ${cls}" style="width:${pct}%;"></div>
+          </div>
+        `;
+        container.appendChild(hdr);
+
+        // Items in this week, sorted by date
+        items.sort((a, b) => a.date.localeCompare(b.date)).forEach(item => {
+          const d = new Date(item.date + 'T00:00:00');
+          const dayLabel = `${dayNames[d.getDay()]} ${months[d.getMonth()]} ${d.getDate()}`;
+          const row = document.createElement('div');
+          row.className = 'ts-entry-row';
+          const editFn = item.type === 'task'
+            ? `openEditModal('${item._taskId}')`
+            : `openEditSessionModal('${item._projId}','${item.id}')`;
+          row.innerHTML = `
+            <span class="ts-entry-name" onclick="${editFn}" title="${item.type === 'session' ? 'From: ' + item._projName : 'Task'}">${item.name}${item.type === 'session' ? ` <span style="font-size:10px;color:var(--text3);">· ${item._projName}</span>` : ''}</span>
+            <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
+            <span style="font-size:11px;color:var(--text3);">${dayLabel}</span>
+            <span style="font-size:11px;color:var(--text3);">${item.type === 'task' ? 'task' : 'project'}</span>
+            <span style="font-size:12px;font-weight:700;">${item.hours}h</span>
+            <div class="ts-entry-actions" style="opacity:1;">
+              <button class="row-edit-btn" onclick="${editFn}" title="Edit">✏</button>
+            </div>
+          `;
+          container.appendChild(row);
+        });
+      });
+    }
 
   } else {
     // ALL view — project-grouped table with edit/delete
