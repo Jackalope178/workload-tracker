@@ -2087,7 +2087,7 @@ function addSubCode(projKey) {
   if (!PROJECTS[projKey].subCodes) PROJECTS[projKey].subCodes = [];
   const existing = PROJECTS[projKey].subCodes;
   const nextNum = existing.length + 1;
-  const code = '.' + String(nextNum).padStart(2, '0');
+  const code = String(nextNum);
   existing.push({ id: uid(), code, label: '' });
   saveProjects();
   renderProjectMetaList();
