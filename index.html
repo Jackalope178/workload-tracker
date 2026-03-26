@@ -3270,7 +3270,7 @@ function renderTasks() {
         <div class="task-recur-actions"></div>
         <span class="task-category" style="color:var(--text3);font-style:italic;">${proj.name}</span>
         <div onclick="showSessionPriorityDropdown(event,'${proj.id}','${s.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(s.priority || 'med')}</div>
-        <div class="task-due ${dc}">${fmtDate(s.date)}</div>
+        <div class="task-due ${dc}" onclick="openSessionDatePicker(this,'${proj.id}','${s.id}')" style="cursor:pointer;">${fmtDate(s.date)}</div>
         <div class="task-est">${s.hours ? s.hours + 'h' : '—'}</div>
         <div style="display:flex;align-items:center;gap:4px;">
           <button class="row-edit-btn" onclick="openEditSessionModal('${proj.id}','${s.id}')" title="Edit">✏</button>
@@ -3288,7 +3288,7 @@ function renderTasks() {
         <div class="task-recur-actions"></div>
         <span class="task-category" style="color:var(--text3);font-style:italic;font-size:10px;">${proj.name}</span>
         <div onclick="showSubtaskPriorityDropdown(event,'${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(st.priority || 'med')}</div>
-        <div class="task-due ${dc}" style="font-size:11px;">${fmtDate(st.date)}</div>
+        <div class="task-due ${dc}" style="font-size:11px;cursor:pointer;" onclick="openSubtaskDatePicker(this,'${proj.id}','${s.id}','${st.id}')">${fmtDate(st.date)}</div>
         <div class="task-est" style="font-size:11px;">${st.hours ? st.hours + 'h' : '—'}</div>
         <div style="display:flex;align-items:center;gap:4px;">
           <button class="row-edit-btn" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" title="Edit">✏</button>
@@ -3531,6 +3531,45 @@ function openDueDatePicker(el, taskId) {
   input.addEventListener('blur', () => {
     renderTasks();
   });
+}
+
+function openSessionDatePicker(el, projId, sessionId) {
+  const proj = bigProjs.find(p => p.id === projId);
+  const s = proj && proj.sessions.find(s => s.id === sessionId);
+  if (!s) return;
+  const input = document.createElement('input');
+  input.type = 'date';
+  input.className = 'date-input-inline';
+  input.value = s.date || '';
+  el.parentNode.insertBefore(input, el);
+  el.style.display = 'none';
+  input.focus();
+  input.addEventListener('change', () => {
+    s.date = input.value;
+    save('wt_bigprojs', bigProjs);
+    renderProjects(); renderTasks();
+  });
+  input.addEventListener('blur', () => { renderProjects(); renderTasks(); });
+}
+
+function openSubtaskDatePicker(el, projId, sessionId, subtaskId) {
+  const proj = bigProjs.find(p => p.id === projId);
+  const s = proj && proj.sessions.find(s => s.id === sessionId);
+  const st = s && (s.subtasks || []).find(st => st.id === subtaskId);
+  if (!st) return;
+  const input = document.createElement('input');
+  input.type = 'date';
+  input.className = 'date-input-inline';
+  input.value = st.date || '';
+  el.parentNode.insertBefore(input, el);
+  el.style.display = 'none';
+  input.focus();
+  input.addEventListener('change', () => {
+    st.date = input.value;
+    save('wt_bigprojs', bigProjs);
+    renderProjects(); renderTasks();
+  });
+  input.addEventListener('blur', () => { renderProjects(); renderTasks(); });
 }
 
 function openTeamDueDatePicker(el, itemId) {
@@ -3889,7 +3928,7 @@ function renderProjects() {
               ${s.waiting ? `<span class="task-waiting">⏳ ${s.waiting}</span>` : ''}
               ${s.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${s.id}','${proj.id}')" title="View notes">📝</span>` : ''}
             </div>
-            <div class="session-date">${fmtDate(s.date)}</div>
+            <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openSessionDatePicker(this,'${proj.id}','${s.id}')">${fmtDate(s.date)}</div>
             <div class="session-hours">${s.hours}h</div>
             <div class="session-row-actions" onclick="event.stopPropagation()">
               <button class="row-edit-btn" data-assign-btn="1" onclick="showAssignDropdown(event,'${proj.id}','${s.id}')" title="Assign">↗</button>
@@ -3911,7 +3950,7 @@ function renderProjects() {
                 ${st.waiting?`<span class="task-waiting">⏳ ${st.waiting}</span>`:''}
                 ${st.notes?`<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('subtask','${st.id}','${proj.id}','${s.id}')" title="View notes">📝</span>`:''}
               </div>
-              <div class="session-date">${fmtDate(st.date)}</div>
+              <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openSubtaskDatePicker(this,'${proj.id}','${s.id}','${st.id}')">${fmtDate(st.date)}</div>
               <div class="session-hours">${st.hours}h</div>
               <div class="session-row-actions" onclick="event.stopPropagation()">
                 <button class="row-edit-btn" data-assign-btn="1" onclick="showAssignDropdown(event,'${proj.id}','${s.id}','${st.id}')" title="Assign">↗</button>
