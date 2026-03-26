@@ -425,6 +425,8 @@
     border-radius: 5px;
     outline: none;
     transition: border-color 0.15s;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .form-input:focus { border-color: var(--accent); }
@@ -447,9 +449,9 @@
     background: var(--bg2);
     border: 1px solid var(--border2);
     border-radius: 10px;
-    padding: 28px;
-    width: 480px;
-    max-width: 95vw;
+    padding: 24px;
+    width: 420px;
+    max-width: 92vw;
     box-shadow: 0 20px 60px rgba(0,0,0,0.6);
   }
 
@@ -852,11 +854,11 @@
   .edit-form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 10px 12px;
     margin-bottom: 10px;
   }
 
-  .edit-form-group { display: flex; flex-direction: column; gap: 5px; }
+  .edit-form-group { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .edit-form-group.full { grid-column: 1 / -1; }
   .edit-label { font-size: 11px; color: var(--text2); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; }
   .edit-input {
@@ -869,9 +871,11 @@
     border-radius: 5px;
     outline: none;
     transition: border-color 0.15s;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
   .edit-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79, 156, 249, 0.15); }
-  /* Date input calendar icon — force light color-scheme for visibility */
   .edit-input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
   .bill-input::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
 
@@ -1764,7 +1768,7 @@
     </div>
     <div class="modal-row">
       <span class="modal-label">Sub-code</span>
-      <select id="compSubCode" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-size:12px;padding:4px 8px;border-radius:4px;min-width:160px;"></select>
+      <select id="compSubCode" class="edit-input" style="padding:6px 8px;font-size:12px;width:auto;min-width:160px;"></select>
     </div>
     <div class="modal-row" style="margin-top:8px;">
       <span class="modal-label">Billable hours</span>
@@ -2054,10 +2058,10 @@
 
 <!-- ADD / EDIT TIMESHEET ENTRY MODAL -->
 <div class="modal-overlay" id="tsEntryModal">
-  <div class="modal" style="width:400px;">
+  <div class="modal">
     <div class="modal-title" id="tsEntryModalTitle">Log Time</div>
     <div style="margin-bottom:12px;"></div>
-    <div class="edit-form-grid" style="grid-template-columns:1fr 1fr;gap:8px;">
+    <div class="edit-form-grid">
       <div class="edit-form-group" style="grid-column:1/-1;">
         <label class="edit-label">Task</label>
         <input class="edit-input" id="tsEntryName" placeholder="What did you work on?">
