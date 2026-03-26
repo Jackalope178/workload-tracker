@@ -1672,9 +1672,13 @@
       <span class="modal-label">Sub-code</span>
       <select id="compSubCode" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-size:12px;padding:4px 8px;border-radius:4px;min-width:160px;"></select>
     </div>
-    <div class="modal-row" style="border-bottom:none; margin-top:8px;">
+    <div class="modal-row" style="margin-top:8px;">
       <span class="modal-label">Billable hours</span>
       <input class="bill-input" type="number" id="compBillable" step="0.25" min="0.25">
+    </div>
+    <div class="modal-row" style="border-bottom:none;">
+      <span class="modal-label">Date completed</span>
+      <input class="bill-input" type="date" id="compDate" style="width:auto;min-width:140px;">
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeCompletionModal()">Cancel</button>
@@ -3207,6 +3211,7 @@ function openCompletionModal(taskId) {
   }
 
   populateSubCodeSelect('compSubCode', task.project, task.subCode || '');
+  document.getElementById('compDate').value = today();
 
   document.getElementById('completionModal').classList.add('open');
 }
@@ -3228,7 +3233,7 @@ function confirmComplete() {
     name: task.name,
     project: task.project,
     subCode: subCode,
-    dateCompleted: today(),
+    dateCompleted: document.getElementById('compDate').value || today(),
     estHours: task.est,
     actualHours: billable,
     category: task.category
