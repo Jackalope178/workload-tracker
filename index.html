@@ -4026,28 +4026,27 @@ function renderTeam() {
   const fProj   = document.getElementById('teamFilterProject')?.value || 'all';
   const fStatus = document.getElementById('teamFilterStatus')?.value || 'all';
 
-  // Collect delegated sessions from big projects as synthetic team items
+  // Collect delegated sessions — one row per session, multiple owners
   const delegatedItems = [];
   bigProjs.forEach(proj => {
     proj.sessions.forEach(s => {
       const people = normDelegated(s.delegatedTo);
-      people.forEach(person => {
-        delegatedItems.push({
-          id: s.id + '_' + person.replace(/\s+/g,'_'),
-          name: s.desc, owner: person, project: proj.project,
-          due: s.date, status: s.status || (s.done ? 'complete' : 'not-started'),
-          _delegated: true, _projId: proj.id, _sessionId: s.id
-        });
+      if (!people.length) return;
+      delegatedItems.push({
+        id: s.id + '_delegated',
+        name: s.desc, owners: people, owner: people.join(', '), project: proj.project,
+        due: s.date, status: s.status || (s.done ? 'complete' : 'not-started'),
+        _delegated: true, _projId: proj.id, _sessionId: s.id
       });
     });
   });
 
-  let allItems = [...teamItems, ...delegatedItems];
+  let allItems = [...teamItems.map(t => ({ ...t, owners: [t.owner] })), ...delegatedItems];
 
-  // Populate person filter
+  // Populate person filter from all unique people
   const personSelect = document.getElementById('teamFilterPerson');
   if (personSelect) {
-    const allPeople = [...new Set(allItems.map(t => t.owner).filter(Boolean))].sort();
+    const allPeople = [...new Set(allItems.flatMap(t => t.owners || [t.owner]).filter(Boolean))].sort();
     const curVal = personSelect.value;
     personSelect.innerHTML = '<option value="all">All people</option>';
     allPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; personSelect.appendChild(o); });
@@ -4055,15 +4054,15 @@ function renderTeam() {
   }
 
   let visible = allItems;
-  if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || t.owner.toLowerCase().includes(search));
-  if (fPerson !== 'all') visible = visible.filter(t => t.owner === fPerson);
+  if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || (t.owners||[]).some(o => o.toLowerCase().includes(search)));
+  if (fPerson !== 'all') visible = visible.filter(t => (t.owners||[]).includes(fPerson));
   if (fProj !== 'all') visible = visible.filter(t => t.project === fProj);
   if (fStatus !== 'all') visible = visible.filter(t => t.status === fStatus);
 
   // Sort
   visible.sort((a, b) => {
     let va, vb;
-    if (_teamSortKey === 'person') { va = a.owner || ''; vb = b.owner || ''; }
+    if (_teamSortKey === 'person') { va = (a.owners||[])[0] || a.owner || ''; vb = (b.owners||[])[0] || b.owner || ''; }
     else if (_teamSortKey === 'project') { va = projLabel(a.project); vb = projLabel(b.project); }
     else if (_teamSortKey === 'due') { va = a.due || '9999'; vb = b.due || '9999'; }
     else if (_teamSortKey === 'status') { va = a.status; vb = b.status; }
@@ -4106,8 +4105,11 @@ function renderTeam() {
     row.className = 'team-row';
     if (isCompleted) row.style.opacity = '0.5';
     const dc = dueCls(item.due);
-    const pc = personColor(item.owner || '—');
-    const ownerHtml = `<span class="team-owner" style="color:${pc.text};">${item.owner}</span>`;
+    const owners = item.owners || [item.owner];
+    const ownerHtml = `<div class="team-owner" style="display:flex;flex-wrap:wrap;gap:3px;">${owners.map(o => {
+      const pc = personColor(o || '—');
+      return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap;">${o}</span>`;
+    }).join('')}</div>`;
     if (item._delegated) {
       row.innerHTML = `
         <div class="team-task-name" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')">${item.name} <span class="delegate-tag">↗</span></div>
