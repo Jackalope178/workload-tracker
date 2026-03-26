@@ -2527,6 +2527,9 @@ function secsToHours(s) {
 function roundToQuarter(h) {
   if (h <= 0) return 0.25;
   const q = Math.ceil(h / 0.25) * 0.25;
+
+// Round to nearest 0.25 for display (billing in 15-min increments)
+function fmtQ(h) { const v = Math.round(h / 0.25) * 0.25; return v % 1 === 0 ? v.toFixed(1) : parseFloat(v.toFixed(2)).toString(); }
   return Math.max(0.25, q);
 }
 
@@ -3031,7 +3034,7 @@ function renderTasks() {
             <div class="cap-bar-planned ${capCls}" style="width:${plannedPct}%;"></div>
             <div class="cap-bar-logged" style="width:${loggedPct}%;"></div>
           </div>
-          <span style="font-size:10px;color:var(--text);white-space:nowrap;font-weight:700;">${logged > 0 ? logged.toFixed(1) + 'h logged' : ''}</span>
+          <span style="font-size:10px;color:var(--text);white-space:nowrap;font-weight:700;">${logged > 0 ? fmtQ(logged) + 'h logged' : ''}</span>
           <span style="font-size:10px;color:${statusCol};white-space:nowrap;font-weight:600;">${statusText}</span>
           <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${est.toFixed(1)}h planned / ${dayCap.toFixed(0)}h cap</span>
         </div>`;
@@ -3969,8 +3972,8 @@ function renderTsCapacityBar(usedH, plannedH, capacityH, label) {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
       <span style="font-size:11px;font-weight:600;color:var(--text2);">${label}</span>
       <span style="font-size:11px;color:var(--text3);">
-        <span style="color:var(--text);font-weight:600;">${usedH.toFixed(1)}h</span> logged
-        ${plannedH > 0 ? ` + <span style="color:var(--text3);">${plannedH.toFixed(1)}h</span> planned` : ''}
+        <span style="color:var(--text);font-weight:600;">${fmtQ(usedH)}h</span> logged
+        ${plannedH > 0 ? ` + <span style="color:var(--text3);">${fmtQ(plannedH)}h</span> planned` : ''}
         &nbsp;/&nbsp;${capacityH}h capacity
         &nbsp;·&nbsp;<span style="color:${remaining > 0 ? 'var(--success)' : 'var(--danger)'};font-weight:600;">${remaining > 0 ? remaining.toFixed(1) + 'h free' : 'over capacity'}</span>
       </span>
@@ -4060,7 +4063,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
     const hdr = document.createElement('div');
     hdr.className = 'ts-day-header';
     hdr.style.paddingLeft = '32px';
-    hdr.innerHTML = `<span class="ts-day-chevron${isDayCollapsed ? '' : ' open'}">›</span><span>${dayLabel}</span><span style="font-size:10px;font-weight:500;color:var(--text3);margin-left:4px;">${rawItems.length} item${rawItems.length !== 1 ? 's' : ''}</span><span class="ts-day-total">${dayTotal > 0 ? dayTotal.toFixed(1) + 'h logged' : ''}</span>`;
+    hdr.innerHTML = `<span class="ts-day-chevron${isDayCollapsed ? '' : ' open'}">›</span><span>${dayLabel}</span><span style="font-size:10px;font-weight:500;color:var(--text3);margin-left:4px;">${rawItems.length} item${rawItems.length !== 1 ? 's' : ''}</span><span class="ts-day-total">${dayTotal > 0 ? fmtQ(dayTotal) + 'h logged' : ''}</span>`;
     hdr.onclick = () => {
       if (tsCollapsedDays.has(date)) tsCollapsedDays.delete(date);
       else tsCollapsedDays.add(date);
@@ -4185,7 +4188,7 @@ function renderTimesheet() {
           </div>
           <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${wPct}%</span>
         </div>
-        <span style="font-size:10px;color:var(--text3);">${wUsed.toFixed(1)}h logged${wPlannedH > 0 ? ' + ' + wPlannedH.toFixed(1) + 'h planned' : ''} / ${wCap.toFixed(0)}h · <span style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};font-weight:700;">${wCls === 'over' ? '+' + (wTotal - wCap).toFixed(1) + 'h over' : (wCap - wTotal).toFixed(1) + 'h left'}</span></span>
+        <span style="font-size:10px;color:var(--text3);">${fmtQ(wUsed)}h logged${wPlannedH > 0 ? ' + ' + fmtQ(wPlannedH) + 'h planned' : ''} / ${wCap.toFixed(0)}h · <span style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};font-weight:700;">${wCls === 'over' ? '+' + fmtQ(wTotal - wCap) + 'h over' : fmtQ(wCap - wTotal) + 'h left'}</span></span>
         <span class="ts-month-chevron${isOpen ? ' open' : ''}">›</span>
       `;
       container.appendChild(row);
@@ -4249,7 +4252,7 @@ function renderTimesheet() {
           </div>
           <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${mPct}%</span>
         </div>
-        <span style="font-size:10px;color:var(--text3);">${mUsed.toFixed(1)}h logged${mPlannedH > 0 ? ' + ' + mPlannedH.toFixed(1) + 'h planned' : ''} / ${mCap.toFixed(0)}h capacity · <span style="color:${mCls === 'over' ? 'var(--danger)' : mCls === 'warn' ? 'var(--warn)' : 'var(--success)'};font-weight:700;">${mCls === 'over' ? '+' + (mTotal - mCap).toFixed(1) + 'h over' : (mCap - mTotal).toFixed(1) + 'h left'}</span></span>
+        <span style="font-size:10px;color:var(--text3);">${fmtQ(mUsed)}h logged${mPlannedH > 0 ? ' + ' + fmtQ(mPlannedH) + 'h planned' : ''} / ${mCap.toFixed(0)}h capacity · <span style="color:${mCls === 'over' ? 'var(--danger)' : mCls === 'warn' ? 'var(--warn)' : 'var(--success)'};font-weight:700;">${mCls === 'over' ? '+' + fmtQ(mTotal - mCap) + 'h over' : fmtQ(mCap - mTotal) + 'h left'}</span></span>
         <span class="ts-month-chevron${isMonthOpen ? ' open' : ''}">›</span>
       `;
       container.appendChild(mRow);
@@ -4295,9 +4298,9 @@ function renderTimesheet() {
                 </div>
                 <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${wPct}%</span>
               </div>
-              <span style="font-size:10px;color:var(--text3);">${wUsed.toFixed(1)}h logged${wPlannedH > 0 ? ' + ' + wPlannedH.toFixed(1) + 'h planned' : ''} / ${wCap.toFixed(0)}h</span>
+              <span style="font-size:10px;color:var(--text3);">${fmtQ(wUsed)}h logged${wPlannedH > 0 ? ' + ' + fmtQ(wPlannedH) + 'h planned' : ''} / ${wCap.toFixed(0)}h</span>
             </div>
-            <span class="ts-month-hours" style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};">${wCls === 'over' ? '+' + (wTotal - wCap).toFixed(1) : (wCap - wTotal).toFixed(1)}h left</span>
+            <span class="ts-month-hours" style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};">${wCls === 'over' ? '+' + fmtQ(wTotal - wCap) + 'h over' : fmtQ(wCap - wTotal) + 'h left'}</span>
             <span class="ts-month-chevron${isWeekOpen ? ' open' : ''}">›</span>
           `;
           wrapEl.appendChild(wRow);
@@ -4453,7 +4456,7 @@ function renderTimesheet() {
           <div class="project-dot" style="background:${projColor(projKey)};width:9px;height:9px;border-radius:50%;"></div>
           <div class="ts-project-name">${projLabel(projKey)}</div>
           <span style="font-size:11px;color:var(--text3);margin-right:8px;">${items.length} entries</span>
-          <span style="font-size:11px;font-weight:700;color:var(--text);margin-right:12px;">${projActual.toFixed(1)}h logged</span>
+          <span style="font-size:11px;font-weight:700;color:var(--text);margin-right:12px;">${fmtQ(projActual)}h logged</span>
         </div>
         <table class="ts-table">
           <thead><tr><th>Code</th><th>Sub-code</th><th>Task</th><th>Date</th><th style="text-align:right;">Hours</th><th></th></tr></thead>
@@ -4475,7 +4478,7 @@ function renderTimesheet() {
             }).join('')}
             <tr class="ts-summary-row">
               <td colspan="4">Total</td>
-              <td style="text-align:right;">${projActual.toFixed(1)}h</td>
+              <td style="text-align:right;">${fmtQ(projActual)}h</td>
               <td></td>
             </tr>
           </tbody>
