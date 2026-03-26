@@ -3839,6 +3839,7 @@ function renderProjects() {
         <span class="proj-drag-handle" onclick="event.stopPropagation()" title="Drag to reorder">⠿</span>
         <div class="project-dot" style="background:${cardColor};width:9px;height:9px;border-radius:50%;"></div>
         <div class="project-name-big" onclick="event.stopPropagation();openEditBigProjModal('${proj.id}')" title="Edit project">${proj.name}</div>
+        <div style="font-size:10px;color:var(--text3);margin-right:4px;font-family:monospace;">${projBillingCode(proj.project) || ''}</div>
         <div style="font-size:11px;color:var(--text3);margin-right:8px;">${projLabel(proj.project)}</div>
         <div class="progress-bar-wrap">
           <div class="progress-bar-fill" style="width:${pct}%;background:${cardColor};"></div>
@@ -3858,6 +3859,7 @@ function renderProjects() {
             <div class="session-num">#${s.num}</div>
             <div class="session-desc" style="${s.done ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditSessionModal('${proj.id}','${s.id}')">
               ${s.desc}
+              ${s.subCode ? `<span style="font-size:9px;color:var(--accent);opacity:0.7;margin-left:4px;font-family:monospace;">${getSubCodeLabel(proj.project, s.subCode) || s.subCode}</span>` : ''}
               <span id="session-tags-${s.id}">${delegateTagsHtml(s.delegatedTo)}</span>
               ${s.waiting ? `<span style="font-size:10px;color:var(--warn);margin-left:5px;">⏳ ${s.waiting}</span>` : ''}
             </div>
@@ -3877,6 +3879,7 @@ function renderProjects() {
               <div style="color:var(--text3);">╰</div>
               <div class="session-desc" style="${st.done?'text-decoration:line-through;color:var(--text3);':''}" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')">
                 ${st.desc}
+                ${st.subCode ? `<span style="font-size:9px;color:var(--accent);opacity:0.7;margin-left:4px;font-family:monospace;">${getSubCodeLabel(proj.project, st.subCode) || st.subCode}</span>` : ''}
                 <span id="subtask-tags-${st.id}">${delegateTagsHtml(st.delegatedTo)}</span>
                 ${st.waiting?`<span style="font-size:10px;color:var(--warn);margin-left:5px;">⏳ ${st.waiting}</span>`:''}
               </div>
