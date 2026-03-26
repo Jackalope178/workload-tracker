@@ -3923,7 +3923,7 @@ function renderProjects() {
             </div>
             <div class="session-desc" style="${s.done ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditSessionModal('${proj.id}','${s.id}')">
               ${s.desc}
-              ${s.subCode ? `<span style="font-size:9px;color:var(--accent);opacity:0.7;margin-left:4px;font-family:monospace;">${getSubCodeLabel(proj.project, s.subCode) || s.subCode}</span>` : ''}
+              ${s.subCode ? `` : ''}
               <span id="session-tags-${s.id}">${delegateTagsHtml(s.delegatedTo)}</span>
               ${s.waiting ? `<span class="task-waiting">⏳ ${s.waiting}</span>` : ''}
               ${s.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${s.id}','${proj.id}')" title="View notes">📝</span>` : ''}
@@ -3945,7 +3945,6 @@ function renderProjects() {
               </div>
               <div class="session-desc" style="${st.done?'text-decoration:line-through;color:var(--text3);':''}" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')">
                 ${st.desc}
-                ${st.subCode ? `<span style="font-size:9px;color:var(--accent);opacity:0.7;margin-left:4px;font-family:monospace;">${getSubCodeLabel(proj.project, st.subCode) || st.subCode}</span>` : ''}
                 <span id="subtask-tags-${st.id}">${delegateTagsHtml(st.delegatedTo)}</span>
                 ${st.waiting?`<span class="task-waiting">⏳ ${st.waiting}</span>`:''}
                 ${st.notes?`<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('subtask','${st.id}','${proj.id}','${s.id}')" title="View notes">📝</span>`:''}
