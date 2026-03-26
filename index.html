@@ -687,11 +687,13 @@
   .ts-cap-bar-fill.warn { background: var(--warn); }
   .ts-cap-bar-fill.over { background: var(--danger); }
 
-  /* Dual-segment capacity bar: planned (dim) + logged (bright) */
+  /* Dual-segment capacity bar: color-coded planned + translucent logged overlay */
   .cap-bar-dual { position: relative; height: 8px; border-radius: 4px; background: var(--bg3); overflow: hidden; }
-  .cap-bar-planned { position: absolute; top: 0; left: 0; height: 100%; border-radius: 4px; background: rgba(79, 156, 249, 0.2); transition: width 0.3s; }
-  .cap-bar-logged  { position: absolute; top: 0; left: 0; height: 100%; border-radius: 4px; background: var(--success); transition: width 0.3s; }
-  .cap-bar-logged.over-logged { background: var(--warn); }
+  .cap-bar-planned { position: absolute; top: 0; left: 0; height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .cap-bar-planned.ok   { background: var(--success); }
+  .cap-bar-planned.warn { background: var(--warn); }
+  .cap-bar-planned.over { background: var(--danger); }
+  .cap-bar-logged  { position: absolute; top: 0; left: 0; height: 100%; border-radius: 4px; background: rgba(255,255,255,0.28); transition: width 0.3s; }
 
   .ts-day-header {
     display: flex; align-items: center; gap: 8px;
@@ -2986,15 +2988,16 @@ function renderTasks() {
       const logged = loggedHoursForDates(sectionDates);
       const plannedPct = Math.min(Math.round((est / dayCap) * 100), 100);
       const loggedPct  = Math.min(Math.round((logged / dayCap) * 100), 100);
-      const overLogged = logged > est && est > 0;
       const remaining  = Math.max(est - logged, 0);
+
+      // Planned bar color: green/amber/red based on capacity usage
+      const capCls = est > dayCap ? 'over' : est > dayCap * 0.8 ? 'warn' : 'ok';
 
       // Status text
       let statusText, statusCol;
       if (logged === 0) {
-        const cls = est > dayCap ? 'over' : est > dayCap * 0.8 ? 'warn' : 'ok';
         const left = est > dayCap ? `+${(est - dayCap).toFixed(1)}h over capacity` : `${(dayCap - est).toFixed(1)}h free`;
-        statusCol = cls === 'over' ? 'var(--danger)' : cls === 'warn' ? 'var(--warn)' : 'var(--success)';
+        statusCol = capCls === 'over' ? 'var(--danger)' : capCls === 'warn' ? 'var(--warn)' : 'var(--success)';
         statusText = left;
       } else {
         const variance = logged - est;
@@ -3013,10 +3016,10 @@ function renderTasks() {
       capHtml = `
         <div style="padding:5px 8px;display:flex;align-items:center;gap:10px;background:var(--bg2);">
           <div class="cap-bar-dual" style="flex:1;">
-            <div class="cap-bar-planned" style="width:${plannedPct}%;"></div>
-            <div class="cap-bar-logged${overLogged ? ' over-logged' : ''}" style="width:${loggedPct}%;"></div>
+            <div class="cap-bar-planned ${capCls}" style="width:${plannedPct}%;"></div>
+            <div class="cap-bar-logged" style="width:${loggedPct}%;"></div>
           </div>
-          <span style="font-size:10px;color:var(--success);white-space:nowrap;font-weight:700;">${logged > 0 ? logged.toFixed(1) + 'h logged' : ''}</span>
+          <span style="font-size:10px;color:var(--text);white-space:nowrap;font-weight:700;">${logged > 0 ? logged.toFixed(1) + 'h logged' : ''}</span>
           <span style="font-size:10px;color:${statusCol};white-space:nowrap;font-weight:600;">${statusText}</span>
           <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${est.toFixed(1)}h planned / ${dayCap.toFixed(0)}h cap</span>
         </div>`;
