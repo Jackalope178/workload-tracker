@@ -543,7 +543,7 @@
   .proj-drag-handle { cursor: grab; color: var(--text3); font-size: 14px; padding: 0 4px; user-select: none; }
   .proj-drag-handle:active { cursor: grabbing; }
   .project-card.drag-over { outline: 2px dashed var(--accent); }
-  .proj-collapse-chevron { margin-left: auto; color: var(--text3); font-size: 12px; transition: transform 0.15s; user-select: none; }
+  .proj-collapse-chevron { color: var(--text3); font-size: 12px; transition: transform 0.15s; user-select: none; }
   .proj-collapse-chevron.open { transform: rotate(90deg); }
 
   .project-name-big {
@@ -579,7 +579,7 @@
 
   .session-row {
     display: grid;
-    grid-template-columns: 20px 30px 1fr auto auto auto auto;
+    grid-template-columns: 20px 1fr auto auto auto auto;
     gap: 8px;
     align-items: center;
     padding: 8px 14px;
@@ -1481,7 +1481,6 @@
       grid-template-columns: 20px 1fr auto auto !important;
       gap: 6px;
     }
-    .session-row > :nth-child(2) { display: none; } /* hide session number */
 
     /* Team rows — compact on tablet */
     .team-row {
@@ -3863,6 +3862,7 @@ function renderProjects() {
     card.innerHTML = `
       <div class="project-card-header" onclick="toggleProjCollapse('${proj.id}')">
         <span class="proj-drag-handle" onclick="event.stopPropagation()" title="Drag to reorder">⠿</span>
+        <span class="proj-collapse-chevron${isCollapsed ? '' : ' open'}">›</span>
         <div class="project-dot" style="background:${cardColor};width:9px;height:9px;border-radius:50%;"></div>
         <div class="project-name-big" onclick="event.stopPropagation();openEditBigProjModal('${proj.id}')" title="Edit project">${proj.name}</div>
         <div style="font-size:10px;color:var(--text3);margin-right:4px;font-family:monospace;">${projBillingCode(proj.project) || ''}</div>
@@ -3875,7 +3875,6 @@ function renderProjects() {
         <div class="proj-card-actions" onclick="event.stopPropagation()">
           <button class="row-edit-btn" onclick="openEditBigProjModal('${proj.id}')" title="Edit project">✏</button>
         </div>
-        <span class="proj-collapse-chevron${isCollapsed ? '' : ' open'}">›</span>
       </div>
       <div class="session-list" id="sessions-${proj.id}" style="${isCollapsed ? 'display:none;' : ''}">
         ${[...proj.sessions].sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')).map(s => `
@@ -3883,7 +3882,6 @@ function renderProjects() {
             <div class="session-check${s.done ? ' done' : ''}" onclick="toggleSession('${proj.id}','${s.id}')" title="${s.done ? 'Mark incomplete' : 'Mark complete'}">
               ${s.done ? '<span style="color:#0d0f14;font-size:11px;">✓</span>' : ''}
             </div>
-            <div class="session-num">#${s.num}</div>
             <div class="session-desc" style="${s.done ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditSessionModal('${proj.id}','${s.id}')">
               ${s.desc}
               ${s.subCode ? `<span style="font-size:9px;color:var(--accent);opacity:0.7;margin-left:4px;font-family:monospace;">${getSubCodeLabel(proj.project, s.subCode) || s.subCode}</span>` : ''}
