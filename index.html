@@ -1669,7 +1669,7 @@
       </select>
       <select class="filter-select" id="teamFilterStatus">
         <option value="all">All statuses</option>
-        <option value="need-delegate">Need to Delegate</option>
+        <option value="need-delegate">Delegate</option>
         <option value="in-progress">In Progress</option>
         <option value="ready-review">Ready for Review</option>
         <option value="in-review">In Review</option>
@@ -1937,7 +1937,7 @@
       <div class="edit-form-group">
         <label class="edit-label">Status</label>
         <select class="edit-input" id="teamAddStatus">
-          <option value="need-delegate">Need to Delegate</option>
+          <option value="need-delegate">Delegate</option>
           <option value="in-progress">In Progress</option>
           <option value="ready-review">Ready for Review</option>
           <option value="in-review">In Review</option>
@@ -2145,7 +2145,7 @@
       <div class="edit-form-group">
         <label class="edit-label">Status</label>
         <select class="edit-input" id="editTeamStatus">
-          <option value="need-delegate">Need to Delegate</option>
+          <option value="need-delegate">Delegate</option>
           <option value="in-progress">In Progress</option>
           <option value="ready-review">Ready for Review</option>
           <option value="in-review">In Review</option>
@@ -3988,14 +3988,14 @@ function confirmAddProject() {
 
 const STATUS_CYCLE = ['need-delegate', 'in-progress', 'ready-review', 'in-review', 'blocked', 'complete'];
 const STATUS_LABELS = {
-  'need-delegate': 'Need to Delegate',
+  'need-delegate': 'Delegate',
   'in-progress': 'In Progress',
   'ready-review': 'Ready for Review',
   'in-review': 'In Review',
   'blocked': 'Blocked',
   'complete': 'Complete',
   // Legacy mappings
-  'not-started': 'Need to Delegate',
+  'not-started': 'Delegate',
   'pending': 'In Progress'
 };
 const STATUS_CLS = {
