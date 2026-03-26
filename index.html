@@ -211,7 +211,7 @@
 
   .task-table-header {
     display: grid;
-    grid-template-columns: 20px 8px 1fr 110px 56px 70px 40px 90px;
+    grid-template-columns: 20px 8px 1fr 46px 110px 56px 70px 40px 90px;
     gap: 8px;
     padding: 4px 8px;
     font-size: 9px;
@@ -229,7 +229,7 @@
 
   .task-row {
     display: grid;
-    grid-template-columns: 20px 8px 1fr 110px 56px 70px 40px 90px;
+    grid-template-columns: 20px 8px 1fr 46px 110px 56px 70px 40px 90px;
     gap: 8px;
     align-items: center;
     padding: 7px 8px;
@@ -585,8 +585,8 @@
   .session-desc:hover { color: var(--accent); }
   .delegate-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; vertical-align: middle; border: 1px solid transparent; }
   .recur-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); vertical-align: middle; }
+  .task-recur-actions { display: flex; gap: 2px; align-items: center; justify-content: center; }
   .recur-inline-actions { display: none; gap: 3px; flex-shrink: 0; margin-left: auto; }
-  .task-row:hover .recur-inline-actions,
   .ts-entry-row:hover .recur-inline-actions { display: flex; }
   .day-toggle { cursor:pointer; user-select:none; }
   .day-toggle input { display:none; }
@@ -1430,15 +1430,15 @@
 
     /* Task row — simplify columns, hide project label + estimate on tablet */
     .task-row {
-      grid-template-columns: 20px 8px 1fr 56px 70px 40px 80px !important;
+      grid-template-columns: 20px 8px 1fr 46px 56px 70px 80px !important;
       gap: 6px;
       padding: 8px;
     }
     .task-table-header {
-      grid-template-columns: 20px 8px 1fr 56px 70px 40px 80px !important;
+      grid-template-columns: 20px 8px 1fr 46px 56px 70px 80px !important;
       gap: 6px;
     }
-    .task-table-header span:nth-child(4) { display: none !important; }
+    .task-table-header span:nth-child(5) { display: none !important; }
     .task-category { display: none !important; }
     .task-est { display: none !important; }
     .task-name-text { font-size: 12px; }
@@ -2901,7 +2901,8 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${projColor(task.project)};" title="${projLabel(task.project)}"></div>
-        <div class="task-name" onclick="openEditModal('${task.id}')" title="${task.notes ? 'Double-click to expand notes' : ''}"><span class="task-name-text">${task.name}</span>${task.waiting ? `<span class="task-waiting" title="Waiting on: ${task.waiting}">⏳ ${task.waiting}</span>` : ''}${task.notes ? '<span style="margin-left:4px;font-size:10px;color:var(--text3);flex-shrink:0;" title="Has notes">📝</span>' : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span><span class="recur-inline-actions"><button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}')" style="font-size:10px;padding:2px 5px;">Skip</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}')" style="font-size:10px;padding:2px 5px;">Reschedule</button></span>` : ''}</div>
+        <div class="task-name" onclick="openEditModal('${task.id}')" title="${task.notes ? 'Double-click to expand notes' : ''}"><span class="task-name-text">${task.name}</span>${task.waiting ? `<span class="task-waiting" title="Waiting on: ${task.waiting}">⏳ ${task.waiting}</span>` : ''}${task.notes ? '<span style="margin-left:4px;font-size:10px;color:var(--text3);flex-shrink:0;" title="Has notes">📝</span>' : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}</div>
+        <div class="task-recur-actions">${task.recurrence ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>` : ''}</div>
         <span class="task-category">${projLabel(task.project)}</span>
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
         <div class="task-due ${dc}" onclick="openDueDatePicker(this, '${task.id}')">${fmtDate(task.due)}</div>
@@ -2930,6 +2931,7 @@ function renderTasks() {
         <div class="task-check${s.done ? ' done' : ''}" onclick="toggleSession('${proj.id}','${s.id}')" title="Mark complete" style="cursor:pointer;"></div>
         <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${projLabel(proj.project)}"></div>
         <div class="task-name" onclick="openEditSessionModal('${proj.id}','${s.id}')" title="${proj.name}">${s.desc}${delegateTagsHtml(s.delegatedTo)}${s.waiting ? `<span class="task-waiting" title="Waiting on: ${s.waiting}">⏳ ${s.waiting}</span>` : ''}</div>
+        <div class="task-recur-actions"></div>
         <span class="task-category" style="color:var(--text3);font-style:italic;">${proj.name}</span>
         <div onclick="showSessionPriorityDropdown(event,'${proj.id}','${s.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(s.priority || 'med')}</div>
         <div class="task-due ${dc}">${fmtDate(s.date)}</div>
@@ -2947,6 +2949,7 @@ function renderTasks() {
         <div class="task-check${st.done ? ' done' : ''}" onclick="toggleSubtask('${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;"></div>
         <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${proj.name}"></div>
         <div class="task-name" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" title="Subtask of: ${s.desc}" style="font-size:11px;">╰ ${st.desc}${delegateTagsHtml(st.delegatedTo)}${st.waiting ? `<span class="task-waiting" title="Waiting on: ${st.waiting}">⏳ ${st.waiting}</span>` : ''}</div>
+        <div class="task-recur-actions"></div>
         <span class="task-category" style="color:var(--text3);font-style:italic;font-size:10px;">${proj.name}</span>
         <div onclick="showSubtaskPriorityDropdown(event,'${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(st.priority || 'med')}</div>
         <div class="task-due ${dc}" style="font-size:11px;">${fmtDate(st.date)}</div>
@@ -3051,6 +3054,7 @@ function renderTasks() {
     const colHeader = `<div class="task-table-header">
       <span></span><span></span>
       <span class="${activeClass('name')}" onclick="_toggleSectionSort('${sectionId}','name')">Task${sortArrow('name')}</span>
+      <span></span>
       <span class="${activeClass('project')}" onclick="_toggleSectionSort('${sectionId}','project')">Project${sortArrow('project')}</span>
       <span class="${activeClass('priority')}" onclick="_toggleSectionSort('${sectionId}','priority')">Priority${sortArrow('priority')}</span>
       <span>Due</span>
