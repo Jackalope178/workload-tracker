@@ -4410,9 +4410,9 @@ function _tsColHdr() {
   function arrow(k) { return _tsSortKey === k ? (_tsSortDir === 'asc' ? ' ▲' : ' ▼') : ''; }
   function cls(k) { return _tsSortKey === k ? ' sort-active' : ''; }
   return `<div class="ts-entries-header" style="padding-left:32px;">
-    <span class="${cls('project')}" onclick="_toggleTsSort('project')">Project${arrow('project')}</span>
+    <span class="${cls('project')}" onclick="_toggleTsSort('project')">Code${arrow('project')}</span>
     <span class="${cls('subcode')}" onclick="_toggleTsSort('subcode')">Sub-code${arrow('subcode')}</span>
-    <span class="${cls('task')}" onclick="_toggleTsSort('task')">Task${arrow('task')}</span>
+    <span class="${cls('task')}" onclick="_toggleTsSort('task')">Description${arrow('task')}</span>
     <span class="${cls('hours')}" onclick="_toggleTsSort('hours')">Hours${arrow('hours')}</span>
     <span></span>
   </div>`;
@@ -4466,30 +4466,29 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
       const fullCode = item.subCode ? getFullCode(item.project, item.subCode) : '';
       if (item._isPlanned) {
         const taskObj = tasks.find(t => t.id === item.id || (item.id || '').startsWith(t.id + '_'));
-        const editFn = taskObj ? `openEditModal('${taskObj.id}')` : '';
-        // Build mark-done button based on source type
+        let editFn = '';
+        if (item._src === 'task' && taskObj) editFn = `openEditModal('${taskObj.id}')`;
+        else if (item._src === 'session' && item._projId) editFn = `openEditSessionModal('${item._projId}','${item.id}')`;
+        else if (item._src === 'subtask' && item._projId) editFn = `openEditSubtaskModal('${item._projId}','${item._sessionId}','${item.id}')`;
+        // Mark-done button
         let doneFn = '';
-        if (item._src === 'task' && taskObj) {
-          doneFn = `openCompletionModal('${taskObj.id}')`;
-        } else if (item._src === 'session') {
-          doneFn = `toggleSession('${item._projId}','${item.id}');renderTimesheet()`;
-        } else if (item._src === 'subtask') {
-          doneFn = `toggleSubtask('${item._projId}','${item._sessionId}','${item.id}');renderTimesheet()`;
-        }
+        if (item._src === 'task' && taskObj) doneFn = `openCompletionModal('${taskObj.id}')`;
+        else if (item._src === 'session') doneFn = `toggleSession('${item._projId}','${item.id}');renderTimesheet()`;
+        else if (item._src === 'subtask') doneFn = `toggleSubtask('${item._projId}','${item._sessionId}','${item.id}');renderTimesheet()`;
         row.innerHTML = `
           <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
           <span class="ts-entry-subcode">${scLabel || '—'}</span>
-          <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}"` : ''}>${item.name}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}</span>
+          <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}</span>
           <span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>
           <div class="ts-entry-actions" style="opacity:1;">
             ${doneFn ? `<button class="row-edit-btn" onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="color:var(--success);font-size:13px;">✓</button>` : ''}
-            ${editFn ? `<button class="row-edit-btn" onclick="${editFn}" title="Edit task">✏</button>` : ''}
+            ${editFn ? `<button class="row-edit-btn" onclick="${editFn}" title="Edit">✏</button>` : ''}
           </div>
         `;
       } else {
         row.innerHTML = `
           <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
-          <span class="ts-entry-subcode">${fullCode ? fullCode.replace(parentCode + '-', '') : '—'}${scLabel ? ' ' + scLabel : ''}</span>
+          <span class="ts-entry-subcode">${scLabel || '—'}</span>
           <span class="ts-entry-name" onclick="openEditTsEntry('${item.id}')">${item.name}</span>
           <span class="ts-entry-hours">${item.actualHours}h</span>
           <div class="ts-entry-actions">
@@ -4803,23 +4802,17 @@ function renderTimesheet() {
           const editFn = item._taskId
             ? `openEditModal('${item._taskId}')`
             : item._projId ? `openEditSessionModal('${item._projId}','${item.id}')` : '';
-          // Mark-done handler
           let doneFn = '';
-          if (item._taskId) {
-            doneFn = `openCompletionModal('${item._taskId}')`;
-          } else if (item._projId) {
-            doneFn = `toggleSession('${item._projId}','${item.id}');renderTimesheet()`;
-          }
-          const typeLabel = item.type === 'session' ? 'project' : item._recur ? 'recurring' : 'task';
-          const subLabel = item._projName ? ` <span style="font-size:10px;color:var(--text3);">· ${item._projName}</span>` : '';
+          if (item._taskId) doneFn = `openCompletionModal('${item._taskId}')`;
+          else if (item._projId) doneFn = `toggleSession('${item._projId}','${item.id}');renderTimesheet()`;
+          const pCode = projBillingCode(item.project) || projLabel(item.project);
+          const scLbl = item.subCode ? getSubCodeLabel(item.project, item.subCode) : '';
           const recurBadge = item._recur ? `<span class="recur-badge">↻</span>` : '';
           row.innerHTML = `
-            <span class="ts-entry-name" ${editFn ? `onclick="${editFn}"` : ''} title="${item._projName ? 'From: ' + item._projName : ''}">${item.name}${recurBadge}${subLabel}</span>
-            <div class="project-dot" style="background:${projColor(item.project)};" title="${projLabel(item.project)}"></div>
-            ${projBillingCode(item.project) ? `<span style="font-size:10px;color:var(--text3);font-family:monospace;">${projBillingCode(item.project)}</span>` : ''}
-            <span style="font-size:11px;color:var(--text3);">${dayLabel}</span>
-            <span style="font-size:11px;color:var(--text3);">${typeLabel}</span>
-            <span style="font-size:12px;font-weight:700;">${item.hours}h</span>
+            <span class="ts-entry-code" title="${projLabel(item.project)}">${pCode}</span>
+            <span class="ts-entry-subcode">${scLbl || '—'}</span>
+            <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${recurBadge}</span>
+            <span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>
             <div class="ts-entry-actions" style="opacity:1;">
               ${doneFn ? `<button class="row-edit-btn" onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="color:var(--success);font-size:13px;">✓</button>` : ''}
               ${editFn ? `<button class="row-edit-btn" onclick="${editFn}" title="Edit">✏</button>` : ''}
