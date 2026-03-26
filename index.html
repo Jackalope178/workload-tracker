@@ -2914,7 +2914,10 @@ function renderTasks() {
 function toggleAddForm() {
   const f = document.getElementById('addForm');
   f.classList.toggle('open');
-  if (f.classList.contains('open')) document.getElementById('newTaskName').focus();
+  if (f.classList.contains('open')) {
+    document.getElementById('newTaskDue').value = today();
+    document.getElementById('newTaskName').focus();
+  }
 }
 
 function addTask() {
@@ -3211,7 +3214,7 @@ function openCompletionModal(taskId) {
   }
 
   populateSubCodeSelect('compSubCode', task.project, task.subCode || '');
-  document.getElementById('compDate').value = today();
+  document.getElementById('compDate').value = task.due || today();
 
   document.getElementById('completionModal').classList.add('open');
 }
