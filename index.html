@@ -2527,11 +2527,11 @@ function secsToHours(s) {
 function roundToQuarter(h) {
   if (h <= 0) return 0.25;
   const q = Math.ceil(h / 0.25) * 0.25;
+  return Math.max(0.25, q);
+}
 
 // Round to nearest 0.25 for display (billing in 15-min increments)
 function fmtQ(h) { const v = Math.round(h / 0.25) * 0.25; return v % 1 === 0 ? v.toFixed(1) : parseFloat(v.toFixed(2)).toString(); }
-  return Math.max(0.25, q);
-}
 
 function updateActiveStrip() {
   const strip = document.getElementById('activeStrip');
