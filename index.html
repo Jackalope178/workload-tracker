@@ -631,7 +631,7 @@
   /* TEAM TAB */
   .team-row {
     display: grid;
-    grid-template-columns: 1fr 100px 8px 80px 90px 30px;
+    grid-template-columns: 1fr 90px 90px 8px 75px 90px 30px;
     gap: 8px;
     align-items: center;
     padding: 7px 10px;
@@ -652,11 +652,16 @@
 
   .team-table-header {
     display: grid;
-    grid-template-columns: 1fr 100px 8px 80px 90px 30px;
+    grid-template-columns: 1fr 90px 90px 8px 75px 90px 30px;
     gap: 8px; padding: 3px 10px;
     font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--text3); background: var(--bg2); border-bottom: 1px solid var(--border);
+    user-select: none;
   }
+  .team-table-header span { cursor: pointer; }
+  .team-table-header span:hover { color: var(--text2); }
+  .team-table-header .sort-active { color: var(--accent); }
+
   .team-person-section {
     margin-bottom: 12px;
     border: 1px solid var(--border);
@@ -1138,7 +1143,7 @@
 
   /* TEAM ROW: fixed columns for grid alignment */
   .team-row {
-    grid-template-columns: 1fr 100px 8px 80px 90px 30px !important;
+    grid-template-columns: 1fr 90px 90px 8px 75px 90px 30px !important;
   }
 
   /* TEAM PERSON GROUP HEADER (legacy - replaced by .team-person-section-header) */
@@ -1468,13 +1473,15 @@
 
     /* Team rows — compact on tablet */
     .team-row {
-      grid-template-columns: 1fr 80px 80px 30px !important;
+      grid-template-columns: 1fr 80px 75px 80px 30px !important;
       gap: 6px;
       padding: 8px;
     }
-    .team-row > :nth-child(3) { display: none; } /* hide dot */
-    .team-table-header { grid-template-columns: 1fr 80px 80px 30px !important; }
+    .team-row > :nth-child(3) { display: none; } /* hide project */
+    .team-row > :nth-child(4) { display: none; } /* hide dot */
+    .team-table-header { grid-template-columns: 1fr 80px 75px 80px 30px !important; }
     .team-table-header > :nth-child(3) { display: none; }
+    .team-table-header > :nth-child(4) { display: none; }
     .team-notes { display: none; }
     .team-owner { font-size: 10px; }
 
@@ -3987,8 +3994,14 @@ const STATUS_CLS = {
 };
 
 
-// Collapsed person sections in team view
-const _teamCollapsedPersons = new Set();
+// Team sort state
+let _teamSortKey = 'person';
+let _teamSortDir = 'asc';
+function _toggleTeamSort(key) {
+  if (_teamSortKey === key) { _teamSortDir = _teamSortDir === 'asc' ? 'desc' : 'asc'; }
+  else { _teamSortKey = key; _teamSortDir = 'asc'; }
+  renderTeam();
+}
 
 function renderTeam() {
   const search  = document.getElementById('teamSearch')?.value?.toLowerCase() || '';
@@ -3996,7 +4009,7 @@ function renderTeam() {
   const fProj   = document.getElementById('teamFilterProject')?.value || 'all';
   const fStatus = document.getElementById('teamFilterStatus')?.value || 'all';
 
-  // Collect delegated sessions from big projects as synthetic team items (one per assignee)
+  // Collect delegated sessions from big projects as synthetic team items
   const delegatedItems = [];
   bigProjs.forEach(proj => {
     proj.sessions.forEach(s => {
@@ -4004,15 +4017,9 @@ function renderTeam() {
       people.forEach(person => {
         delegatedItems.push({
           id: s.id + '_' + person.replace(/\s+/g,'_'),
-          name: s.desc,
-          owner: person,
-          project: proj.project,
-          due: s.date,
-          status: s.status || (s.done ? 'complete' : 'not-started'),
-          notes: `From project: ${proj.name}`,
-          _delegated: true,
-          _projId: proj.id,
-          _sessionId: s.id
+          name: s.desc, owner: person, project: proj.project,
+          due: s.date, status: s.status || (s.done ? 'complete' : 'not-started'),
+          _delegated: true, _projId: proj.id, _sessionId: s.id
         });
       });
     });
@@ -4020,28 +4027,35 @@ function renderTeam() {
 
   let allItems = [...teamItems, ...delegatedItems];
 
-  // Populate person filter dropdown
+  // Populate person filter
   const personSelect = document.getElementById('teamFilterPerson');
   if (personSelect) {
     const allPeople = [...new Set(allItems.map(t => t.owner).filter(Boolean))].sort();
     const curVal = personSelect.value;
     personSelect.innerHTML = '<option value="all">All people</option>';
-    allPeople.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p; opt.textContent = p;
-      personSelect.appendChild(opt);
-    });
+    allPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; personSelect.appendChild(o); });
     personSelect.value = curVal;
   }
 
   let visible = allItems;
-  if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || t.owner.toLowerCase().includes(search) || (t.notes||'').toLowerCase().includes(search));
+  if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || t.owner.toLowerCase().includes(search));
   if (fPerson !== 'all') visible = visible.filter(t => t.owner === fPerson);
   if (fProj !== 'all') visible = visible.filter(t => t.project === fProj);
   if (fStatus !== 'all') visible = visible.filter(t => t.status === fStatus);
 
-  // Sort by due date within each group
-  visible.sort((a, b) => (a.due||'9999').localeCompare(b.due||'9999'));
+  // Sort
+  visible.sort((a, b) => {
+    let va, vb;
+    if (_teamSortKey === 'person') { va = a.owner || ''; vb = b.owner || ''; }
+    else if (_teamSortKey === 'project') { va = projLabel(a.project); vb = projLabel(b.project); }
+    else if (_teamSortKey === 'due') { va = a.due || '9999'; vb = b.due || '9999'; }
+    else if (_teamSortKey === 'status') { va = a.status; vb = b.status; }
+    else if (_teamSortKey === 'name') { va = a.name.toLowerCase(); vb = b.name.toLowerCase(); }
+    else { va = a.due || '9999'; vb = b.due || '9999'; }
+    if (va < vb) return _teamSortDir === 'asc' ? -1 : 1;
+    if (va > vb) return _teamSortDir === 'asc' ? 1 : -1;
+    return (a.due||'9999').localeCompare(b.due||'9999');
+  });
 
   const container = document.getElementById('teamList');
   container.innerHTML = '';
@@ -4051,66 +4065,45 @@ function renderTeam() {
     return;
   }
 
-  // Group by person
-  const grouped = {};
-  visible.forEach(item => { (grouped[item.owner||'—'] = grouped[item.owner||'—'] || []).push(item); });
+  // Column header with sort
+  function arrow(k) { return _teamSortKey === k ? (_teamSortDir === 'asc' ? ' ▲' : ' ▼') : ''; }
+  function cls(k) { return _teamSortKey === k ? ' sort-active' : ''; }
+  const hdr = document.createElement('div');
+  hdr.className = 'team-table-header';
+  hdr.innerHTML = `
+    <span class="${cls('name')}" onclick="_toggleTeamSort('name')">Deliverable${arrow('name')}</span>
+    <span class="${cls('person')}" onclick="_toggleTeamSort('person')">Person${arrow('person')}</span>
+    <span class="${cls('project')}" onclick="_toggleTeamSort('project')">Project${arrow('project')}</span>
+    <span></span>
+    <span class="${cls('due')}" onclick="_toggleTeamSort('due')">Due${arrow('due')}</span>
+    <span class="${cls('status')}" onclick="_toggleTeamSort('status')">Status${arrow('status')}</span>
+    <span></span>`;
+  container.appendChild(hdr);
 
-  // Table header
-  const colHdr = `<div class="team-table-header">
-    <span>Deliverable</span><span>Project</span><span></span><span>Due</span><span>Status</span><span></span>
-  </div>`;
-
-  Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0])).forEach(([owner, items]) => {
-    const section = document.createElement('div');
-    section.className = 'team-person-section';
-    const isCollapsed = _teamCollapsedPersons.has(owner);
-
-    // Status summary counts
-    const counts = {};
-    items.forEach(i => { counts[i.status] = (counts[i.status] || 0) + 1; });
-    const summaryParts = Object.entries(counts).map(([s, n]) =>
-      `<span class="status-badge ${STATUS_CLS[s]}" style="font-size:9px;padding:1px 5px;cursor:default;">${n}</span>`
-    ).join('');
-
-    const hdr = document.createElement('div');
-    hdr.className = 'team-person-section-header';
-    hdr.innerHTML = `<span class="team-person-chevron${isCollapsed ? '' : ' open'}">›</span>👤 ${owner} <span class="team-person-count">${items.length}</span><span class="team-person-status-summary">${summaryParts}</span>`;
-    hdr.onclick = () => {
-      if (_teamCollapsedPersons.has(owner)) _teamCollapsedPersons.delete(owner);
-      else _teamCollapsedPersons.add(owner);
-      renderTeam();
-    };
-    section.appendChild(hdr);
-
-    if (!isCollapsed) {
-      section.innerHTML += colHdr;
-      items.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'team-row';
-        const dc = dueCls(item.due);
-        if (item._delegated) {
-          row.innerHTML = `
-            <div class="team-task-name" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')">${item.name} <span class="delegate-tag">↗</span></div>
-            <span style="font-size:10px;color:var(--text3);">${projLabel(item.project)}</span>
-            <div class="project-dot" style="background:${projColor(item.project)};"></div>
-            <span class="team-due ${dc}" style="cursor:pointer;" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')">${fmtDate(item.due)}</span>
-            <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')" style="cursor:pointer;">${STATUS_LABELS[item.status]}</span>
-            <button class="row-edit-btn" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')" title="Edit">✏</button>
-          `;
-        } else {
-          row.innerHTML = `
-            <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${item.name}</div>
-            <span style="font-size:10px;color:var(--text3);">${projLabel(item.project)}</span>
-            <div class="project-dot" style="background:${projColor(item.project)};"></div>
-            <span class="team-due ${dc}" style="cursor:pointer;" onclick="openTeamDueDatePicker(this,'${item.id}')">${fmtDate(item.due)}</span>
-            <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showStatusDropdown(event,'${item.id}')" style="cursor:pointer;">${STATUS_LABELS[item.status]}</span>
-            <button class="row-edit-btn" onclick="openEditTeamModal('${item.id}')" title="Edit">✏</button>
-          `;
-        }
-        section.appendChild(row);
-      });
+  visible.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'team-row';
+    const dc = dueCls(item.due);
+    if (item._delegated) {
+      row.innerHTML = `
+        <div class="team-task-name" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')">${item.name} <span class="delegate-tag">↗</span></div>
+        <span class="team-owner">${item.owner}</span>
+        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
+        <div class="project-dot" style="background:${projColor(item.project)};"></div>
+        <span class="team-due ${dc}" style="cursor:pointer;" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')">${fmtDate(item.due)}</span>
+        <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')" style="cursor:pointer;">${STATUS_LABELS[item.status]}</span>
+        <button class="row-edit-btn" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')" title="Edit">✏</button>`;
+    } else {
+      row.innerHTML = `
+        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${item.name}</div>
+        <span class="team-owner">${item.owner}</span>
+        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
+        <div class="project-dot" style="background:${projColor(item.project)};"></div>
+        <span class="team-due ${dc}" style="cursor:pointer;" onclick="openTeamDueDatePicker(this,'${item.id}')">${fmtDate(item.due)}</span>
+        <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showStatusDropdown(event,'${item.id}')" style="cursor:pointer;">${STATUS_LABELS[item.status]}</span>
+        <button class="row-edit-btn" onclick="openEditTeamModal('${item.id}')" title="Edit">✏</button>`;
     }
-    container.appendChild(section);
+    container.appendChild(row);
   });
 }
 
