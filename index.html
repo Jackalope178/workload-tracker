@@ -1973,7 +1973,11 @@
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Linked Project</label>
-        <select class="edit-input" id="projAddProject"></select>
+        <select class="edit-input" id="projAddProject" onchange="populateSubCodeSelect('projAddDefaultSubCode', this.value)"></select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Default Sub-Code</label>
+        <select class="edit-input" id="projAddDefaultSubCode"></select>
       </div>
       <div class="edit-form-group full">
         <label class="edit-label">Work Sessions (one per line: date | description | hours)</label>
@@ -2008,7 +2012,11 @@
         <select class="edit-input" id="editBigProjProject"></select>
       </div>
       <div class="edit-form-group">
-        <label class="edit-label">Custom Color (overrides code)</label>
+        <label class="edit-label">Default Sub-Code <span style="font-weight:400;color:var(--text3);">(for new items)</span></label>
+        <select class="edit-input" id="editBigProjDefaultSubCode"></select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Custom Color</label>
         <input type="color" class="edit-input" id="editBigProjColor" style="height:36px;padding:2px 4px;cursor:pointer;">
       </div>
       <div class="edit-form-group full">
@@ -3847,6 +3855,7 @@ function renderProjects() {
         <div class="project-dot" style="background:${cardColor};width:9px;height:9px;border-radius:50%;"></div>
         <div class="project-name-big" onclick="event.stopPropagation();openEditBigProjModal('${proj.id}')" title="Edit project">${proj.name}</div>
         <div style="font-size:10px;color:var(--text3);margin-right:4px;font-family:monospace;">${projBillingCode(proj.project) || ''}</div>
+        ${proj.defaultSubCode ? `<div style="font-size:10px;color:var(--accent);opacity:0.7;margin-right:4px;">${getSubCodeLabel(proj.project, proj.defaultSubCode) || ''}</div>` : ''}
         <div style="font-size:11px;color:var(--text3);margin-right:8px;">${projLabel(proj.project)}</div>
         <div class="progress-bar-wrap">
           <div class="progress-bar-fill" style="width:${pct}%;background:${cardColor};"></div>
@@ -3951,6 +3960,7 @@ function confirmAddProject() {
   const name = document.getElementById('projAddName').value.trim();
   if (!name) return alert('Project name required.');
   const project = document.getElementById('projAddProject').value || 'admin';
+  const defaultSubCode = document.getElementById('projAddDefaultSubCode')?.value || '';
   const rawSessions = document.getElementById('projAddSessions').value.trim();
 
   const sessions = rawSessions.split('\n').filter(Boolean).map((line, i) => {
@@ -3961,11 +3971,12 @@ function confirmAddProject() {
       date: parts[0] || '',
       desc: parts[1] || `Session ${i + 1}`,
       hours: parseFloat(parts[2]) || 1,
+      subCode: defaultSubCode,
       done: false
     };
   });
 
-  bigProjs.unshift({ id: uid(), name, project, sessions });
+  bigProjs.unshift({ id: uid(), name, project, defaultSubCode, sessions });
   save('wt_bigprojs', bigProjs);
   closeAddProjectModal();
   renderProjects();
@@ -5549,7 +5560,10 @@ function openEditBigProjModal(projId) {
   if (!proj) return;
   populateProjectSelects();
   document.getElementById('editBigProjName').value = proj.name;
-  document.getElementById('editBigProjProject').value = proj.project || 'admin';
+  const projSelect = document.getElementById('editBigProjProject');
+  projSelect.value = proj.project || 'admin';
+  projSelect.onchange = function() { populateSubCodeSelect('editBigProjDefaultSubCode', this.value, proj.defaultSubCode || ''); };
+  populateSubCodeSelect('editBigProjDefaultSubCode', proj.project || 'admin', proj.defaultSubCode || '');
   document.getElementById('editBigProjColor').value = proj.color || projColor(proj.project) || '#4f9cf9';
   document.getElementById('editBigProjMemberInput').value = '';
   renderProjMembersList(proj.members || []);
@@ -5566,8 +5580,8 @@ function saveEditBigProj() {
   if (!proj) return;
   proj.name    = document.getElementById('editBigProjName').value.trim() || proj.name;
   proj.project = document.getElementById('editBigProjProject').value;
+  proj.defaultSubCode = document.getElementById('editBigProjDefaultSubCode')?.value || '';
   proj.color   = document.getElementById('editBigProjColor').value;
-  // members are mutated live via addProjMember/removeProjMember
   save('wt_bigprojs', bigProjs);
   closeEditBigProjModal();
   renderProjects();
@@ -5645,7 +5659,9 @@ function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting,
 }
 
 function openAddSessionModal(projId) {
-  _openSessionModal(projId, null, 'Add Work Item', '', today(), '1', '', null, false, null, '', 'med');
+  const proj = bigProjs.find(p => p.id === projId);
+  const defaultSc = proj?.defaultSubCode || '';
+  _openSessionModal(projId, null, 'Add Work Item', '', today(), '1', '', null, false, null, defaultSc, 'med');
 }
 
 function openEditSessionModal(projId, sessionId) {
@@ -5656,7 +5672,9 @@ function openEditSessionModal(projId, sessionId) {
 }
 
 function openAddSubtaskModal(projId, sessionId) {
-  _openSessionModal(projId, null, 'Add Subtask', '', today(), '1', '', null, true, sessionId, '', 'med');
+  const proj = bigProjs.find(p => p.id === projId);
+  const defaultSc = proj?.defaultSubCode || '';
+  _openSessionModal(projId, null, 'Add Subtask', '', today(), '1', '', null, true, sessionId, defaultSc, 'med');
 }
 
 function openEditSubtaskModal(projId, sessionId, subtaskId) {
