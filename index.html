@@ -131,9 +131,9 @@
   .search-box::placeholder { color: var(--text3); }
 
   .filter-select {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    color: var(--text2);
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    color: var(--text);
     font-family: 'Inter', sans-serif;
     font-size: 11px;
     padding: 6px 10px;
@@ -148,16 +148,22 @@
     background: var(--bg3);
     color: var(--text);
   }
+  /* Calendar & time picker icons on all dark inputs */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+  }
 
   .btn {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    color: var(--text2);
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    color: var(--text);
     font-family: 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 4px;
+    padding: 7px 14px;
+    border-radius: 5px;
     cursor: pointer;
     transition: all 0.15s;
     letter-spacing: 0.03em;
@@ -410,13 +416,13 @@
   }
 
   .form-input {
-    background: var(--bg2);
-    border: 1px solid var(--border);
+    background: var(--bg4);
+    border: 1px solid var(--border2);
     color: var(--text);
     font-family: 'Inter', sans-serif;
     font-size: 12px;
-    padding: 6px 10px;
-    border-radius: 4px;
+    padding: 7px 10px;
+    border-radius: 5px;
     outline: none;
     transition: border-color 0.15s;
   }
@@ -440,37 +446,39 @@
   .modal {
     background: var(--bg2);
     border: 1px solid var(--border2);
-    border-radius: 8px;
-    padding: 24px;
-    width: 440px;
+    border-radius: 10px;
+    padding: 28px;
+    width: 480px;
     max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
   }
 
   .modal-title {
     font-family: 'Syne', sans-serif;
     font-weight: 700;
-    font-size: 15px;
-    margin-bottom: 4px;
+    font-size: 16px;
+    margin-bottom: 6px;
+    color: var(--text);
   }
 
   .modal-subtitle {
-    color: var(--text3);
-    font-size: 11px;
-    margin-bottom: 18px;
+    color: var(--text2);
+    font-size: 12px;
+    margin-bottom: 20px;
   }
 
   .modal-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
+    padding: 10px 0;
     border-bottom: 1px solid var(--border);
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .modal-row:last-of-type { border-bottom: none; }
 
-  .modal-label { color: var(--text2); }
+  .modal-label { color: var(--text); font-weight: 500; }
 
   .modal-value {
     font-weight: 600;
@@ -489,14 +497,14 @@
   }
 
   .bill-input {
-    background: var(--bg3);
+    background: var(--bg4);
     border: 1px solid var(--accent);
     color: var(--text);
     font-family: 'Inter', sans-serif;
     font-size: 14px;
     font-weight: 700;
-    padding: 6px 10px;
-    border-radius: 4px;
+    padding: 8px 10px;
+    border-radius: 5px;
     width: 90px;
     text-align: center;
     outline: none;
@@ -673,11 +681,17 @@
   .ts-view-btn.active { background: var(--accent); color: #fff; }
   .ts-view-btn:not(.active):hover { background: var(--bg3); color: var(--text); }
 
-  .ts-cap-bar-wrap { background: var(--bg3); border-radius: 4px; height: 6px; overflow: hidden; margin-top: 6px; }
+  .ts-cap-bar-wrap { background: var(--bg3); border-radius: 4px; height: 6px; overflow: hidden; margin-top: 6px; position: relative; }
   .ts-cap-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
   .ts-cap-bar-fill.ok   { background: var(--success); }
   .ts-cap-bar-fill.warn { background: var(--warn); }
   .ts-cap-bar-fill.over { background: var(--danger); }
+
+  /* Dual-segment capacity bar: planned (dim) + logged (bright) */
+  .cap-bar-dual { position: relative; height: 8px; border-radius: 4px; background: var(--bg3); overflow: hidden; }
+  .cap-bar-planned { position: absolute; top: 0; left: 0; height: 100%; border-radius: 4px; background: rgba(79, 156, 249, 0.2); transition: width 0.3s; }
+  .cap-bar-logged  { position: absolute; top: 0; left: 0; height: 100%; border-radius: 4px; background: var(--success); transition: width 0.3s; }
+  .cap-bar-logged.over-logged { background: var(--warn); }
 
   .ts-day-header {
     display: flex; align-items: center; gap: 8px;
@@ -821,20 +835,24 @@
     margin-bottom: 10px;
   }
 
-  .edit-form-group { display: flex; flex-direction: column; gap: 4px; }
+  .edit-form-group { display: flex; flex-direction: column; gap: 5px; }
   .edit-form-group.full { grid-column: 1 / -1; }
-  .edit-label { font-size: 10px; color: var(--text3); letter-spacing: 0.05em; text-transform: uppercase; }
+  .edit-label { font-size: 11px; color: var(--text2); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; }
   .edit-input {
-    background: var(--bg3);
-    border: 1px solid var(--border);
+    background: var(--bg4);
+    border: 1px solid var(--border2);
     color: var(--text);
     font-family: 'Inter', sans-serif;
-    font-size: 12px;
-    padding: 6px 8px;
-    border-radius: 4px;
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 5px;
     outline: none;
+    transition: border-color 0.15s;
   }
-  .edit-input:focus { border-color: var(--accent); }
+  .edit-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79, 156, 249, 0.15); }
+  /* Date input calendar icon — force light color-scheme for visibility */
+  .edit-input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+  .bill-input::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
 
   /* TEAM NOTES EDIT */
   .team-notes-full {
@@ -2949,7 +2967,13 @@ function renderTasks() {
     return sorted;
   }
 
-  function renderSection(label, items, headerCls, dayCap) {
+  // Get logged hours for a date range (from completed entries)
+  function loggedHoursForDates(dates) {
+    const dateSet = new Set(Array.isArray(dates) ? dates : [dates]);
+    return completed.reduce((sum, c) => dateSet.has(c.dateCompleted) ? sum + (c.actualHours || 0) : sum, 0);
+  }
+
+  function renderSection(label, items, headerCls, dayCap, sectionDates) {
     if (!items.length && !dayCap) return;
     hasAny = true;
     const section = document.createElement('div');
@@ -2958,16 +2982,43 @@ function renderTasks() {
     section.id = sectionId;
     const est = items.reduce((a, i) => a + (i._type === 'task' ? (i.task.est || 0) : i._type === 'session' ? (i.s.hours || 0) : (i.st.hours || 0)), 0);
     let capHtml = '';
-    if (dayCap) {
-      const pct  = Math.min(Math.round((est / dayCap) * 100), 100);
-      const cls  = est > dayCap ? 'over' : est > dayCap * 0.8 ? 'warn' : 'ok';
-      const left = est > dayCap ? `+${(est - dayCap).toFixed(1)}h over` : `${(dayCap - est).toFixed(1)}h free`;
-      const leftCol = cls === 'over' ? 'var(--danger)' : cls === 'warn' ? 'var(--warn)' : 'var(--success)';
+    if (dayCap && sectionDates) {
+      const logged = loggedHoursForDates(sectionDates);
+      const plannedPct = Math.min(Math.round((est / dayCap) * 100), 100);
+      const loggedPct  = Math.min(Math.round((logged / dayCap) * 100), 100);
+      const overLogged = logged > est && est > 0;
+      const remaining  = Math.max(est - logged, 0);
+
+      // Status text
+      let statusText, statusCol;
+      if (logged === 0) {
+        const cls = est > dayCap ? 'over' : est > dayCap * 0.8 ? 'warn' : 'ok';
+        const left = est > dayCap ? `+${(est - dayCap).toFixed(1)}h over capacity` : `${(dayCap - est).toFixed(1)}h free`;
+        statusCol = cls === 'over' ? 'var(--danger)' : cls === 'warn' ? 'var(--warn)' : 'var(--success)';
+        statusText = left;
+      } else {
+        const variance = logged - est;
+        if (remaining > 0) {
+          statusText = `${remaining.toFixed(1)}h remaining`;
+          statusCol = 'var(--text2)';
+        } else if (Math.abs(variance) < 0.1) {
+          statusText = 'Complete — on target';
+          statusCol = 'var(--success)';
+        } else {
+          statusText = `Complete — ${variance > 0 ? '+' : ''}${variance.toFixed(1)}h vs planned`;
+          statusCol = variance > 0 ? 'var(--warn)' : 'var(--success)';
+        }
+      }
+
       capHtml = `
-        <div style="padding:4px 8px;display:flex;align-items:center;gap:8px;background:var(--bg2);">
-          <div class="ts-cap-bar-wrap" style="flex:1;"><div class="ts-cap-bar-fill ${cls}" style="width:${pct}%;"></div></div>
-          <span style="font-size:10px;color:${leftCol};white-space:nowrap;font-weight:600;">${left}</span>
-          <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${est.toFixed(1)}/${dayCap.toFixed(0)}h</span>
+        <div style="padding:5px 8px;display:flex;align-items:center;gap:10px;background:var(--bg2);">
+          <div class="cap-bar-dual" style="flex:1;">
+            <div class="cap-bar-planned" style="width:${plannedPct}%;"></div>
+            <div class="cap-bar-logged${overLogged ? ' over-logged' : ''}" style="width:${loggedPct}%;"></div>
+          </div>
+          <span style="font-size:10px;color:var(--success);white-space:nowrap;font-weight:700;">${logged > 0 ? logged.toFixed(1) + 'h logged' : ''}</span>
+          <span style="font-size:10px;color:${statusCol};white-space:nowrap;font-weight:600;">${statusText}</span>
+          <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${est.toFixed(1)}h planned / ${dayCap.toFixed(0)}h cap</span>
         </div>`;
     }
 
@@ -3016,7 +3067,7 @@ function renderTasks() {
     // hide past days with no items; always show today and future days
     if (isPast && !isToday && !items.length) return;
     const label = isToday ? `Today — ${dayName} ${mo} ${dt.getDate()}` : `${dayName} ${mo} ${dt.getDate()}`;
-    renderSection(label, items, isToday ? 'today-header' : '', tsCapacity);
+    renderSection(label, items, isToday ? 'today-header' : '', tsCapacity, [d]);
   });
 
   // ── future weeks ──
@@ -3024,8 +3075,11 @@ function renderTasks() {
     const items = futureBuckets[wk];
     const dt = new Date(wk + 'T00:00:00');
     const wkCapF = workingDays(wk, addDays(wk, 6)) * tsCapacity;
+    // Collect all dates in this week
+    const wkDates = [];
+    for (let i = 0; i < 7; i++) { wkDates.push(addDays(wk, i)); }
     const label = `Week of ${months[dt.getMonth()]} ${dt.getDate()}`;
-    renderSection(label, items, '', wkCapF);
+    renderSection(label, items, '', wkCapF, wkDates);
   });
 
   // ── unscheduled ──
