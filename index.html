@@ -144,6 +144,10 @@
   }
 
   .filter-select:focus { border-color: var(--accent); }
+  .filter-select option, .edit-input option, select option {
+    background: var(--bg3);
+    color: var(--text);
+  }
 
   .btn {
     background: var(--bg3);
@@ -237,12 +241,14 @@
     align-items: center;
     gap: 4px;
     overflow: hidden;
+    min-width: 0;
   }
   .task-name-text {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     flex-shrink: 1;
+    min-width: 0;
   }
 
   .task-name:hover { color: var(--accent); }
@@ -526,7 +532,7 @@
   .session-desc:hover { color: var(--accent); }
   .delegate-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; vertical-align: middle; border: 1px solid transparent; }
   .recur-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--bg3); color: var(--text3); border: 1px solid var(--border); vertical-align: middle; }
-  .recur-inline-actions { display: none; gap: 3px; flex-shrink: 0; }
+  .recur-inline-actions { display: none; gap: 3px; flex-shrink: 0; margin-left: auto; }
   .task-row:hover .recur-inline-actions,
   .ts-entry-row:hover .recur-inline-actions { display: flex; }
   .day-toggle { cursor:pointer; user-select:none; }
@@ -1932,6 +1938,19 @@
         <label class="edit-label">Hours</label>
         <input class="edit-input" type="number" id="editSessionHours" min="0.25" step="0.25" placeholder="1">
       </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Sub-Code</label>
+        <select class="edit-input" id="editSessionSubCode"></select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Priority</label>
+        <select class="edit-input" id="editSessionPriority">
+          <option value="urgent">Urgent</option>
+          <option value="high">High</option>
+          <option value="med">Med</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
       <div class="edit-form-group full">
         <label class="edit-label">Waiting On <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
         <input class="edit-input" type="text" id="editSessionWaiting" placeholder="Who or what is this blocked on?">
@@ -2712,7 +2731,7 @@ function renderTasks() {
   });
 
   const priorityOrder = { urgent: 0, high: 1, med: 2, low: 3 };
-  const itemPri = i => i._type === 'task' ? priorityOrder[i.task.priority] : 99;
+  const itemPri = i => i._type === 'task' ? priorityOrder[i.task.priority] : i._type === 'session' ? (priorityOrder[i.s.priority] ?? 2) : (priorityOrder[i.st.priority] ?? 2);
   allItems.sort((a, b) => (a._date || 'zzz').localeCompare(b._date || 'zzz') || itemPri(a) - itemPri(b));
 
   // ── date helpers ──
@@ -2820,7 +2839,7 @@ function renderTasks() {
         <div class="task-name" onclick="openEditSessionModal('${proj.id}','${s.id}')" title="${proj.name}">${s.desc}${delegateTagsHtml(s.delegatedTo)}</div>
         <span class="task-category" style="color:var(--text3);font-style:italic;">${proj.name}</span>
         ${s.waiting ? `<span class="task-waiting" title="Waiting on: ${s.waiting}">⏳ ${s.waiting}</span>` : '<span></span>'}
-        <span style="font-size:11px;color:var(--text3);padding:2px 6px;border-radius:3px;background:var(--bg3);">project</span>
+        <div onclick="showSessionPriorityDropdown(event,'${proj.id}','${s.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(s.priority || 'med')}</div>
         <div class="task-due ${dc}">${fmtDate(s.date)}</div>
         <div class="task-est">${s.hours ? s.hours + 'h' : '—'}</div>
         <div style="display:flex;align-items:center;gap:4px;">
@@ -2838,7 +2857,7 @@ function renderTasks() {
         <div class="task-name" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" title="Subtask of: ${s.desc}" style="font-size:11px;">╰ ${st.desc}${delegateTagsHtml(st.delegatedTo)}</div>
         <span class="task-category" style="color:var(--text3);font-style:italic;font-size:10px;">${proj.name}</span>
         ${st.waiting ? `<span class="task-waiting" title="Waiting on: ${st.waiting}">⏳ ${st.waiting}</span>` : '<span></span>'}
-        <span style="font-size:10px;color:var(--text3);padding:2px 6px;border-radius:3px;background:var(--bg3);">subtask</span>
+        <div onclick="showSubtaskPriorityDropdown(event,'${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(st.priority || 'med')}</div>
         <div class="task-due ${dc}" style="font-size:11px;">${fmtDate(st.date)}</div>
         <div class="task-est" style="font-size:11px;">${st.hours ? st.hours + 'h' : '—'}</div>
         <div style="display:flex;align-items:center;gap:4px;">
@@ -4834,6 +4853,33 @@ function showPriorityDropdown(e, taskId) {
   });
 }
 
+function showSessionPriorityDropdown(e, projId, sessionId) {
+  e.stopPropagation();
+  const proj = bigProjs.find(p => p.id === projId);
+  const s = proj && proj.sessions.find(s => s.id === sessionId);
+  if (!s) return;
+  showDropdown(e.currentTarget, PRIORITY_OPTS, s.priority || 'med', val => {
+    s.priority = val;
+    save('wt_bigprojs', bigProjs);
+    renderTasks();
+    renderProjects();
+  });
+}
+
+function showSubtaskPriorityDropdown(e, projId, sessionId, subtaskId) {
+  e.stopPropagation();
+  const proj = bigProjs.find(p => p.id === projId);
+  const s = proj && proj.sessions.find(s => s.id === sessionId);
+  const st = s && (s.subtasks || []).find(st => st.id === subtaskId);
+  if (!st) return;
+  showDropdown(e.currentTarget, PRIORITY_OPTS, st.priority || 'med', val => {
+    st.priority = val;
+    save('wt_bigprojs', bigProjs);
+    renderTasks();
+    renderProjects();
+  });
+}
+
 // =============================================
 // STATUS DROPDOWN
 // =============================================
@@ -4985,7 +5031,7 @@ function getSelectedDelegatees() {
   return Array.from(pills).map(p => p.textContent.replace(/^✓\s*/, '').trim());
 }
 
-function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting, delegatedTo, subtaskMode, parentSessionId) {
+function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting, delegatedTo, subtaskMode, parentSessionId, subCode, priority) {
   editingSessionProjId  = projId;
   editingSessionId      = sessionId;
   editingSubtaskMode    = subtaskMode || false;
@@ -4995,23 +5041,26 @@ function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting,
   document.getElementById('editSessionDate').value    = date || today();
   document.getElementById('editSessionHours').value   = hours || '1';
   document.getElementById('editSessionWaiting').value = waiting || '';
+  const proj = bigProjs.find(p => p.id === projId);
+  populateSubCodeSelect('editSessionSubCode', proj ? proj.project : '', subCode || '');
+  document.getElementById('editSessionPriority').value = priority || 'med';
   populateSessionDelegatePills(getPersonsForProject(projId), delegatedTo);
   document.getElementById('editSessionModal').classList.add('open');
 }
 
 function openAddSessionModal(projId) {
-  _openSessionModal(projId, null, 'Add Work Item', '', today(), '1', '', null, false, null);
+  _openSessionModal(projId, null, 'Add Work Item', '', today(), '1', '', null, false, null, '', 'med');
 }
 
 function openEditSessionModal(projId, sessionId) {
   const proj = bigProjs.find(p => p.id === projId);
   const s = proj && proj.sessions.find(s => s.id === sessionId);
   if (!s) return;
-  _openSessionModal(projId, sessionId, 'Edit Work Item', s.desc, s.date, s.hours, s.waiting || '', s.delegatedTo, false, null);
+  _openSessionModal(projId, sessionId, 'Edit Work Item', s.desc, s.date, s.hours, s.waiting || '', s.delegatedTo, false, null, s.subCode || '', s.priority || 'med');
 }
 
 function openAddSubtaskModal(projId, sessionId) {
-  _openSessionModal(projId, null, 'Add Subtask', '', today(), '1', '', null, true, sessionId);
+  _openSessionModal(projId, null, 'Add Subtask', '', today(), '1', '', null, true, sessionId, '', 'med');
 }
 
 function openEditSubtaskModal(projId, sessionId, subtaskId) {
@@ -5019,7 +5068,7 @@ function openEditSubtaskModal(projId, sessionId, subtaskId) {
   const s = proj && proj.sessions.find(s => s.id === sessionId);
   const st = s && (s.subtasks || []).find(st => st.id === subtaskId);
   if (!st) return;
-  _openSessionModal(projId, subtaskId, 'Edit Subtask', st.desc, st.date, st.hours, st.waiting || '', st.delegatedTo, true, sessionId);
+  _openSessionModal(projId, subtaskId, 'Edit Subtask', st.desc, st.date, st.hours, st.waiting || '', st.delegatedTo, true, sessionId, st.subCode || '', st.priority || 'med');
 }
 
 function closeEditSessionModal() {
@@ -5036,6 +5085,8 @@ function saveSession() {
   const desc        = document.getElementById('editSessionDesc').value.trim();
   const date        = document.getElementById('editSessionDate').value;
   const hours       = parseFloat(document.getElementById('editSessionHours').value) || 1;
+  const subCode     = document.getElementById('editSessionSubCode')?.value || '';
+  const priority    = document.getElementById('editSessionPriority')?.value || 'med';
   const waiting     = document.getElementById('editSessionWaiting').value.trim() || null;
   const delegatedTo = getSelectedDelegatees();
   if (!desc) return alert('Description is required.');
@@ -5046,17 +5097,17 @@ function saveSession() {
     if (!parentS.subtasks) parentS.subtasks = [];
     if (editingSessionId) {
       const st = parentS.subtasks.find(st => st.id === editingSessionId);
-      if (st) { st.desc = desc; st.date = date; st.hours = hours; st.waiting = waiting; st.delegatedTo = delegatedTo.length ? delegatedTo : null; }
+      if (st) { st.desc = desc; st.date = date; st.hours = hours; st.subCode = subCode; st.priority = priority; st.waiting = waiting; st.delegatedTo = delegatedTo.length ? delegatedTo : null; }
     } else {
-      parentS.subtasks.push({ id: uid(), desc, date, hours, done: false, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting });
+      parentS.subtasks.push({ id: uid(), desc, date, hours, done: false, subCode, priority, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting });
     }
   } else {
     if (editingSessionId) {
       const s = proj.sessions.find(s => s.id === editingSessionId);
-      if (s) { s.desc = desc; s.date = date; s.hours = hours; s.waiting = waiting; s.delegatedTo = delegatedTo.length ? delegatedTo : null; }
+      if (s) { s.desc = desc; s.date = date; s.hours = hours; s.subCode = subCode; s.priority = priority; s.waiting = waiting; s.delegatedTo = delegatedTo.length ? delegatedTo : null; }
     } else {
       const maxNum = proj.sessions.reduce((m, s) => Math.max(m, s.num), 0);
-      proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, hours, done: false, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting, subtasks: [] });
+      proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, hours, done: false, subCode, priority, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting, subtasks: [] });
     }
   }
 
