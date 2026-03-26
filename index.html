@@ -1530,7 +1530,6 @@
       <div class="form-row">
         <input class="form-input" type="date" id="newTaskDue">
         <input class="form-input" type="number" id="newTaskEst" placeholder="Est hrs" step="0.25" min="0.25">
-        <input class="form-input" type="text" id="newTaskCategory" placeholder="Category">
         <input class="form-input flex-1" type="text" id="newTaskWaiting" placeholder="Waiting on (optional)">
       </div>
       <div class="form-row">
@@ -1773,10 +1772,6 @@
       <div class="edit-form-group">
         <label class="edit-label">Est. Hours</label>
         <input class="edit-input" type="number" id="editEst" step="0.25" min="0.25">
-      </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Category</label>
-        <input class="edit-input" type="text" id="editCategory">
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Waiting On</label>
@@ -2750,7 +2745,7 @@ function renderTasks() {
 
   let visible = tasks.filter(t => !t.completed);
 
-  if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || t.notes?.toLowerCase().includes(search) || t.category?.toLowerCase().includes(search));
+  if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || t.notes?.toLowerCase().includes(search));
   if (fDate !== 'all') visible = visible.filter(t => {
     const g = dateGroup(t.due);
     if (fDate === 'today') return g === 'today';
@@ -2868,7 +2863,7 @@ function renderTasks() {
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${projColor(task.project)};" title="${projLabel(task.project)}"></div>
         <div class="task-name" onclick="openEditModal('${task.id}')" title="${task.notes ? 'Double-click to expand notes' : ''}"><span class="task-name-text">${task.name}</span>${task.notes ? '<span style="margin-left:4px;font-size:10px;color:var(--text3);flex-shrink:0;" title="Has notes (double-click row to expand)">📝</span>' : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span><span class="recur-inline-actions"><button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}')" style="font-size:10px;padding:2px 5px;">Skip</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}')" style="font-size:10px;padding:2px 5px;">Reschedule</button></span>` : ''}</div>
-        ${task.category ? `<span class="task-category">${task.category}</span>` : '<span></span>'}
+        <span class="task-category">${projLabel(task.project)}</span>
         ${task.waiting ? `<span class="task-waiting" title="Waiting on: ${task.waiting}">⏳ ${task.waiting}</span>` : '<span></span>'}
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
         <div class="task-due ${dc}" onclick="openDueDatePicker(this, '${task.id}')">${fmtDate(task.due)}</div>
@@ -3081,7 +3076,7 @@ function addTask() {
     priority: document.getElementById('newTaskPriority').value || 'med',
     due: document.getElementById('newTaskDue').value || '',
     est: parseFloat(document.getElementById('newTaskEst').value) || 0,
-    category: document.getElementById('newTaskCategory').value.trim(),
+    category: '',
     waiting: document.getElementById('newTaskWaiting').value.trim(),
     notes: document.getElementById('newTaskNotes').value.trim(),
     recurrence,
@@ -3090,7 +3085,7 @@ function addTask() {
   tasks.unshift(task);
   save('wt_tasks', tasks);
   // Reset
-  ['newTaskName','newTaskDue','newTaskEst','newTaskCategory','newTaskWaiting','newTaskNotes'].forEach(id => {
+  ['newTaskName','newTaskDue','newTaskEst','newTaskWaiting','newTaskNotes'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('nrType').value = ''; document.getElementById('nrEnd').value = '';
@@ -3160,7 +3155,7 @@ function openEditModal(taskId) {
   document.getElementById('editPriority').value = task.priority;
   document.getElementById('editDue').value = task.due || '';
   document.getElementById('editEst').value = task.est || '';
-  document.getElementById('editCategory').value = task.category || '';
+  // category removed from UI
   document.getElementById('editWaiting').value = task.waiting || '';
   document.getElementById('editNotes').value = task.notes || '';
   // Recurrence
@@ -3191,7 +3186,7 @@ function saveEditTask() {
   task.priority = document.getElementById('editPriority').value;
   task.due      = document.getElementById('editDue').value;
   task.est      = parseFloat(document.getElementById('editEst').value) || 0;
-  task.category = document.getElementById('editCategory').value.trim();
+  // category field preserved in data but removed from UI
   task.waiting  = document.getElementById('editWaiting').value.trim();
   task.notes    = document.getElementById('editNotes').value.trim();
 
