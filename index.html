@@ -312,6 +312,15 @@
     flex-shrink: 0;
     margin-left: 4px;
   }
+  .notes-icon {
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: 4px;
+    opacity: 0.7;
+    transition: opacity 0.12s;
+  }
+  .notes-icon:hover { opacity: 1; }
 
   .priority-badge {
     font-size: 10px;
@@ -1989,6 +1998,19 @@
   </div>
 </div>
 
+<!-- NOTES POPUP -->
+<div class="modal-overlay" id="notesPopup" onclick="if(event.target===this)closeNotesPopup()">
+  <div class="modal" style="width:400px;">
+    <div class="modal-title" id="notesPopupTitle">Notes</div>
+    <div style="margin-bottom:10px;"></div>
+    <textarea class="edit-input" id="notesPopupText" rows="6" style="resize:vertical;min-height:80px;"></textarea>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="btn" onclick="closeNotesPopup()">Close</button>
+      <button class="btn primary" onclick="saveNotesPopup()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- FLOATING DROPDOWN (shared for priority & status) -->
 <div id="dropdownMenu" class="dropdown-menu"></div>
 
@@ -3225,7 +3247,7 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${projColor(task.project)};" title="${projLabel(task.project)}"></div>
-        <div class="task-name" onclick="openEditModal('${task.id}')" title="${task.notes ? 'Double-click to expand notes' : ''}"><span class="task-name-text">${task.name}</span>${task.waiting ? `<span class="task-waiting" title="Waiting on: ${task.waiting}">⏳ ${task.waiting}</span>` : ''}${task.notes ? '<span style="margin-left:4px;font-size:10px;color:var(--text3);flex-shrink:0;" title="Has notes">📝</span>' : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}</div>
+        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${task.name}</span>${task.waiting ? `<span class="task-waiting">⏳ ${task.waiting}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}</div>
         <div class="task-recur-actions">${task.recurrence ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>` : ''}</div>
         <span class="task-category">${projLabel(task.project)}</span>
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
@@ -3235,18 +3257,6 @@ function renderTasks() {
           <span class="timer-display${isRunning ? ' running' : ''}" data-id="${task.id}">${timerStr}</span>
           <div class="timer-btn${isRunning ? ' running' : ''}" onclick="${isRunning ? `stopTimer('${task.id}')` : `startTimer('${task.id}')`}" title="${isRunning ? 'Stop' : 'Start'} timer">${isRunning ? '⏹' : '▶'}</div>
         </div>`;
-      if (task.notes) {
-        const notesRow = document.createElement('div');
-        notesRow.className = 'task-notes-row';
-        notesRow.id = `notes-${task.id}`;
-        notesRow.textContent = task.notes;
-        row.style.cursor = 'pointer';
-        row.addEventListener('dblclick', (e) => {
-          if (e.target.closest('.task-check,.timer-btn,.row-edit-btn,.task-due')) return;
-          notesRow.classList.toggle('open');
-        });
-        row._notesRow = notesRow;
-      }
     } else if (item._type === 'session') {
       const { s, proj } = item;
       const dc = dueCls(s.date);
@@ -3254,7 +3264,7 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check${s.done ? ' done' : ''}" onclick="toggleSession('${proj.id}','${s.id}')" title="Mark complete" style="cursor:pointer;"></div>
         <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${projLabel(proj.project)}"></div>
-        <div class="task-name" onclick="openEditSessionModal('${proj.id}','${s.id}')" title="${proj.name}">${s.desc}${delegateTagsHtml(s.delegatedTo)}${s.waiting ? `<span class="task-waiting" title="Waiting on: ${s.waiting}">⏳ ${s.waiting}</span>` : ''}</div>
+        <div class="task-name" onclick="openEditSessionModal('${proj.id}','${s.id}')">${s.desc}${delegateTagsHtml(s.delegatedTo)}${s.waiting ? `<span class="task-waiting">⏳ ${s.waiting}</span>` : ''}${s.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${s.id}','${proj.id}')" title="View notes">📝</span>` : ''}</div>
         <div class="task-recur-actions"></div>
         <span class="task-category" style="color:var(--text3);font-style:italic;">${proj.name}</span>
         <div onclick="showSessionPriorityDropdown(event,'${proj.id}','${s.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(s.priority || 'med')}</div>
@@ -3272,7 +3282,7 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check${st.done ? ' done' : ''}" onclick="toggleSubtask('${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;"></div>
         <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${proj.name}"></div>
-        <div class="task-name" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" title="Subtask of: ${s.desc}" style="font-size:11px;">╰ ${st.desc}${delegateTagsHtml(st.delegatedTo)}${st.waiting ? `<span class="task-waiting" title="Waiting on: ${st.waiting}">⏳ ${st.waiting}</span>` : ''}</div>
+        <div class="task-name" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" style="font-size:11px;">╰ ${st.desc}${delegateTagsHtml(st.delegatedTo)}${st.waiting ? `<span class="task-waiting">⏳ ${st.waiting}</span>` : ''}${st.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('subtask','${st.id}','${proj.id}','${s.id}')" title="View notes">📝</span>` : ''}</div>
         <div class="task-recur-actions"></div>
         <span class="task-category" style="color:var(--text3);font-style:italic;font-size:10px;">${proj.name}</span>
         <div onclick="showSubtaskPriorityDropdown(event,'${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(st.priority || 'med')}</div>
@@ -3875,7 +3885,8 @@ function renderProjects() {
               ${s.desc}
               ${s.subCode ? `<span style="font-size:9px;color:var(--accent);opacity:0.7;margin-left:4px;font-family:monospace;">${getSubCodeLabel(proj.project, s.subCode) || s.subCode}</span>` : ''}
               <span id="session-tags-${s.id}">${delegateTagsHtml(s.delegatedTo)}</span>
-              ${s.waiting ? `<span style="font-size:10px;color:var(--warn);margin-left:5px;">⏳ ${s.waiting}</span>` : ''}
+              ${s.waiting ? `<span class="task-waiting">⏳ ${s.waiting}</span>` : ''}
+              ${s.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${s.id}','${proj.id}')" title="View notes">📝</span>` : ''}
             </div>
             <div class="session-date">${fmtDate(s.date)}</div>
             <div class="session-hours">${s.hours}h</div>
@@ -3895,7 +3906,8 @@ function renderProjects() {
                 ${st.desc}
                 ${st.subCode ? `<span style="font-size:9px;color:var(--accent);opacity:0.7;margin-left:4px;font-family:monospace;">${getSubCodeLabel(proj.project, st.subCode) || st.subCode}</span>` : ''}
                 <span id="subtask-tags-${st.id}">${delegateTagsHtml(st.delegatedTo)}</span>
-                ${st.waiting?`<span style="font-size:10px;color:var(--warn);margin-left:5px;">⏳ ${st.waiting}</span>`:''}
+                ${st.waiting?`<span class="task-waiting">⏳ ${st.waiting}</span>`:''}
+                ${st.notes?`<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('subtask','${st.id}','${proj.id}','${s.id}')" title="View notes">📝</span>`:''}
               </div>
               <div class="session-date">${fmtDate(st.date)}</div>
               <div class="session-hours">${st.hours}h</div>
@@ -4109,8 +4121,9 @@ function renderTeam() {
       return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap;">${o}</span>`;
     }).join('')}</div>`;
     if (item._delegated) {
+      const _s = bigProjs.find(p=>p.id===item._projId)?.sessions.find(s=>s.id===item._sessionId);
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')">${item.name} <span class="delegate-tag">↗</span></div>
+        <div class="team-task-name" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')">${item.name}${_s?.waiting ? `<span class="task-waiting">⏳ ${_s.waiting}</span>` : ''}${_s?.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${item._sessionId}','${item._projId}')" title="View notes">📝</span>` : ''} <span class="delegate-tag">↗</span></div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
@@ -4119,7 +4132,7 @@ function renderTeam() {
         <button class="row-edit-btn" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')" title="Edit">✏</button>`;
     } else {
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${item.name}</div>
+        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${item.name}${item.waiting ? `<span class="task-waiting">⏳ ${item.waiting}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
@@ -4146,6 +4159,61 @@ function renderTeam() {
     container.appendChild(divider);
     completed_items.forEach(item => container.appendChild(buildTeamRow(item, true)));
   }
+}
+
+// Notes popup — universal for any item type
+let _notesPopupCtx = null; // { type: 'task'|'team'|'session'|'subtask', id, projId?, sessionId? }
+function openNotesPopup(ctx, title, text) {
+  _notesPopupCtx = ctx;
+  document.getElementById('notesPopupTitle').textContent = title || 'Notes';
+  document.getElementById('notesPopupText').value = text || '';
+  document.getElementById('notesPopup').classList.add('open');
+  document.getElementById('notesPopupText').focus();
+}
+function closeNotesPopup() {
+  document.getElementById('notesPopup').classList.remove('open');
+  _notesPopupCtx = null;
+}
+function saveNotesPopup() {
+  if (!_notesPopupCtx) return;
+  const text = document.getElementById('notesPopupText').value.trim();
+  const c = _notesPopupCtx;
+  if (c.type === 'task') {
+    const t = tasks.find(t => t.id === c.id);
+    if (t) { t.notes = text; save('wt_tasks', tasks); }
+  } else if (c.type === 'team') {
+    const t = teamItems.find(t => t.id === c.id);
+    if (t) { t.notes = text; save('wt_team', teamItems); }
+  } else if (c.type === 'session') {
+    const p = bigProjs.find(p => p.id === c.projId);
+    const s = p && p.sessions.find(s => s.id === c.id);
+    if (s) { s.notes = text; save('wt_bigprojs', bigProjs); }
+  } else if (c.type === 'subtask') {
+    const p = bigProjs.find(p => p.id === c.projId);
+    const s = p && p.sessions.find(s => s.id === c.sessionId);
+    const st = s && (s.subtasks||[]).find(st => st.id === c.id);
+    if (st) { st.notes = text; save('wt_bigprojs', bigProjs); }
+  }
+  closeNotesPopup();
+  renderTasks(); renderProjects(); renderTeam();
+}
+
+// Open notes popup by type + id
+function openNotesFor(type, id, projId, sessionId) {
+  let title = 'Notes', text = '';
+  if (type === 'task') {
+    const t = tasks.find(t => t.id === id); title = t?.name || 'Task Notes'; text = t?.notes || '';
+  } else if (type === 'team') {
+    const t = teamItems.find(t => t.id === id); title = t?.name || 'Notes'; text = t?.notes || '';
+  } else if (type === 'session') {
+    const p = bigProjs.find(p => p.id === projId);
+    const s = p?.sessions.find(s => s.id === id); title = s?.desc || 'Notes'; text = s?.notes || '';
+  } else if (type === 'subtask') {
+    const p = bigProjs.find(p => p.id === projId);
+    const s = p?.sessions.find(s => s.id === sessionId);
+    const st = s && (s.subtasks||[]).find(st => st.id === id); title = st?.desc || 'Notes'; text = st?.notes || '';
+  }
+  openNotesPopup({ type, id, projId, sessionId }, title, text);
 }
 
 function toggleTeamNotes(id) {
