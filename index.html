@@ -600,7 +600,7 @@
 
   .session-row {
     display: grid;
-    grid-template-columns: 20px 1fr 56px 70px 40px 90px;
+    grid-template-columns: 20px 1fr 56px 70px 40px 80px 90px;
     gap: 8px;
     align-items: center;
     padding: 8px 14px;
@@ -628,7 +628,7 @@
   .member-chip button { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
   .member-chip button:hover { color: var(--danger); }
   .delegate-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 12px; background: var(--bg3); border: 1px solid var(--border); font-size: 11px; color: var(--text2); cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s; user-select: none; }
-  .subtask-row { display: grid; grid-template-columns: 20px 1fr 56px 70px 40px 90px; gap: 8px; align-items: center; padding: 5px 14px 5px 44px; border-bottom: 1px solid var(--border); font-size: 11px; background: var(--bg); }
+  .subtask-row { display: grid; grid-template-columns: 20px 1fr 56px 70px 40px 80px 90px; gap: 8px; align-items: center; padding: 5px 14px 5px 44px; border-bottom: 1px solid var(--border); font-size: 11px; background: var(--bg); }
   .subtask-row:hover { background: var(--bg3); }
   .subtask-row:hover .session-row-actions { opacity: 1; }
   .delegate-pill.selected { background: #7c3aed22; border-color: var(--accent, #7c3aed); color: var(--accent, #7c3aed); font-weight: 600; }
@@ -1603,7 +1603,7 @@
 
     /* Session rows — fewer columns */
     .session-row {
-      grid-template-columns: 20px 1fr 56px 70px 40px 80px !important;
+      grid-template-columns: 20px 1fr 56px 70px 40px 70px 80px !important;
       gap: 6px;
     }
 
@@ -2956,17 +2956,56 @@ if (!completed) { completed = SEED_COMPLETED; save('wt_completed', completed); }
 // =============================================
 
 let activeTimerId = null;
+let _activeTimerType = null; // 'task' | 'session' | 'subtask'
+let _activeTimerProjId = null;
+let _activeTimerSessionId = null;
 let timerInterval = null;
 
+function _findTimerTarget(type, id, projId, sessionId) {
+  if (type === 'task') return tasks.find(t => t.id === id);
+  if (type === 'session') {
+    const proj = bigProjs.find(p => p.id === projId);
+    return proj ? proj.sessions.find(s => s.id === id) : null;
+  }
+  if (type === 'subtask') {
+    const proj = bigProjs.find(p => p.id === projId);
+    if (!proj) return null;
+    const s = proj.sessions.find(s => s.id === sessionId);
+    return s ? (s.subtasks || []).find(st => st.id === id) : null;
+  }
+  return null;
+}
+
+function _stopActiveTimer() {
+  if (!activeTimerId) return;
+  const target = _findTimerTarget(_activeTimerType, activeTimerId, _activeTimerProjId, _activeTimerSessionId);
+  if (target && target.timerStart) {
+    target.timer = (target.timer || 0) + Math.floor((Date.now() - target.timerStart) / 1000);
+    target.timerStart = null;
+  }
+  if (_activeTimerType === 'task') save('wt_tasks', tasks);
+  else save('wt_bigprojs', bigProjs);
+  activeTimerId = null;
+  _activeTimerType = null;
+  _activeTimerProjId = null;
+  _activeTimerSessionId = null;
+  clearInterval(timerInterval);
+}
+
 function startTimer(taskId) {
-  if (activeTimerId && activeTimerId !== taskId) stopTimer(activeTimerId);
+  if (activeTimerId) _stopActiveTimer();
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
   task.timerStart = Date.now();
+  if (!task.timer) task.timer = 0;
   activeTimerId = taskId;
+  _activeTimerType = 'task';
+  _activeTimerProjId = null;
+  _activeTimerSessionId = null;
   save('wt_tasks', tasks);
   timerInterval = setInterval(tickTimers, 1000);
   renderTasks();
+  renderProjects();
   updateActiveStrip();
 }
 
@@ -2977,22 +3016,101 @@ function stopTimer(taskId) {
   task.timerStart = null;
   if (activeTimerId === taskId) {
     activeTimerId = null;
+    _activeTimerType = null;
     clearInterval(timerInterval);
   }
   save('wt_tasks', tasks);
   renderTasks();
+  renderProjects();
+  updateActiveStrip();
+}
+
+function startSessionTimer(projId, sessionId) {
+  if (activeTimerId) _stopActiveTimer();
+  const proj = bigProjs.find(p => p.id === projId);
+  if (!proj) return;
+  const s = proj.sessions.find(s => s.id === sessionId);
+  if (!s) return;
+  s.timerStart = Date.now();
+  if (!s.timer) s.timer = 0;
+  activeTimerId = sessionId;
+  _activeTimerType = 'session';
+  _activeTimerProjId = projId;
+  _activeTimerSessionId = null;
+  save('wt_bigprojs', bigProjs);
+  timerInterval = setInterval(tickTimers, 1000);
+  renderTasks();
+  renderProjects();
+  updateActiveStrip();
+}
+
+function stopSessionTimer(projId, sessionId) {
+  const proj = bigProjs.find(p => p.id === projId);
+  if (!proj) return;
+  const s = proj.sessions.find(s => s.id === sessionId);
+  if (!s || !s.timerStart) return;
+  s.timer = (s.timer || 0) + Math.floor((Date.now() - s.timerStart) / 1000);
+  s.timerStart = null;
+  if (activeTimerId === sessionId) {
+    activeTimerId = null;
+    _activeTimerType = null;
+    clearInterval(timerInterval);
+  }
+  save('wt_bigprojs', bigProjs);
+  renderTasks();
+  renderProjects();
+  updateActiveStrip();
+}
+
+function startSubtaskTimer(projId, sessionId, subtaskId) {
+  if (activeTimerId) _stopActiveTimer();
+  const proj = bigProjs.find(p => p.id === projId);
+  if (!proj) return;
+  const s = proj.sessions.find(s => s.id === sessionId);
+  if (!s) return;
+  const st = (s.subtasks || []).find(st => st.id === subtaskId);
+  if (!st) return;
+  st.timerStart = Date.now();
+  if (!st.timer) st.timer = 0;
+  activeTimerId = subtaskId;
+  _activeTimerType = 'subtask';
+  _activeTimerProjId = projId;
+  _activeTimerSessionId = sessionId;
+  save('wt_bigprojs', bigProjs);
+  timerInterval = setInterval(tickTimers, 1000);
+  renderTasks();
+  renderProjects();
+  updateActiveStrip();
+}
+
+function stopSubtaskTimer(projId, sessionId, subtaskId) {
+  const proj = bigProjs.find(p => p.id === projId);
+  if (!proj) return;
+  const s = proj.sessions.find(s => s.id === sessionId);
+  if (!s) return;
+  const st = (s.subtasks || []).find(st => st.id === subtaskId);
+  if (!st || !st.timerStart) return;
+  st.timer = (st.timer || 0) + Math.floor((Date.now() - st.timerStart) / 1000);
+  st.timerStart = null;
+  if (activeTimerId === subtaskId) {
+    activeTimerId = null;
+    _activeTimerType = null;
+    clearInterval(timerInterval);
+  }
+  save('wt_bigprojs', bigProjs);
+  renderTasks();
+  renderProjects();
   updateActiveStrip();
 }
 
 function tickTimers() {
   if (!activeTimerId) return;
-  const el = document.querySelector(`.timer-display[data-id="${activeTimerId}"]`);
-  if (el) {
-    const task = tasks.find(t => t.id === activeTimerId);
-    if (task && task.timerStart) {
-      const secs = task.timer + Math.floor((Date.now() - task.timerStart) / 1000);
+  const target = _findTimerTarget(_activeTimerType, activeTimerId, _activeTimerProjId, _activeTimerSessionId);
+  if (target && target.timerStart) {
+    const secs = (target.timer || 0) + Math.floor((Date.now() - target.timerStart) / 1000);
+    document.querySelectorAll(`.timer-display[data-id="${activeTimerId}"]`).forEach(el => {
       el.textContent = fmtSecs(secs);
-    }
+    });
   }
   updateActiveStrip();
 }
@@ -3022,10 +3140,11 @@ function updateActiveStrip() {
   const strip = document.getElementById('activeStrip');
   const text = document.getElementById('activeStripText');
   if (activeTimerId) {
-    const task = tasks.find(t => t.id === activeTimerId);
-    if (task) {
-      const secs = task.timer + (task.timerStart ? Math.floor((Date.now() - task.timerStart) / 1000) : 0);
-      text.textContent = `Timer running — ${task.name} — ${fmtSecs(secs)}`;
+    const target = _findTimerTarget(_activeTimerType, activeTimerId, _activeTimerProjId, _activeTimerSessionId);
+    if (target) {
+      const secs = (target.timer || 0) + (target.timerStart ? Math.floor((Date.now() - target.timerStart) / 1000) : 0);
+      const name = target.name || target.desc || 'Session';
+      text.textContent = `Timer running — ${name} — ${fmtSecs(secs)}`;
       strip.classList.add('visible');
     }
   } else {
@@ -3407,7 +3526,10 @@ function renderTasks() {
     } else if (item._type === 'session') {
       const { s, proj } = item;
       const dc = dueCls(s.date);
-      row.className = 'task-row';
+      const sRunning = s.timerStart !== null && s.timerStart !== undefined;
+      const sSecs = (s.timer || 0) + (s.timerStart ? Math.floor((Date.now() - s.timerStart) / 1000) : 0);
+      const sTimerStr = sSecs > 0 ? fmtSecs(sSecs) : '—';
+      row.className = `task-row${sRunning ? ' running' : ''}`;
       row.innerHTML = `
         <div class="task-check${s.done ? ' done' : ''}" onclick="openSessionCompletionModal('${proj.id}','${s.id}')" title="Mark complete" style="cursor:pointer;"></div>
         <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${projLabel(proj.project)}"></div>
@@ -3417,13 +3539,17 @@ function renderTasks() {
         <div onclick="showSessionPriorityDropdown(event,'${proj.id}','${s.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(s.priority || 'med')}</div>
         <div class="task-due ${dc}" onclick="openSessionDatePicker(this,'${proj.id}','${s.id}')" style="cursor:pointer;">${fmtDate(s.date)}</div>
         <div class="task-est">${s.hours ? s.hours + 'h' : '—'}</div>
-        <div style="display:flex;align-items:center;gap:4px;">
-          <button class="row-edit-btn" onclick="openEditSessionModal('${proj.id}','${s.id}')" title="Edit">✏</button>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="timer-display${sRunning ? ' running' : ''}" data-id="${s.id}">${sTimerStr}</span>
+          <div class="timer-btn${sRunning ? ' running' : ''}" onclick="${sRunning ? `stopSessionTimer('${proj.id}','${s.id}')` : `startSessionTimer('${proj.id}','${s.id}')`}" title="${sRunning ? 'Stop' : 'Start'} timer">${sRunning ? '⏹' : '▶'}</div>
         </div>`;
     } else if (item._type === 'subtask') {
       const { st, s, proj } = item;
       const dc = dueCls(st.date);
-      row.className = 'task-row';
+      const stRunning = st.timerStart !== null && st.timerStart !== undefined;
+      const stSecs = (st.timer || 0) + (st.timerStart ? Math.floor((Date.now() - st.timerStart) / 1000) : 0);
+      const stTimerStr = stSecs > 0 ? fmtSecs(stSecs) : '—';
+      row.className = `task-row${stRunning ? ' running' : ''}`;
       row.style.paddingLeft = '20px';
       row.style.borderLeft = '2px solid var(--border)';
       row.innerHTML = `
@@ -3435,8 +3561,9 @@ function renderTasks() {
         <div onclick="showSubtaskPriorityDropdown(event,'${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(st.priority || 'med')}</div>
         <div class="task-due ${dc}" style="font-size:11px;cursor:pointer;" onclick="openSubtaskDatePicker(this,'${proj.id}','${s.id}','${st.id}')">${fmtDate(st.date)}</div>
         <div class="task-est" style="font-size:11px;">${st.hours ? st.hours + 'h' : '—'}</div>
-        <div style="display:flex;align-items:center;gap:4px;">
-          <button class="row-edit-btn" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" title="Edit">✏</button>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="timer-display${stRunning ? ' running' : ''}" data-id="${st.id}">${stTimerStr}</span>
+          <div class="timer-btn${stRunning ? ' running' : ''}" onclick="${stRunning ? `stopSubtaskTimer('${proj.id}','${s.id}','${st.id}')` : `startSubtaskTimer('${proj.id}','${s.id}','${st.id}')`}" title="${stRunning ? 'Stop' : 'Start'} timer">${stRunning ? '⏹' : '▶'}</div>
         </div>`;
     }
     return row;
@@ -4074,20 +4201,32 @@ function openSessionCompletionModal(projId, sessionId) {
   if (!proj) return;
   const s = proj.sessions.find(s => s.id === sessionId);
   if (!s) return;
-  if (s.done) { toggleSession(projId, sessionId); return; } // un-complete: just toggle
+  if (s.done) { toggleSession(projId, sessionId); return; }
 
+  if (s.timerStart) stopSessionTimer(projId, sessionId);
   completingTaskId = null;
   _completingCtx = { type: 'session', projId, sessionId };
+
+  const secs = s.timer || 0;
+  const rawHours = secsToHours(secs);
+  const billable = rawHours > 0 ? roundToQuarter(rawHours) : (s.hours || 0);
 
   document.getElementById('compModalTitle').textContent = 'Complete Session';
   document.getElementById('compModalSub').textContent = `${proj.name}: ${s.desc || 'Session'}`;
   document.getElementById('compEst').textContent = s.hours ? s.hours + 'h' : '—';
-  document.getElementById('compTimer').textContent = 'No timer data';
-  document.getElementById('compBillable').value = s.hours || 0;
+  document.getElementById('compTimer').textContent = secs > 0 ? `${fmtSecs(secs)} (${rawHours.toFixed(2)}h)` : 'No timer data';
+  document.getElementById('compBillable').value = billable;
 
   const varEl = document.getElementById('compVariance');
-  varEl.textContent = '—';
-  varEl.className = 'modal-value';
+  if (s.hours && s.hours > 0 && rawHours > 0) {
+    const pct = ((billable - s.hours) / s.hours) * 100;
+    const sign = pct >= 0 ? '+' : '';
+    varEl.textContent = `${sign}${pct.toFixed(0)}% vs estimate`;
+    varEl.className = 'modal-value ' + (Math.abs(pct) <= 5 ? 'good' : pct > 5 ? 'over' : 'under');
+  } else {
+    varEl.textContent = '—';
+    varEl.className = 'modal-value';
+  }
 
   populateSubCodeSelect('compSubCode', proj.project, s.subCode || '');
   document.getElementById('compDate').value = s.date || today();
@@ -4102,20 +4241,32 @@ function openSubtaskCompletionModal(projId, sessionId, subtaskId) {
   if (!s) return;
   const st = (s.subtasks || []).find(st => st.id === subtaskId);
   if (!st) return;
-  if (st.done) { toggleSubtask(projId, sessionId, subtaskId); return; } // un-complete: just toggle
+  if (st.done) { toggleSubtask(projId, sessionId, subtaskId); return; }
 
+  if (st.timerStart) stopSubtaskTimer(projId, sessionId, subtaskId);
   completingTaskId = null;
   _completingCtx = { type: 'subtask', projId, sessionId, subtaskId };
+
+  const secs = st.timer || 0;
+  const rawHours = secsToHours(secs);
+  const billable = rawHours > 0 ? roundToQuarter(rawHours) : (st.hours || 0);
 
   document.getElementById('compModalTitle').textContent = 'Complete Subtask';
   document.getElementById('compModalSub').textContent = `${proj.name}: ${st.desc || 'Subtask'}`;
   document.getElementById('compEst').textContent = st.hours ? st.hours + 'h' : '—';
-  document.getElementById('compTimer').textContent = 'No timer data';
-  document.getElementById('compBillable').value = st.hours || 0;
+  document.getElementById('compTimer').textContent = secs > 0 ? `${fmtSecs(secs)} (${rawHours.toFixed(2)}h)` : 'No timer data';
+  document.getElementById('compBillable').value = billable;
 
   const varEl = document.getElementById('compVariance');
-  varEl.textContent = '—';
-  varEl.className = 'modal-value';
+  if (st.hours && st.hours > 0 && rawHours > 0) {
+    const pct = ((billable - st.hours) / st.hours) * 100;
+    const sign = pct >= 0 ? '+' : '';
+    varEl.textContent = `${sign}${pct.toFixed(0)}% vs estimate`;
+    varEl.className = 'modal-value ' + (Math.abs(pct) <= 5 ? 'good' : pct > 5 ? 'over' : 'under');
+  } else {
+    varEl.textContent = '—';
+    varEl.className = 'modal-value';
+  }
 
   populateSubCodeSelect('compSubCode', proj.project, st.subCode || '');
   document.getElementById('compDate').value = st.date || today();
@@ -4300,9 +4451,12 @@ function renderProjects() {
             <div onclick="event.stopPropagation();showSessionPriorityDropdown(event,'${proj.id}','${s.id}')" style="cursor:pointer;">${priorityBadge(s.priority || 'med')}</div>
             <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openSessionDatePicker(this,'${proj.id}','${s.id}')">${fmtDate(s.date)}</div>
             <div class="session-hours">${s.hours}h</div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:11px;" onclick="event.stopPropagation()">
+              <span class="timer-display${s.timerStart ? ' running' : ''}" data-id="${s.id}">${(s.timer||0)+(s.timerStart?Math.floor((Date.now()-s.timerStart)/1000):0) > 0 ? fmtSecs((s.timer||0)+(s.timerStart?Math.floor((Date.now()-s.timerStart)/1000):0)) : '—'}</span>
+              <div class="timer-btn${s.timerStart ? ' running' : ''}" onclick="${s.timerStart ? `stopSessionTimer('${proj.id}','${s.id}')` : `startSessionTimer('${proj.id}','${s.id}')`}" title="${s.timerStart ? 'Stop' : 'Start'} timer">${s.timerStart ? '⏹' : '▶'}</div>
+            </div>
             <div class="session-row-actions" onclick="event.stopPropagation()">
               <button class="row-edit-btn" data-assign-btn="1" onclick="showAssignDropdown(event,'${proj.id}','${s.id}')" title="Assign">↗</button>
-              <button class="row-edit-btn" onclick="openEditSessionModal('${proj.id}','${s.id}')" title="Edit">✏</button>
               <button class="row-edit-btn" onclick="deleteSession('${proj.id}','${s.id}')" title="Delete" style="color:var(--danger);">×</button>
               <button class="row-edit-btn" onclick="event.stopPropagation();openAddSubtaskModal('${proj.id}','${s.id}')" title="Add subtask" style="color:var(--accent);font-size:14px;font-weight:700;">+</button>
             </div>
@@ -4321,9 +4475,12 @@ function renderProjects() {
               <div onclick="event.stopPropagation();showSubtaskPriorityDropdown(event,'${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;">${priorityBadge(st.priority || 'med')}</div>
               <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openSubtaskDatePicker(this,'${proj.id}','${s.id}','${st.id}')">${fmtDate(st.date)}</div>
               <div class="session-hours">${st.hours}h</div>
+              <div style="display:flex;align-items:center;gap:4px;font-size:11px;" onclick="event.stopPropagation()">
+                <span class="timer-display${st.timerStart ? ' running' : ''}" data-id="${st.id}">${(st.timer||0)+(st.timerStart?Math.floor((Date.now()-st.timerStart)/1000):0) > 0 ? fmtSecs((st.timer||0)+(st.timerStart?Math.floor((Date.now()-st.timerStart)/1000):0)) : '—'}</span>
+                <div class="timer-btn${st.timerStart ? ' running' : ''}" onclick="${st.timerStart ? `stopSubtaskTimer('${proj.id}','${s.id}','${st.id}')` : `startSubtaskTimer('${proj.id}','${s.id}','${st.id}')`}" title="${st.timerStart ? 'Stop' : 'Start'} timer">${st.timerStart ? '⏹' : '▶'}</div>
+              </div>
               <div class="session-row-actions" onclick="event.stopPropagation()">
                 <button class="row-edit-btn" data-assign-btn="1" onclick="showAssignDropdown(event,'${proj.id}','${s.id}','${st.id}')" title="Assign">↗</button>
-                <button class="row-edit-btn" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" title="Edit">✏</button>
                 <button class="row-edit-btn" onclick="deleteSubtask('${proj.id}','${s.id}','${st.id}')" title="Delete" style="color:var(--danger);">×</button>
               </div>
             </div>
@@ -4532,7 +4689,7 @@ function renderTeam() {
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
         <span class="team-due ${dc}" style="cursor:pointer;" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')">${fmtDate(item.due)}</span>
         <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')" style="cursor:pointer;">${STATUS_LABELS[item.status]}</span>
-        <button class="row-edit-btn" onclick="openEditSessionModal('${item._projId}','${item._sessionId}')" title="Edit">✏</button>`;
+        `;
     } else {
       row.innerHTML = `
         <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${item.name}${item.waiting ? `<span class="task-waiting">⏳ ${item.waiting}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
@@ -4541,7 +4698,7 @@ function renderTeam() {
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
         <span class="team-due ${dc}" style="cursor:pointer;" onclick="openTeamDueDatePicker(this,'${item.id}')">${fmtDate(item.due)}</span>
         <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showStatusDropdown(event,'${item.id}')" style="cursor:pointer;">${STATUS_LABELS[item.status]}</span>
-        <button class="row-edit-btn" onclick="openEditTeamModal('${item.id}')" title="Edit">✏</button>`;
+        `;
     }
     return row;
   }
@@ -4975,7 +5132,6 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
           <span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>
           <div class="ts-entry-actions" style="opacity:1;">
             ${doneFn ? `<button class="row-edit-btn" onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="color:var(--success);font-size:13px;">✓</button>` : ''}
-            ${editFn ? `<button class="row-edit-btn" onclick="${editFn}" title="Edit">✏</button>` : ''}
           </div>
         `;
       } else {
@@ -4985,7 +5141,6 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
           <span class="ts-entry-name" onclick="openEditTsEntry('${item.id}')">${item.name}</span>
           <span class="ts-entry-hours">${item.actualHours}h</span>
           <div class="ts-entry-actions">
-            <button class="row-edit-btn" onclick="openEditTsEntry('${item.id}')" title="Edit">✏</button>
             <button class="row-edit-btn" onclick="deleteTsEntry('${item.id}')" title="Delete" style="color:var(--danger);">×</button>
           </div>
         `;
@@ -5308,8 +5463,7 @@ function renderTimesheet() {
             <span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>
             <div class="ts-entry-actions" style="opacity:1;">
               ${doneFn ? `<button class="row-edit-btn" onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="color:var(--success);font-size:13px;">✓</button>` : ''}
-              ${editFn ? `<button class="row-edit-btn" onclick="${editFn}" title="Edit">✏</button>` : ''}
-            </div>
+              </div>
           `;
           container.appendChild(row);
         });
@@ -6068,13 +6222,41 @@ updateHeaderMeta();
 tasks.forEach(t => {
   if (t.timerStart && !activeTimerId) {
     activeTimerId = t.id;
+    _activeTimerType = 'task';
     timerInterval = setInterval(tickTimers, 1000);
     updateActiveStrip();
   } else if (t.timerStart && activeTimerId) {
-    // Stale timer — stop it to prevent multiple active timers
     t.timer += Math.floor((Date.now() - t.timerStart) / 1000);
     t.timerStart = null;
   }
+});
+// Resume session/subtask timers
+bigProjs.forEach(proj => {
+  proj.sessions.forEach(s => {
+    if (s.timerStart && !activeTimerId) {
+      activeTimerId = s.id;
+      _activeTimerType = 'session';
+      _activeTimerProjId = proj.id;
+      timerInterval = setInterval(tickTimers, 1000);
+      updateActiveStrip();
+    } else if (s.timerStart && activeTimerId) {
+      s.timer = (s.timer || 0) + Math.floor((Date.now() - s.timerStart) / 1000);
+      s.timerStart = null;
+    }
+    (s.subtasks || []).forEach(st => {
+      if (st.timerStart && !activeTimerId) {
+        activeTimerId = st.id;
+        _activeTimerType = 'subtask';
+        _activeTimerProjId = proj.id;
+        _activeTimerSessionId = s.id;
+        timerInterval = setInterval(tickTimers, 1000);
+        updateActiveStrip();
+      } else if (st.timerStart && activeTimerId) {
+        st.timer = (st.timer || 0) + Math.floor((Date.now() - st.timerStart) / 1000);
+        st.timerStart = null;
+      }
+    });
+  });
 });
 
 // Update header meta periodically
