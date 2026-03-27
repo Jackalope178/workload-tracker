@@ -2235,6 +2235,35 @@
         <div id="editSessionDelegateWrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
         <div id="editSessionDelegateNote" style="font-size:11px;color:var(--text3);display:none;">No persons yet — add them from the Team Deliverables tab.</div>
       </div>
+      <div class="edit-form-group full" style="margin-top:4px;padding-top:10px;border-top:1px solid var(--border);">
+        <label class="edit-label">Repeats</label>
+        <select class="edit-input" id="editSessionRecurType" onchange="onSessionRecurTypeChange()">
+          <option value="">Does not repeat</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Bi-weekly</option>
+          <option value="monthly-date">Monthly on a date</option>
+        </select>
+      </div>
+      <div class="edit-form-group full" id="editSessionRecurWeekdayGroup" style="display:none;">
+        <label class="edit-label">Day(s) of week</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:2px;">
+          <label class="day-toggle"><input type="checkbox" class="edit-session-recur-dow" value="0"><span>Sun</span></label>
+          <label class="day-toggle"><input type="checkbox" class="edit-session-recur-dow" value="1"><span>Mon</span></label>
+          <label class="day-toggle"><input type="checkbox" class="edit-session-recur-dow" value="2"><span>Tue</span></label>
+          <label class="day-toggle"><input type="checkbox" class="edit-session-recur-dow" value="3"><span>Wed</span></label>
+          <label class="day-toggle"><input type="checkbox" class="edit-session-recur-dow" value="4"><span>Thu</span></label>
+          <label class="day-toggle"><input type="checkbox" class="edit-session-recur-dow" value="5"><span>Fri</span></label>
+          <label class="day-toggle"><input type="checkbox" class="edit-session-recur-dow" value="6"><span>Sat</span></label>
+        </div>
+      </div>
+      <div class="edit-form-group" id="editSessionRecurMonthDayGroup" style="display:none;">
+        <label class="edit-label">Day of month</label>
+        <input type="number" class="edit-input" id="editSessionRecurMonthDay" min="1" max="31" placeholder="e.g. 15">
+      </div>
+      <div class="edit-form-group" id="editSessionRecurEndGroup" style="display:none;">
+        <label class="edit-label">End date <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
+        <input type="date" class="edit-input" id="editSessionRecurEnd">
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeEditSessionModal()">Cancel</button>
@@ -4181,8 +4210,16 @@ function openSessionCompletionModal(projId, sessionId) {
   const rawHours = secsToHours(secs);
   const billable = rawHours > 0 ? roundToQuarter(rawHours) : (s.hours || 0);
 
-  document.getElementById('compModalTitle').textContent = 'Complete Session';
-  document.getElementById('compModalSub').textContent = `${proj.name}: ${s.desc || 'Session'}`;
+  if (s.recurrence) {
+    const nextDate = nextRecurrenceAfter(s, s.date || today());
+    const endDate = s.recurrence.endDate;
+    const isLast = !nextDate || (endDate && nextDate > endDate);
+    document.getElementById('compModalTitle').textContent = isLast ? 'Complete Session (Final)' : 'Complete & Reschedule';
+    document.getElementById('compModalSub').textContent = isLast ? `${proj.name}: ${s.desc} — last recurrence` : `${proj.name}: ${s.desc} — next: ${fmtDate(nextDate)}`;
+  } else {
+    document.getElementById('compModalTitle').textContent = 'Complete Session';
+    document.getElementById('compModalSub').textContent = `${proj.name}: ${s.desc || 'Session'}`;
+  }
   document.getElementById('compEst').textContent = s.hours ? s.hours + 'h' : '—';
   document.getElementById('compTimer').textContent = secs > 0 ? `${fmtSecs(secs)} (${rawHours.toFixed(2)}h)` : 'No timer data';
   document.getElementById('compBillable').value = billable;
@@ -4221,8 +4258,16 @@ function openSubtaskCompletionModal(projId, sessionId, subtaskId) {
   const rawHours = secsToHours(secs);
   const billable = rawHours > 0 ? roundToQuarter(rawHours) : (st.hours || 0);
 
-  document.getElementById('compModalTitle').textContent = 'Complete Subtask';
-  document.getElementById('compModalSub').textContent = `${proj.name}: ${st.desc || 'Subtask'}`;
+  if (st.recurrence) {
+    const nextDate = nextRecurrenceAfter(st, st.date || today());
+    const endDate = st.recurrence.endDate;
+    const isLast = !nextDate || (endDate && nextDate > endDate);
+    document.getElementById('compModalTitle').textContent = isLast ? 'Complete Subtask (Final)' : 'Complete & Reschedule';
+    document.getElementById('compModalSub').textContent = isLast ? `${proj.name}: ${st.desc} — last recurrence` : `${proj.name}: ${st.desc} — next: ${fmtDate(nextDate)}`;
+  } else {
+    document.getElementById('compModalTitle').textContent = 'Complete Subtask';
+    document.getElementById('compModalSub').textContent = `${proj.name}: ${st.desc || 'Subtask'}`;
+  }
   document.getElementById('compEst').textContent = st.hours ? st.hours + 'h' : '—';
   document.getElementById('compTimer').textContent = secs > 0 ? `${fmtSecs(secs)} (${rawHours.toFixed(2)}h)` : 'No timer data';
   document.getElementById('compBillable').value = billable;
@@ -4277,7 +4322,18 @@ function confirmComplete() {
       };
       completed.unshift(entry);
       save('wt_completed', completed);
-      s.done = true;
+      if (s.recurrence) {
+        const nextDate = nextRecurrenceAfter(s, s.date || today());
+        const endDate = s.recurrence.endDate;
+        if (nextDate && (!endDate || nextDate <= endDate)) {
+          s.date = nextDate;
+          s.timer = 0; s.timerStart = null;
+        } else {
+          s.done = true;
+        }
+      } else {
+        s.done = true;
+      }
       save('wt_bigprojs', bigProjs);
     } else if (ctx.type === 'subtask') {
       const st = (s.subtasks || []).find(st => st.id === ctx.subtaskId);
@@ -4294,7 +4350,18 @@ function confirmComplete() {
       };
       completed.unshift(entry);
       save('wt_completed', completed);
-      st.done = true;
+      if (st.recurrence) {
+        const nextDate = nextRecurrenceAfter(st, st.date || today());
+        const endDate = st.recurrence.endDate;
+        if (nextDate && (!endDate || nextDate <= endDate)) {
+          st.date = nextDate;
+          st.timer = 0; st.timerStart = null;
+        } else {
+          st.done = true;
+        }
+      } else {
+        st.done = true;
+      }
       save('wt_bigprojs', bigProjs);
     }
   } else {
@@ -4417,6 +4484,7 @@ function renderProjects() {
               <span id="session-tags-${s.id}">${delegateTagsHtml(s.delegatedTo)}</span>
               ${s.waiting ? `<span class="task-waiting">⏳ ${s.waiting}</span>` : ''}
               ${s.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${s.id}','${proj.id}')" title="View notes">📝</span>` : ''}
+              ${s.recurrence ? `<span class="recur-badge">${recurLabel(s)}</span>` : ''}
             </div>
             <div onclick="event.stopPropagation();showSessionPriorityDropdown(event,'${proj.id}','${s.id}')" style="cursor:pointer;">${priorityBadge(s.priority || 'med')}</div>
             <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openSessionDatePicker(this,'${proj.id}','${s.id}')">${fmtDate(s.date)}</div>
@@ -4441,6 +4509,7 @@ function renderProjects() {
                 <span id="subtask-tags-${st.id}">${delegateTagsHtml(st.delegatedTo)}</span>
                 ${st.waiting?`<span class="task-waiting">⏳ ${st.waiting}</span>`:''}
                 ${st.notes?`<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('subtask','${st.id}','${proj.id}','${s.id}')" title="View notes">📝</span>`:''}
+                ${st.recurrence?`<span class="recur-badge">${recurLabel(st)}</span>`:''}
               </div>
               <div onclick="event.stopPropagation();showSubtaskPriorityDropdown(event,'${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;">${priorityBadge(st.priority || 'med')}</div>
               <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openSubtaskDatePicker(this,'${proj.id}','${s.id}','${st.id}')">${fmtDate(st.date)}</div>
@@ -6534,7 +6603,47 @@ function getSelectedDelegatees() {
   return Array.from(pills).map(p => p.textContent.replace(/^✓\s*/, '').trim());
 }
 
-function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting, delegatedTo, subtaskMode, parentSessionId, subCode, priority) {
+function onSessionRecurTypeChange() {
+  const type = document.getElementById('editSessionRecurType').value;
+  document.getElementById('editSessionRecurWeekdayGroup').style.display = (type === 'weekly' || type === 'biweekly') ? '' : 'none';
+  document.getElementById('editSessionRecurMonthDayGroup').style.display = type === 'monthly-date' ? '' : 'none';
+  document.getElementById('editSessionRecurEndGroup').style.display = type ? '' : 'none';
+}
+
+function _getSessionRecurrence() {
+  const type = document.getElementById('editSessionRecurType').value;
+  if (!type) return null;
+  const recurrence = { type, endDate: document.getElementById('editSessionRecurEnd').value || null };
+  if (type === 'weekly' || type === 'biweekly') {
+    const checked = Array.from(document.querySelectorAll('.edit-session-recur-dow:checked')).map(cb => +cb.value);
+    recurrence.daysOfWeek = checked.length ? checked : [1];
+  } else if (type === 'monthly-date') {
+    recurrence.dayOfMonth = +document.getElementById('editSessionRecurMonthDay').value || 1;
+  }
+  return recurrence;
+}
+
+function _populateSessionRecurFields(recurrence) {
+  const r = recurrence || {};
+  document.getElementById('editSessionRecurType').value = r.type || '';
+  document.querySelectorAll('.edit-session-recur-dow').forEach(cb => { cb.checked = false; });
+  if (r.daysOfWeek) {
+    r.daysOfWeek.forEach(d => {
+      const cb = document.querySelector(`.edit-session-recur-dow[value="${d}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
+  document.getElementById('editSessionRecurMonthDay').value = r.dayOfMonth || '';
+  document.getElementById('editSessionRecurEnd').value = r.endDate || '';
+  onSessionRecurTypeChange();
+}
+
+function sessionRecurLabel(item) {
+  if (!item.recurrence) return '';
+  return recurLabel(item);
+}
+
+function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting, delegatedTo, subtaskMode, parentSessionId, subCode, priority, recurrence) {
   editingSessionProjId  = projId;
   editingSessionId      = sessionId;
   editingSubtaskMode    = subtaskMode || false;
@@ -6548,6 +6657,7 @@ function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting,
   populateSubCodeSelect('editSessionSubCode', proj ? proj.project : '', subCode || '');
   document.getElementById('editSessionPriority').value = priority || 'med';
   populateSessionDelegatePills(getPersonsForProject(projId), delegatedTo);
+  _populateSessionRecurFields(recurrence || null);
   document.getElementById('editSessionModal').classList.add('open');
 }
 
@@ -6561,7 +6671,7 @@ function openEditSessionModal(projId, sessionId) {
   const proj = bigProjs.find(p => p.id === projId);
   const s = proj && proj.sessions.find(s => s.id === sessionId);
   if (!s) return;
-  _openSessionModal(projId, sessionId, 'Edit Work Item', s.desc, s.date, s.hours, s.waiting || '', s.delegatedTo, false, null, s.subCode || '', s.priority || 'med');
+  _openSessionModal(projId, sessionId, 'Edit Work Item', s.desc, s.date, s.hours, s.waiting || '', s.delegatedTo, false, null, s.subCode || '', s.priority || 'med', s.recurrence || null);
 }
 
 function openAddSubtaskModal(projId, sessionId) {
@@ -6575,7 +6685,7 @@ function openEditSubtaskModal(projId, sessionId, subtaskId) {
   const s = proj && proj.sessions.find(s => s.id === sessionId);
   const st = s && (s.subtasks || []).find(st => st.id === subtaskId);
   if (!st) return;
-  _openSessionModal(projId, subtaskId, 'Edit Subtask', st.desc, st.date, st.hours, st.waiting || '', st.delegatedTo, true, sessionId, st.subCode || '', st.priority || 'med');
+  _openSessionModal(projId, subtaskId, 'Edit Subtask', st.desc, st.date, st.hours, st.waiting || '', st.delegatedTo, true, sessionId, st.subCode || '', st.priority || 'med', st.recurrence || null);
 }
 
 function closeEditSessionModal() {
@@ -6596,6 +6706,7 @@ function saveSession() {
   const priority    = document.getElementById('editSessionPriority')?.value || 'med';
   const waiting     = document.getElementById('editSessionWaiting').value.trim() || null;
   const delegatedTo = getSelectedDelegatees();
+  const recurrence = _getSessionRecurrence();
   if (!desc) return alert('Description is required.');
 
   if (editingSubtaskMode) {
@@ -6604,17 +6715,17 @@ function saveSession() {
     if (!parentS.subtasks) parentS.subtasks = [];
     if (editingSessionId) {
       const st = parentS.subtasks.find(st => st.id === editingSessionId);
-      if (st) { st.desc = desc; st.date = date; st.hours = hours; st.subCode = subCode; st.priority = priority; st.waiting = waiting; st.delegatedTo = delegatedTo.length ? delegatedTo : null; }
+      if (st) { st.desc = desc; st.date = date; st.hours = hours; st.subCode = subCode; st.priority = priority; st.waiting = waiting; st.delegatedTo = delegatedTo.length ? delegatedTo : null; st.recurrence = recurrence; }
     } else {
-      parentS.subtasks.push({ id: uid(), desc, date, hours, done: false, subCode, priority, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting });
+      parentS.subtasks.push({ id: uid(), desc, date, hours, done: false, subCode, priority, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting, recurrence });
     }
   } else {
     if (editingSessionId) {
       const s = proj.sessions.find(s => s.id === editingSessionId);
-      if (s) { s.desc = desc; s.date = date; s.hours = hours; s.subCode = subCode; s.priority = priority; s.waiting = waiting; s.delegatedTo = delegatedTo.length ? delegatedTo : null; }
+      if (s) { s.desc = desc; s.date = date; s.hours = hours; s.subCode = subCode; s.priority = priority; s.waiting = waiting; s.delegatedTo = delegatedTo.length ? delegatedTo : null; s.recurrence = recurrence; }
     } else {
       const maxNum = proj.sessions.reduce((m, s) => Math.max(m, s.num), 0);
-      proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, hours, done: false, subCode, priority, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting, subtasks: [] });
+      proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, hours, done: false, subCode, priority, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting, recurrence, subtasks: [] });
     }
   }
 
