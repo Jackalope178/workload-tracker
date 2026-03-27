@@ -4286,7 +4286,7 @@ function renderProjects() {
         </div>
       </div>
       <div class="session-list" id="sessions-${proj.id}" style="${isCollapsed ? 'display:none;' : ''}">
-        ${[...proj.sessions].sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')).map(s => `
+        ${[...proj.sessions].sort((a,b)=>(a.done===b.done?0:a.done?1:-1)||(a.date||'9999').localeCompare(b.date||'9999')).map(s => `
           <div class="session-row">
             <div class="session-check${s.done ? ' done' : ''}" onclick="openSessionCompletionModal('${proj.id}','${s.id}')" title="${s.done ? 'Mark incomplete' : 'Mark complete'}">
               ${s.done ? '<span style="color:#0d0f14;font-size:11px;">✓</span>' : ''}
@@ -4307,7 +4307,7 @@ function renderProjects() {
               <button class="row-edit-btn" onclick="event.stopPropagation();openAddSubtaskModal('${proj.id}','${s.id}')" title="Add subtask" style="color:var(--accent);font-size:14px;font-weight:700;">+</button>
             </div>
           </div>
-          ${(s.subtasks||[]).map(st=>`
+          ${[...(s.subtasks||[])].sort((a,b)=>(a.done===b.done?0:a.done?1:-1)||(a.date||'9999').localeCompare(b.date||'9999')).map(st=>`
             <div class="subtask-row">
               <div class="session-check${st.done?' done':''}" onclick="openSubtaskCompletionModal('${proj.id}','${s.id}','${st.id}')" title="${st.done?'Mark incomplete':'Mark complete'}" style="cursor:pointer;">
                 ${st.done?'<span style="color:#0d0f14;font-size:10px;">✓</span>':''}
