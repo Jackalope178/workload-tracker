@@ -1374,6 +1374,64 @@
   .alloc-cell-clickable:hover {
     background: var(--bg4) !important;
   }
+  /* Summary mode: background-fill cells */
+  .alloc-cell-summary {
+    position: relative;
+    min-width: 70px;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .alloc-cell-summary:hover {
+    outline: 1px solid var(--border2);
+    outline-offset: -1px;
+  }
+  .alloc-cell-summary .acs-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .alloc-cell-summary .acs-bg .acs-fill-planned {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: rgba(79,156,249,0.10);
+    border-right: 2px solid rgba(79,156,249,0.25);
+    transition: width 0.2s;
+  }
+  .alloc-cell-summary .acs-bg .acs-fill-logged {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: rgba(52,211,153,0.12);
+    border-right: 2px solid rgba(52,211,153,0.3);
+    transition: width 0.2s;
+  }
+  .alloc-cell-summary .acs-bg .acs-fill-logged.over {
+    background: rgba(248,113,113,0.12);
+    border-right-color: rgba(248,113,113,0.3);
+  }
+  .alloc-cell-summary .acs-bg .acs-fill-logged.warn {
+    background: rgba(251,191,36,0.12);
+    border-right-color: rgba(251,191,36,0.3);
+  }
+  .alloc-cell-summary .acs-value {
+    position: relative;
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--text);
+    z-index: 1;
+  }
+  .alloc-cell-summary .acs-value.empty {
+    color: var(--text3);
+    font-weight: 400;
+  }
+  .alloc-cell-summary .acs-dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    margin-left: 3px;
+    vertical-align: middle;
+  }
+  .alloc-cell-summary .acs-dot.green { background: var(--success); }
+  .alloc-cell-summary .acs-dot.yellow { background: var(--warn); }
+  .alloc-cell-summary .acs-dot.red { background: var(--danger); }
+  .alloc-cell-summary .acs-dot.blue { background: var(--accent); }
   .alloc-drill-section {
     font-size: 10px;
     font-weight: 700;
@@ -5266,6 +5324,57 @@ function barColor(pct) {
   return 'green';
 }
 
+function allocSummaryCell(allocated, planned, actual, onclick) {
+  const hasData = allocated > 0 || planned > 0 || actual > 0;
+  const plannedPct = allocated > 0 ? Math.min(Math.round((planned / allocated) * 100), 100) : (planned > 0 ? 100 : 0);
+  const actualPct = allocated > 0 ? Math.min(Math.round((actual / allocated) * 100), 100) : (actual > 0 ? 100 : 0);
+  const overActual = allocated > 0 && actual > allocated;
+  const warnActual = allocated > 0 && actual >= allocated * 0.8 && !overActual;
+
+  // Status dot
+  let dotClr = '';
+  if (actual > 0 && allocated > 0) {
+    const pct = Math.round((actual / allocated) * 100);
+    dotClr = pct >= 100 ? 'red' : pct >= 80 ? 'yellow' : 'green';
+  } else if (planned > 0 && allocated === 0) {
+    dotClr = 'blue';
+  }
+
+  // Tooltip text
+  const parts = [];
+  if (allocated > 0) parts.push(`Allocated: ${allocated}h`);
+  if (planned > 0) parts.push(`Planned: ${fmtQ(planned)}h`);
+  if (actual > 0) parts.push(`Logged: ${fmtQ(actual)}h`);
+  if (allocated > 0 && actual > 0) parts.push(`Used: ${Math.round((actual / allocated) * 100)}%`);
+  const tip = parts.length > 0 ? parts.join(' · ') : 'No data';
+
+  let html = `<td class="alloc-cell-summary" onclick="${onclick}" title="${tip}">`;
+  // Background fills
+  html += `<div class="acs-bg">`;
+  if (planned > 0 && allocated > 0) {
+    html += `<div class="acs-fill-planned" style="width:${plannedPct}%"></div>`;
+  }
+  if (actual > 0 && allocated > 0) {
+    const logClass = overActual ? ' over' : warnActual ? ' warn' : '';
+    html += `<div class="acs-fill-logged${logClass}" style="width:${actualPct}%"></div>`;
+  }
+  html += `</div>`;
+  // Value
+  if (allocated > 0) {
+    html += `<span class="acs-value">${allocated}h`;
+    if (dotClr) html += `<span class="acs-dot ${dotClr}"></span>`;
+    html += `</span>`;
+  } else if (planned > 0 || actual > 0) {
+    html += `<span class="acs-value" style="color:var(--text2);">—`;
+    if (dotClr) html += `<span class="acs-dot ${dotClr}"></span>`;
+    html += `</span>`;
+  } else {
+    html += `<span class="acs-value empty">—</span>`;
+  }
+  html += `</td>`;
+  return html;
+}
+
 function allocDualBars(allocated, planned, actual) {
   let html = '';
   if (planned > 0) {
@@ -5490,16 +5599,20 @@ function renderAllocations() {
       grandActualTotals[mi] += projActual;
       grandPlannedTotals[mi] += projPlanned;
 
-      html += `<td class="alloc-cell alloc-cell-clickable" onclick="openAllocDrill('${projKey}','','${m.ym}')" title="Click to see task breakdown">`;
-      if (noSubs) {
-        html += `<input type="number" min="0" step="1" value="${projAlloc || ''}" placeholder="—"
-                  onchange="allocSet('${projKey}','','${m.ym}',this.value)" onclick="event.stopPropagation()"
-                  title="Allocated hours for ${proj.label} in ${m.label}">`;
+      if (viewMode === 'summary') {
+        html += allocSummaryCell(projAlloc, projPlanned, projActual, `openAllocDrill('${projKey}','','${m.ym}')`);
       } else {
-        html += `<div style="font-weight:600;font-size:11px;">${projAlloc > 0 ? projAlloc + 'h' : '—'}</div>`;
+        html += `<td class="alloc-cell alloc-cell-clickable" onclick="openAllocDrill('${projKey}','','${m.ym}')" title="Click to see task breakdown">`;
+        if (noSubs) {
+          html += `<input type="number" min="0" step="1" value="${projAlloc || ''}" placeholder="—"
+                    onchange="allocSet('${projKey}','','${m.ym}',this.value)" onclick="event.stopPropagation()"
+                    title="Allocated hours for ${proj.label} in ${m.label}">`;
+        } else {
+          html += `<div style="font-weight:600;font-size:11px;">${projAlloc > 0 ? projAlloc + 'h' : '—'}</div>`;
+        }
+        html += allocDualBars(projAlloc, projPlanned, projActual);
+        html += `</td>`;
       }
-      html += allocDualBars(projAlloc, projPlanned, projActual);
-      html += `</td>`;
     });
 
     // YTD for project
@@ -5556,10 +5669,14 @@ function renderAllocations() {
     const alloc = grandAllocTotals[mi];
     const planned = grandPlannedTotals[mi];
     const actual = grandActualTotals[mi];
-    html += `<td class="alloc-cell">`;
-    html += `<div>${alloc > 0 ? alloc + 'h' : '—'}</div>`;
-    html += allocDualBars(alloc, planned, actual);
-    html += `</td>`;
+    if (viewMode === 'summary') {
+      html += allocSummaryCell(alloc, planned, actual, '');
+    } else {
+      html += `<td class="alloc-cell">`;
+      html += `<div>${alloc > 0 ? alloc + 'h' : '—'}</div>`;
+      html += allocDualBars(alloc, planned, actual);
+      html += `</td>`;
+    }
   });
   // Grand YTD
   const gPct = grandAllocYTD > 0 ? Math.round((grandActualYTD / grandAllocYTD) * 100) : 0;
