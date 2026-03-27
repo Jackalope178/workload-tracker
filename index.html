@@ -5403,16 +5403,18 @@ function openAllocDrill(projKey, scId, yearMonth) {
   const sc = scId ? (proj.subCodes || []).find(s => s.id === scId) : null;
   const monthLabel = new Date(yearMonth + '-01').toLocaleString('default', { month: 'long', year: 'numeric' });
   const codeLabel = sc ? `${sc.code} ${sc.label}` : proj.label;
+  const hasSubs = proj.subCodes && proj.subCodes.length > 0;
+  // If clicking a project header that has subcodes, show all items for the project (don't filter by subcode)
+  const matchAllSubs = !scId && hasSubs;
 
   document.getElementById('allocDrillTitle').textContent = codeLabel;
-  document.getElementById('allocDrillSub').textContent = monthLabel;
+  document.getElementById('allocDrillSub').textContent = monthLabel + (matchAllSubs ? ' (all sub-codes)' : '');
 
   // Gather planned tasks
   const plannedTasks = tasks.filter(t => {
     if (t.completed) return false;
     if (t.project !== projKey) return false;
-    if (scId) { if ((t.subCode || '') !== scId) return false; }
-    else if (proj.subCodes && proj.subCodes.length > 0) return false; // project has subs, skip unmatched
+    if (scId && (t.subCode || '') !== scId) return false;
     return (t.due || '').slice(0, 7) === yearMonth;
   });
 
@@ -5423,40 +5425,37 @@ function openAllocDrill(projKey, scId, yearMonth) {
     if (bp.project !== projKey) return;
     bp.sessions.forEach(s => {
       if (s.done) return;
-      const sMatch = scId ? ((s.subCode || '') === scId) : (!scId && (!proj.subCodes || proj.subCodes.length === 0 || !(s.subCode)));
-      if (sMatch && (s.date || '').slice(0, 7) === yearMonth) {
-        plannedSessions.push({ name: `${bp.name}: ${s.title || 'Session'}`, hours: s.hours || 0, proj: bp.name });
+      const sMatchSc = scId ? ((s.subCode || '') === scId) : true;
+      if (sMatchSc && (s.date || '').slice(0, 7) === yearMonth) {
+        plannedSessions.push({ name: `${bp.name}: ${s.title || 'Session'}`, hours: s.hours || 0, subCode: s.subCode || '' });
       }
-      // For subcode drills that match subcodes
-      if (scId) {
-        (s.subtasks || []).forEach(st => {
-          if (st.done) return;
-          if ((st.subCode || '') === scId && (st.date || '').slice(0, 7) === yearMonth) {
-            plannedSubtasks.push({ name: `${bp.name}: ${st.title || 'Subtask'}`, hours: st.hours || 0 });
-          }
-        });
-      } else if (!proj.subCodes || proj.subCodes.length === 0) {
-        (s.subtasks || []).forEach(st => {
-          if (st.done) return;
-          if ((st.date || '').slice(0, 7) === yearMonth) {
-            plannedSubtasks.push({ name: `${bp.name}: ${st.title || 'Subtask'}`, hours: st.hours || 0 });
-          }
-        });
-      }
+      (s.subtasks || []).forEach(st => {
+        if (st.done) return;
+        const stMatchSc = scId ? ((st.subCode || '') === scId) : true;
+        if (stMatchSc && (st.date || '').slice(0, 7) === yearMonth) {
+          plannedSubtasks.push({ name: `${bp.name}: ${st.title || 'Subtask'}`, hours: st.hours || 0, subCode: st.subCode || '' });
+        }
+      });
     });
   });
 
   // Gather completed items
   const completedItems = completed.filter(c => {
     if (c.project !== projKey) return false;
-    if (scId) { if ((c.subCode || '') !== scId) return false; }
-    else if (proj.subCodes && proj.subCodes.length > 0) return false;
+    if (scId && (c.subCode || '') !== scId) return false;
     return (c.dateCompleted || '').slice(0, 7) === yearMonth;
   });
 
   // Build HTML
   let html = '';
   const totalItems = plannedTasks.length + plannedSessions.length + plannedSubtasks.length + completedItems.length;
+
+  // Helper to get sub-code label for project-level aggregate view
+  function scBadge(subCodeId) {
+    if (!matchAllSubs || !subCodeId) return '';
+    const found = (proj.subCodes || []).find(s => s.id === subCodeId);
+    return found ? `<span class="adi-type" style="background:var(--bg3);">${found.code}</span>` : '';
+  }
 
   if (totalItems === 0) {
     html = '<div class="alloc-drill-empty">No tasks or sessions for this period.</div>';
@@ -5466,7 +5465,7 @@ function openAllocDrill(projKey, scId, yearMonth) {
       plannedTasks.forEach(t => {
         const pri = t.priority === 'urgent' ? ' style="color:var(--danger)"' : t.priority === 'high' ? ' style="color:var(--warn)"' : '';
         html += `<div class="alloc-drill-item">
-          <span class="adi-type">Task</span>
+          <span class="adi-type">Task</span>${scBadge(t.subCode)}
           <span class="adi-name"${pri}>${escHtml(t.name)}</span>
           <span class="adi-hours">${t.est ? fmtQ(t.est) + 'h est' : '—'}</span>
         </div>`;
@@ -5477,7 +5476,7 @@ function openAllocDrill(projKey, scId, yearMonth) {
       html += '<div class="alloc-drill-section">Big Project Sessions</div>';
       plannedSessions.forEach(s => {
         html += `<div class="alloc-drill-item">
-          <span class="adi-type">Session</span>
+          <span class="adi-type">Session</span>${scBadge(s.subCode)}
           <span class="adi-name">${escHtml(s.name)}</span>
           <span class="adi-hours">${s.hours ? fmtQ(s.hours) + 'h' : '—'}</span>
         </div>`;
@@ -5488,7 +5487,7 @@ function openAllocDrill(projKey, scId, yearMonth) {
       html += '<div class="alloc-drill-section">Big Project Subtasks</div>';
       plannedSubtasks.forEach(s => {
         html += `<div class="alloc-drill-item">
-          <span class="adi-type">Subtask</span>
+          <span class="adi-type">Subtask</span>${scBadge(s.subCode)}
           <span class="adi-name">${escHtml(s.name)}</span>
           <span class="adi-hours">${s.hours ? fmtQ(s.hours) + 'h' : '—'}</span>
         </div>`;
@@ -5499,7 +5498,7 @@ function openAllocDrill(projKey, scId, yearMonth) {
       html += '<div class="alloc-drill-section">Completed</div>';
       completedItems.forEach(c => {
         html += `<div class="alloc-drill-item done">
-          <span class="adi-type">Done</span>
+          <span class="adi-type">Done</span>${scBadge(c.subCode)}
           <span class="adi-name">${escHtml(c.name)}</span>
           <span class="adi-hours">${c.actualHours ? fmtQ(c.actualHours) + 'h' : '—'}</span>
         </div>`;
