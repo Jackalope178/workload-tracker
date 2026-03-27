@@ -5004,14 +5004,40 @@ function plannedItems(fromDate, toDate) {
     proj.sessions.forEach(s => {
       const sDel = normDelegated(s.delegatedTo);
       const isMyWork = !sDel.length || sDel.includes('Me');
-      if (!s.done && isMyWork && s.date && s.date >= fromDate && s.date <= toDate) {
-        items.push({ id: s.id, name: s.desc, project: proj.project, date: s.date, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _src: 'session', _projId: proj.id });
+      if (s.done || !isMyWork) return;
+      if (!s.recurrence) {
+        if (s.date && s.date >= fromDate && s.date <= toDate) {
+          items.push({ id: s.id, name: s.desc, project: proj.project, date: s.date, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _src: 'session', _projId: proj.id });
+        }
+      } else {
+        const recurEnd = s.recurrence.endDate || null;
+        let d = s.date; let iters = 0;
+        while (d && d < fromDate && iters++ < 200) d = nextRecurrenceAfter(s, d);
+        iters = 0;
+        while (d && d <= toDate && iters++ < 60) {
+          if (recurEnd && d > recurEnd) break;
+          items.push({ id: s.id + '_' + d, name: s.desc, project: proj.project, date: d, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _src: 'session', _projId: proj.id });
+          d = nextRecurrenceAfter(s, d);
+        }
       }
       (s.subtasks || []).forEach(st => {
         const stDel2 = normDelegated(st.delegatedTo);
         const stIsMyWork = !stDel2.length || stDel2.includes('Me');
-        if (!st.done && stIsMyWork && st.date && st.date >= fromDate && st.date <= toDate) {
-          items.push({ id: st.id, name: st.desc, project: proj.project, date: st.date, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id });
+        if (st.done || !stIsMyWork) return;
+        if (!st.recurrence) {
+          if (st.date && st.date >= fromDate && st.date <= toDate) {
+            items.push({ id: st.id, name: st.desc, project: proj.project, date: st.date, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id });
+          }
+        } else {
+          const recurEnd = st.recurrence.endDate || null;
+          let d = st.date; let iters = 0;
+          while (d && d < fromDate && iters++ < 200) d = nextRecurrenceAfter(st, d);
+          iters = 0;
+          while (d && d <= toDate && iters++ < 60) {
+            if (recurEnd && d > recurEnd) break;
+            items.push({ id: st.id + '_' + d, name: st.desc, project: proj.project, date: d, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id });
+            d = nextRecurrenceAfter(st, d);
+          }
         }
       });
     });
