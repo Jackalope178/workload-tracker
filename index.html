@@ -4876,14 +4876,36 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
     if (!rawItems.length) return;
     hasAny = true;
     const d = new Date(date + 'T00:00:00');
-    const dayLabel = `${dayNames[d.getDay()]} ${months[d.getMonth()]} ${d.getDate()}`;
-    const dayTotal = rawItems.filter(i => i._isLogged).reduce((a, i) => a + i.actualHours, 0);
+    const dow = d.getDay();
+    const isWorkday = dow !== 0 && dow !== 6;
+    const dayLabel = `${dayNames[dow]} ${months[d.getMonth()]} ${d.getDate()}`;
+    const dayLogged = rawItems.filter(i => i._isLogged).reduce((a, i) => a + i.actualHours, 0);
+    const dayPlanned = rawItems.filter(i => i._isPlanned).reduce((a, i) => a + (i.hours || 0), 0);
+    const dayTotal = dayLogged + dayPlanned;
+    const dayCap = isWorkday ? tsCapacity : 0;
     const isDayCollapsed = tsCollapsedDays.has(date);
+
+    // Day capacity bar
+    let dayCapHtml = '';
+    if (dayCap > 0) {
+      const dayPct = Math.min(Math.round((dayTotal / dayCap) * 100), 100);
+      const dayCls = dayTotal > dayCap ? 'over' : dayTotal > dayCap * 0.8 ? 'warn' : 'ok';
+      const dayStatus = dayTotal > dayCap
+        ? `<span style="color:var(--danger);font-weight:700;">+${fmtQ(dayTotal - dayCap)}h over</span>`
+        : `<span style="color:${dayCls === 'warn' ? 'var(--warn)' : 'var(--success)'};font-weight:600;">${fmtQ(dayCap - dayTotal)}h left</span>`;
+      dayCapHtml = `<div class="ts-day-cap" style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+        <div class="ts-cap-bar-wrap" style="width:80px;margin-top:0;"><div class="ts-cap-bar-fill ${dayCls}" style="width:${dayPct}%;"></div></div>
+        <span style="font-size:9px;color:var(--text3);white-space:nowrap;">${fmtQ(dayLogged)}h${dayPlanned > 0 ? ' + ' + fmtQ(dayPlanned) + 'h' : ''} / ${dayCap}h</span>
+        ${dayStatus}
+      </div>`;
+    } else {
+      dayCapHtml = `<span class="ts-day-total">${dayLogged > 0 ? fmtQ(dayLogged) + 'h logged' : ''}</span>`;
+    }
 
     const hdr = document.createElement('div');
     hdr.className = 'ts-day-header';
     hdr.style.paddingLeft = '32px';
-    hdr.innerHTML = `<span class="ts-day-chevron${isDayCollapsed ? '' : ' open'}">›</span><span>${dayLabel}</span><span style="font-size:10px;font-weight:500;color:var(--text3);margin-left:4px;">${rawItems.length} item${rawItems.length !== 1 ? 's' : ''}</span><span class="ts-day-total">${dayTotal > 0 ? fmtQ(dayTotal) + 'h logged' : ''}</span>`;
+    hdr.innerHTML = `<span class="ts-day-chevron${isDayCollapsed ? '' : ' open'}">›</span><span>${dayLabel}</span><span style="font-size:10px;font-weight:500;color:var(--text3);margin-left:4px;">${rawItems.length} item${rawItems.length !== 1 ? 's' : ''}</span>${dayCapHtml}`;
     hdr.onclick = () => {
       if (tsCollapsedDays.has(date)) tsCollapsedDays.delete(date);
       else tsCollapsedDays.add(date);
