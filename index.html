@@ -2242,6 +2242,7 @@
           <option value="weekly">Weekly</option>
           <option value="biweekly">Bi-weekly</option>
           <option value="monthly-date">Monthly on a date</option>
+          <option value="monthly-weekday">Monthly on a weekday</option>
         </select>
       </div>
       <div class="edit-form-group full" id="editSessionRecurWeekdayGroup" style="display:none;">
@@ -2259,6 +2260,28 @@
       <div class="edit-form-group" id="editSessionRecurMonthDayGroup" style="display:none;">
         <label class="edit-label">Day of month</label>
         <input type="number" class="edit-input" id="editSessionRecurMonthDay" min="1" max="31" placeholder="e.g. 15">
+      </div>
+      <div class="edit-form-group" id="editSessionRecurWeekOfMonthGroup" style="display:none;">
+        <label class="edit-label">Which occurrence</label>
+        <select class="edit-input" id="editSessionRecurWeekOfMonth">
+          <option value="1">1st</option>
+          <option value="2">2nd</option>
+          <option value="3">3rd</option>
+          <option value="4">4th</option>
+          <option value="-1">Last</option>
+        </select>
+      </div>
+      <div class="edit-form-group" id="editSessionRecurMonthWeekdayGroup" style="display:none;">
+        <label class="edit-label">Day of week</label>
+        <select class="edit-input" id="editSessionRecurMonthWeekday">
+          <option value="0">Sunday</option>
+          <option value="1">Monday</option>
+          <option value="2">Tuesday</option>
+          <option value="3">Wednesday</option>
+          <option value="4">Thursday</option>
+          <option value="5">Friday</option>
+          <option value="6">Saturday</option>
+        </select>
       </div>
       <div class="edit-form-group" id="editSessionRecurEndGroup" style="display:none;">
         <label class="edit-label">End date <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
@@ -6607,6 +6630,8 @@ function onSessionRecurTypeChange() {
   const type = document.getElementById('editSessionRecurType').value;
   document.getElementById('editSessionRecurWeekdayGroup').style.display = (type === 'weekly' || type === 'biweekly') ? '' : 'none';
   document.getElementById('editSessionRecurMonthDayGroup').style.display = type === 'monthly-date' ? '' : 'none';
+  document.getElementById('editSessionRecurWeekOfMonthGroup').style.display = type === 'monthly-weekday' ? '' : 'none';
+  document.getElementById('editSessionRecurMonthWeekdayGroup').style.display = type === 'monthly-weekday' ? '' : 'none';
   document.getElementById('editSessionRecurEndGroup').style.display = type ? '' : 'none';
 }
 
@@ -6619,6 +6644,9 @@ function _getSessionRecurrence() {
     recurrence.daysOfWeek = checked.length ? checked : [1];
   } else if (type === 'monthly-date') {
     recurrence.dayOfMonth = +document.getElementById('editSessionRecurMonthDay').value || 1;
+  } else if (type === 'monthly-weekday') {
+    recurrence.weekOfMonth = +document.getElementById('editSessionRecurWeekOfMonth').value;
+    recurrence.dayOfWeek = +document.getElementById('editSessionRecurMonthWeekday').value;
   }
   return recurrence;
 }
@@ -6634,6 +6662,8 @@ function _populateSessionRecurFields(recurrence) {
     });
   }
   document.getElementById('editSessionRecurMonthDay').value = r.dayOfMonth || '';
+  document.getElementById('editSessionRecurWeekOfMonth').value = r.weekOfMonth || '1';
+  document.getElementById('editSessionRecurMonthWeekday').value = r.dayOfWeek != null ? r.dayOfWeek : '1';
   document.getElementById('editSessionRecurEnd').value = r.endDate || '';
   onSessionRecurTypeChange();
 }
