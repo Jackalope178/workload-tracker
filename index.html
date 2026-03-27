@@ -3409,7 +3409,7 @@ function renderTasks() {
       const dc = dueCls(s.date);
       row.className = 'task-row';
       row.innerHTML = `
-        <div class="task-check${s.done ? ' done' : ''}" onclick="toggleSession('${proj.id}','${s.id}')" title="Mark complete" style="cursor:pointer;"></div>
+        <div class="task-check${s.done ? ' done' : ''}" onclick="openSessionCompletionModal('${proj.id}','${s.id}')" title="Mark complete" style="cursor:pointer;"></div>
         <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${projLabel(proj.project)}"></div>
         <div class="task-name" onclick="openEditSessionModal('${proj.id}','${s.id}')">${s.desc}${delegateTagsHtml(s.delegatedTo)}${s.waiting ? `<span class="task-waiting">⏳ ${s.waiting}</span>` : ''}${s.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${s.id}','${proj.id}')" title="View notes">📝</span>` : ''}</div>
         <div class="task-recur-actions"></div>
@@ -3427,7 +3427,7 @@ function renderTasks() {
       row.style.paddingLeft = '20px';
       row.style.borderLeft = '2px solid var(--border)';
       row.innerHTML = `
-        <div class="task-check${st.done ? ' done' : ''}" onclick="toggleSubtask('${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;"></div>
+        <div class="task-check${st.done ? ' done' : ''}" onclick="openSubtaskCompletionModal('${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;"></div>
         <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${proj.name}"></div>
         <div class="task-name" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" style="font-size:11px;">╰ ${st.desc}${delegateTagsHtml(st.delegatedTo)}${st.waiting ? `<span class="task-waiting">⏳ ${st.waiting}</span>` : ''}${st.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('subtask','${st.id}','${proj.id}','${s.id}')" title="View notes">📝</span>` : ''}</div>
         <div class="task-recur-actions"></div>
@@ -3987,6 +3987,8 @@ function deleteEditTask() {
 // =============================================
 
 let completingTaskId = null;
+// Context for session/subtask completion: { type: 'session'|'subtask', projId, sessionId, subtaskId? }
+let _completingCtx = null;
 
 function openCompletionModal(taskId) {
   const task = tasks.find(t => t.id === taskId);
@@ -3994,6 +3996,7 @@ function openCompletionModal(taskId) {
   if (task.timerStart) stopTimer(taskId);
 
   completingTaskId = taskId;
+  _completingCtx = null;
   const secs = task.timer;
   const rawHours = secsToHours(secs);
   const billable = rawHours > 0 ? roundToQuarter(rawHours) : (task.est ? roundToQuarter(task.est) : 0);
@@ -4032,53 +4035,152 @@ function openCompletionModal(taskId) {
   document.getElementById('completionModal').classList.add('open');
 }
 
+function openSessionCompletionModal(projId, sessionId) {
+  const proj = bigProjs.find(p => p.id === projId);
+  if (!proj) return;
+  const s = proj.sessions.find(s => s.id === sessionId);
+  if (!s) return;
+  if (s.done) { toggleSession(projId, sessionId); return; } // un-complete: just toggle
+
+  completingTaskId = null;
+  _completingCtx = { type: 'session', projId, sessionId };
+
+  document.getElementById('compModalTitle').textContent = 'Complete Session';
+  document.getElementById('compModalSub').textContent = `${proj.name}: ${s.desc || 'Session'}`;
+  document.getElementById('compEst').textContent = s.hours ? s.hours + 'h' : '—';
+  document.getElementById('compTimer').textContent = 'No timer data';
+  document.getElementById('compBillable').value = s.hours || 0;
+
+  const varEl = document.getElementById('compVariance');
+  varEl.textContent = '—';
+  varEl.className = 'modal-value';
+
+  populateSubCodeSelect('compSubCode', proj.project, s.subCode || '');
+  document.getElementById('compDate').value = s.date || today();
+
+  document.getElementById('completionModal').classList.add('open');
+}
+
+function openSubtaskCompletionModal(projId, sessionId, subtaskId) {
+  const proj = bigProjs.find(p => p.id === projId);
+  if (!proj) return;
+  const s = proj.sessions.find(s => s.id === sessionId);
+  if (!s) return;
+  const st = (s.subtasks || []).find(st => st.id === subtaskId);
+  if (!st) return;
+  if (st.done) { toggleSubtask(projId, sessionId, subtaskId); return; } // un-complete: just toggle
+
+  completingTaskId = null;
+  _completingCtx = { type: 'subtask', projId, sessionId, subtaskId };
+
+  document.getElementById('compModalTitle').textContent = 'Complete Subtask';
+  document.getElementById('compModalSub').textContent = `${proj.name}: ${st.desc || 'Subtask'}`;
+  document.getElementById('compEst').textContent = st.hours ? st.hours + 'h' : '—';
+  document.getElementById('compTimer').textContent = 'No timer data';
+  document.getElementById('compBillable').value = st.hours || 0;
+
+  const varEl = document.getElementById('compVariance');
+  varEl.textContent = '—';
+  varEl.className = 'modal-value';
+
+  populateSubCodeSelect('compSubCode', proj.project, st.subCode || '');
+  document.getElementById('compDate').value = st.date || today();
+
+  document.getElementById('completionModal').classList.add('open');
+}
+
 function closeCompletionModal() {
   document.getElementById('completionModal').classList.remove('open');
   completingTaskId = null;
+  _completingCtx = null;
 }
 
 function confirmComplete() {
-  const task = tasks.find(t => t.id === completingTaskId);
-  if (!task) return;
   const rawBillable = parseFloat(document.getElementById('compBillable').value);
   const billable = isNaN(rawBillable) ? 0.25 : rawBillable;
-
   const subCode = document.getElementById('compSubCode')?.value || '';
+  const dateCompleted = document.getElementById('compDate').value || today();
 
-  const entry = {
-    id: uid(),
-    name: task.name,
-    project: task.project,
-    subCode: subCode,
-    dateCompleted: document.getElementById('compDate').value || today(),
-    estHours: task.est,
-    actualHours: billable,
-    category: task.category
-  };
+  if (_completingCtx) {
+    // Session or subtask completion
+    const ctx = _completingCtx;
+    const proj = bigProjs.find(p => p.id === ctx.projId);
+    if (!proj) return;
+    const s = proj.sessions.find(s => s.id === ctx.sessionId);
+    if (!s) return;
 
-  completed.unshift(entry);
-  save('wt_completed', completed);
+    if (ctx.type === 'session') {
+      const entry = {
+        id: uid(),
+        name: `${proj.name}: ${s.desc || 'Session'}`,
+        project: proj.project,
+        subCode: subCode,
+        dateCompleted: dateCompleted,
+        estHours: s.hours || 0,
+        actualHours: billable,
+        category: ''
+      };
+      completed.unshift(entry);
+      save('wt_completed', completed);
+      s.done = true;
+      save('wt_bigprojs', bigProjs);
+    } else if (ctx.type === 'subtask') {
+      const st = (s.subtasks || []).find(st => st.id === ctx.subtaskId);
+      if (!st) return;
+      const entry = {
+        id: uid(),
+        name: `${proj.name}: ${st.desc || 'Subtask'}`,
+        project: proj.project,
+        subCode: subCode,
+        dateCompleted: dateCompleted,
+        estHours: st.hours || 0,
+        actualHours: billable,
+        category: ''
+      };
+      completed.unshift(entry);
+      save('wt_completed', completed);
+      st.done = true;
+      save('wt_bigprojs', bigProjs);
+    }
+  } else {
+    // Regular task completion
+    const task = tasks.find(t => t.id === completingTaskId);
+    if (!task) return;
 
-  if (task.recurrence) {
-    const nextDate = nextRecurrenceAfter(task, task.due || today());
-    const endDate  = task.recurrence.endDate;
-    const withinEnd = nextDate && (!endDate || nextDate <= endDate);
-    if (withinEnd) {
-      // Regenerate to next occurrence
-      task.due = nextDate; task.timer = 0; task.timerStart = null;
-      save('wt_tasks', tasks);
+    const entry = {
+      id: uid(),
+      name: task.name,
+      project: task.project,
+      subCode: subCode,
+      dateCompleted: dateCompleted,
+      estHours: task.est,
+      actualHours: billable,
+      category: task.category
+    };
+
+    completed.unshift(entry);
+    save('wt_completed', completed);
+
+    if (task.recurrence) {
+      const nextDate = nextRecurrenceAfter(task, task.due || today());
+      const endDate  = task.recurrence.endDate;
+      const withinEnd = nextDate && (!endDate || nextDate <= endDate);
+      if (withinEnd) {
+        task.due = nextDate; task.timer = 0; task.timerStart = null;
+        save('wt_tasks', tasks);
+      } else {
+        tasks = tasks.filter(t => t.id !== completingTaskId);
+        save('wt_tasks', tasks);
+      }
     } else {
-      // Past end date — archive like a normal task
       tasks = tasks.filter(t => t.id !== completingTaskId);
       save('wt_tasks', tasks);
     }
-  } else {
-    tasks = tasks.filter(t => t.id !== completingTaskId);
-    save('wt_tasks', tasks);
   }
 
   closeCompletionModal();
   renderTasks();
+  renderProjects();
   renderTimesheet();
 }
 
@@ -4808,8 +4910,8 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
         // Mark-done button
         let doneFn = '';
         if (item._src === 'task' && taskObj) doneFn = `openCompletionModal('${taskObj.id}')`;
-        else if (item._src === 'session') doneFn = `toggleSession('${item._projId}','${item.id}');renderTimesheet()`;
-        else if (item._src === 'subtask') doneFn = `toggleSubtask('${item._projId}','${item._sessionId}','${item.id}');renderTimesheet()`;
+        else if (item._src === 'session') doneFn = `openSessionCompletionModal('${item._projId}','${item.id}')`;
+        else if (item._src === 'subtask') doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${item.id}')`;
         row.innerHTML = `
           <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
           <span class="ts-entry-subcode">${scLabel || '—'}</span>
@@ -5139,7 +5241,7 @@ function renderTimesheet() {
             : item._projId ? `openEditSessionModal('${item._projId}','${item.id}')` : '';
           let doneFn = '';
           if (item._taskId) doneFn = `openCompletionModal('${item._taskId}')`;
-          else if (item._projId) doneFn = `toggleSession('${item._projId}','${item.id}');renderTimesheet()`;
+          else if (item._projId) doneFn = `openSessionCompletionModal('${item._projId}','${item.id}')`;
           const pCode = projBillingCode(item.project) || projLabel(item.project);
           const scLbl = item.subCode ? getSubCodeLabel(item.project, item.subCode) : '';
           const recurBadge = item._recur ? `<span class="recur-badge">↻</span>` : '';
