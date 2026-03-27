@@ -5404,51 +5404,76 @@ function openAllocDrill(projKey, scId, yearMonth) {
   const monthLabel = new Date(yearMonth + '-01').toLocaleString('default', { month: 'long', year: 'numeric' });
   const codeLabel = sc ? `${sc.code} ${sc.label}` : proj.label;
   const hasSubs = proj.subCodes && proj.subCodes.length > 0;
-  // If clicking a project header that has subcodes, show all items for the project (don't filter by subcode)
   const matchAllSubs = !scId && hasSubs;
 
   document.getElementById('allocDrillTitle').textContent = codeLabel;
   document.getElementById('allocDrillSub').textContent = monthLabel + (matchAllSubs ? ' (all sub-codes)' : '');
 
-  // Gather planned tasks
-  const plannedTasks = tasks.filter(t => {
-    if (t.completed) return false;
-    if (t.project !== projKey) return false;
-    if (scId && (t.subCode || '') !== scId) return false;
-    return (t.due || '').slice(0, 7) === yearMonth;
+  // Gather planned tasks — matching subcode, or all if project-level
+  const plannedTasks = [];
+  const unassignedTasks = [];
+  tasks.forEach(t => {
+    if (t.completed || t.project !== projKey) return;
+    if ((t.due || '').slice(0, 7) !== yearMonth) return;
+    const tsc = t.subCode || '';
+    if (!scId || tsc === scId) {
+      plannedTasks.push(t);
+    } else if (scId && tsc === '') {
+      unassignedTasks.push(t);
+    }
   });
 
   // Gather big project sessions & subtasks
   const plannedSessions = [];
   const plannedSubtasks = [];
+  const unassignedSessions = [];
+  const unassignedSubtasks = [];
   bigProjs.forEach(bp => {
     if (bp.project !== projKey) return;
     bp.sessions.forEach(s => {
       if (s.done) return;
-      const sMatchSc = scId ? ((s.subCode || '') === scId) : true;
-      if (sMatchSc && (s.date || '').slice(0, 7) === yearMonth) {
-        plannedSessions.push({ name: `${bp.name}: ${s.title || 'Session'}`, hours: s.hours || 0, subCode: s.subCode || '' });
+      const ssc = s.subCode || '';
+      if ((s.date || '').slice(0, 7) === yearMonth) {
+        const item = { name: `${bp.name}: ${s.desc || s.title || 'Session'}`, hours: s.hours || 0, subCode: ssc };
+        if (!scId || ssc === scId) {
+          plannedSessions.push(item);
+        } else if (scId && ssc === '') {
+          unassignedSessions.push(item);
+        }
       }
       (s.subtasks || []).forEach(st => {
         if (st.done) return;
-        const stMatchSc = scId ? ((st.subCode || '') === scId) : true;
-        if (stMatchSc && (st.date || '').slice(0, 7) === yearMonth) {
-          plannedSubtasks.push({ name: `${bp.name}: ${st.title || 'Subtask'}`, hours: st.hours || 0, subCode: st.subCode || '' });
+        const stsc = st.subCode || '';
+        if ((st.date || '').slice(0, 7) === yearMonth) {
+          const item = { name: `${bp.name}: ${st.desc || st.title || 'Subtask'}`, hours: st.hours || 0, subCode: stsc };
+          if (!scId || stsc === scId) {
+            plannedSubtasks.push(item);
+          } else if (scId && stsc === '') {
+            unassignedSubtasks.push(item);
+          }
         }
       });
     });
   });
 
   // Gather completed items
-  const completedItems = completed.filter(c => {
-    if (c.project !== projKey) return false;
-    if (scId && (c.subCode || '') !== scId) return false;
-    return (c.dateCompleted || '').slice(0, 7) === yearMonth;
+  const completedItems = [];
+  const unassignedCompleted = [];
+  completed.forEach(c => {
+    if (c.project !== projKey) return;
+    if ((c.dateCompleted || '').slice(0, 7) !== yearMonth) return;
+    const csc = c.subCode || '';
+    if (!scId || csc === scId) {
+      completedItems.push(c);
+    } else if (scId && csc === '') {
+      unassignedCompleted.push(c);
+    }
   });
 
   // Build HTML
   let html = '';
-  const totalItems = plannedTasks.length + plannedSessions.length + plannedSubtasks.length + completedItems.length;
+  const totalItems = plannedTasks.length + plannedSessions.length + plannedSubtasks.length + completedItems.length
+    + unassignedTasks.length + unassignedSessions.length + unassignedSubtasks.length + unassignedCompleted.length;
 
   // Helper to get sub-code label for project-level aggregate view
   function scBadge(subCodeId) {
@@ -5457,52 +5482,57 @@ function openAllocDrill(projKey, scId, yearMonth) {
     return found ? `<span class="adi-type" style="background:var(--bg3);">${found.code}</span>` : '';
   }
 
+  function renderTaskItem(t) {
+    const pri = t.priority === 'urgent' ? ' style="color:var(--danger)"' : t.priority === 'high' ? ' style="color:var(--warn)"' : '';
+    return `<div class="alloc-drill-item">
+      <span class="adi-type">Task</span>${scBadge(t.subCode)}
+      <span class="adi-name"${pri}>${escHtml(t.name)}</span>
+      <span class="adi-hours">${t.est ? fmtQ(t.est) + 'h est' : '—'}</span>
+    </div>`;
+  }
+  function renderSessionItem(s, type) {
+    return `<div class="alloc-drill-item">
+      <span class="adi-type">${type}</span>${scBadge(s.subCode)}
+      <span class="adi-name">${escHtml(s.name)}</span>
+      <span class="adi-hours">${s.hours ? fmtQ(s.hours) + 'h' : '—'}</span>
+    </div>`;
+  }
+  function renderCompletedItem(c) {
+    return `<div class="alloc-drill-item done">
+      <span class="adi-type">Done</span>${scBadge(c.subCode)}
+      <span class="adi-name">${escHtml(c.name)}</span>
+      <span class="adi-hours">${c.actualHours ? fmtQ(c.actualHours) + 'h' : '—'}</span>
+    </div>`;
+  }
+
   if (totalItems === 0) {
     html = '<div class="alloc-drill-empty">No tasks or sessions for this period.</div>';
   } else {
     if (plannedTasks.length > 0) {
       html += '<div class="alloc-drill-section">Planned Tasks</div>';
-      plannedTasks.forEach(t => {
-        const pri = t.priority === 'urgent' ? ' style="color:var(--danger)"' : t.priority === 'high' ? ' style="color:var(--warn)"' : '';
-        html += `<div class="alloc-drill-item">
-          <span class="adi-type">Task</span>${scBadge(t.subCode)}
-          <span class="adi-name"${pri}>${escHtml(t.name)}</span>
-          <span class="adi-hours">${t.est ? fmtQ(t.est) + 'h est' : '—'}</span>
-        </div>`;
-      });
+      plannedTasks.forEach(t => { html += renderTaskItem(t); });
     }
-
     if (plannedSessions.length > 0) {
       html += '<div class="alloc-drill-section">Big Project Sessions</div>';
-      plannedSessions.forEach(s => {
-        html += `<div class="alloc-drill-item">
-          <span class="adi-type">Session</span>${scBadge(s.subCode)}
-          <span class="adi-name">${escHtml(s.name)}</span>
-          <span class="adi-hours">${s.hours ? fmtQ(s.hours) + 'h' : '—'}</span>
-        </div>`;
-      });
+      plannedSessions.forEach(s => { html += renderSessionItem(s, 'Session'); });
     }
-
     if (plannedSubtasks.length > 0) {
       html += '<div class="alloc-drill-section">Big Project Subtasks</div>';
-      plannedSubtasks.forEach(s => {
-        html += `<div class="alloc-drill-item">
-          <span class="adi-type">Subtask</span>${scBadge(s.subCode)}
-          <span class="adi-name">${escHtml(s.name)}</span>
-          <span class="adi-hours">${s.hours ? fmtQ(s.hours) + 'h' : '—'}</span>
-        </div>`;
-      });
+      plannedSubtasks.forEach(s => { html += renderSessionItem(s, 'Subtask'); });
     }
-
     if (completedItems.length > 0) {
       html += '<div class="alloc-drill-section">Completed</div>';
-      completedItems.forEach(c => {
-        html += `<div class="alloc-drill-item done">
-          <span class="adi-type">Done</span>${scBadge(c.subCode)}
-          <span class="adi-name">${escHtml(c.name)}</span>
-          <span class="adi-hours">${c.actualHours ? fmtQ(c.actualHours) + 'h' : '—'}</span>
-        </div>`;
-      });
+      completedItems.forEach(c => { html += renderCompletedItem(c); });
+    }
+
+    // Show unassigned items when drilling into a specific sub-code
+    const totalUnassigned = unassignedTasks.length + unassignedSessions.length + unassignedSubtasks.length + unassignedCompleted.length;
+    if (scId && totalUnassigned > 0) {
+      html += '<div class="alloc-drill-section" style="color:var(--warn);">Unassigned to sub-code</div>';
+      unassignedTasks.forEach(t => { html += renderTaskItem(t); });
+      unassignedSessions.forEach(s => { html += renderSessionItem(s, 'Session'); });
+      unassignedSubtasks.forEach(s => { html += renderSessionItem(s, 'Subtask'); });
+      unassignedCompleted.forEach(c => { html += renderCompletedItem(c); });
     }
   }
 
