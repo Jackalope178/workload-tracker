@@ -1368,6 +1368,62 @@
     color: var(--danger);
     font-weight: 700;
   }
+  .alloc-cell-clickable {
+    cursor: pointer;
+  }
+  .alloc-cell-clickable:hover {
+    background: var(--bg4) !important;
+  }
+  .alloc-drill-section {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text3);
+    padding: 10px 0 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
+  }
+  .alloc-drill-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 4px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .alloc-drill-item:last-child { border-bottom: none; }
+  .alloc-drill-item .adi-name {
+    flex: 1;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .alloc-drill-item .adi-hours {
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--text2);
+    white-space: nowrap;
+  }
+  .alloc-drill-item .adi-type {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--bg4);
+    color: var(--text3);
+    white-space: nowrap;
+  }
+  .alloc-drill-item.done .adi-name {
+    text-decoration: line-through;
+    color: var(--text3);
+  }
+  .alloc-drill-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text3);
+    font-size: 12px;
+  }
   .alloc-legend {
     display: flex; gap: 14px; padding: 8px 14px;
     font-size: 10px; color: var(--text3);
@@ -1999,6 +2055,18 @@
     <div class="modal-actions" style="margin-top:12px;">
       <button class="btn" onclick="closeNotesPopup()">Close</button>
       <button class="btn primary" onclick="saveNotesPopup()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALLOCATION DRILL-DOWN POPUP -->
+<div class="modal-overlay" id="allocDrillPopup" onclick="if(event.target===this)closeAllocDrill()">
+  <div class="modal" style="width:520px;max-height:80vh;display:flex;flex-direction:column;">
+    <div class="modal-title" id="allocDrillTitle">Tasks</div>
+    <div class="modal-subtitle" id="allocDrillSub"></div>
+    <div id="allocDrillBody" style="overflow-y:auto;flex:1;margin-bottom:12px;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAllocDrill()">Close</button>
     </div>
   </div>
 </div>
@@ -5218,6 +5286,126 @@ function allocDualBars(allocated, planned, actual) {
   return html;
 }
 
+// ── Allocation Drill-Down Popup ──
+
+function openAllocDrill(projKey, scId, yearMonth) {
+  const proj = PROJECTS[projKey];
+  if (!proj) return;
+  const sc = scId ? (proj.subCodes || []).find(s => s.id === scId) : null;
+  const monthLabel = new Date(yearMonth + '-01').toLocaleString('default', { month: 'long', year: 'numeric' });
+  const codeLabel = sc ? `${sc.code} ${sc.label}` : proj.label;
+
+  document.getElementById('allocDrillTitle').textContent = codeLabel;
+  document.getElementById('allocDrillSub').textContent = monthLabel;
+
+  // Gather planned tasks
+  const plannedTasks = tasks.filter(t => {
+    if (t.completed) return false;
+    if (t.project !== projKey) return false;
+    if (scId) { if ((t.subCode || '') !== scId) return false; }
+    else if (proj.subCodes && proj.subCodes.length > 0) return false; // project has subs, skip unmatched
+    return (t.due || '').slice(0, 7) === yearMonth;
+  });
+
+  // Gather big project sessions & subtasks
+  const plannedSessions = [];
+  const plannedSubtasks = [];
+  bigProjs.forEach(bp => {
+    if (bp.project !== projKey) return;
+    bp.sessions.forEach(s => {
+      if (s.done) return;
+      const sMatch = scId ? ((s.subCode || '') === scId) : (!scId && (!proj.subCodes || proj.subCodes.length === 0 || !(s.subCode)));
+      if (sMatch && (s.date || '').slice(0, 7) === yearMonth) {
+        plannedSessions.push({ name: `${bp.name}: ${s.title || 'Session'}`, hours: s.hours || 0, proj: bp.name });
+      }
+      // For subcode drills that match subcodes
+      if (scId) {
+        (s.subtasks || []).forEach(st => {
+          if (st.done) return;
+          if ((st.subCode || '') === scId && (st.date || '').slice(0, 7) === yearMonth) {
+            plannedSubtasks.push({ name: `${bp.name}: ${st.title || 'Subtask'}`, hours: st.hours || 0 });
+          }
+        });
+      } else if (!proj.subCodes || proj.subCodes.length === 0) {
+        (s.subtasks || []).forEach(st => {
+          if (st.done) return;
+          if ((st.date || '').slice(0, 7) === yearMonth) {
+            plannedSubtasks.push({ name: `${bp.name}: ${st.title || 'Subtask'}`, hours: st.hours || 0 });
+          }
+        });
+      }
+    });
+  });
+
+  // Gather completed items
+  const completedItems = completed.filter(c => {
+    if (c.project !== projKey) return false;
+    if (scId) { if ((c.subCode || '') !== scId) return false; }
+    else if (proj.subCodes && proj.subCodes.length > 0) return false;
+    return (c.dateCompleted || '').slice(0, 7) === yearMonth;
+  });
+
+  // Build HTML
+  let html = '';
+  const totalItems = plannedTasks.length + plannedSessions.length + plannedSubtasks.length + completedItems.length;
+
+  if (totalItems === 0) {
+    html = '<div class="alloc-drill-empty">No tasks or sessions for this period.</div>';
+  } else {
+    if (plannedTasks.length > 0) {
+      html += '<div class="alloc-drill-section">Planned Tasks</div>';
+      plannedTasks.forEach(t => {
+        const pri = t.priority === 'urgent' ? ' style="color:var(--danger)"' : t.priority === 'high' ? ' style="color:var(--warn)"' : '';
+        html += `<div class="alloc-drill-item">
+          <span class="adi-type">Task</span>
+          <span class="adi-name"${pri}>${escHtml(t.name)}</span>
+          <span class="adi-hours">${t.est ? fmtQ(t.est) + 'h est' : '—'}</span>
+        </div>`;
+      });
+    }
+
+    if (plannedSessions.length > 0) {
+      html += '<div class="alloc-drill-section">Big Project Sessions</div>';
+      plannedSessions.forEach(s => {
+        html += `<div class="alloc-drill-item">
+          <span class="adi-type">Session</span>
+          <span class="adi-name">${escHtml(s.name)}</span>
+          <span class="adi-hours">${s.hours ? fmtQ(s.hours) + 'h' : '—'}</span>
+        </div>`;
+      });
+    }
+
+    if (plannedSubtasks.length > 0) {
+      html += '<div class="alloc-drill-section">Big Project Subtasks</div>';
+      plannedSubtasks.forEach(s => {
+        html += `<div class="alloc-drill-item">
+          <span class="adi-type">Subtask</span>
+          <span class="adi-name">${escHtml(s.name)}</span>
+          <span class="adi-hours">${s.hours ? fmtQ(s.hours) + 'h' : '—'}</span>
+        </div>`;
+      });
+    }
+
+    if (completedItems.length > 0) {
+      html += '<div class="alloc-drill-section">Completed</div>';
+      completedItems.forEach(c => {
+        html += `<div class="alloc-drill-item done">
+          <span class="adi-type">Done</span>
+          <span class="adi-name">${escHtml(c.name)}</span>
+          <span class="adi-hours">${c.actualHours ? fmtQ(c.actualHours) + 'h' : '—'}</span>
+        </div>`;
+      });
+    }
+  }
+
+  document.getElementById('allocDrillBody').innerHTML = html;
+  document.getElementById('allocDrillPopup').classList.add('open');
+}
+
+function closeAllocDrill() {
+  document.getElementById('allocDrillPopup').classList.remove('open');
+}
+
 function toggleAllocProjCollapse(projKey) {
   if (collapsedAllocProjs.has(projKey)) collapsedAllocProjs.delete(projKey);
   else collapsedAllocProjs.add(projKey);
@@ -5302,10 +5490,10 @@ function renderAllocations() {
       grandActualTotals[mi] += projActual;
       grandPlannedTotals[mi] += projPlanned;
 
-      html += `<td class="alloc-cell">`;
+      html += `<td class="alloc-cell alloc-cell-clickable" onclick="openAllocDrill('${projKey}','','${m.ym}')" title="Click to see task breakdown">`;
       if (noSubs) {
         html += `<input type="number" min="0" step="1" value="${projAlloc || ''}" placeholder="—"
-                  onchange="allocSet('${projKey}','','${m.ym}',this.value)"
+                  onchange="allocSet('${projKey}','','${m.ym}',this.value)" onclick="event.stopPropagation()"
                   title="Allocated hours for ${proj.label} in ${m.label}">`;
       } else {
         html += `<div style="font-weight:600;font-size:11px;">${projAlloc > 0 ? projAlloc + 'h' : '—'}</div>`;
@@ -5343,9 +5531,9 @@ function renderAllocations() {
           scActualYTD += actual;
           scPlannedYTD += planned;
 
-          html += `<td class="alloc-cell">`;
+          html += `<td class="alloc-cell alloc-cell-clickable" onclick="openAllocDrill('${projKey}','${sc.id}','${m.ym}')" title="Click to see task breakdown">`;
           html += `<input type="number" min="0" step="1" value="${allocated || ''}" placeholder="—"
-                    onchange="allocSet('${projKey}','${sc.id}','${m.ym}',this.value)"
+                    onchange="allocSet('${projKey}','${sc.id}','${m.ym}',this.value)" onclick="event.stopPropagation()"
                     title="Allocated hours for ${fullCode} in ${m.label}">`;
           html += allocDualBars(allocated, planned, actual);
           html += `</td>`;
@@ -5415,7 +5603,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 // =============================================
 
 ['completionModal','editTaskModal','addTeamModal','addProjectModal','brainDumpModal','reviewModal',
- 'settingsModal','editBigProjModal','editTeamModal','manageProjectsModal','editSessionModal','tsEntryModal','notesPopup'].forEach(id => {
+ 'settingsModal','editBigProjModal','editTeamModal','manageProjectsModal','editSessionModal','tsEntryModal','notesPopup','allocDrillPopup'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
 });
