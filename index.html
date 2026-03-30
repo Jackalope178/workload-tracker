@@ -30,7 +30,49 @@
     --admin: #94a3b8;
     --src: #f87171;
     --p2: #fbbf24;
+
+    --check-fg: #0d0f14;
   }
+
+  [data-theme="light"] {
+    --bg: #f8f9fb;
+    --bg2: #ffffff;
+    --bg3: #f0f1f4;
+    --bg4: #e5e7ed;
+    --border: #dce0e8;
+    --border2: #b8bcc8;
+    --text: #1a1d26;
+    --text2: #4a5068;
+    --text3: #6b7289;
+    --accent: #4f9cf9;
+    --accent2: #3b82f6;
+    --success: #16a34a;
+    --warn: #d97706;
+    --danger: #dc2626;
+    --check-fg: #ffffff;
+  }
+
+  /* Light-mode overrides for hardcoded dark tinted backgrounds */
+  [data-theme="light"] .task-row.running { background: #e8f0fe !important; }
+  [data-theme="light"] .p-urgent { background: #fef2f2; }
+  [data-theme="light"] .p-high   { background: #fffbeb; }
+  [data-theme="light"] .p-med    { background: #eff6ff; }
+  [data-theme="light"] .p-low    { background: #f0fdf4; }
+  [data-theme="light"] .s-need-delegate { background: #fef9ee; }
+  [data-theme="light"] .s-in-progress   { background: #eff6ff; }
+  [data-theme="light"] .s-ready-review  { background: #fffbeb; }
+  [data-theme="light"] .s-in-review     { background: #f0fdfa; }
+  [data-theme="light"] .s-blocked       { background: #fef2f2; }
+  [data-theme="light"] .s-complete      { background: #f0fdf4; }
+  [data-theme="light"] .ts-accuracy.good { background: #f0fdf4; }
+  [data-theme="light"] .ts-accuracy.over { background: #fef2f2; }
+  [data-theme="light"] .review-card.accepted { border-color: var(--success); background: #f0fdf4; }
+  [data-theme="light"] .review-card.accepted .review-toggle { background: #dcfce7; }
+  [data-theme="light"] .modal-overlay { background: rgba(0,0,0,0.35); }
+  [data-theme="light"] .day-toggle input:checked + span { background: #ede9fe; border-color: #7c3aed; color: #7c3aed; }
+  [data-theme="light"] .delegate-pill.selected { background: #ede9fe; }
+  [data-theme="light"] .proj-tag-chip { background: #ede9fe; border-color: #c4b5fd; }
+  [data-theme="light"] .active-timer-strip { background: #eff6ff; }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1812,6 +1854,7 @@
   <div class="header-meta" id="headerMeta"></div>
   <div class="header-actions" style="display:flex;gap:6px;margin-left:12px;">
     <button class="btn header-btn" onclick="openManageProjectsModal()" style="font-size:10px;padding:4px 10px;" title="Add / edit project codes">⬡ Projects</button>
+    <button class="btn header-btn" id="themeToggleBtn" onclick="toggleTheme()" style="font-size:10px;padding:4px 10px;" title="Toggle light/dark mode">☀ Light</button>
     <button class="btn header-btn" onclick="openSettingsModal()" style="font-size:10px;padding:4px 10px;" title="API Settings">⚙ Settings</button>
   </div>
 </div>
@@ -4828,7 +4871,7 @@ function renderProjItemRow(item, projKey, scId) {
       ondragstart="_dragItemData={type:'task',id:'${t.id}',fromSc:'${scId}',fromProj:'${projKey}'};event.dataTransfer.effectAllowed='move';this.classList.add('dragging');"
       ondragend="this.classList.remove('dragging');_dragItemData=null;">
       <div class="session-check${isDone ? ' done' : ''}" onclick="toggleTaskFromProjects('${t.id}')" style="cursor:pointer;">
-        ${isDone ? '<span style="color:#0d0f14;font-size:11px;">✓</span>' : ''}
+        ${isDone ? '<span style="color:var(--check-fg);font-size:11px;">✓</span>' : ''}
       </div>
       <div class="session-desc" style="${isDone ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditModal('${t.id}')">
         ${t.name}
@@ -4856,7 +4899,7 @@ function renderProjItemRow(item, projKey, scId) {
       ondragstart="_dragItemData={type:'session',projId:'${bp.id}',id:'${s.id}',fromSc:'${scId}',fromProj:'${projKey}'};event.dataTransfer.effectAllowed='move';this.classList.add('dragging');"
       ondragend="this.classList.remove('dragging');_dragItemData=null;">
       <div class="session-check${s.done ? ' done' : ''}" onclick="openSessionCompletionModal('${bp.id}','${s.id}')" title="${s.done ? 'Mark incomplete' : 'Mark complete'}">
-        ${s.done ? '<span style="color:#0d0f14;font-size:11px;">✓</span>' : ''}
+        ${s.done ? '<span style="color:var(--check-fg);font-size:11px;">✓</span>' : ''}
       </div>
       <div class="session-desc" style="${s.done ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditSessionModal('${bp.id}','${s.id}')">
         ${s.desc}
@@ -4888,7 +4931,7 @@ function renderProjItemRow(item, projKey, scId) {
       ondragstart="_dragItemData={type:'subtask',projId:'${bp.id}',sessionId:'${s.id}',id:'${st.id}',fromSc:'${scId}',fromProj:'${projKey}'};event.dataTransfer.effectAllowed='move';this.classList.add('dragging');"
       ondragend="this.classList.remove('dragging');_dragItemData=null;">
       <div class="session-check${st.done ? ' done' : ''}" onclick="openSubtaskCompletionModal('${bp.id}','${s.id}','${st.id}')" title="${st.done ? 'Mark incomplete' : 'Mark complete'}" style="cursor:pointer;">
-        ${st.done ? '<span style="color:#0d0f14;font-size:10px;">✓</span>' : ''}
+        ${st.done ? '<span style="color:var(--check-fg);font-size:10px;">✓</span>' : ''}
       </div>
       <div class="session-desc" style="${st.done ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditSubtaskModal('${bp.id}','${s.id}','${st.id}')">
         ${st.desc}
@@ -7603,6 +7646,32 @@ function deletePerson(idx) {
   savePersons();
   renderPersonMetaList();
 }
+
+// =============================================
+// THEME TOGGLE
+// =============================================
+
+function getTheme() { return localStorage.getItem('wt_theme') || 'dark'; }
+
+function applyTheme(theme) {
+  if (theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = theme === 'light' ? '🌙 Dark' : '☀ Light';
+}
+
+function toggleTheme() {
+  const current = getTheme();
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('wt_theme', next);
+  applyTheme(next);
+}
+
+// Apply saved theme on load
+applyTheme(getTheme());
 
 // =============================================
 // SETTINGS
