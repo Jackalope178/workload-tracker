@@ -9058,7 +9058,12 @@ Matching rules:
   let userMessage = `Current active tasks (JSON):\n${JSON.stringify(activeTasks, null, 2)}\n\n`;
 
   if (_bdFileText) {
-    userMessage += `Spreadsheet data (tab-separated):\n${_bdFileText}\n\n`;
+    // Truncate spreadsheet data to ~12000 chars to stay within context limits
+    const maxChars = 12000;
+    const sheetData = _bdFileText.length > maxChars
+      ? _bdFileText.slice(0, maxChars) + '\n[... truncated — ' + _bdFileText.length + ' chars total]'
+      : _bdFileText;
+    userMessage += `Spreadsheet data (tab-separated):\n${sheetData}\n\n`;
     if (text) userMessage += `Additional instructions from user:\n${text}\n`;
     else userMessage += `Instructions: Parse the spreadsheet rows as tasks. Each row that looks like a deliverable, to-do, or action item should become a task. Use column headers to map fields (name, due date, hours, project, priority, etc.). Match project codes/names to the known project list.\n`;
   } else {
@@ -9076,7 +9081,7 @@ Matching rules:
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
+        max_tokens: 8192,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }]
       })
@@ -9089,18 +9094,22 @@ Matching rules:
     }
 
     const data = await response.json();
-    const rawText = data.content?.[0]?.text || '';
+    let rawText = data.content?.[0]?.text || '';
+
+    // Strip markdown code fences if present (```json ... ``` or ``` ... ```)
+    rawText = rawText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
 
     let diff;
     try {
       diff = JSON.parse(rawText);
     } catch (_) {
+      // Try extracting the outermost JSON object
       const m = rawText.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error('Response was not valid JSON. Try again.');
+      if (!m) throw new Error('Response was not valid JSON. Raw: ' + rawText.slice(0, 200));
       try {
         diff = JSON.parse(m[0]);
       } catch (_2) {
-        throw new Error('Response was not valid JSON. Try again.');
+        throw new Error('Could not parse JSON from response. Raw: ' + rawText.slice(0, 200));
       }
     }
 
