@@ -1964,6 +1964,8 @@
 </style>
 <!-- Supabase JS Client (v2) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- SheetJS for Excel import -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -2281,8 +2283,13 @@
         <option value="summary">Summary Only</option>
       </select>
       <button class="btn" onclick="allocCopyForward()" style="font-size:10px;padding:3px 8px;" title="Copy current month allocations to all future empty months">Copy forward →</button>
-      <button class="btn" onclick="openManageProjectsModal()" style="font-size:10px;padding:3px 8px;margin-left:auto;">Manage Sub-Codes</button>
+      <label class="btn" style="font-size:10px;padding:3px 8px;cursor:pointer;margin-left:auto;" title="Import BigTime allocation spreadsheet (.xlsx)">
+        ⬆ Import XLS
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleAllocImport(event)" style="display:none;">
+      </label>
+      <button class="btn" onclick="openManageProjectsModal()" style="font-size:10px;padding:3px 8px;">Manage Sub-Codes</button>
     </div>
+    <div id="allocImportStatus" style="display:none;padding:6px 10px;margin-bottom:6px;border-radius:6px;font-size:11px;"></div>
     <div class="alloc-legend">
       <span><span class="alloc-legend-dot" style="background:var(--accent);"></span> Planned work</span>
       <span><span class="alloc-legend-dot" style="background:var(--success);"></span> Logged (&lt;80%)</span>
@@ -7262,6 +7269,195 @@ function allocCopyForward() {
     renderAllocations();
   }
   alert(copied > 0 ? `Copied allocations to ${copied} empty cells.` : 'No empty future cells to fill.');
+}
+
+// =============================================
+// BIGTIME XLS IMPORT
+// =============================================
+
+// Month column headers → YYYY-MM mapping
+function _parseMonthHeader(val) {
+  if (!val || typeof val !== 'string') return null;
+  const m = val.trim().match(/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})$/i);
+  if (!m) return null;
+  const months = { JAN:'01', FEB:'02', MAR:'03', APR:'04', MAY:'05', JUN:'06',
+                   JUL:'07', AUG:'08', SEP:'09', OCT:'10', NOV:'11', DEC:'12' };
+  return m[2] + '-' + months[m[1].toUpperCase()];
+}
+
+// Parse billing code from "B12-345 Some Project Name" → "B12-345"
+function _parseBillingCode(jobStr) {
+  if (!jobStr) return { code: '', label: '' };
+  const m = String(jobStr).trim().match(/^([A-Z]-?\d{2,3}-\d{3}[a-z]?)\s+(.*)$/i);
+  if (m) return { code: m[1], label: m[2].trim() };
+  return { code: '', label: String(jobStr).trim() };
+}
+
+// Find project key by billing code, or create a new one
+function _findOrCreateProject(billingCode, jobLabel) {
+  // Try matching by billing code first
+  if (billingCode) {
+    for (const [key, proj] of Object.entries(PROJECTS)) {
+      if (proj.billingCode && proj.billingCode.toLowerCase() === billingCode.toLowerCase()) return key;
+    }
+  }
+  // No match — create a new project
+  const newKey = billingCode.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  if (PROJECTS[newKey]) return newKey; // key collision — already exists
+
+  // Pick a color from a palette
+  const palette = ['#0ea5e9','#f97316','#16a34a','#dc2626','#84cc16','#14b8a6',
+    '#8b5cf6','#e879f9','#06b6d4','#65a30d','#d946ef','#10b981','#f59e0b','#ef4444','#eab308'];
+  const colorIdx = Object.keys(PROJECTS).length % palette.length;
+
+  PROJECTS[newKey] = {
+    label: jobLabel || billingCode,
+    color: palette[colorIdx],
+    billingCode: billingCode,
+    subCodes: [],
+    tags: []
+  };
+
+  // Add to display order
+  if (!projOrder.includes(newKey)) projOrder.push(newKey);
+
+  return newKey;
+}
+
+// Ensure a sub-code exists on a project, return its id
+function _ensureSubCode(projKey, code, label) {
+  const scs = PROJECTS[projKey].subCodes;
+  if (!scs) { PROJECTS[projKey].subCodes = []; }
+  const existing = PROJECTS[projKey].subCodes.find(s =>
+    s.label.toLowerCase() === label.toLowerCase() ||
+    (s.code && s.code === code)
+  );
+  if (existing) return existing.id;
+
+  const newId = uid();
+  const num = PROJECTS[projKey].subCodes.length + 1;
+  PROJECTS[projKey].subCodes.push({ id: newId, code: String(num), label: label });
+  return newId;
+}
+
+function handleAllocImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  const statusEl = document.getElementById('allocImportStatus');
+
+  if (typeof XLSX === 'undefined') {
+    statusEl.style.display = '';
+    statusEl.style.background = 'rgba(248,113,113,0.12)';
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = 'SheetJS library not loaded. Check your internet connection and refresh.';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      if (!rows || rows.length < 2) throw new Error('Spreadsheet appears empty.');
+
+      // Parse header row — find month columns
+      const header = rows[0];
+      const monthCols = {}; // colIndex → 'YYYY-MM'
+      let jobCol = -1, taskCol = -1, totalCol = -1, priorityCol = -1, billingStatusCol = -1, prodStatusCol = -1;
+
+      header.forEach((val, idx) => {
+        const s = String(val || '').trim();
+        if (/^job\b/i.test(s)) jobCol = idx;
+        else if (/^task\b/i.test(s)) taskCol = idx;
+        else if (/^total/i.test(s)) totalCol = idx;
+        else if (/^task\s*priority/i.test(s)) priorityCol = idx;
+        else if (/^billing\s*status/i.test(s)) billingStatusCol = idx;
+        else if (/^production\s*status/i.test(s)) prodStatusCol = idx;
+        else {
+          const ym = _parseMonthHeader(s);
+          if (ym) monthCols[idx] = ym;
+        }
+      });
+
+      if (jobCol === -1) throw new Error('Could not find "Job" column in header row.');
+      if (Object.keys(monthCols).length === 0) throw new Error('Could not find any month columns (e.g. "MAR 2026").');
+
+      let importedRows = 0;
+      let newProjects = 0;
+      let newSubCodes = 0;
+      const prevProjCount = Object.keys(PROJECTS).length;
+      const prevScTotal = Object.values(PROJECTS).reduce((s, p) => s + (p.subCodes?.length || 0), 0);
+
+      // Process data rows (skip header, skip totals row at bottom)
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const jobRaw = row[jobCol];
+        if (!jobRaw) continue; // skip empty job rows (staff name only or totals)
+
+        const { code: billingCode, label: jobLabel } = _parseBillingCode(jobRaw);
+        const taskName = taskCol !== -1 ? String(row[taskCol] || '').trim() : '';
+
+        // Skip the grand totals row (no job code)
+        if (!billingCode && !taskName) continue;
+
+        const projKey = _findOrCreateProject(billingCode, jobLabel);
+
+        // If there's a task/sub-code name, ensure sub-code exists
+        let scId = '';
+        if (taskName) {
+          scId = _ensureSubCode(projKey, '', taskName);
+        }
+
+        // Write allocations for each month column
+        let hasData = false;
+        Object.entries(monthCols).forEach(([colIdx, ym]) => {
+          const val = row[Number(colIdx)];
+          if (val !== null && val !== undefined && val !== '' && !isNaN(Number(val)) && Number(val) > 0) {
+            const key = allocKey(projKey, scId, ym);
+            allocations[key] = Number(val);
+            hasData = true;
+          }
+        });
+
+        if (hasData) importedRows++;
+      }
+
+      newProjects = Object.keys(PROJECTS).length - prevProjCount;
+      newSubCodes = Object.values(PROJECTS).reduce((s, p) => s + (p.subCodes?.length || 0), 0) - prevScTotal;
+
+      // Save everything
+      saveProjects();
+      saveProjOrder();
+      saveAllocations();
+      populateProjectSelects();
+      renderAllocations();
+
+      // Sync to cloud if connected
+      if (_supabase && _currentUser) syncToCloud();
+
+      // Show status
+      const parts = [`${importedRows} rows imported`];
+      if (newProjects > 0) parts.push(`${newProjects} new project${newProjects > 1 ? 's' : ''} created`);
+      if (newSubCodes > 0) parts.push(`${newSubCodes} new sub-code${newSubCodes > 1 ? 's' : ''} added`);
+
+      statusEl.style.display = '';
+      statusEl.style.background = 'rgba(52,211,153,0.12)';
+      statusEl.style.color = 'var(--success)';
+      statusEl.textContent = parts.join(' · ');
+      setTimeout(() => { statusEl.style.display = 'none'; }, 8000);
+
+    } catch (err) {
+      statusEl.style.display = '';
+      statusEl.style.background = 'rgba(248,113,113,0.12)';
+      statusEl.style.color = 'var(--danger)';
+      statusEl.textContent = 'Import failed: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function barColor(pct) {
