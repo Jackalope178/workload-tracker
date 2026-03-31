@@ -1979,11 +1979,33 @@
     <div class="auth-logo">PM <span>//</span> Workload</div>
     <div class="auth-subtitle">Sign in to sync your data across devices</div>
 
+    <!-- Supabase Setup (shown if not yet configured) -->
+    <div id="authSetupPanel" style="display:none;">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--warn);">First-time Setup</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:12px;">
+          1. Create a free project at <strong>supabase.com</strong><br>
+          2. <a href="#" onclick="showSchemaModal(event)" style="color:var(--accent);">Copy &amp; run the SQL schema</a> in Supabase SQL Editor<br>
+          3. Go to Settings &rarr; API and paste your values below
+        </div>
+        <div class="auth-field">
+          <label class="edit-label">Supabase URL</label>
+          <input class="edit-input" type="url" id="setupSupabaseUrl" placeholder="https://xyzcompany.supabase.co">
+        </div>
+        <div class="auth-field">
+          <label class="edit-label">Supabase Anon Key</label>
+          <input class="edit-input" type="text" id="setupSupabaseKey" placeholder="eyJhbGciOiJIUzI1NiIs...">
+        </div>
+        <button class="btn primary auth-btn" onclick="saveSupabaseConfig()">Connect</button>
+        <div id="setupError" class="auth-error" style="display:none;margin-top:10px;margin-bottom:0;"></div>
+      </div>
+    </div>
+
     <div id="authError" class="auth-error" style="display:none;"></div>
     <div id="authSuccess" class="auth-success" style="display:none;"></div>
 
-    <!-- Login Form -->
-    <div id="authLoginForm">
+    <!-- Login Form (shown after Supabase is configured) -->
+    <div id="authLoginForm" style="display:none;">
       <div class="auth-field">
         <label class="edit-label">Email</label>
         <input class="edit-input" type="email" id="authEmail" placeholder="you@example.com" autocomplete="email">
@@ -2020,6 +2042,24 @@
 
     <div class="auth-divider"><span>or</span></div>
     <button class="btn auth-btn auth-offline-btn" onclick="continueOffline()">Continue Offline (localStorage only)</button>
+    <div id="authReconfigLink" style="display:none;text-align:center;margin-top:8px;">
+      <a href="#" onclick="showSupabaseSetup(event)" style="font-size:11px;color:var(--text3);">Change Supabase connection</a>
+    </div>
+  </div>
+</div>
+
+<!-- SQL SCHEMA MODAL -->
+<div class="modal-overlay" id="schemaModal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-title">Supabase SQL Schema</div>
+    <div class="modal-subtitle">Copy this and run it in your Supabase project's SQL Editor (supabase.com &rarr; SQL Editor &rarr; New Query).</div>
+    <div style="position:relative;">
+      <pre id="schemaCode" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:14px;font-size:11px;max-height:350px;overflow:auto;white-space:pre;color:var(--text2);font-family:monospace;line-height:1.5;"></pre>
+      <button class="btn" onclick="copySchema()" id="copySchemaBtn" style="position:absolute;top:8px;right:8px;font-size:10px;padding:3px 10px;">Copy</button>
+    </div>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="btn" onclick="document.getElementById('schemaModal').classList.remove('open')">Close</button>
+    </div>
   </div>
 </div>
 
@@ -2826,10 +2866,45 @@
 
 <!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settingsModal">
-  <div class="modal">
+  <div class="modal" style="max-width:480px;">
     <div class="modal-title">Settings</div>
     <div id="settingsAccountInfo"></div>
-    <div class="modal-subtitle">Anthropic API key for Brain Dump.</div>
+
+    <!-- Supabase Connection -->
+    <div style="margin-bottom:16px;padding:12px;background:var(--bg3);border-radius:6px;">
+      <div style="font-size:11px;font-weight:600;margin-bottom:8px;">Supabase Connection</div>
+      <div class="auth-field" style="margin-bottom:8px;">
+        <label class="edit-label" style="display:block;margin-bottom:3px;">Project URL</label>
+        <input class="edit-input" type="url" id="settingsSupabaseUrl" placeholder="https://xyzcompany.supabase.co" style="width:100%;font-size:11px;">
+      </div>
+      <div class="auth-field" style="margin-bottom:6px;">
+        <label class="edit-label" style="display:block;margin-bottom:3px;">Anon Key</label>
+        <input class="edit-input" type="password" id="settingsSupabaseKey" placeholder="eyJhbGciOiJIUzI1NiIs..." style="width:100%;font-size:11px;">
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Anon key is safe to include — it's a public key used with RLS.</div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn" onclick="saveSupabaseConfigFromSettings()" style="font-size:10px;padding:4px 10px;">Save Connection</button>
+        <button class="btn" onclick="showSchemaModal(event)" style="font-size:10px;padding:4px 10px;">View SQL Schema</button>
+      </div>
+      <div id="settingsSupabaseStatus" style="font-size:10px;margin-top:6px;"></div>
+    </div>
+
+    <!-- Data Backup -->
+    <div style="margin-bottom:16px;padding:12px;background:var(--bg3);border-radius:6px;">
+      <div style="font-size:11px;font-weight:600;margin-bottom:8px;">Data Backup</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn" onclick="exportBackup()" style="font-size:10px;padding:4px 10px;">Export JSON Backup</button>
+        <label class="btn" style="font-size:10px;padding:4px 10px;cursor:pointer;">
+          Import Backup
+          <input type="file" accept=".json" onchange="importBackup(event)" style="display:none;">
+        </label>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px;">Export saves all your data as a JSON file. Import restores from a previous export.</div>
+      <div id="backupStatus" style="font-size:10px;margin-top:6px;"></div>
+    </div>
+
+    <!-- API Key -->
+    <div class="modal-subtitle" style="margin-bottom:6px;">Anthropic API key for Brain Dump.</div>
     <div style="margin-bottom:14px;">
       <label class="edit-label" style="display:block;margin-bottom:6px;">Anthropic API Key</label>
       <input class="settings-input" type="password" id="settingsApiKey" placeholder="sk-ant-api03-...">
@@ -2848,77 +2923,222 @@
 // SUPABASE CONFIG & AUTH
 // =============================================
 
-/*
- * ──────────────────────────────────────────────
- *  SUPABASE SETUP — Replace these with your project values
- *  Dashboard → Settings → API
- * ──────────────────────────────────────────────
- *
- *  SQL schema to run in Supabase SQL Editor:
- *
- *  -- Profiles (auto-created on signup via trigger)
- *  CREATE TABLE profiles (
- *    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
- *    display_name TEXT,
- *    org_id UUID,
- *    created_at TIMESTAMPTZ DEFAULT now()
- *  );
- *  ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
- *  CREATE POLICY "Users can read own profile"   ON profiles FOR SELECT USING (auth.uid() = id);
- *  CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
- *  CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
- *
- *  -- Generic key-value store for all app data (per-user)
- *  CREATE TABLE user_data (
- *    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
- *    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
- *    org_id UUID,
- *    key TEXT NOT NULL,
- *    data JSONB NOT NULL DEFAULT '{}',
- *    updated_at TIMESTAMPTZ DEFAULT now()
- *  );
- *  ALTER TABLE user_data ENABLE ROW LEVEL SECURITY;
- *  CREATE UNIQUE INDEX user_data_user_key ON user_data(user_id, key);
- *  CREATE POLICY "Users can read own data"   ON user_data FOR SELECT USING (auth.uid() = user_id);
- *  CREATE POLICY "Users can insert own data" ON user_data FOR INSERT WITH CHECK (auth.uid() = user_id);
- *  CREATE POLICY "Users can update own data" ON user_data FOR UPDATE USING (auth.uid() = user_id);
- *  CREATE POLICY "Users can delete own data" ON user_data FOR DELETE USING (auth.uid() = user_id);
- *
- *  -- Trigger to auto-create profile on signup
- *  CREATE OR REPLACE FUNCTION public.handle_new_user()
- *  RETURNS TRIGGER AS $$
- *  BEGIN
- *    INSERT INTO public.profiles (id, display_name)
- *    VALUES (NEW.id, NEW.raw_user_meta_data ->> 'display_name');
- *    RETURN NEW;
- *  END;
- *  $$ LANGUAGE plpgsql SECURITY DEFINER;
- *
- *  CREATE TRIGGER on_auth_user_created
- *    AFTER INSERT ON auth.users
- *    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
- *
- * ──────────────────────────────────────────────
- */
-
-const SUPABASE_URL  = '';   // e.g. 'https://xyzcompany.supabase.co'
-const SUPABASE_ANON = '';   // e.g. 'eyJhbGciOiJIUzI1NiIs...'
-
 let _supabase = null;
 let _currentUser = null;
 let _isOffline = false;
 
+// SQL schema text (used in the schema modal)
+const _SQL_SCHEMA = `-- Profiles (auto-created on signup via trigger)
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name TEXT,
+  org_id UUID,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can read own profile"   ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Generic key-value store for all app data (per-user)
+CREATE TABLE user_data (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  org_id UUID,
+  key TEXT NOT NULL,
+  data JSONB NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE user_data ENABLE ROW LEVEL SECURITY;
+CREATE UNIQUE INDEX user_data_user_key ON user_data(user_id, key);
+CREATE POLICY "Users can read own data"   ON user_data FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own data" ON user_data FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own data" ON user_data FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own data" ON user_data FOR DELETE USING (auth.uid() = user_id);
+
+-- Trigger to auto-create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, display_name)
+  VALUES (NEW.id, NEW.raw_user_meta_data ->> 'display_name');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();`;
+
+function getSupabaseConfig() {
+  try {
+    const raw = localStorage.getItem('wt_supabase_config');
+    if (!raw) return null;
+    const cfg = JSON.parse(raw);
+    if (cfg && cfg.url && cfg.anonKey) return cfg;
+    return null;
+  } catch(e) { return null; }
+}
+
+function setSupabaseConfig(url, anonKey) {
+  localStorage.setItem('wt_supabase_config', JSON.stringify({ url, anonKey }));
+}
+
 // Initialize Supabase client (only if configured)
 function initSupabase() {
-  if (!SUPABASE_URL || !SUPABASE_ANON) return null;
+  const cfg = getSupabaseConfig();
+  if (!cfg) return null;
   if (typeof supabase === 'undefined') return null;
   try {
-    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    _supabase = supabase.createClient(cfg.url, cfg.anonKey);
     return _supabase;
   } catch (e) {
     console.warn('Supabase init failed:', e);
     return null;
   }
+}
+
+// ── Supabase Setup UI ──
+
+function showSchemaModal(e) {
+  if (e) e.preventDefault();
+  document.getElementById('schemaCode').textContent = _SQL_SCHEMA;
+  document.getElementById('schemaModal').classList.add('open');
+}
+
+function copySchema() {
+  navigator.clipboard.writeText(_SQL_SCHEMA).then(() => {
+    const btn = document.getElementById('copySchemaBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  }).catch(() => {
+    // Fallback: select the text
+    const pre = document.getElementById('schemaCode');
+    const range = document.createRange(); range.selectNodeContents(pre);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  });
+}
+
+function showSupabaseSetup(e) {
+  if (e) e.preventDefault();
+  const cfg = getSupabaseConfig();
+  if (cfg) {
+    document.getElementById('setupSupabaseUrl').value = cfg.url;
+    document.getElementById('setupSupabaseKey').value = cfg.anonKey;
+  }
+  document.getElementById('authSetupPanel').style.display = '';
+  document.getElementById('authLoginForm').style.display = 'none';
+  document.getElementById('authSignupForm').style.display = 'none';
+}
+
+async function saveSupabaseConfig() {
+  const url = document.getElementById('setupSupabaseUrl').value.trim().replace(/\/+$/, '');
+  const key = document.getElementById('setupSupabaseKey').value.trim();
+  const errEl = document.getElementById('setupError');
+  errEl.style.display = 'none';
+
+  if (!url || !key) { errEl.textContent = 'Both URL and Anon Key are required.'; errEl.style.display = ''; return; }
+  if (!url.startsWith('https://')) { errEl.textContent = 'URL must start with https://'; errEl.style.display = ''; return; }
+
+  // Test the connection
+  try {
+    const testClient = supabase.createClient(url, key);
+    const { error } = await testClient.auth.getSession();
+    if (error) throw error;
+  } catch (e) {
+    errEl.textContent = 'Connection failed: ' + (e.message || 'Check your URL and key.');
+    errEl.style.display = '';
+    return;
+  }
+
+  setSupabaseConfig(url, key);
+
+  // Reinitialize Supabase and show login
+  _supabase = supabase.createClient(url, key);
+  document.getElementById('authSetupPanel').style.display = 'none';
+  document.getElementById('authLoginForm').style.display = '';
+  document.getElementById('authReconfigLink').style.display = '';
+}
+
+async function saveSupabaseConfigFromSettings() {
+  const url = document.getElementById('settingsSupabaseUrl').value.trim().replace(/\/+$/, '');
+  const key = document.getElementById('settingsSupabaseKey').value.trim();
+  const statusEl = document.getElementById('settingsSupabaseStatus');
+
+  if (!url || !key) { statusEl.innerHTML = '<span style="color:var(--danger);">Both fields are required.</span>'; return; }
+  if (!url.startsWith('https://')) { statusEl.innerHTML = '<span style="color:var(--danger);">URL must start with https://</span>'; return; }
+
+  statusEl.innerHTML = '<span style="color:var(--text3);">Testing connection...</span>';
+
+  try {
+    const testClient = supabase.createClient(url, key);
+    const { error } = await testClient.auth.getSession();
+    if (error) throw error;
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:var(--danger);">Failed: ' + (e.message || 'Check URL/key.') + '</span>';
+    return;
+  }
+
+  setSupabaseConfig(url, key);
+  _supabase = supabase.createClient(url, key);
+  statusEl.innerHTML = '<span style="color:var(--success);">Connected! Changes take effect on next sign-in.</span>';
+}
+
+// ── Export / Import Backup ──
+
+function exportBackup() {
+  const backup = {};
+  SYNC_KEYS.forEach(key => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw !== null) backup[key] = JSON.parse(raw);
+    } catch(e) {}
+  });
+  backup._exportedAt = new Date().toISOString();
+  backup._version = 1;
+
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'workload-tracker-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  const statusEl = document.getElementById('backupStatus');
+  if (statusEl) statusEl.innerHTML = '<span style="color:var(--success);">Backup exported!</span>';
+}
+
+function importBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('backupStatus');
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const backup = JSON.parse(e.target.result);
+      let count = 0;
+      SYNC_KEYS.forEach(key => {
+        if (backup[key] !== undefined) {
+          localStorage.setItem(key, JSON.stringify(backup[key]));
+          count++;
+        }
+      });
+      // Reload state and re-render
+      reloadStateFromLocalStorage();
+      initApp();
+      // Sync to cloud if connected
+      if (_supabase && _currentUser) syncToCloud();
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--success);">Restored ' + count + ' data keys. App refreshed.</span>';
+    } catch (err) {
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--danger);">Invalid backup file.</span>';
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 // ── Auth functions ──
@@ -3145,10 +3365,17 @@ async function boot() {
     const el = document.getElementById(id);
     if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') handleAuthSignup(); });
   });
+  ['setupSupabaseUrl', 'setupSupabaseKey'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') saveSupabaseConfig(); });
+  });
 
   const sb = initSupabase();
   if (sb) {
+    // Supabase is configured — show auth screen with login form
     document.getElementById('authScreen').style.display = '';
+    document.getElementById('authLoginForm').style.display = '';
+    document.getElementById('authReconfigLink').style.display = '';
     // Check for existing session
     try {
       const { data: { session } } = await sb.auth.getSession();
@@ -3167,8 +3394,12 @@ async function boot() {
         showApp();
       }
     });
+  } else if (typeof supabase !== 'undefined') {
+    // Supabase JS loaded but not configured — show setup wizard
+    document.getElementById('authScreen').style.display = '';
+    document.getElementById('authSetupPanel').style.display = '';
   } else {
-    // No Supabase configured — go straight to app (offline mode)
+    // No Supabase JS available at all — offline mode
     _isOffline = true;
     showApp();
   }
@@ -8385,6 +8616,15 @@ function loadApiKey() {
 
 function openSettingsModal() {
   document.getElementById('settingsApiKey').value = loadApiKey();
+
+  // Populate Supabase config fields
+  const cfg = getSupabaseConfig();
+  document.getElementById('settingsSupabaseUrl').value = cfg ? cfg.url : '';
+  document.getElementById('settingsSupabaseKey').value = cfg ? cfg.anonKey : '';
+  document.getElementById('settingsSupabaseStatus').innerHTML = cfg
+    ? '<span style="color:var(--success);">Connected</span>'
+    : '<span style="color:var(--text3);">Not configured</span>';
+
   // Show account info if logged in
   const acctInfo = document.getElementById('settingsAccountInfo');
   if (acctInfo) {
@@ -8393,7 +8633,7 @@ function openSettingsModal() {
         '<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Signed in as</div>' +
         '<div style="font-size:13px;font-weight:600;">' + (_currentUser.user_metadata?.display_name || '') + '</div>' +
         '<div style="font-size:11px;color:var(--text3);">' + _currentUser.email + '</div>' +
-        '<div style="font-size:10px;color:var(--success);margin-top:4px;">☁ Cloud sync enabled</div>' +
+        '<div style="font-size:10px;color:var(--success);margin-top:4px;">Cloud sync enabled</div>' +
         '</div>';
     } else {
       acctInfo.innerHTML = '<div style="margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:6px;">' +
@@ -8401,8 +8641,11 @@ function openSettingsModal() {
         '</div>';
     }
   }
+
+  // Reset backup status
+  document.getElementById('backupStatus').innerHTML = '';
+
   document.getElementById('settingsModal').classList.add('open');
-  setTimeout(() => document.getElementById('settingsApiKey').focus(), 80);
 }
 
 function closeSettingsModal() {
