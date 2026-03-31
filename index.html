@@ -5160,6 +5160,8 @@ function saveEditTask() {
   save('wt_tasks', tasks);
   closeEditModal();
   renderTasks();
+  renderProjects();
+  updateHeaderMeta();
 }
 
 // ── undo stack ──
@@ -6474,6 +6476,7 @@ function confirmAddTeam() {
   save('wt_team', teamItems);
   closeAddTeamModal();
   renderTeam();
+  renderProjects();
 }
 
 // =============================================
@@ -8709,6 +8712,7 @@ function saveEditTeamItem() {
   save('wt_team', teamItems);
   closeEditTeamModal();
   renderTeam();
+  renderProjects();
 }
 
 function deleteTeamItem() {
@@ -8717,6 +8721,7 @@ function deleteTeamItem() {
   save('wt_team', teamItems);
   closeEditTeamModal();
   renderTeam();
+  renderProjects();
   updateHeaderMeta();
 }
 
