@@ -4619,8 +4619,8 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${projColor(task.project)};" title="${projLabel(task.project)}"></div>
-        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${task.name}</span>${task.waiting ? `<span class="task-waiting">⏳ ${task.waiting}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}</div>
-        <div class="task-recur-actions">${task.recurrence ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>` : ''}</div>
+        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${task.name}</span>${delegateTagsHtml(task.delegatedTo)}${task.waiting ? `<span class="task-waiting">⏳ ${task.waiting}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}</div>
+        <div class="task-recur-actions"><button class="row-edit-btn" onclick="event.stopPropagation();showTaskAssignDropdown(event,'${task.id}')" title="Assign" style="font-size:11px;padding:2px 4px;">↗</button>${task.recurrence ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>` : ''}</div>
         <span class="task-category">${projLabel(task.project)}</span>
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
         <div class="task-due ${dc}" onclick="openDueDatePicker(this, '${task.id}')">${fmtDate(item._date)}</div>
@@ -5783,6 +5783,7 @@ function renderProjItemRow(item, projKey, scId) {
       </div>
       <div class="session-desc" style="${isDone ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditModal('${t.id}')">
         ${t.name}
+        ${delegateTagsHtml(t.delegatedTo)}
         ${t.waiting ? `<span class="task-waiting">⏳ ${t.waiting}</span>` : ''}
         ${t.notes ? '<span class="notes-icon" title="Has notes">📝</span>' : ''}
         ${t.recurrence ? `<span class="recur-badge">${recurLabel(t)}</span>` : ''}
@@ -5795,6 +5796,7 @@ function renderProjItemRow(item, projKey, scId) {
         <div class="timer-btn${t.timerStart ? ' running' : ''}" onclick="${t.timerStart ? `stopTimer('${t.id}')` : `startTimer('${t.id}')`}" title="${t.timerStart ? 'Stop' : 'Start'} timer">${t.timerStart ? '⏹' : '▶'}</div>
       </div>
       <div class="session-row-actions" onclick="event.stopPropagation()">
+        <button class="row-edit-btn" data-assign-btn="1" onclick="showTaskAssignDropdown(event,'${t.id}')" title="Assign">↗</button>
         <button class="row-edit-btn" onclick="deleteTaskFromProjects('${t.id}')" title="Delete" style="color:var(--danger);">×</button>
       </div>
     </div>`;
@@ -8270,10 +8272,71 @@ function _renderAssignDropdownItems() {
 
 function closeAssignDropdown() {
   document.getElementById('assignDropdown').classList.remove('open');
-  if (_assignProjId) { renderTeam(); }
+  if (_assignProjId) { renderTeam(); renderProjects(); }
+  if (_assignTaskId) { renderTeam(); renderProjects(); }
   _assignProjId = null;
   _assignSessionId = null;
   _assignSubtaskId = null;
+  _assignTaskId = null;
+}
+
+// ── Task assignment (My Tasks items) ──
+let _assignTaskId = null;
+
+function showTaskAssignDropdown(e, taskId) {
+  e.stopPropagation();
+  _assignTaskId = taskId;
+  _assignProjId = null;
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+  const menu = document.getElementById('assignDropdown');
+  const rect = e.currentTarget.getBoundingClientRect();
+  menu.style.top  = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+
+  const current = normDelegated(task.delegatedTo);
+  const allOptions = ['Me', ...PERSONS];
+  menu.innerHTML = allOptions.map(name => {
+    const c = personColor(name);
+    const checked = current.includes(name);
+    const label = name === 'Me' ? '📌 Me' : name;
+    return `<div class="assign-dd-item" onclick="toggleTaskPersonAssignment('${name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="${checked ? `background:${c.bg};` : ''}">
+      <span class="assign-dd-check" style="${checked ? `color:${c.text};` : ''}">${checked ? '✓' : ''}</span>
+      <span style="${checked ? `color:${c.text};font-weight:600;` : ''}">${label}</span>
+    </div>`;
+  }).join('');
+  if (!PERSONS.length) {
+    menu.innerHTML += `<div class="assign-dd-empty" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;">No other persons. <a href="#" onclick="event.preventDefault();closeAssignDropdown();openManagePersonsModal();">Add people →</a></div>`;
+  }
+  menu.classList.add('open');
+}
+
+function toggleTaskPersonAssignment(name) {
+  const task = tasks.find(t => t.id === _assignTaskId);
+  if (!task) return;
+  let current = normDelegated(task.delegatedTo);
+  if (current.includes(name)) {
+    current = current.filter(n => n !== name);
+  } else {
+    current.push(name);
+  }
+  task.delegatedTo = current.length ? current : null;
+  save('wt_tasks', tasks);
+
+  // Re-render the dropdown items in place
+  const menu = document.getElementById('assignDropdown');
+  const updatedCur = normDelegated(task.delegatedTo);
+  const allOptions = ['Me', ...PERSONS];
+  menu.innerHTML = allOptions.map(n => {
+    const c = personColor(n);
+    const checked = updatedCur.includes(n);
+    const label = n === 'Me' ? '📌 Me' : n;
+    return `<div class="assign-dd-item" onclick="toggleTaskPersonAssignment('${n.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="${checked ? `background:${c.bg};` : ''}">
+      <span class="assign-dd-check" style="${checked ? `color:${c.text};` : ''}">${checked ? '✓' : ''}</span>
+      <span style="${checked ? `color:${c.text};font-weight:600;` : ''}">${label}</span>
+    </div>`;
+  }).join('');
+  renderTasks();
 }
 
 function togglePersonAssignment(name) {
