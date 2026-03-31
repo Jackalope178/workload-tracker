@@ -454,6 +454,25 @@
   .timer-btn.running { border-color: var(--danger); }
   .timer-btn.running:hover { background: #3d1515; }
 
+  .row-del-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: var(--text3);
+    opacity: 0;
+    transition: all 0.12s;
+    flex-shrink: 0;
+  }
+  .task-row:hover .row-del-btn { opacity: 1; }
+  .row-del-btn:hover { color: var(--danger); border-color: var(--danger); background: rgba(248,113,113,0.1); }
+
   /* EMPTY STATE */
   .empty-state {
     text-align: center;
@@ -4562,6 +4581,7 @@ function renderTasks() {
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="timer-display${isRunning ? ' running' : ''}" data-id="${task.id}">${timerStr}</span>
           <div class="timer-btn${isRunning ? ' running' : ''}" onclick="${isRunning ? `stopTimer('${task.id}')` : `startTimer('${task.id}')`}" title="${isRunning ? 'Stop' : 'Start'} timer">${isRunning ? '⏹' : '▶'}</div>
+          <div class="row-del-btn" onclick="event.stopPropagation();deleteTaskInline('${task.id}')" title="Delete task">×</div>
         </div>`;
     } else if (item._type === 'session') {
       const { s, proj } = item;
@@ -4582,6 +4602,7 @@ function renderTasks() {
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="timer-display${sRunning ? ' running' : ''}" data-id="${s.id}">${sTimerStr}</span>
           <div class="timer-btn${sRunning ? ' running' : ''}" onclick="${sRunning ? `stopSessionTimer('${proj.id}','${s.id}')` : `startSessionTimer('${proj.id}','${s.id}')`}" title="${sRunning ? 'Stop' : 'Start'} timer">${sRunning ? '⏹' : '▶'}</div>
+          <div class="row-del-btn" onclick="event.stopPropagation();deleteSession('${proj.id}','${s.id}')" title="Delete work item">×</div>
         </div>`;
     } else if (item._type === 'subtask') {
       const { st, s, proj } = item;
@@ -4604,6 +4625,7 @@ function renderTasks() {
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="timer-display${stRunning ? ' running' : ''}" data-id="${st.id}">${stTimerStr}</span>
           <div class="timer-btn${stRunning ? ' running' : ''}" onclick="${stRunning ? `stopSubtaskTimer('${proj.id}','${s.id}','${st.id}')` : `startSubtaskTimer('${proj.id}','${s.id}','${st.id}')`}" title="${stRunning ? 'Stop' : 'Start'} timer">${stRunning ? '⏹' : '▶'}</div>
+          <div class="row-del-btn" onclick="event.stopPropagation();deleteSubtask('${proj.id}','${s.id}','${st.id}')" title="Delete subtask">×</div>
         </div>`;
     }
     return row;
@@ -5181,6 +5203,15 @@ function deleteEditTask() {
   save('wt_tasks', tasks);
   closeEditModal();
   renderTasks();
+}
+
+function deleteTaskInline(taskId) {
+  if (!confirm('Delete this task?')) return;
+  tasks = tasks.filter(t => t.id !== taskId);
+  save('wt_tasks', tasks);
+  renderTasks();
+  renderProjects();
+  updateHeaderMeta();
 }
 
 // =============================================
