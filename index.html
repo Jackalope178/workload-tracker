@@ -2970,14 +2970,21 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();`;
 
+// Default Supabase config — safe to embed (anon key works with RLS only)
+const _DEFAULT_SB_URL  = 'https://fkgmgpfbfoadgjllttjd.supabase.co';
+const _DEFAULT_SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrZ21ncGZiZm9hZGdqbGx0dGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NjA3NDIsImV4cCI6MjA5MDUzNjc0Mn0.DbiBKjB5yJIqlgoU0dv4m6XdS-eqlu1cfV0w0g5VZaY';
+
 function getSupabaseConfig() {
   try {
     const raw = localStorage.getItem('wt_supabase_config');
-    if (!raw) return null;
-    const cfg = JSON.parse(raw);
-    if (cfg && cfg.url && cfg.anonKey) return cfg;
-    return null;
-  } catch(e) { return null; }
+    if (raw) {
+      const cfg = JSON.parse(raw);
+      if (cfg && cfg.url && cfg.anonKey) return cfg;
+    }
+  } catch(e) {}
+  // Fall back to baked-in defaults
+  if (_DEFAULT_SB_URL && _DEFAULT_SB_ANON) return { url: _DEFAULT_SB_URL, anonKey: _DEFAULT_SB_ANON };
+  return null;
 }
 
 function setSupabaseConfig(url, anonKey) {
