@@ -67,6 +67,9 @@
   [data-theme="light"] .delegate-pill.selected { background: #ede9fe; }
   [data-theme="light"] .proj-tag-chip { background: #ede9fe; border-color: #c4b5fd; }
   [data-theme="light"] .active-timer-strip { background: #eff6ff; }
+  [data-theme="light"] .delegate-pill { background: #f0f1f4; border-color: #b8bcc8; color: #1a1d26; }
+  [data-theme="light"] .delegate-pill.selected { background: #dbeafe; border-color: #3b82f6; color: #1e40af; }
+  [data-theme="light"] .team-owner span { border-color: #d1d5db !important; }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -2198,7 +2201,10 @@
         <span style="font-size:11px;font-weight:600;color:var(--text2);" id="tasksCapLabel"></span>
         <span style="font-size:11px;color:var(--text3);" id="tasksCapDetail"></span>
       </div>
-      <div class="ts-cap-bar-wrap"><div id="tasksCapFill" class="ts-cap-bar-fill ok" style="width:0%;"></div></div>
+      <div class="ts-cap-bar-wrap">
+        <div id="tasksCapFillDone" class="ts-cap-bar-fill" style="width:0%;background:var(--success);opacity:0.35;position:absolute;left:0;top:0;bottom:0;border-radius:4px;"></div>
+        <div id="tasksCapFill" class="ts-cap-bar-fill ok" style="width:0%;position:relative;z-index:1;"></div>
+      </div>
     </div>
     <div id="taskList"></div>
   </div>
@@ -2497,13 +2503,17 @@
         <label class="edit-label">Task / Deliverable</label>
         <input class="edit-input" id="teamAddName">
       </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Owner</label>
-        <select class="edit-input" id="teamAddOwner"></select>
+      <div class="edit-form-group full">
+        <label class="edit-label">Owners</label>
+        <div id="teamAddOwnerPills" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Project</label>
-        <select class="edit-input" id="teamAddProject"></select>
+        <select class="edit-input" id="teamAddProject" onchange="populateSubCodeSelect('teamAddSubCode', this.value)"></select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Sub-Code</label>
+        <select class="edit-input" id="teamAddSubCode"></select>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Due Date</label>
@@ -2783,13 +2793,17 @@
         <label class="edit-label">Task / Deliverable</label>
         <input class="edit-input" id="editTeamName">
       </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Owner</label>
-        <select class="edit-input" id="editTeamOwner"></select>
+      <div class="edit-form-group full">
+        <label class="edit-label">Owners</label>
+        <div id="editTeamOwnerPills" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Project</label>
-        <select class="edit-input" id="editTeamProject"></select>
+        <select class="edit-input" id="editTeamProject" onchange="populateSubCodeSelect('editTeamSubCode', this.value)"></select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Sub-Code</label>
+        <select class="edit-input" id="editTeamSubCode"></select>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Due Date</label>
@@ -4538,12 +4552,18 @@ function renderTasks() {
   const capBar = document.getElementById('tasksCapBar');
   if (capBar) {
     capBar.style.display = '';
-    document.getElementById('tasksCapLabel').textContent = `This week — ${fmtQ(wkEst)}h estimated / ${wkCap.toFixed(0)}h capacity`;
+    const wkCompleted = completed.filter(c => c.dateCompleted && c.dateCompleted >= wkStart && c.dateCompleted <= wkEnd)
+      .reduce((a, c) => a + (c.actualHours || c.estHours || 0), 0);
+    const donePct = Math.min(Math.round((wkCompleted / wkCap) * 100), 100);
+    document.getElementById('tasksCapLabel').textContent =
+      `This week — ${fmtQ(wkEst)}h planned${wkCompleted > 0 ? ' · ' + fmtQ(wkCompleted) + 'h done' : ''} / ${wkCap.toFixed(0)}h capacity`;
     document.getElementById('tasksCapDetail').textContent = wkEst > wkCap ? `+${fmtQ(wkEst - wkCap)}h over` : `${fmtQ(wkCap - wkEst)}h left`;
     document.getElementById('tasksCapDetail').style.color = wkCls === 'over' ? 'var(--danger)' : wkCls === 'warn' ? 'var(--warn)' : 'var(--success)';
     const fill = document.getElementById('tasksCapFill');
     fill.style.width = wkPct + '%';
     fill.className = `ts-cap-bar-fill ${wkCls}`;
+    const doneFill = document.getElementById('tasksCapFillDone');
+    if (doneFill) { doneFill.style.width = donePct + '%'; }
   }
 
   // ── bucket items ──
@@ -5612,6 +5632,8 @@ function renderProjCodeContent(projKey) {
   const projBigProjs = bigProjs.filter(bp => bp.project === projKey);
   // 2) My Tasks tagged to this code
   const projTasks = tasks.filter(t => t.project === projKey && !t.completed);
+  // 3) Team deliverables tagged to this code
+  const projTeamItems = teamItems.filter(ti => ti.project === projKey);
 
   // Group items by subCode
   function getItemsForSubCode(scId) {
@@ -5638,10 +5660,17 @@ function renderProjCodeContent(projKey) {
         }
       });
     });
+    // Team deliverables
+    projTeamItems.forEach(ti => {
+      const tsc = ti.subCode || '';
+      if (tsc === (scId || '')) {
+        items.push({ _type: 'team', team: ti, _date: ti.due || null, _src: 'Team Deliverables' });
+      }
+    });
     // Sort: incomplete first, then by date, then priority
     const po = { urgent: 0, high: 1, med: 2, low: 3 };
-    const pri = i => i._type === 'task' ? po[i.task.priority] : i._type === 'session' ? (po[i.s.priority] ?? 2) : (po[i.st.priority] ?? 2);
-    const done = i => i._type === 'task' ? !!i.task.completed : i._type === 'session' ? !!i.s.done : !!i.st.done;
+    const pri = i => i._type === 'task' ? po[i.task.priority] : i._type === 'session' ? (po[i.s.priority] ?? 2) : i._type === 'team' ? 2 : (po[i.st.priority] ?? 2);
+    const done = i => i._type === 'task' ? !!i.task.completed : i._type === 'session' ? !!i.s.done : i._type === 'team' ? (i.team.status === 'complete') : !!i.st.done;
     items.sort((a, b) => (done(a) - done(b)) || (a._date || 'zzz').localeCompare(b._date || 'zzz') || pri(a) - pri(b));
     return items;
   }
@@ -5658,7 +5687,11 @@ function renderProjCodeContent(projKey) {
   </div>`;
 
   // Build sub-code sections: "Unassigned" first, then each sub-code
-  const sections = [{ scId: '', label: 'Unassigned (no sub-code)', code: '' }];
+  const sections = [];
+  const unassignedItems = getItemsForSubCode('');
+  if (unassignedItems.length > 0) {
+    sections.push({ scId: '', label: 'Unassigned (no sub-code)', code: '' });
+  }
   subCodes.forEach(sc => sections.push({ scId: sc.id, label: sc.label || sc.code, code: sc.code }));
 
   sections.forEach(sec => {
@@ -5698,8 +5731,8 @@ function renderProjCodeContent(projKey) {
 
       // Inline add
       html += `<div class="subcode-inline-add">
-        <input type="text" placeholder="Quick add task..." id="inlineAdd_${projKey}_${sec.scId}" onkeydown="if(event.key==='Enter')inlineAddTask('${projKey}','${sec.scId}')">
-        <button onclick="inlineAddTask('${projKey}','${sec.scId}')">Add</button>
+        <input type="text" placeholder="Quick add..." id="inlineAdd_${projKey}_${sec.scId}" onkeydown="if(event.key==='Enter')inlineAddTask('${projKey}','${sec.scId}')">
+        <button class="btn" onclick="openAddTaskForProject('${projKey}','${sec.scId}')" style="font-size:10px;padding:2px 8px;" title="Add with full details">+ Detail</button>
       </div>`;
       html += '</div>'; // .subcode-body
     }
@@ -5800,6 +5833,32 @@ function renderProjItemRow(item, projKey, scId) {
       </div>
     </div>`;
   }
+
+  if (item._type === 'team') {
+    const ti = item.team;
+    const isDone = ti.status === 'complete';
+    const owners = ti.owners || [ti.owner];
+    const ownerTags = owners.map(o => {
+      const pc = personColor(o || '—');
+      return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 5px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">${o}</span>`;
+    }).join('');
+    return `<div class="proj-item-row">
+      <div class="session-check${isDone ? ' done' : ''}" style="cursor:default;">
+        ${isDone ? '<span style="color:var(--check-fg);font-size:11px;">✓</span>' : ''}
+      </div>
+      <div class="session-desc" style="${isDone ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditTeamModal('${ti.id}')">
+        ${ti.name}
+        <span style="display:inline-flex;gap:3px;margin-left:4px;">${ownerTags}</span>
+        ${ti.waiting ? `<span class="task-waiting">⏳ ${ti.waiting}</span>` : ''}
+        ${ti.notes ? '<span class="notes-icon" title="Has notes">📝</span>' : ''}
+      </div>
+      <div></div>
+      <div class="session-date">${fmtDate(ti.due)}</div>
+      <div class="session-hours">—</div>
+      <div></div>
+      <div></div>
+    </div>`;
+  }
   return '';
 }
 
@@ -5891,7 +5950,7 @@ function inlineAddTask(projKey, scId) {
   if (!name) return;
   tasks.push({
     id: uid(), name, project: projKey, subCode: scId || '',
-    priority: 'med', due: today(), est: 1, category: '',
+    priority: 'med', due: '', est: 0, category: '',
     waiting: '', notes: '', timer: 0, timerStart: null,
     completed: false
   });
@@ -5899,6 +5958,17 @@ function inlineAddTask(projKey, scId) {
   input.value = '';
   renderProjCodeContent(projKey);
   renderTasks();
+}
+
+function openAddTaskForProject(projKey, scId) {
+  const task = {
+    id: uid(), name: 'New Task', project: projKey, subCode: scId || '',
+    priority: 'med', due: '', est: 0, category: '',
+    waiting: '', notes: '', timer: 0, timerStart: null, completed: false
+  };
+  tasks.unshift(task);
+  save('wt_tasks', tasks);
+  openEditModal(task.id);
 }
 
 // ── Task helpers for projects view ──
@@ -6339,31 +6409,44 @@ function toggleTeamNotes(id) {
   if (el) el.classList.toggle('open');
 }
 
-function populateOwnerSelects() {
-  ['teamAddOwner', 'editTeamOwner'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const current = el.value;
-    el.innerHTML = '<option value="">— Select —</option>';
-    PERSONS.forEach(name => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      el.appendChild(opt);
-    });
-    // Re-select current value; if it's a name not in PERSONS, add it as an option
-    if (current && !PERSONS.includes(current)) {
-      const opt = document.createElement('option');
-      opt.value = current;
-      opt.textContent = current;
-      el.appendChild(opt);
-    }
-    if (current) el.value = current;
-  });
+function populateOwnerSelects() {}
+
+function populateTeamOwnerPills(containerId, selected) {
+  const current = !selected ? [] : Array.isArray(selected) ? selected : [selected];
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  wrap.innerHTML = PERSONS.map(m => {
+    const c = personColor(m);
+    const sel = current.includes(m);
+    const style = sel ? `background:${c.bg};border-color:${c.border};color:${c.text};font-weight:600;` : '';
+    return `<span class="delegate-pill${sel ? ' selected' : ''}" style="${style}"
+      onclick="toggleTeamOwnerPill(this,'${m.replace(/'/g,"\\'")}','${c.bg}','${c.text}','${c.border}')"
+    >${sel ? '✓ ' : ''}${m}</span>`;
+  }).join('');
+}
+
+function toggleTeamOwnerPill(el, name, bg, text, border) {
+  el.classList.toggle('selected');
+  if (el.classList.contains('selected')) {
+    el.style.background = bg; el.style.borderColor = border;
+    el.style.color = text; el.style.fontWeight = '600';
+    el.textContent = '✓ ' + name;
+  } else {
+    el.style.background = ''; el.style.borderColor = '';
+    el.style.color = ''; el.style.fontWeight = '';
+    el.textContent = name;
+  }
+}
+
+function getSelectedTeamOwners(containerId) {
+  const pills = document.querySelectorAll('#' + containerId + ' .delegate-pill.selected');
+  return Array.from(pills).map(p => p.textContent.replace(/^✓\s*/, '').trim());
 }
 
 function openAddTeamModal() {
-  populateOwnerSelects();
+  populateProjectSelects();
+  populateTeamOwnerPills('teamAddOwnerPills', []);
+  populateSubCodeSelect('teamAddSubCode', document.getElementById('teamAddProject')?.value || '');
   document.getElementById('addTeamModal').classList.add('open');
 }
 
@@ -6374,11 +6457,14 @@ function closeAddTeamModal() {
 function confirmAddTeam() {
   const name = document.getElementById('teamAddName').value.trim();
   if (!name) return alert('Name required.');
+  const owners = getSelectedTeamOwners('teamAddOwnerPills');
   const item = {
     id: uid(),
     name,
-    owner: document.getElementById('teamAddOwner').value.trim(),
+    owner: owners[0] || '',
+    owners: owners,
     project: document.getElementById('teamAddProject').value || 'overhead',
+    subCode: document.getElementById('teamAddSubCode').value || '',
     due: document.getElementById('teamAddDue').value || '',
     status: document.getElementById('teamAddStatus').value || 'need-delegate',
     waiting: document.getElementById('teamAddWaiting').value.trim(),
@@ -8591,10 +8677,10 @@ function openEditTeamModal(itemId) {
   const item = teamItems.find(t => t.id === itemId);
   if (!item) return;
   populateProjectSelects();
-  populateOwnerSelects();
   document.getElementById('editTeamName').value    = item.name || '';
-  document.getElementById('editTeamOwner').value   = item.owner || '';
+  populateTeamOwnerPills('editTeamOwnerPills', item.owners || [item.owner]);
   document.getElementById('editTeamProject').value = item.project || 'overhead';
+  populateSubCodeSelect('editTeamSubCode', item.project || 'overhead', item.subCode || '');
   document.getElementById('editTeamDue').value     = item.due || '';
   document.getElementById('editTeamStatus').value  = item.status || 'need-delegate';
   document.getElementById('editTeamWaiting').value = item.waiting || '';
@@ -8611,8 +8697,11 @@ function saveEditTeamItem() {
   const item = teamItems.find(t => t.id === editingTeamId);
   if (!item) return;
   item.name    = document.getElementById('editTeamName').value.trim() || item.name;
-  item.owner   = document.getElementById('editTeamOwner').value.trim();
+  const owners = getSelectedTeamOwners('editTeamOwnerPills');
+  item.owners  = owners;
+  item.owner   = owners[0] || '';
   item.project = document.getElementById('editTeamProject').value;
+  item.subCode = document.getElementById('editTeamSubCode').value || '';
   item.due     = document.getElementById('editTeamDue').value;
   item.status  = document.getElementById('editTeamStatus').value;
   item.waiting = document.getElementById('editTeamWaiting').value.trim();
