@@ -2329,7 +2329,7 @@
 </div>
 
 <!-- RESCHEDULE OCCURRENCE MODAL -->
-<div class="modal-overlay" id="rescheduleModal" style="display:none;" onclick="if(event.target===this)closeRescheduleModal()">
+<div class="modal-overlay" id="rescheduleModal" style="display:none;">
   <div class="modal" style="max-width:320px;">
     <div class="modal-title">Reschedule this occurrence</div>
     <div class="modal-subtitle">All other occurrences stay on their original schedule.</div>
@@ -2577,7 +2577,7 @@
 </div>
 
 <!-- NOTES POPUP -->
-<div class="modal-overlay" id="notesPopup" onclick="if(event.target===this)closeNotesPopup()">
+<div class="modal-overlay" id="notesPopup">
   <div class="modal" style="width:400px;">
     <div class="modal-title" id="notesPopupTitle">Notes</div>
     <div style="margin-bottom:10px;"></div>
@@ -2590,7 +2590,7 @@
 </div>
 
 <!-- ALLOCATION DRILL-DOWN POPUP -->
-<div class="modal-overlay" id="allocDrillPopup" onclick="if(event.target===this)closeAllocDrill()">
+<div class="modal-overlay" id="allocDrillPopup">
   <div class="modal" style="width:520px;max-height:80vh;display:flex;flex-direction:column;">
     <div class="modal-title" id="allocDrillTitle">Tasks</div>
     <div class="modal-subtitle" id="allocDrillSub"></div>
@@ -8086,11 +8086,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 // CLOSE MODALS ON OVERLAY CLICK
 // =============================================
 
-['completionModal','editTaskModal','addTeamModal','addProjectModal','brainDumpModal','reviewModal',
- 'settingsModal','editBigProjModal','editTeamModal','manageProjectsModal','editSessionModal','tsEntryModal','notesPopup','allocDrillPopup'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
-});
+// Modals only close via Cancel/Save/Delete buttons — no click-outside-to-close
 
 // =============================================
 // LIVE FILTER LISTENERS
