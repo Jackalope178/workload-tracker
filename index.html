@@ -5709,9 +5709,9 @@ function renderProjCodeContent(projKey) {
     const isCollapsed = collapsedSubSections.has(sectionKey);
 
     html += `<div class="subcode-section">
-      <div class="subcode-header" onclick="toggleSubSection('${sectionKey}')">
+      <div class="subcode-header" style="border-left:3px solid ${color};" onclick="toggleSubSection('${sectionKey}')">
         <span class="subcode-chevron${isCollapsed ? '' : ' open'}">›</span>
-        <span>${sec.code ? (proj.billingCode || '') + sec.code + ' — ' : ''}${sec.label}</span>
+        <span style="color:var(--text);">${sec.code ? '<span style="color:' + color + ';font-weight:700;">' + (proj.billingCode || '') + sec.code + '</span> — ' : ''}${sec.label}</span>
         <span class="subcode-count">${openCount} open / ${totalCount} total</span>
       </div>`;
 
