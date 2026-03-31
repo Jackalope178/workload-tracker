@@ -5878,7 +5878,7 @@ function renderProjItemRow(item, projKey, scId) {
         ${ti.waiting ? `<span class="task-waiting">⏳ ${ti.waiting}</span>` : ''}
         ${ti.notes ? '<span class="notes-icon" title="Has notes">📝</span>' : ''}
       </div>
-      <div></div>
+      <span class="status-badge ${STATUS_CLS[ti.status] || ''}" style="cursor:pointer;font-size:10px;" onclick="event.stopPropagation();showStatusDropdown(event,'${ti.id}')">${STATUS_LABELS[ti.status] || ti.status}</span>
       <div class="session-date">${fmtDate(ti.due)}</div>
       <div class="session-hours">—</div>
       <div></div>
@@ -8375,6 +8375,7 @@ function showStatusDropdown(e, itemId) {
     item.status = val;
     save('wt_team', teamItems);
     renderTeam();
+    renderProjects();
   });
 }
 
