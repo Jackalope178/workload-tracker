@@ -24,12 +24,6 @@
     --danger: #f87171;
 
     --cwc: #22c55e;
-    --charlotte: #3b82f6;
-    --ipp: #a78bfa;
-    --doee: #f97316;
-    --admin: #94a3b8;
-    --src: #f87171;
-    --p2: #fbbf24;
 
     --check-fg: #0d0f14;
   }
@@ -3421,19 +3415,28 @@ function getThemePreBoot() {
 // =============================================
 
 const DEFAULT_PROJECTS = {
-  cwc:        { label: 'CWC',                     color: '#22c55e', billingCode: 'T-21-010' },
-  charlotte:  { label: 'Charlotte Water / IWP',   color: '#3b82f6', billingCode: '' },
-  ipp:        { label: 'IPP / Instructor Network', color: '#a78bfa', billingCode: 'O-10-001' },
-  doee:       { label: 'DOEE / Kansas City',       color: '#f97316', billingCode: '' },
-  admin:      { label: 'Admin / Internal',         color: '#94a3b8', billingCode: 'O-09-018' },
-  src:        { label: 'SRC',                      color: '#f87171', billingCode: 'R-24-001' },
-  p2:         { label: 'P2',                       color: '#fbbf24', billingCode: 'T-15-999' },
-  meetings:   { label: 'Staff Meetings',           color: '#64748b', billingCode: 'O-09-018' },
-  supervision:{ label: 'Supervision',              color: '#78716c', billingCode: 'O-09-019' },
-  leave:      { label: 'Employee Leave',           color: '#a3a3a3', billingCode: 'O-09-022A' },
-  holiday:    { label: 'Holidays',                 color: '#c084fc', billingCode: 'O-09-022E' },
-  conference: { label: 'Conference Attendance',    color: '#2dd4bf', billingCode: 'O-14-002' },
-  overhead:   { label: 'Training Overhead',        color: '#fb923c', billingCode: 'T-09-999' }
+  cwc:        { label: 'CWC',                       color: '#22c55e', billingCode: 'T-21-010' },
+  kc:         { label: 'Kansas City Water Workforce',color: '#0ea5e9', billingCode: 'T-23-007' },
+  coastal_pl: { label: 'Coastal Resilience Peer Learning', color: '#d946ef', billingCode: 'T-26-004' },
+  cwc_pas:    { label: 'CWC Delivery Pasadena',     color: '#10b981', billingCode: 'T-26-005' },
+  wpt:        { label: 'Watershed Planning Training',color: '#06b6d4', billingCode: 'T-26-002' },
+  doee_ta:    { label: 'DOEE Technical Assistance',  color: '#f97316', billingCode: 'W-22-026' },
+  carroll:    { label: 'Carroll County Watershed',   color: '#16a34a', billingCode: 'W-24-022' },
+  src_pa:     { label: 'SRC Purchase Agreement',     color: '#dc2626', billingCode: 'W-24-038' },
+  carrie:     { label: 'Carrie Murray Nature Center', color: '#84cc16', billingCode: 'W-24-054' },
+  gaithwp:    { label: 'Gaithersburg Watershed Plans',color: '#14b8a6', billingCode: 'W-24-058' },
+  campbell:   { label: 'Campbell Foundation CWC',    color: '#8b5cf6', billingCode: 'W-25-003' },
+  somerset:   { label: 'Somerset County Coordinator',color: '#e879f9', billingCode: 'W-25-009' },
+  biomain:    { label: 'Bioretention Maintenance',   color: '#65a30d', billingCode: 'R-26-001' },
+  wicomico:   { label: 'Wicomico County MS4',        color: '#f59e0b', billingCode: 'W-22-029b' },
+  coastal_sw: { label: 'Coastal Stormwater Center',  color: '#ef4444', billingCode: 'R-24-001' },
+  trainprop:  { label: 'Training Proposal',          color: '#eab308', billingCode: 'T-15-999' },
+  meetings:   { label: 'Staff Meetings',             color: '#64748b', billingCode: 'O-09-018' },
+  supervision:{ label: 'Supervision',                color: '#78716c', billingCode: 'O-09-019' },
+  leave:      { label: 'Employee Leave',             color: '#a3a3a3', billingCode: 'O-09-022A' },
+  holiday:    { label: 'Holidays',                   color: '#c084fc', billingCode: 'O-09-022E' },
+  conference: { label: 'Conference Attendance',      color: '#2dd4bf', billingCode: 'O-14-002' },
+  overhead:   { label: 'Training Overhead',          color: '#fb923c', billingCode: 'T-09-999' }
 };
 
 let PROJECTS = load('wt_projects_meta', null);
@@ -3449,10 +3452,18 @@ if (!PROJECTS) { PROJECTS = DEFAULT_PROJECTS; save('wt_projects_meta', PROJECTS)
       changed = true;
     }
   });
-  // Add new overhead project codes if they don't exist
+  // Add new project codes from defaults if they don't exist
   Object.keys(DEFAULT_PROJECTS).forEach(k => {
     if (!PROJECTS[k]) {
       PROJECTS[k] = { ...DEFAULT_PROJECTS[k] };
+      changed = true;
+    }
+  });
+  // Remove retired project codes (charlotte, ipp, doee, admin, src, p2)
+  const _retired = ['charlotte', 'ipp', 'doee', 'admin', 'src', 'p2'];
+  _retired.forEach(k => {
+    if (PROJECTS[k]) {
+      delete PROJECTS[k];
       changed = true;
     }
   });
@@ -3897,62 +3908,62 @@ function save(key, data) {
 
 const SEED_TASKS = [
   { id: uid(), name: 'Finalize Q2 CWC cohort schedule', project: 'cwc', priority: 'urgent', due: '2026-06-02', est: 2, category: 'Planning', waiting: '', notes: 'Coordinate with site leads first', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Update IWP audit documentation binder', project: 'charlotte', priority: 'high', due: '2026-06-05', est: 3, category: 'Audit', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Draft Instructor Network onboarding guide', project: 'ipp', priority: 'high', due: '2026-06-10', est: 4, category: 'Content', waiting: '', notes: 'Use Canva template from last cohort', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Review DOEE curriculum alignment doc', project: 'doee', priority: 'med', due: '2026-06-12', est: 1.5, category: 'Review', waiting: 'Marcus (DOEE team)', notes: '', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Submit June budget actuals', project: 'admin', priority: 'urgent', due: '2026-06-01', est: 1, category: 'Finance', waiting: '', notes: 'Check with Tanya on SRC line items', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Build SRC participant tracker spreadsheet', project: 'src', priority: 'high', due: '2026-06-08', est: 2.5, category: 'Data', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'P2 stakeholder slide deck — first draft', project: 'p2', priority: 'med', due: '2026-06-15', est: 3, category: 'Decks', waiting: '', notes: 'Align with business model framing', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Weekly intern check-in prep', project: 'admin', priority: 'low', due: '2026-06-03', est: 0.5, category: 'Mentoring', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Kansas City licensee intro call — agenda', project: 'doee', priority: 'high', due: '2026-06-04', est: 1, category: 'Comms', waiting: '', notes: 'Send agenda 48hrs before call', timer: 0, timerStart: null, completed: false },
   { id: uid(), name: 'CWC format guide update (Canva)', project: 'cwc', priority: 'med', due: '2026-06-14', est: 2, category: 'Content', waiting: '', notes: 'Match new brand colors', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Charlotte Water IWP training delivery — Session 4', project: 'charlotte', priority: 'urgent', due: '2026-06-06', est: 4, category: 'Training', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'SRC program evolution strategy doc', project: 'src', priority: 'med', due: '2026-06-20', est: 5, category: 'Strategy', waiting: '', notes: 'Phase 2 scope included', timer: 0, timerStart: null, completed: false },
-  { id: uid(), name: 'Submit Timesheet (mid-month)', project: 'admin', priority: 'urgent', due: '2026-06-15', est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 15, endDate: null } },
-  { id: uid(), name: 'Submit Timesheet (end-of-month)', project: 'admin', priority: 'urgent', due: '2026-06-30', est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB — last day of month', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 31, endDate: null } },
+  { id: uid(), name: 'KC Mid-America GSI training prep — Session 2', project: 'kc', priority: 'urgent', due: '2026-06-06', est: 4, category: 'Training', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Kansas City outreach materials review', project: 'kc', priority: 'high', due: '2026-06-10', est: 2, category: 'Review', waiting: '', notes: 'Task 2 deliverable', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Coastal Resilience peer learning session prep', project: 'coastal_pl', priority: 'high', due: '2026-06-08', est: 3, category: 'Planning', waiting: '', notes: 'Monthly deliverable — 33h allocated', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Carroll County final report — Part 1 draft', project: 'carroll', priority: 'high', due: '2026-06-05', est: 5, category: 'Content', waiting: '', notes: 'Due July — start early', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Gaithersburg final watershed plan — first draft', project: 'gaithwp', priority: 'med', due: '2026-06-15', est: 4, category: 'Content', waiting: '', notes: 'Final plan phase starts this month', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'SRC startup grant admin — June cycle', project: 'src_pa', priority: 'med', due: '2026-06-20', est: 4, category: 'Admin', waiting: '', notes: '8h allocated monthly', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'DOEE TA monthly meeting prep', project: 'doee_ta', priority: 'med', due: '2026-06-12', est: 1.5, category: 'Meetings', waiting: '', notes: 'Monthly check-in with DOEE staff', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'CWC Pasadena delivery planning', project: 'cwc_pas', priority: 'high', due: '2026-06-04', est: 3, category: 'Planning', waiting: '', notes: '21h block — May through Aug', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Coastal Stormwater virtual design forum prep', project: 'coastal_sw', priority: 'med', due: '2026-06-18', est: 2.5, category: 'Content', waiting: '', notes: '', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Watershed Planning Training — PPT drafting', project: 'wpt', priority: 'low', due: '2026-07-15', est: 6, category: 'Content', waiting: '', notes: '12h over Jul–Oct', timer: 0, timerStart: null, completed: false },
+  { id: uid(), name: 'Submit Timesheet (mid-month)', project: 'overhead', priority: 'urgent', due: '2026-06-15', est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 15, endDate: null } },
+  { id: uid(), name: 'Submit Timesheet (end-of-month)', project: 'overhead', priority: 'urgent', due: '2026-06-30', est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB — last day of month', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 31, endDate: null } },
 ];
 
 const SEED_PROJECTS = [
   {
     id: uid(),
-    name: 'IWP Licensee Onboarding Playbook',
-    project: 'charlotte',
+    name: 'Carroll County Final Report',
+    project: 'carroll',
     sessions: [
-      { id: uid(), num: 1, desc: 'Scope outline and structure', date: '2026-05-20', hours: 2, done: true },
-      { id: uid(), num: 2, desc: 'Draft Part 1: Roles & Responsibilities', date: '2026-05-27', hours: 3, done: true },
-      { id: uid(), num: 3, desc: 'Draft Part 2: Timeline & Milestones', date: '2026-06-03', hours: 2.5, done: false },
-      { id: uid(), num: 4, desc: 'Review with Charlotte Water PM', date: '2026-06-10', hours: 1.5, done: false },
-      { id: uid(), num: 5, desc: 'Final revisions and formatting', date: '2026-06-17', hours: 2, done: false },
+      { id: uid(), num: 1, desc: 'Post-processing data cleanup', date: '2026-03-15', hours: 8, done: true },
+      { id: uid(), num: 2, desc: 'Outreach materials creation', date: '2026-03-22', hours: 8, done: true },
+      { id: uid(), num: 3, desc: 'Final report — Part 1 draft', date: '2026-04-10', hours: 5, done: false },
+      { id: uid(), num: 4, desc: 'Final report — Part 2 + review', date: '2026-05-08', hours: 5, done: false },
+      { id: uid(), num: 5, desc: 'Final report — revisions and submit', date: '2026-06-05', hours: 5, done: false },
     ]
   },
   {
     id: uid(),
-    name: 'P2 Business Model Development',
-    project: 'p2',
+    name: 'Gaithersburg Watershed Plan',
+    project: 'gaithwp',
     sessions: [
-      { id: uid(), num: 1, desc: 'Market landscape research', date: '2026-05-15', hours: 3, done: true },
-      { id: uid(), num: 2, desc: 'Revenue model options analysis', date: '2026-05-22', hours: 2, done: true },
-      { id: uid(), num: 3, desc: 'Draft model deck v1', date: '2026-06-05', hours: 3, done: false },
-      { id: uid(), num: 4, desc: 'Stakeholder feedback session', date: '2026-06-12', hours: 1.5, done: false },
-      { id: uid(), num: 5, desc: 'Revised model + exec summary', date: '2026-06-19', hours: 2.5, done: false },
+      { id: uid(), num: 1, desc: 'Project meetings + scoping', date: '2026-03-10', hours: 1, done: true },
+      { id: uid(), num: 2, desc: 'Draft watershed plan — research', date: '2026-03-20', hours: 8, done: true },
+      { id: uid(), num: 3, desc: 'Draft watershed plan — writing', date: '2026-04-15', hours: 12, done: false },
+      { id: uid(), num: 4, desc: 'Draft watershed plan — final section', date: '2026-05-10', hours: 12, done: false },
+      { id: uid(), num: 5, desc: 'Final plan — revisions and delivery', date: '2026-06-15', hours: 8, done: false },
     ]
   }
 ];
 
 const SEED_TEAM = [
-  { id: uid(), name: 'IWP training site logistics confirmation', owner: 'Jordan P.', project: 'charlotte', due: '2026-06-03', status: 'in-progress', notes: 'Confirm room booking and AV' },
-  { id: uid(), name: 'SRC cohort data entry', owner: 'Intern – Aisha', project: 'src', due: '2026-06-05', status: 'pending', notes: 'Template sent 5/28' },
-  { id: uid(), name: 'DOEE participant eval forms', owner: 'Marcus T.', project: 'doee', due: '2026-06-08', status: 'not-started', notes: '' },
+  { id: uid(), name: 'KC outreach material design', owner: 'Jordan P.', project: 'kc', due: '2026-06-03', status: 'in-progress', notes: 'Task 2 deliverable — Canva drafts' },
+  { id: uid(), name: 'SRC startup grant data entry', owner: 'Intern – Aisha', project: 'src_pa', due: '2026-06-05', status: 'pending', notes: 'Template sent 5/28' },
+  { id: uid(), name: 'DOEE TA meeting notes + follow-ups', owner: 'Marcus T.', project: 'doee_ta', due: '2026-06-08', status: 'not-started', notes: '' },
   { id: uid(), name: 'CWC flyer design (Canva)', owner: 'Intern – Dev', project: 'cwc', due: '2026-06-07', status: 'in-review', notes: 'First draft received, minor edits needed' },
-  { id: uid(), name: 'P2 stakeholder contact list', owner: 'Sarah M.', project: 'p2', due: '2026-06-06', status: 'complete', notes: '' },
+  { id: uid(), name: 'Coastal Stormwater outreach materials', owner: 'Sarah M.', project: 'coastal_sw', due: '2026-06-10', status: 'in-progress', notes: '6h allocated this quarter' },
 ];
 
 const SEED_COMPLETED = [
-  { id: uid(), name: 'May timesheet reconciliation', project: 'admin', dateCompleted: '2026-05-31', estHours: 1, actualHours: 1.25, category: 'Finance' },
+  { id: uid(), name: 'Carroll County outreach materials', project: 'carroll', dateCompleted: '2026-03-28', estHours: 8, actualHours: 8.5, category: 'Content' },
   { id: uid(), name: 'CWC Session 3 delivery', project: 'cwc', dateCompleted: '2026-05-29', estHours: 4, actualHours: 4, category: 'Training' },
-  { id: uid(), name: 'Charlotte Water kickoff deck', project: 'charlotte', dateCompleted: '2026-05-27', estHours: 3, actualHours: 2.75, category: 'Decks' },
-  { id: uid(), name: 'Instructor Network welcome email', project: 'ipp', dateCompleted: '2026-05-26', estHours: 0.5, actualHours: 0.5, category: 'Comms' },
-  { id: uid(), name: 'SRC kick-off planning call notes', project: 'src', dateCompleted: '2026-05-28', estHours: 0.5, actualHours: 0.25, category: 'Planning' },
+  { id: uid(), name: 'Gaithersburg draft plan — Section 1', project: 'gaithwp', dateCompleted: '2026-04-18', estHours: 8, actualHours: 7.5, category: 'Content' },
+  { id: uid(), name: 'KC WFD kickoff planning', project: 'kc', dateCompleted: '2026-03-20', estHours: 2, actualHours: 2, category: 'Planning' },
+  { id: uid(), name: 'DOEE TA May meeting', project: 'doee_ta', dateCompleted: '2026-05-15', estHours: 1.5, actualHours: 1.5, category: 'Meetings' },
 ];
 
 // Initialize state
@@ -3985,11 +3996,11 @@ if (!completed) { completed = SEED_COMPLETED; save('wt_completed', completed); }
   const hasEnd = tasks.some(t => t.name === 'Submit Timesheet (end-of-month)');
   let changed = false;
   if (!hasMid) {
-    tasks.push({ id: uid(), name: 'Submit Timesheet (mid-month)', project: 'admin', priority: 'urgent', due: today(), est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 15, endDate: null } });
+    tasks.push({ id: uid(), name: 'Submit Timesheet (mid-month)', project: 'overhead', priority: 'urgent', due: today(), est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 15, endDate: null } });
     changed = true;
   }
   if (!hasEnd) {
-    tasks.push({ id: uid(), name: 'Submit Timesheet (end-of-month)', project: 'admin', priority: 'urgent', due: today(), est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB — last day of month', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 31, endDate: null } });
+    tasks.push({ id: uid(), name: 'Submit Timesheet (end-of-month)', project: 'overhead', priority: 'urgent', due: today(), est: 0.25, category: 'Finance', waiting: '', notes: 'BigTime timesheet due by COB — last day of month', timer: 0, timerStart: null, completed: false, recurrence: { type: 'monthly-date', dayOfMonth: 31, endDate: null } });
     changed = true;
   }
   if (changed) save('wt_tasks', tasks);
@@ -4891,7 +4902,7 @@ function addTask() {
   const task = {
     id: uid(),
     name,
-    project: document.getElementById('newTaskProject').value || 'admin',
+    project: document.getElementById('newTaskProject').value || 'overhead',
     subCode: document.getElementById('newTaskSubCode').value || '',
     priority: document.getElementById('newTaskPriority').value || 'med',
     due: document.getElementById('newTaskDue').value || '',
@@ -5866,7 +5877,7 @@ function closeAddProjectModal() {
 function confirmAddProject() {
   const name = document.getElementById('projAddName').value.trim();
   if (!name) return alert('Project name required.');
-  const project = document.getElementById('projAddProject').value || 'admin';
+  const project = document.getElementById('projAddProject').value || 'overhead';
   const defaultSubCode = document.getElementById('projAddDefaultSubCode')?.value || '';
   const rawSessions = document.getElementById('projAddSessions').value.trim();
 
@@ -6290,7 +6301,7 @@ function confirmAddTeam() {
     id: uid(),
     name,
     owner: document.getElementById('teamAddOwner').value.trim(),
-    project: document.getElementById('teamAddProject').value || 'admin',
+    project: document.getElementById('teamAddProject').value || 'overhead',
     due: document.getElementById('teamAddDue').value || '',
     status: document.getElementById('teamAddStatus').value || 'need-delegate',
     waiting: document.getElementById('teamAddWaiting').value.trim(),
@@ -7061,8 +7072,8 @@ function openEditTsEntry(entryId) {
   document.getElementById('tsEntryActual').value = entry.actualHours || '';
   document.getElementById('tsEntryDeleteBtn').style.display = '';
   populateProjectSelects();
-  document.getElementById('tsEntryProject').value = entry.project || 'admin';
-  populateSubCodeSelect('tsEntrySubCode', entry.project || 'admin', entry.subCode || '');
+  document.getElementById('tsEntryProject').value = entry.project || 'overhead';
+  populateSubCodeSelect('tsEntrySubCode', entry.project || 'overhead', entry.subCode || '');
   document.getElementById('tsEntryModal').classList.add('open');
 }
 
@@ -8035,9 +8046,9 @@ function openEditBigProjModal(projId) {
   populateProjectSelects();
   document.getElementById('editBigProjName').value = proj.name;
   const projSelect = document.getElementById('editBigProjProject');
-  projSelect.value = proj.project || 'admin';
+  projSelect.value = proj.project || 'overhead';
   projSelect.onchange = function() { populateSubCodeSelect('editBigProjDefaultSubCode', this.value, proj.defaultSubCode || ''); };
-  populateSubCodeSelect('editBigProjDefaultSubCode', proj.project || 'admin', proj.defaultSubCode || '');
+  populateSubCodeSelect('editBigProjDefaultSubCode', proj.project || 'overhead', proj.defaultSubCode || '');
   document.getElementById('editBigProjColor').value = proj.color || projColor(proj.project) || '#4f9cf9';
   document.getElementById('editBigProjMemberInput').value = '';
   renderProjMembersList(proj.members || []);
@@ -8304,7 +8315,7 @@ function openEditTeamModal(itemId) {
   populateOwnerSelects();
   document.getElementById('editTeamName').value    = item.name || '';
   document.getElementById('editTeamOwner').value   = item.owner || '';
-  document.getElementById('editTeamProject').value = item.project || 'admin';
+  document.getElementById('editTeamProject').value = item.project || 'overhead';
   document.getElementById('editTeamDue').value     = item.due || '';
   document.getElementById('editTeamStatus').value  = item.status || 'need-delegate';
   document.getElementById('editTeamWaiting').value = item.waiting || '';
@@ -8928,7 +8939,7 @@ function confirmImport() {
     tasks.unshift({
       id: uid(),
       name: item.name || 'Untitled',
-      project: PROJECTS[item.project] ? item.project : 'admin',
+      project: PROJECTS[item.project] ? item.project : 'overhead',
       priority: ['urgent','high','med','low'].includes(item.priority) ? item.priority : 'med',
       due: item.due || '',
       est: parseFloat(item.est) || 0,
