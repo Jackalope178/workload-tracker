@@ -6969,7 +6969,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
           <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}</span>
           <span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>
           <div class="ts-entry-actions" style="opacity:1;">
-            ${doneFn ? `<button class="row-edit-btn" onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="color:var(--success);font-size:13px;">✓</button>` : ''}
+            ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
           </div>
         `;
       } else {
@@ -7300,7 +7300,7 @@ function renderTimesheet() {
             <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${recurBadge}</span>
             <span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>
             <div class="ts-entry-actions" style="opacity:1;">
-              ${doneFn ? `<button class="row-edit-btn" onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="color:var(--success);font-size:13px;">✓</button>` : ''}
+              ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
               </div>
           `;
           container.appendChild(row);
