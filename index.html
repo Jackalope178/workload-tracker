@@ -4389,8 +4389,10 @@ function normDelegated(val) {
 }
 
 // Deterministic per-person color from name hash
+let _isLightTheme = false;
+function _updateThemeFlag() { _isLightTheme = document.documentElement.getAttribute('data-theme') === 'light'; }
 function personColor(name) {
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const isLight = _isLightTheme;
   if (name === 'Me') return isLight
     ? { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' }
     : { bg: '#1e2d3d', text: '#60a5fa', border: '#2563eb' };
@@ -4466,6 +4468,25 @@ function priorityBadge(p) {
   return `<span class="priority-badge ${cls}">${label}</span>`;
 }
 
+
+function computeWeekCapacity(wkStart, wkEnd) {
+  let planned = 0, done = 0;
+  // Use plannedItems() which already handles recurrence expansion correctly
+  const items = plannedItems(wkStart, wkEnd);
+  items.forEach(p => {
+    const t = tasks.find(t => t.id === p.id || p.id.startsWith(t.id + '_'));
+    const isCompleted = t ? t.completed : false;
+    if (isCompleted) done += (p.hours || 0);
+    else planned += (p.hours || 0);
+  });
+  // Completed items from the completed array (moved via completion modal)
+  completed.forEach(c => {
+    if (c.dateCompleted && c.dateCompleted >= wkStart && c.dateCompleted <= wkEnd) {
+      done += (c.actualHours || c.estHours || 0);
+    }
+  });
+  return { planned, done };
+}
 
 function renderTasks() {
   const search = document.getElementById('taskSearch')?.value?.toLowerCase() || '';
@@ -4554,58 +4575,8 @@ function renderTasks() {
     currentWeekDays.push(d);
   }
 
-  // ── capacity bar for this week (uses ALL tasks, unfiltered) ──
-  const allTasksThisWeek = tasks.filter(t => {
-    const d = t.due || '';
-    return d >= wkStart && d <= wkEnd;
-  });
-  // Planned hours: non-completed tasks (including recurring occurrences)
-  let wkPlanned = 0;
-  let wkDone = 0;
-  allTasksThisWeek.forEach(t => {
-    if (t.recurrence && t.recurrence.type) {
-      // Count each occurrence in this week
-      const skips = t.recurrence.skips || [];
-      const overrides = t.recurrence.overrides || {};
-      let cursor = t.due; let safety = 0;
-      while (cursor && cursor <= wkEnd && safety < 200) {
-        safety++;
-        if (!skips.includes(cursor)) {
-          const effDate = overrides[cursor] || cursor;
-          if (effDate >= wkStart && effDate <= wkEnd) {
-            if (t.completed) wkDone += (t.est || 0);
-            else wkPlanned += (t.est || 0);
-          }
-        }
-        cursor = nextRecurrenceAfter(t, cursor);
-        if (!cursor || cursor > wkEnd) break;
-      }
-    } else {
-      if (t.completed) wkDone += (t.est || 0);
-      else wkPlanned += (t.est || 0);
-    }
-  });
-  // Also count sessions/subtasks from bigProjs
-  bigProjs.forEach(proj => {
-    proj.sessions.forEach(s => {
-      if (s.date && s.date >= wkStart && s.date <= wkEnd) {
-        if (s.done) wkDone += (s.hours || 0);
-        else wkPlanned += (s.hours || 0);
-      }
-      (s.subtasks || []).forEach(st => {
-        if (st.date && st.date >= wkStart && st.date <= wkEnd) {
-          if (st.done) wkDone += (st.hours || 0);
-          else wkPlanned += (st.hours || 0);
-        }
-      });
-    });
-  });
-  // Also count completed items from the completed array (moved via completion modal)
-  completed.forEach(c => {
-    if (c.dateCompleted && c.dateCompleted >= wkStart && c.dateCompleted <= wkEnd) {
-      wkDone += (c.actualHours || c.estHours || 0);
-    }
-  });
+  // ── capacity bar for this week (uses ALL data, unfiltered by search/view) ──
+  const { planned: wkPlanned, done: wkDone } = computeWeekCapacity(wkStart, wkEnd);
 
   const wkTotal = wkPlanned + wkDone;
   const wkCap = workingDays(wkStart, wkEnd) * tsCapacity;
@@ -6142,14 +6113,20 @@ function reorderItemInSection(projKey, scId, targetType, targetId) {
   const [moved] = sectionItems.splice(srcIdx, 1);
   sectionItems.splice(tgtIdx, 0, moved);
 
-  // Assign sequential projSortOrder to all items
+  // Assign sequential projSortOrder — track which stores changed
+  let tasksChanged = false, bigProjsChanged = false, teamChanged = false;
   sectionItems.forEach((item, idx) => {
-    item.obj.projSortOrder = idx;
+    if (item.obj.projSortOrder !== idx) {
+      item.obj.projSortOrder = idx;
+      if (item.type === 'task') tasksChanged = true;
+      else if (item.type === 'team') teamChanged = true;
+      else bigProjsChanged = true;
+    }
   });
 
-  save('wt_tasks', tasks);
-  save('wt_bigprojs', bigProjs);
-  save('wt_team', teamItems);
+  if (tasksChanged) save('wt_tasks', tasks);
+  if (bigProjsChanged) save('wt_bigprojs', bigProjs);
+  if (teamChanged) save('wt_team', teamItems);
   renderProjCodeContent(projKey);
 }
 
@@ -8428,27 +8405,39 @@ function showAssignDropdown(e, projId, sessionId, subtaskId) {
 
 function _renderAssignDropdownItems() {
   const menu = document.getElementById('assignDropdown');
-  const persons = getPersonsForProject(_assignProjId);
-  const proj = bigProjs.find(p => p.id === _assignProjId);
-  const s = proj && proj.sessions.find(s => s.id === _assignSessionId);
-  let current;
-  if (_assignSubtaskId && s) {
-    const st = (s.subtasks || []).find(st => st.id === _assignSubtaskId);
-    current = normDelegated(st ? st.delegatedTo : null);
+  let current, personsList, onClickFn;
+  if (_assignTaskId) {
+    const task = tasks.find(t => t.id === _assignTaskId);
+    current = normDelegated(task ? task.delegatedTo : null);
+    personsList = PERSONS;
+    onClickFn = 'toggleTaskPersonAssignment';
   } else {
-    current = normDelegated(s ? s.delegatedTo : null);
+    const proj = bigProjs.find(p => p.id === _assignProjId);
+    const s = proj && proj.sessions.find(s => s.id === _assignSessionId);
+    if (_assignSubtaskId && s) {
+      const st = (s.subtasks || []).find(st => st.id === _assignSubtaskId);
+      current = normDelegated(st ? st.delegatedTo : null);
+    } else {
+      current = normDelegated(s ? s.delegatedTo : null);
+    }
+    personsList = getPersonsForProject(_assignProjId);
+    onClickFn = 'togglePersonAssignment';
   }
-  const allOptions = ['Me', ...persons];
+  _renderAssignOptions(menu, current, personsList, onClickFn);
+}
+
+function _renderAssignOptions(menu, current, personsList, onClickFn) {
+  const allOptions = ['Me', ...personsList];
   menu.innerHTML = allOptions.map(name => {
     const c = personColor(name);
     const checked = current.includes(name);
     const label = name === 'Me' ? '📌 Me' : name;
-    return `<div class="assign-dd-item" onclick="togglePersonAssignment('${name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="${checked ? `background:${c.bg};` : ''}">
+    return `<div class="assign-dd-item" onclick="${onClickFn}('${name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="${checked ? `background:${c.bg};` : ''}">
       <span class="assign-dd-check" style="${checked ? `color:${c.text};` : ''}">${checked ? '✓' : ''}</span>
       <span style="${checked ? `color:${c.text};font-weight:600;` : ''}">${label}</span>
     </div>`;
   }).join('');
-  if (!persons.length) {
+  if (!personsList.length) {
     menu.innerHTML += `<div class="assign-dd-empty" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;">No other persons. <a href="#" onclick="event.preventDefault();closeAssignDropdown();openManagePersonsModal();">Add people →</a></div>`;
   }
 }
@@ -8470,27 +8459,11 @@ function showTaskAssignDropdown(e, taskId) {
   e.stopPropagation();
   _assignTaskId = taskId;
   _assignProjId = null;
-  const task = tasks.find(t => t.id === taskId);
-  if (!task) return;
   const menu = document.getElementById('assignDropdown');
   const rect = e.currentTarget.getBoundingClientRect();
   menu.style.top  = (rect.bottom + 4) + 'px';
   menu.style.left = rect.left + 'px';
-
-  const current = normDelegated(task.delegatedTo);
-  const allOptions = ['Me', ...PERSONS];
-  menu.innerHTML = allOptions.map(name => {
-    const c = personColor(name);
-    const checked = current.includes(name);
-    const label = name === 'Me' ? '📌 Me' : name;
-    return `<div class="assign-dd-item" onclick="toggleTaskPersonAssignment('${name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="${checked ? `background:${c.bg};` : ''}">
-      <span class="assign-dd-check" style="${checked ? `color:${c.text};` : ''}">${checked ? '✓' : ''}</span>
-      <span style="${checked ? `color:${c.text};font-weight:600;` : ''}">${label}</span>
-    </div>`;
-  }).join('');
-  if (!PERSONS.length) {
-    menu.innerHTML += `<div class="assign-dd-empty" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;">No other persons. <a href="#" onclick="event.preventDefault();closeAssignDropdown();openManagePersonsModal();">Add people →</a></div>`;
-  }
+  _renderAssignDropdownItems();
   menu.classList.add('open');
 }
 
@@ -8505,20 +8478,7 @@ function toggleTaskPersonAssignment(name) {
   }
   task.delegatedTo = current.length ? current : null;
   save('wt_tasks', tasks);
-
-  // Re-render the dropdown items in place
-  const menu = document.getElementById('assignDropdown');
-  const updatedCur = normDelegated(task.delegatedTo);
-  const allOptions = ['Me', ...PERSONS];
-  menu.innerHTML = allOptions.map(n => {
-    const c = personColor(n);
-    const checked = updatedCur.includes(n);
-    const label = n === 'Me' ? '📌 Me' : n;
-    return `<div class="assign-dd-item" onclick="toggleTaskPersonAssignment('${n.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="${checked ? `background:${c.bg};` : ''}">
-      <span class="assign-dd-check" style="${checked ? `color:${c.text};` : ''}">${checked ? '✓' : ''}</span>
-      <span style="${checked ? `color:${c.text};font-weight:600;` : ''}">${label}</span>
-    </div>`;
-  }).join('');
+  _renderAssignDropdownItems();
   renderTasks();
 }
 
@@ -9259,6 +9219,7 @@ function applyTheme(theme) {
   } else {
     document.documentElement.removeAttribute('data-theme');
   }
+  _updateThemeFlag();
   const btn = document.getElementById('themeToggleBtn');
   if (btn) btn.textContent = theme === 'light' ? '🌙 Dark' : '☀ Light';
 }
