@@ -6626,9 +6626,14 @@ function getSelectedTeamOwners(containerId) {
 
 function openAddTeamModal() {
   populateProjectSelects();
+  document.getElementById('teamAddName').value = '';
   populateTeamOwnerPills('teamAddOwnerPills', []);
   populateSubCodeSelect('teamAddSubCode', document.getElementById('teamAddProject')?.value || '');
+  document.getElementById('teamAddDue').value = '';
+  document.getElementById('teamAddWaiting').value = '';
+  document.getElementById('teamAddNotes').value = '';
   document.getElementById('addTeamModal').classList.add('open');
+  setTimeout(() => document.getElementById('teamAddName').focus(), 80);
 }
 
 function closeAddTeamModal() {
