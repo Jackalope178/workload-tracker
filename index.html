@@ -669,7 +669,7 @@
   .subcode-section { margin-bottom: 20px; }
   .subcode-header {
     display: flex; align-items: center; gap: 8px; padding: 8px 10px;
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 6px 6px 0 0;
+    background: var(--bg2); border: 1px solid var(--border2); border-radius: 6px 6px 0 0;
     font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer;
   }
   .subcode-header:hover { background: var(--bg3); }
@@ -677,7 +677,7 @@
   .subcode-header .subcode-chevron.open { transform: rotate(90deg); }
   .subcode-count { font-size: 10px; font-weight: 400; color: var(--text3); margin-left: auto; }
   .subcode-body {
-    border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px;
+    border: 1px solid var(--border2); border-top: none; border-radius: 0 0 6px 6px;
     background: var(--bg); overflow: hidden;
   }
   .subcode-body.drag-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
@@ -699,7 +699,7 @@
 
   .proj-item-row {
     display: grid; grid-template-columns: 20px 1fr minmax(56px,auto) 70px 40px minmax(80px,auto) 90px;
-    gap: 8px; align-items: center; padding: 7px 14px; border-bottom: 1px solid var(--border);
+    gap: 8px; align-items: center; padding: 7px 14px; border-bottom: 1px solid var(--border2);
     font-size: 12px; transition: background 0.12s; cursor: grab;
   }
   .proj-item-row:last-child { border-bottom: none; }
@@ -5863,7 +5863,7 @@ function renderProjCodeContent(projKey) {
     const isCollapsed = collapsedSubSections.has(sectionKey);
 
     html += `<div class="subcode-section">
-      <div class="subcode-header" style="border-left:3px solid ${color};" onclick="toggleSubSection('${sectionKey}')">
+      <div class="subcode-header" style="border-top:3px solid ${color};" onclick="toggleSubSection('${sectionKey}')">
         <span class="subcode-chevron${isCollapsed ? '' : ' open'}">›</span>
         <span style="color:var(--text);">${sec.code ? '<span style="color:' + color + ';font-weight:700;">' + (proj.billingCode || '') + sec.code + '</span> — ' : ''}${sec.label}</span>
         <span class="subcode-count">${openCount} open / ${totalCount} total</span>
@@ -5881,7 +5881,7 @@ function renderProjCodeContent(projKey) {
         // Group by source (Big Project name or "My Tasks")
         let lastSrc = null;
         items.forEach(item => {
-          const src = item._type === 'task' ? 'My Tasks' : item._type === 'team' ? null : item._src;
+          const src = (item._type === 'task' || item._type === 'team') ? null : item._src;
           if (src && src !== lastSrc) {
             html += `<div class="proj-group-label">${src}</div>`;
             lastSrc = src;
