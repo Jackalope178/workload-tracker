@@ -118,6 +118,9 @@
     display: flex;
     padding: 0 20px;
     gap: 2px;
+    position: sticky;
+    top: 52px;
+    z-index: 99;
   }
 
   .tab {
@@ -1077,7 +1080,12 @@
     display: none;
     align-items: center;
     gap: 10px;
+    position: sticky;
+    top: 52px;
+    z-index: 99;
   }
+
+  .active-timer-strip.visible + .tabs { top: 81px; }
 
   .active-timer-strip.visible { display: flex; }
   .active-timer-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; animation: pulse 1s infinite; }
@@ -1792,8 +1800,9 @@
     .header-btn { padding: 6px 10px !important; font-size: 11px !important; min-height: 32px !important; }
 
     /* Scrollable tabs for narrow screens */
-    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 10px; gap: 0; }
+    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 10px; gap: 0; top: 48px; }
     .tabs::-webkit-scrollbar { display: none; }
+    .active-timer-strip.visible + .tabs { top: 77px; }
     .tab { padding: 10px 12px; font-size: 10px; flex-shrink: 0; }
 
     /* Toolbar — stack search full-width */
