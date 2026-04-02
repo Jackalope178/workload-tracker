@@ -3897,6 +3897,8 @@ function populateSubCodeSelect(selectId, projKey, currentVal) {
     el.appendChild(opt);
   });
   if (currentVal) el.value = currentVal;
+  // Auto-select when there's exactly one sub-code and no value was specified
+  else if (subs.length === 1) el.value = subs[0].id;
 }
 
 function addSubCode(projKey) {
@@ -5722,6 +5724,13 @@ function renderProjCodeContent(projKey) {
   if (!container) return;
   const proj = PROJECTS[projKey];
   if (!proj) { container.innerHTML = ''; return; }
+
+  // Auto-create a default sub-code if the project has none
+  if (!proj.subCodes || proj.subCodes.length === 0) {
+    if (!proj.subCodes) proj.subCodes = [];
+    proj.subCodes.push({ id: uid(), code: '1', label: proj.label || projKey });
+    saveProjects();
+  }
 
   const subCodes = getSubCodes(projKey);
   const color = proj.color || '#666';
