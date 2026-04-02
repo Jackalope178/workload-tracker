@@ -839,7 +839,7 @@
   /* TEAM TAB */
   .team-row {
     display: grid;
-    grid-template-columns: 1fr 90px 90px 8px 75px 90px 30px;
+    grid-template-columns: 1fr 90px 90px 8px 75px 105px 30px;
     gap: 8px;
     align-items: center;
     padding: 7px 10px;
@@ -860,7 +860,7 @@
 
   .team-table-header {
     display: grid;
-    grid-template-columns: 1fr 90px 90px 8px 75px 90px 30px;
+    grid-template-columns: 1fr 90px 90px 8px 75px 105px 30px;
     gap: 8px; padding: 3px 10px;
     font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--text3); background: var(--bg2); border-bottom: 1px solid var(--border);
@@ -906,10 +906,9 @@
   .team-person-status-summary { margin-left: auto; display: flex; gap: 6px; font-size: 10px; }
 
   .status-badge {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    padding: 2px 8px;
+    padding: 2px 6px;
     border-radius: 3px;
     cursor: pointer;
     white-space: nowrap;
@@ -1869,7 +1868,7 @@
 
     /* Priority and status badges — slightly larger for touch */
     .priority-badge { font-size: 10px; padding: 3px 8px; }
-    .status-badge { font-size: 10px; padding: 3px 8px; }
+    .status-badge { font-size: 9px; padding: 3px 6px; }
 
     /* Capacity bar area */
     .progress-bar-wrap { max-width: 100px; }
@@ -5976,7 +5975,7 @@ function renderProjItemRow(item, projKey, scId) {
       <div></div>
       <div class="session-date">${fmtDate(ti.due)}</div>
       <div class="session-hours">—</div>
-      <span class="status-badge ${STATUS_CLS[ti.status] || ''}" style="cursor:pointer;font-size:10px;white-space:nowrap;" onclick="event.stopPropagation();showStatusDropdown(event,'${ti.id}')">${STATUS_LABELS[ti.status] || ti.status}</span>
+      <span class="status-badge ${STATUS_CLS[ti.status] || ''}" style="cursor:pointer;white-space:nowrap;" onclick="event.stopPropagation();showStatusDropdown(event,'${ti.id}')">${STATUS_LABELS[ti.status] || ti.status}</span>
       <div></div>
     </div>`;
   }
