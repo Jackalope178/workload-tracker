@@ -4006,6 +4006,13 @@ const SEED_COMPLETED = [];
 let tasks     = load('wt_tasks',     null);
 let bigProjs  = load('wt_bigprojs',  null);
 let collapsedProjs = new Set(load('wt_collapsed_projs', []));
+let _collapsedTaskSections = new Set(load('wt_collapsed_task_sections', []));
+function _toggleTaskSection(sectionId) {
+  if (_collapsedTaskSections.has(sectionId)) _collapsedTaskSections.delete(sectionId);
+  else _collapsedTaskSections.add(sectionId);
+  save('wt_collapsed_task_sections', [..._collapsedTaskSections]);
+  renderTasks();
+}
 let _dragSrcProjId = null;
 
 // Projects tab state
@@ -4794,7 +4801,16 @@ function renderTasks() {
       <span>Timer</span>
     </div>`;
 
-    section.innerHTML = `<div class="task-group-header${headerCls ? ' ' + headerCls : ''}">${label} <span class="group-count">${items.length}</span></div>${capHtml}${colHeader}`;
+    const isSectionCollapsed = _collapsedTaskSections.has(sectionId);
+    const sectionChevron = `<span class="week-expand-chevron${isSectionCollapsed ? '' : ' open'}" style="cursor:pointer;margin-right:2px;">›</span>`;
+    section.innerHTML = `<div class="task-group-header${headerCls ? ' ' + headerCls : ''}" style="cursor:pointer;" onclick="_toggleTaskSection('${sectionId}')">${sectionChevron}${label} <span class="group-count">${items.length}</span></div>`;
+
+    if (isSectionCollapsed) {
+      container.appendChild(section);
+      return;
+    }
+
+    section.innerHTML += `${capHtml}${colHeader}`;
 
     const displayItems = curSort.key ? sortItems(items, curSort.key, curSort.dir) : items;
     displayItems.forEach(item => {
