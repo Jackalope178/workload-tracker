@@ -6879,6 +6879,11 @@ function _toggleTsSort(key) {
 function _sortTsItems(items) {
   const sorted = [...items];
   sorted.sort((a, b) => {
+    // Always group logged items first, planned (unlogged) items below
+    const aLogged = a._isLogged ? 0 : 1;
+    const bLogged = b._isLogged ? 0 : 1;
+    if (aLogged !== bLogged) return aLogged - bLogged;
+
     let va, vb;
     if (_tsSortKey === 'project') {
       va = projLabel(a.project) + (a.subCode || '');
@@ -6973,7 +6978,18 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
     if (isDayCollapsed) return;
 
     const items = _sortTsItems(rawItems);
+    const hasLogged = items.some(i => i._isLogged);
+    const hasPlanned = items.some(i => i._isPlanned);
+    let passedDivider = false;
     items.forEach(item => {
+      // Insert divider between logged and planned groups
+      if (!passedDivider && hasLogged && hasPlanned && item._isPlanned) {
+        passedDivider = true;
+        const div = document.createElement('div');
+        div.style.cssText = 'padding-left:32px;display:flex;align-items:center;gap:8px;padding-top:4px;padding-bottom:4px;';
+        div.innerHTML = '<div style="flex:1;border-top:1px dashed var(--border2);"></div><span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Outstanding</span><div style="flex:1;border-top:1px dashed var(--border2);"></div>';
+        wrap.appendChild(div);
+      }
       const row = document.createElement('div');
       row.className = 'ts-entry-row';
       row.style.paddingLeft = '32px';
