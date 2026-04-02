@@ -7435,8 +7435,8 @@ function openAddTsEntryModal() {
   document.getElementById('tsEntryActual').value = '';
   document.getElementById('tsEntryDeleteBtn').style.display = 'none';
   populateProjectSelects();
-  const firstProj = Object.keys(PROJECTS)[0] || '';
-  populateSubCodeSelect('tsEntrySubCode', firstProj);
+  const selProj = document.getElementById('tsEntryProject').value || '';
+  populateSubCodeSelect('tsEntrySubCode', selProj);
   document.getElementById('tsEntryModal').classList.add('open');
 }
 
