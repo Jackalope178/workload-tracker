@@ -7028,13 +7028,31 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
     const hasLogged = items.some(i => i._isLogged);
     const hasPlanned = items.some(i => i._isPlanned);
     let passedDivider = false;
+
+    // Helper: build a small inline meter bar
+    function tsMeterHtml(hours, label, cap) {
+      const pct = cap > 0 ? Math.min(Math.round((hours / cap) * 100), 100) : 0;
+      const cls = cap > 0 && hours > cap ? 'over' : cap > 0 && hours > cap * 0.8 ? 'warn' : 'ok';
+      return `<div style="display:flex;align-items:center;gap:6px;min-width:140px;">
+        <div class="ts-cap-bar-wrap" style="width:60px;margin-top:0;flex-shrink:0;"><div class="ts-cap-bar-fill ${cls}" style="width:${pct}%;"></div></div>
+        <span style="font-size:9px;color:var(--text3);white-space:nowrap;">${fmtQ(hours)}h ${label}</span>
+      </div>`;
+    }
+
     items.forEach(item => {
-      // Insert divider between logged and planned groups
-      if (!passedDivider && hasLogged && hasPlanned && item._isPlanned) {
+      // Insert logged meter + outstanding divider between logged and planned groups
+      if (!passedDivider && hasLogged && item._isPlanned) {
         passedDivider = true;
+        // Logged meter
+        const logMeter = document.createElement('div');
+        logMeter.style.cssText = 'padding:4px 32px;display:flex;align-items:center;justify-content:flex-end;';
+        logMeter.innerHTML = tsMeterHtml(dayLogged, 'logged', dayCap);
+        wrap.appendChild(logMeter);
+        // Outstanding divider with planned meter
         const div = document.createElement('div');
         div.style.cssText = 'padding-left:32px;display:flex;align-items:center;gap:8px;padding-top:4px;padding-bottom:4px;';
-        div.innerHTML = '<div style="flex:1;border-top:1px dashed var(--border2);"></div><span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Outstanding</span><div style="flex:1;border-top:1px dashed var(--border2);"></div>';
+        div.innerHTML = '<div style="flex:1;border-top:1px dashed var(--border2);"></div><span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Outstanding</span><div style="flex:1;border-top:1px dashed var(--border2);"></div>'
+          + tsMeterHtml(dayPlanned, 'planned', dayCap);
         wrap.appendChild(div);
       }
       const row = document.createElement('div');
@@ -7076,6 +7094,13 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
       }
       wrap.appendChild(row);
     });
+    // If only logged items (no planned), show logged meter at the end
+    if (hasLogged && !hasPlanned) {
+      const logMeter = document.createElement('div');
+      logMeter.style.cssText = 'padding:4px 32px;display:flex;align-items:center;justify-content:flex-end;';
+      logMeter.innerHTML = tsMeterHtml(dayLogged, 'logged', dayCap);
+      wrap.appendChild(logMeter);
+    }
   });
 
   if (!hasAny) {
