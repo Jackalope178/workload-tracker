@@ -987,6 +987,7 @@
   }
   .ts-entry-row:hover { background: var(--bg3); }
   .ts-entry-row:hover .ts-entry-actions { opacity: 1; }
+  .ts-group-header { background: var(--bg2); border-bottom: 1px solid var(--border2); }
   .ts-entry-name { font-size: 12px; color: var(--text); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ts-entry-name:hover { color: var(--accent); }
   .ts-entry-planned { color: var(--text3); font-style: italic; }
@@ -7039,68 +7040,118 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
       </div>`;
     }
 
-    items.forEach(item => {
-      // Insert logged meter + outstanding divider between logged and planned groups
-      if (!passedDivider && hasLogged && item._isPlanned) {
-        passedDivider = true;
-        // Logged meter
-        const logMeter = document.createElement('div');
-        logMeter.style.cssText = 'padding:4px 32px;display:flex;align-items:center;justify-content:flex-end;';
-        logMeter.innerHTML = tsMeterHtml(dayLogged, 'logged', dayCap);
-        wrap.appendChild(logMeter);
-        // Outstanding divider with planned meter
-        const div = document.createElement('div');
-        div.style.cssText = 'padding-left:32px;display:flex;align-items:center;gap:8px;padding-top:4px;padding-bottom:4px;';
-        div.innerHTML = '<div style="flex:1;border-top:1px dashed var(--border2);"></div><span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Outstanding</span><div style="flex:1;border-top:1px dashed var(--border2);"></div>'
-          + tsMeterHtml(dayPlanned, 'planned', dayCap);
-        wrap.appendChild(div);
+    // ── Render logged entries grouped by code+subcode with subtotals ──
+    const loggedItems = items.filter(i => i._isLogged);
+    const plannedItems_ = items.filter(i => i._isPlanned);
+
+    // Group logged items by project+subCode key (already sorted adjacently by _sortTsItems)
+    const loggedGroups = [];
+    let curGroupKey = null, curGroup = null;
+    loggedItems.forEach(item => {
+      const gk = (item.project || '') + '|' + (item.subCode || '');
+      if (gk !== curGroupKey) {
+        curGroupKey = gk;
+        curGroup = [];
+        loggedGroups.push(curGroup);
       }
-      const row = document.createElement('div');
-      row.className = 'ts-entry-row';
-      row.style.paddingLeft = '32px';
-      const parentCode = projBillingCode(item.project) || projLabel(item.project);
-      const scLabel = item.subCode ? getSubCodeLabel(item.project, item.subCode) : '';
-      const fullCode = item.subCode ? getFullCode(item.project, item.subCode) : '';
-      if (item._isPlanned) {
-        const taskObj = tasks.find(t => t.id === item.id || (item.id || '').startsWith(t.id + '_'));
-        let editFn = '';
-        if (item._src === 'task' && taskObj) editFn = `openEditModal('${taskObj.id}')`;
-        else if (item._src === 'session' && item._projId) editFn = `openEditSessionModal('${item._projId}','${item.id}')`;
-        else if (item._src === 'subtask' && item._projId) editFn = `openEditSubtaskModal('${item._projId}','${item._sessionId}','${item.id}')`;
-        // Mark-done button
-        let doneFn = '';
-        if (item._src === 'task' && taskObj) doneFn = `openCompletionModal('${taskObj.id}')`;
-        else if (item._src === 'session') doneFn = `openSessionCompletionModal('${item._projId}','${item.id}')`;
-        else if (item._src === 'subtask') doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${item.id}')`;
-        row.innerHTML = `
-          <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
-          <span class="ts-entry-subcode">${scLabel || '—'}</span>
-          <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}</span>
-          <span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>
-          <div class="ts-entry-actions" style="opacity:1;">
-            ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
-          </div>
-        `;
-      } else {
-        row.innerHTML = `
-          <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
-          <span class="ts-entry-subcode">${scLabel || '—'}</span>
-          <span class="ts-entry-name" onclick="openEditTsEntry('${item.id}')">${item.name}</span>
-          <span class="ts-entry-hours">${item.actualHours}h</span>
-          <div class="ts-entry-actions">
-            <button class="row-edit-btn" onclick="deleteTsEntry('${item.id}')" title="Delete" style="color:var(--danger);">×</button>
-          </div>
-        `;
-      }
-      wrap.appendChild(row);
+      curGroup.push(item);
     });
-    // If only logged items (no planned), show logged meter at the end
-    if (hasLogged && !hasPlanned) {
+
+    // Render each logged group
+    loggedGroups.forEach(group => {
+      const first = group[0];
+      const parentCode = projBillingCode(first.project) || projLabel(first.project);
+      const scLabel = first.subCode ? getSubCodeLabel(first.project, first.subCode) : '';
+      const isMulti = group.length > 1;
+
+      if (isMulti) {
+        // Subtotal header for groups with 2+ entries
+        const subtotal = group.reduce((a, i) => a + (i.actualHours || 0), 0);
+        const grpHdr = document.createElement('div');
+        grpHdr.className = 'ts-entry-row ts-group-header';
+        grpHdr.style.paddingLeft = '32px';
+        grpHdr.innerHTML = `
+          <span class="ts-entry-code" title="${projLabel(first.project)}" style="font-weight:700;">${parentCode}</span>
+          <span class="ts-entry-subcode" style="font-weight:700;">${scLabel || '—'}</span>
+          <span style="font-size:11px;color:var(--text3);">${group.length} entries</span>
+          <span class="ts-entry-hours" style="font-weight:800;">${fmtQ(subtotal)}h</span>
+          <div></div>
+        `;
+        wrap.appendChild(grpHdr);
+      }
+
+      group.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'ts-entry-row';
+        row.style.paddingLeft = '32px';
+        if (isMulti) {
+          // Indented child row — no code/subcode columns, task name spans wider
+          row.innerHTML = `
+            <span></span>
+            <span></span>
+            <span class="ts-entry-name" onclick="openEditTsEntry('${item.id}')">${item.name}</span>
+            <span class="ts-entry-hours">${item.actualHours}h</span>
+            <div class="ts-entry-actions">
+              <button class="row-edit-btn" onclick="deleteTsEntry('${item.id}')" title="Delete" style="color:var(--danger);">×</button>
+            </div>
+          `;
+        } else {
+          row.innerHTML = `
+            <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
+            <span class="ts-entry-subcode">${scLabel || '—'}</span>
+            <span class="ts-entry-name" onclick="openEditTsEntry('${item.id}')">${item.name}</span>
+            <span class="ts-entry-hours">${item.actualHours}h</span>
+            <div class="ts-entry-actions">
+              <button class="row-edit-btn" onclick="deleteTsEntry('${item.id}')" title="Delete" style="color:var(--danger);">×</button>
+            </div>
+          `;
+        }
+        wrap.appendChild(row);
+      });
+    });
+
+    // ── Logged meter + Outstanding divider ──
+    if (hasLogged) {
       const logMeter = document.createElement('div');
       logMeter.style.cssText = 'padding:4px 32px;display:flex;align-items:center;justify-content:flex-end;';
       logMeter.innerHTML = tsMeterHtml(dayLogged, 'logged', dayCap);
       wrap.appendChild(logMeter);
     }
+    if (hasLogged && hasPlanned) {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding-left:32px;display:flex;align-items:center;gap:8px;padding-top:4px;padding-bottom:4px;';
+      div.innerHTML = '<div style="flex:1;border-top:1px dashed var(--border2);"></div><span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Outstanding</span><div style="flex:1;border-top:1px dashed var(--border2);"></div>'
+        + tsMeterHtml(dayPlanned, 'planned', dayCap);
+      wrap.appendChild(div);
+    }
+
+    // ── Render planned (outstanding) entries ──
+    plannedItems_.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'ts-entry-row';
+      row.style.paddingLeft = '32px';
+      const parentCode = projBillingCode(item.project) || projLabel(item.project);
+      const scLabel = item.subCode ? getSubCodeLabel(item.project, item.subCode) : '';
+      const taskObj = tasks.find(t => t.id === item.id || (item.id || '').startsWith(t.id + '_'));
+      let editFn = '';
+      if (item._src === 'task' && taskObj) editFn = `openEditModal('${taskObj.id}')`;
+      else if (item._src === 'session' && item._projId) editFn = `openEditSessionModal('${item._projId}','${item.id}')`;
+      else if (item._src === 'subtask' && item._projId) editFn = `openEditSubtaskModal('${item._projId}','${item._sessionId}','${item.id}')`;
+      let doneFn = '';
+      if (item._src === 'task' && taskObj) doneFn = `openCompletionModal('${taskObj.id}')`;
+      else if (item._src === 'session') doneFn = `openSessionCompletionModal('${item._projId}','${item.id}')`;
+      else if (item._src === 'subtask') doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${item.id}')`;
+      row.innerHTML = `
+        <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
+        <span class="ts-entry-subcode">${scLabel || '—'}</span>
+        <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}</span>
+        <span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>
+        <div class="ts-entry-actions" style="opacity:1;">
+          ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
+        </div>
+      `;
+      wrap.appendChild(row);
+    });
   });
 
   if (!hasAny) {
