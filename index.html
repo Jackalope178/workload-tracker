@@ -6338,7 +6338,7 @@ function renderTeam() {
       delegatedItems.push({
         id: s.id + '_delegated',
         name: s.desc, owners: people, owner: people.join(', '), project: proj.project,
-        due: s.date, status: s.status || (s.done ? 'complete' : 'not-started'),
+        due: s.date, status: s.status || (s.done ? 'complete' : 'need-delegate'),
         _delegated: true, _projId: proj.id, _sessionId: s.id
       });
       // Also include subtasks with delegation
@@ -6363,7 +6363,7 @@ function renderTeam() {
     delegatedTasks.push({
       id: t.id + '_taskdel',
       name: t.name, owners: people, owner: people.join(', '), project: t.project,
-      due: t.due, status: t.completed ? 'complete' : (t.status || 'in-progress'),
+      due: t.due, status: t.completed ? 'complete' : (t.status || 'need-delegate'),
       _taskDelegated: true, _taskId: t.id
     });
   });
