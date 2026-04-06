@@ -162,8 +162,9 @@
     top: 90px;
     z-index: 98;
     background: var(--bg);
-    padding: 10px 0;
-    margin-bottom: 0;
+    padding: 10px 20px;
+    margin: 0 -20px;
+    border-bottom: 1px solid var(--border);
   }
 
   .search-box {
@@ -1101,6 +1102,8 @@
   }
 
   .active-timer-strip.visible + .tabs { top: 81px; }
+  .active-timer-strip.visible ~ .main #panel-tasks > .toolbar,
+  .active-timer-strip.visible ~ .main #panel-timesheet > .toolbar { top: 119px; }
 
   .active-timer-strip.visible { display: flex; }
   .active-timer-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; animation: pulse 1s infinite; }
@@ -1795,6 +1798,10 @@
     .alloc-table th, .alloc-table td { padding: 4px 5px; }
     .alloc-container { -webkit-overflow-scrolling: touch; }
 
+    /* Sticky toolbar — match .main padding at this breakpoint */
+    #panel-tasks > .toolbar,
+    #panel-timesheet > .toolbar { margin: 0 -14px; padding-left: 14px; padding-right: 14px; }
+
     /* Timesheet grids — slightly tighter */
     .ts-month-row { grid-template-columns: 110px minmax(80px, 200px) 1fr 18px; }
     .ts-week-row { grid-template-columns: 120px minmax(60px, 180px) 1fr 16px; }
@@ -1819,7 +1826,9 @@
     .tabs::-webkit-scrollbar { display: none; }
     .active-timer-strip.visible + .tabs { top: 77px; }
     #panel-tasks > .toolbar,
-    #panel-timesheet > .toolbar { top: 84px; }
+    #panel-timesheet > .toolbar { top: 84px; margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
+    .active-timer-strip.visible ~ .main #panel-tasks > .toolbar,
+    .active-timer-strip.visible ~ .main #panel-timesheet > .toolbar { top: 113px; }
     .tab { padding: 10px 12px; font-size: 10px; flex-shrink: 0; }
 
     /* Toolbar — stack search full-width */
