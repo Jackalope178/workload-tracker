@@ -8413,8 +8413,8 @@ function showDropdown(anchorEl, items, currentVal, callback) {
       ${it.swatch ? `<span class="dd-swatch" style="background:${it.swatch}"></span>` : ''}${it.label}
     </div>`
   ).join('');
-  // Position below anchor, flip up if off-screen
-  let top = rect.bottom + window.scrollY + 4;
+  // Position below anchor (fixed positioning — use viewport coords, no scrollY)
+  let top = rect.bottom + 4;
   const left = Math.min(rect.left, window.innerWidth - 160);
   menu.style.left = left + 'px';
   menu.style.top = top + 'px';
@@ -8424,7 +8424,7 @@ function showDropdown(anchorEl, items, currentVal, callback) {
   requestAnimationFrame(() => {
     const mRect = menu.getBoundingClientRect();
     if (mRect.bottom > window.innerHeight - 8) {
-      menu.style.top = (rect.top + window.scrollY - mRect.height - 4) + 'px';
+      menu.style.top = (rect.top - mRect.height - 4) + 'px';
     }
   });
 }
