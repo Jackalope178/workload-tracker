@@ -8387,6 +8387,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    localStorage.setItem('wt_active_tab', tab.dataset.tab);
   });
 });
 
@@ -8458,6 +8459,19 @@ function initApp() {
     _ensureTickerRunning();
     updateActiveStrip();
     applyTheme(getTheme());
+
+    // Restore last active tab on refresh
+    const savedTab = localStorage.getItem('wt_active_tab');
+    if (savedTab) {
+      const tabEl = document.querySelector(`.tab[data-tab="${savedTab}"]`);
+      const panelEl = document.getElementById('panel-' + savedTab);
+      if (tabEl && panelEl) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tabEl.classList.add('active');
+        panelEl.classList.add('active');
+      }
+    }
   } catch(e) {
     console.error('initApp crashed:', e);
     // Ensure the app is at least visible
@@ -8481,6 +8495,21 @@ updateHeaderMeta();
 // Resume all running timers on page reload
 _ensureTickerRunning();
 updateActiveStrip();
+
+// Restore last active tab on refresh (first-time / offline init)
+(function() {
+  const savedTab = localStorage.getItem('wt_active_tab');
+  if (savedTab) {
+    const tabEl = document.querySelector(`.tab[data-tab="${savedTab}"]`);
+    const panelEl = document.getElementById('panel-' + savedTab);
+    if (tabEl && panelEl) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tabEl.classList.add('active');
+      panelEl.classList.add('active');
+    }
+  }
+})();
 
 // Update header meta periodically
 setInterval(updateHeaderMeta, 5000);
