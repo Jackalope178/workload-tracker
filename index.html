@@ -3895,6 +3895,8 @@ async function loadFromSupabase() {
     if (data && data.length > 0) {
       data.forEach(row => {
         try {
+          // Only load keys we recognize — skip stale cloud keys
+          if (!SYNC_KEYS.includes(row.key)) return;
           const cloudTime = row.updated_at ? new Date(row.updated_at).getTime() : 0;
           const localTime = _getLocalTimestamp(row.key);
           // Cloud wins if it's newer or local has no timestamp
@@ -3971,6 +3973,7 @@ async function syncToCloud() {
 let _appInitialized = false;
 
 async function boot() {
+  try {
   applyTheme(getThemePreBoot());
 
   // Enter-key support for auth forms
@@ -4027,6 +4030,13 @@ async function boot() {
     // No Supabase JS available at all — offline mode
     _isOffline = true;
     showApp();
+  }
+  } catch (e) {
+    console.error('boot() crashed:', e);
+    // Ensure app is visible even if boot fails
+    document.getElementById('appWrapper').style.display = '';
+    document.getElementById('authScreen').style.display = 'none';
+    initApp();
   }
 }
 
