@@ -909,6 +909,28 @@
     display: inline-block; background: rgba(248,113,113,0.15); color: var(--danger);
     font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-left: 6px;
   }
+  .subcode-label-clickable {
+    cursor: pointer; border-radius: 3px; padding: 1px 4px; margin: -1px -4px;
+    transition: background 0.1s;
+  }
+  .subcode-label-clickable:hover { background: var(--bg3); }
+  .sc-popup {
+    position: fixed; z-index: 10001;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: 0 4px 16px #0004;
+    padding: 12px 14px; width: 280px;
+    font-size: 12px;
+  }
+  .sc-popup-title { font-weight: 700; color: var(--text); margin-bottom: 10px; font-size: 13px; }
+  .sc-popup-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .sc-popup-row label { font-size: 11px; color: var(--text3); min-width: 50px; }
+  .sc-popup-row input, .sc-popup-row select {
+    flex: 1; font-size: 11px; padding: 4px 8px;
+    border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg); color: var(--text);
+  }
+  .sc-popup-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .sc-popup-actions .btn { font-size: 10px; padding: 4px 10px; }
   .subcode-body {
     border: 1px solid var(--border2); border-top: none; border-radius: 0 0 6px 6px;
     background: var(--bg); overflow: hidden;
@@ -2983,6 +3005,24 @@ if (typeof XLSX === 'undefined') {
 
 <!-- FLOATING DROPDOWN (shared for priority & status) -->
 <div id="dropdownMenu" class="dropdown-menu"></div>
+
+<!-- SUBCODE ACTION POPUP -->
+<div id="scActionPopup" class="sc-popup" style="display:none;">
+  <div class="sc-popup-title" id="scPopupTitle"></div>
+  <div class="sc-popup-row">
+    <label>Rename</label>
+    <input type="text" id="scPopupRename" placeholder="Sub-code name">
+  </div>
+  <div class="sc-popup-row">
+    <label>Merge into</label>
+    <select id="scPopupMergeTarget"><option value="">— keep separate —</option></select>
+  </div>
+  <div class="sc-popup-actions">
+    <button class="btn primary" onclick="_scPopupSave()">Save</button>
+    <button class="btn" onclick="_scPopupClose()">Cancel</button>
+    <button class="btn" onclick="_scPopupDelete()" style="margin-left:auto;color:var(--danger);border-color:var(--danger);">Delete</button>
+  </div>
+</div>
 
 <!-- FLOATING ASSIGN DROPDOWN (multi-select for session delegation) -->
 <div id="assignDropdown" class="assign-dropdown"></div>
@@ -6486,7 +6526,7 @@ function renderProjCodeContent(projKey) {
     html += `<div class="subcode-section">
       <div class="subcode-header" style="border-top:3px solid ${color};" onclick="toggleSubSection('${sectionKey}')">
         <span class="subcode-chevron${isCollapsed ? '' : ' open'}">›</span>
-        <span style="color:var(--text);">${sec.code ? '<span style="color:' + color + ';font-weight:700;">' + (proj.billingCode || '') + sec.code + '</span> — ' : ''}${sec.label}</span>
+        <span style="color:var(--text);">${sec.code ? '<span style="color:' + color + ';font-weight:700;">' + (proj.billingCode || '') + sec.code + '</span> — ' : ''}${sec.scId ? `<span class="subcode-label-clickable" onclick="event.stopPropagation();_openScPopup(event,'${projKey}','${sec.scId}')">${sec.label}</span>` : sec.label}</span>
         ${meterHtml}
         <span class="subcode-count">${openCount} open / ${totalCount} total</span>
       </div>`;
@@ -8571,6 +8611,28 @@ function _ensureSubCode(projKey, code, label) {
   return newId;
 }
 
+// ── Duplicate decision memory ──
+// Stores pairs the user has already reviewed: { "keyA|keyB": "keep" | "merge" }
+let _dupDecisions = load('wt_dup_decisions', {});
+
+function _dupPairKey(a, b) {
+  return [a, b].sort().join('||');
+}
+
+function _rememberDupDecision(a, b, target, action) {
+  _dupDecisions[_dupPairKey(a, b)] = { action, target, at: Date.now() };
+  save('wt_dup_decisions', _dupDecisions);
+}
+
+function _isDupDismissed(a, b) {
+  return !!_dupDecisions[_dupPairKey(a, b)];
+}
+
+function _dismissDup(a, b) {
+  _rememberDupDecision(a, b, null, 'keep');
+  showSyncToast('Noted — won\'t flag this pair again.', 'success');
+}
+
 // ── Duplicate detection ──
 
 function _findDuplicateProjects() {
@@ -8578,6 +8640,7 @@ function _findDuplicateProjects() {
   const keys = Object.keys(PROJECTS);
   for (let i = 0; i < keys.length; i++) {
     for (let j = i + 1; j < keys.length; j++) {
+      if (_isDupDismissed(keys[i], keys[j])) continue;
       const a = PROJECTS[keys[i]], b = PROJECTS[keys[j]];
       const na = _normLabel(a.label), nb = _normLabel(b.label);
       const ca = _normBillingCode(a.billingCode), cb = _normBillingCode(b.billingCode);
@@ -8596,6 +8659,7 @@ function _findDuplicateSubCodes() {
     const scs = proj.subCodes || [];
     for (let i = 0; i < scs.length; i++) {
       for (let j = i + 1; j < scs.length; j++) {
+        if (_isDupDismissed(projKey + ':' + scs[i].id, projKey + ':' + scs[j].id)) continue;
         const na = _normLabel(scs[i].label), nb = _normLabel(scs[j].label);
         if (na && nb && na.length >= 4 && (na === nb || na.includes(nb) || nb.includes(na))) {
           dupes.push({ projKey, aId: scs[i].id, bId: scs[j].id, a: scs[i], b: scs[j] });
@@ -8649,6 +8713,7 @@ function _mergeProjects(keepKey, removeKey) {
   populateProjectSelects();
   renderAllocations();
   renderProjects();
+  _rememberDupDecision(keepKey, removeKey, keepKey, 'merge');
   showSyncToast(`Merged "${PROJECTS[keepKey]?.label}" — duplicate removed.`, 'success');
 }
 
@@ -8695,7 +8760,111 @@ function _mergeSubCodes(projKey, keepId, removeId) {
   renderProjects();
 
   const kept = (proj.subCodes || []).find(s => s.id === keepId);
+  _rememberDupDecision(projKey + ':' + keepId, projKey + ':' + removeId, keepId, 'merge');
   showSyncToast(`Merged sub-codes in ${proj.label} — kept "${kept?.label}".`, 'success');
+}
+
+// ── Subcode action popup ──
+let _scPopupState = null;
+
+function _openScPopup(event, projKey, scId) {
+  const proj = PROJECTS[projKey];
+  if (!proj) return;
+  const sc = (proj.subCodes || []).find(s => s.id === scId);
+  if (!sc) return;
+
+  _scPopupState = { projKey, scId };
+  const popup = document.getElementById('scActionPopup');
+  document.getElementById('scPopupTitle').textContent = sc.label;
+  document.getElementById('scPopupRename').value = sc.label;
+
+  // Populate merge dropdown with other subcodes in same project
+  const select = document.getElementById('scPopupMergeTarget');
+  select.innerHTML = '<option value="">— keep separate —</option>';
+  (proj.subCodes || []).forEach(s => {
+    if (s.id !== scId) {
+      select.innerHTML += `<option value="${s.id}">${s.label}</option>`;
+    }
+  });
+
+  // Position near click
+  const rect = event.target.getBoundingClientRect();
+  popup.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  popup.style.display = '';
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', _scPopupOutsideClick);
+  }, 0);
+}
+
+function _scPopupOutsideClick(e) {
+  const popup = document.getElementById('scActionPopup');
+  if (!popup.contains(e.target)) _scPopupClose();
+}
+
+function _scPopupClose() {
+  document.getElementById('scActionPopup').style.display = 'none';
+  document.removeEventListener('click', _scPopupOutsideClick);
+  _scPopupState = null;
+}
+
+function _scPopupSave() {
+  if (!_scPopupState) return;
+  const { projKey, scId } = _scPopupState;
+  const mergeTarget = document.getElementById('scPopupMergeTarget').value;
+  const newName = document.getElementById('scPopupRename').value.trim();
+
+  if (mergeTarget) {
+    // Merge into target
+    _mergeSubCodes(projKey, mergeTarget, scId);
+    // Remember this merge decision
+    _rememberDupDecision(projKey, scId, mergeTarget, 'merge');
+  } else if (newName) {
+    // Just rename
+    const proj = PROJECTS[projKey];
+    const sc = (proj?.subCodes || []).find(s => s.id === scId);
+    if (sc && sc.label !== newName) {
+      sc.label = newName;
+      saveProjects();
+      renderProjects();
+    }
+  }
+  _scPopupClose();
+}
+
+function _scPopupDelete() {
+  if (!_scPopupState) return;
+  const { projKey, scId } = _scPopupState;
+  _scPopupClose();
+  // Use existing delete with undo
+  const proj = PROJECTS[projKey];
+  if (!proj) return;
+  const sc = (proj.subCodes || []).find(s => s.id === scId);
+  if (!sc) return;
+  const snap = JSON.parse(JSON.stringify(sc));
+  _performDelete(`Sub-code "${sc.label}" deleted`, () => {
+    proj.subCodes = (proj.subCodes || []).filter(s => s.id !== scId);
+    // Move items to unassigned
+    tasks.forEach(t => { if (t.project === projKey && t.subCode === scId) t.subCode = ''; });
+    bigProjs.forEach(bp => {
+      if (bp.project === projKey) {
+        bp.sessions.forEach(s => {
+          if (s.subCode === scId) s.subCode = '';
+          (s.subtasks || []).forEach(st => { if (st.subCode === scId) st.subCode = ''; });
+        });
+      }
+    });
+    teamItems.forEach(ti => { if (ti.project === projKey && ti.subCode === scId) ti.subCode = ''; });
+    save('wt_tasks', tasks); save('wt_bigprojs', bigProjs); save('wt_team', teamItems);
+    saveProjects(); renderProjects(); renderTasks();
+  }, () => {
+    proj.subCodes.push(snap);
+    // Restore item assignments
+    tasks.forEach(t => { if (t.project === projKey && t.subCode === '') t.subCode = scId; });
+    saveProjects(); save('wt_tasks', tasks); renderProjects(); renderTasks();
+  });
 }
 
 let _allocImportUndo = null;
@@ -8889,19 +9058,25 @@ function handleAllocImport(event) {
       if (hasDetails) {
         detailHtml = `<div id="allocImportDetails" style="display:none;margin-top:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;max-height:300px;overflow-y:auto;">`;
         if (dupeProjects.length || dupeSubs.length) {
-          detailHtml += `<div style="font-weight:700;margin-bottom:4px;color:var(--warn);">Possible Duplicates — click Merge to combine:</div>`;
+          detailHtml += `<div style="font-weight:700;margin-bottom:4px;color:var(--warn);">Possible Duplicates — Merge or dismiss:</div>`;
           dupeProjects.forEach(d => {
-            detailHtml += `<div style="padding:3px 0;display:flex;align-items:center;gap:6px;">
+            detailHtml += `<div style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span style="color:var(--warn);">⚠</span>
               <span>Project: "<strong>${d.a.label}</strong>" and "<strong>${d.b.label}</strong>"</span>
-              <button class="btn" onclick="_mergeProjects('${d.aKey}','${d.bKey}')" style="font-size:9px;padding:2px 8px;margin-left:auto;">Merge</button>
+              <span style="margin-left:auto;display:flex;gap:4px;">
+                <button class="btn" onclick="_mergeProjects('${d.aKey}','${d.bKey}')" style="font-size:9px;padding:2px 8px;">Merge</button>
+                <button class="btn" onclick="_dismissDup('${d.aKey}','${d.bKey}');this.closest('div').remove();" style="font-size:9px;padding:2px 8px;color:var(--text3);">Not a duplicate</button>
+              </span>
             </div>`;
           });
           dupeSubs.forEach(d => {
-            detailHtml += `<div style="padding:3px 0;display:flex;align-items:center;gap:6px;">
+            detailHtml += `<div style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span style="color:var(--warn);">⚠</span>
               <span>${PROJECTS[d.projKey]?.label}: "<strong>${d.a.label}</strong>" and "<strong>${d.b.label}</strong>"</span>
-              <button class="btn" onclick="_mergeSubCodes('${d.projKey}','${d.aId}','${d.bId}')" style="font-size:9px;padding:2px 8px;margin-left:auto;">Merge</button>
+              <span style="margin-left:auto;display:flex;gap:4px;">
+                <button class="btn" onclick="_mergeSubCodes('${d.projKey}','${d.aId}','${d.bId}')" style="font-size:9px;padding:2px 8px;">Merge</button>
+                <button class="btn" onclick="_dismissDup('${d.projKey}:${d.aId}','${d.projKey}:${d.bId}');this.closest('div').remove();" style="font-size:9px;padding:2px 8px;color:var(--text3);">Not a duplicate</button>
+              </span>
             </div>`;
           });
         }
