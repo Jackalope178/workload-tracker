@@ -3853,7 +3853,7 @@ const SYNC_KEYS = [
   'wt_collapsed_projs', 'wt_team_group_person', 'wt_ts_capacity',
   'wt_theme', 'wt_api_key',
   'wt_dup_decisions', 'wt_stale_subcodes',
-  'wt_onboarded', 'wt_xlsx_alloc_imported', 'wt_active_tab'
+  'wt_onboarded', 'wt_xlsx_alloc_imported'
 ];
 
 async function cloudSave(key, data) {
@@ -9588,7 +9588,7 @@ function _switchTab(tab) {
   tab.setAttribute('aria-selected', 'true');
   tab.setAttribute('tabindex', '0');
   document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
-  save('wt_active_tab', tab.dataset.tab);
+  localStorage.setItem('wt_active_tab', tab.dataset.tab);
   // Update help panel context if open
   if (document.getElementById('helpPanel')?.classList.contains('open')) _updateHelpContext();
 }
@@ -9924,7 +9924,7 @@ function initApp() {
     applyTheme(getTheme());
 
     // Restore last active tab on refresh
-    const savedTab = load('wt_active_tab', null);
+    const savedTab = localStorage.getItem('wt_active_tab');
     if (savedTab) {
       const tabEl = document.querySelector(`.tab[data-tab="${savedTab}"]`);
       const panelEl = document.getElementById('panel-' + savedTab);
