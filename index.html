@@ -2387,6 +2387,12 @@
   <button class="btn" onclick="undoRecurAction()" style="padding:3px 10px;font-size:11px;">↩ Undo</button>
 </div>
 
+<!-- SYNC STATUS TOAST -->
+<div id="syncToast" style="display:none;position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 16px;align-items:center;gap:8px;z-index:9999;font-size:12px;box-shadow:0 4px 12px #0006;max-width:360px;">
+  <span id="syncToastMsg" style="color:var(--text2);"></span>
+  <button onclick="document.getElementById('syncToast').style.display='none'" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 0 0 8px;">✕</button>
+</div>
+
 <!-- COMPLETION MODAL -->
 <div class="modal-overlay" id="completionModal">
   <div class="modal">
@@ -3224,11 +3230,26 @@ function importBackup(event) {
   reader.onload = function(e) {
     try {
       const backup = JSON.parse(e.target.result);
-      let count = 0;
+      const keyCount = SYNC_KEYS.filter(k => backup[k] !== undefined).length;
+      if (!keyCount) {
+        if (statusEl) statusEl.innerHTML = '<span style="color:var(--danger);">No recognized data in backup file.</span>';
+        return;
+      }
+
+      // Warn before overwriting, especially if cloud-connected
+      const cloudWarning = (_supabase && _currentUser)
+        ? '\n\nYou are signed in — this will also overwrite your cloud data.'
+        : '';
+      const exportedAt = backup._exportedAt ? ' (exported ' + backup._exportedAt.slice(0, 10) + ')' : '';
+      if (!confirm('Restore ' + keyCount + ' data keys from backup' + exportedAt + '?\n\nThis will replace all current data and cannot be undone.' + cloudWarning)) {
+        if (statusEl) statusEl.innerHTML = '<span style="color:var(--text3);">Import cancelled.</span>';
+        return;
+      }
+
       SYNC_KEYS.forEach(key => {
         if (backup[key] !== undefined) {
           localStorage.setItem(key, JSON.stringify(backup[key]));
-          count++;
+          _setLocalTimestamp(key, Date.now());
         }
       });
       // Reload state and re-render
@@ -3236,7 +3257,7 @@ function importBackup(event) {
       initApp();
       // Sync to cloud if connected
       if (_supabase && _currentUser) syncToCloud();
-      if (statusEl) statusEl.innerHTML = '<span style="color:var(--success);">Restored ' + count + ' data keys. App refreshed.</span>';
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--success);">Restored ' + keyCount + ' data keys. App refreshed.</span>';
     } catch (err) {
       if (statusEl) statusEl.innerHTML = '<span style="color:var(--danger);">Invalid backup file.</span>';
     }
@@ -3378,16 +3399,13 @@ const SYNC_KEYS = [
 
 async function cloudSave(key, data) {
   if (!_supabase || !_currentUser) return;
-  try {
-    await _supabase.from('user_data').upsert({
-      user_id: _currentUser.id,
-      key: key,
-      data: { value: data },
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id,key' });
-  } catch (e) {
-    console.warn('Cloud save failed for', key, e);
-  }
+  const { error } = await _supabase.from('user_data').upsert({
+    user_id: _currentUser.id,
+    key: key,
+    data: { value: data },
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id,key' });
+  if (error) throw error;
 }
 
 async function cloudLoad(key) {
@@ -3412,32 +3430,65 @@ async function loadFromSupabase() {
   try {
     const { data, error } = await _supabase
       .from('user_data')
-      .select('key, data')
+      .select('key, data, updated_at')
       .eq('user_id', _currentUser.id);
     if (error) throw error;
     if (data && data.length > 0) {
       data.forEach(row => {
         try {
-          localStorage.setItem(row.key, JSON.stringify(row.data.value));
+          const cloudTime = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+          const localTime = _getLocalTimestamp(row.key);
+          // Cloud wins if it's newer or local has no timestamp
+          if (cloudTime >= localTime || localTime === 0) {
+            localStorage.setItem(row.key, JSON.stringify(row.data.value));
+            _setLocalTimestamp(row.key, cloudTime || Date.now());
+          }
         } catch (e) { /* localStorage full or unavailable */ }
       });
     }
   } catch (e) {
     console.warn('Failed to load from Supabase, using localStorage fallback:', e);
+    showSyncToast('Could not load cloud data — using local data.', 'warn');
   }
 }
 
 async function migrateLocalToSupabase() {
   if (!_supabase || !_currentUser) return;
+  // Load cloud timestamps to compare
+  let cloudTimestamps = {};
+  try {
+    const { data } = await _supabase
+      .from('user_data')
+      .select('key, updated_at')
+      .eq('user_id', _currentUser.id);
+    if (data) data.forEach(row => { cloudTimestamps[row.key] = new Date(row.updated_at || 0).getTime(); });
+  } catch (e) { /* proceed with full upload */ }
+
   const promises = SYNC_KEYS.map(key => {
     try {
       const raw = localStorage.getItem(key);
       if (raw === null) return Promise.resolve();
-      const parsed = JSON.parse(raw);
-      return cloudSave(key, parsed);
+      const localTime = _getLocalTimestamp(key);
+      const cloudTime = cloudTimestamps[key] || 0;
+      // Only push to cloud if local is newer or cloud has no data
+      if (localTime >= cloudTime || cloudTime === 0) {
+        const parsed = JSON.parse(raw);
+        return cloudSave(key, parsed).then(() => _setLocalTimestamp(key, Date.now()));
+      }
+      return Promise.resolve();
     } catch (e) { return Promise.resolve(); }
   });
   await Promise.all(promises);
+}
+
+// Per-key timestamp tracking in localStorage
+function _getLocalTimestamp(key) {
+  try { return parseInt(localStorage.getItem('_ts_' + key) || '0', 10); }
+  catch (e) { return 0; }
+}
+function _setLocalTimestamp(key, ts) {
+  try { localStorage.setItem('_ts_' + key, String(ts)); }
+  catch (e) { /* ignore */ }
 }
 
 async function syncToCloud() {
@@ -3446,10 +3497,13 @@ async function syncToCloud() {
   if (btn) { btn.textContent = '⟳'; btn.title = 'Syncing...'; }
   try {
     await migrateLocalToSupabase();
+    _syncFailCount = 0;
     if (btn) { btn.textContent = '☁'; btn.title = 'Synced'; }
+    showSyncToast('All changes synced to cloud.', 'success');
     setTimeout(() => { if (btn) btn.title = 'Click to sync'; }, 2000);
   } catch (e) {
-    if (btn) { btn.textContent = '⚠'; btn.title = 'Sync failed'; }
+    if (btn) { btn.textContent = '⚠'; btn.title = 'Sync failed — click to retry'; }
+    showSyncToast('Cloud sync failed — changes saved locally only. Click ☁ to retry.', 'error');
   }
 }
 
@@ -3490,12 +3544,20 @@ async function boot() {
         return;
       }
     } catch (e) { /* no session */ }
-    // Listen for auth changes (e.g. email confirm redirect)
+    // Listen for auth changes (sign-in, sign-out, token refresh)
     sb.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user && !_currentUser) {
         _currentUser = session.user;
         await loadFromSupabase();
         showApp();
+      } else if (event === 'SIGNED_OUT') {
+        _currentUser = null;
+        document.getElementById('appWrapper').style.display = 'none';
+        document.getElementById('authScreen').style.display = '';
+        document.getElementById('authLoginForm').style.display = '';
+        showAuthError('Session expired — please sign in again.');
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        _currentUser = session.user;
       }
     });
   } else if (typeof supabase !== 'undefined') {
@@ -4000,11 +4062,39 @@ function load(key, fallback) {
 }
 
 function save(key, data) {
-  localStorage.setItem(key, JSON.stringify(data));
-  // Fire-and-forget cloud sync (non-blocking)
-  if (_supabase && _currentUser && SYNC_KEYS.includes(key)) {
-    cloudSave(key, data).catch(() => {});
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+    if (SYNC_KEYS.includes(key)) _setLocalTimestamp(key, Date.now());
+  } catch (e) {
+    console.error('localStorage save failed for', key, e);
+    showSyncToast('Local storage full — some changes may not be saved.', 'warn');
   }
+  // Fire-and-forget cloud sync (non-blocking) with failure notification
+  if (_supabase && _currentUser && SYNC_KEYS.includes(key)) {
+    cloudSave(key, data).catch(err => {
+      console.warn('Cloud save failed for', key, err);
+      _syncFailCount = (_syncFailCount || 0) + 1;
+      // Show toast on first failure, then throttle to avoid spam
+      if (_syncFailCount === 1 || _syncFailCount % 10 === 0) {
+        showSyncToast('Cloud sync failed — changes saved locally only. Click ☁ to retry.', 'error');
+      }
+      const btn = document.getElementById('syncStatusBtn');
+      if (btn) { btn.textContent = '⚠'; btn.title = 'Sync error — click to retry'; }
+    });
+  }
+}
+
+let _syncFailCount = 0;
+
+function showSyncToast(msg, type) {
+  const toast = document.getElementById('syncToast');
+  const msgEl = document.getElementById('syncToastMsg');
+  if (!toast || !msgEl) return;
+  msgEl.textContent = msg;
+  msgEl.style.color = type === 'error' ? 'var(--danger)' : type === 'warn' ? 'var(--warn)' : 'var(--success)';
+  toast.style.display = 'flex';
+  clearTimeout(showSyncToast._t);
+  showSyncToast._t = setTimeout(() => { toast.style.display = 'none'; }, type === 'error' ? 10000 : 5000);
 }
 
 // =============================================
