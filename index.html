@@ -8498,9 +8498,12 @@ function handleAllocImport(event) {
       if (jobCol === -1) throw new Error('Could not find "Job" column in header row.');
       if (Object.keys(monthCols).length === 0) throw new Error('Could not find any month columns (e.g. "MAR 2026").');
 
-      // Clear existing allocations for the months in this spreadsheet
-      // so the import fully replaces old values (including zeros)
-      const importMonths = new Set(Object.values(monthCols));
+      // Clear existing allocations for current + future months in this spreadsheet
+      // Past months are left untouched to preserve historical data
+      const currentYM = today().slice(0, 7); // 'YYYY-MM'
+      const importMonths = new Set(
+        Object.values(monthCols).filter(ym => ym >= currentYM)
+      );
       Object.keys(allocations).forEach(key => {
         const ym = key.split('|')[2];
         if (importMonths.has(ym)) delete allocations[key];
@@ -8532,9 +8535,10 @@ function handleAllocImport(event) {
           scId = _ensureSubCode(projKey, '', taskName);
         }
 
-        // Write allocations for each month column
+        // Write allocations for current + future month columns only
         let hasData = false;
         Object.entries(monthCols).forEach(([colIdx, ym]) => {
+          if (ym < currentYM) return; // skip past months — preserve historical data
           const val = row[Number(colIdx)];
           if (val !== null && val !== undefined && val !== '' && !isNaN(Number(val))) {
             const hrs = Number(val);
