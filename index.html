@@ -6505,8 +6505,14 @@ function renderProjCodeContent(projKey) {
     // Allocation meter for this subcode
     let meterHtml = '';
     if (sec.scId) {
-      const allocHrs = allocations[allocKey(projKey, sec.scId, _allocMeterMonth)] || 0;
-      const actualHrs = allocGetActuals(projKey, sec.scId, _allocMeterMonth);
+      // Check allocation by subcode ID; also fall back to project-level (empty scId)
+      // if this is the first/default subcode and no ID-specific allocation exists
+      let allocHrs = allocations[allocKey(projKey, sec.scId, _allocMeterMonth)] || 0;
+      if (!allocHrs && subCodes.length === 1) {
+        allocHrs = allocations[allocKey(projKey, '', _allocMeterMonth)] || 0;
+      }
+      const actualHrs = allocGetActuals(projKey, sec.scId, _allocMeterMonth) +
+        (subCodes.length === 1 ? allocGetActuals(projKey, '', _allocMeterMonth) : 0);
       const pct = allocHrs > 0 ? Math.min(Math.round((actualHrs / allocHrs) * 100), 100) : 0;
       const barColor = allocHrs === 0 ? 'var(--border2)' : pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warn)' : 'var(--success)';
       const mParts = _allocMeterMonth.split('-');
@@ -8705,6 +8711,10 @@ function _mergeProjects(keepKey, removeKey) {
   delete PROJECTS[removeKey];
   projOrder = projOrder.filter(k => k !== removeKey);
 
+  // Clear stale badges for removed project's subcodes
+  _staleSubCodes = new Set([..._staleSubCodes].filter(k => !k.startsWith(removeKey + '|')));
+  save('wt_stale_subcodes', [..._staleSubCodes]);
+
   save('wt_tasks', tasks);
   save('wt_bigprojs', bigProjs);
   save('wt_team', teamItems);
@@ -8750,6 +8760,10 @@ function _mergeSubCodes(projKey, keepId, removeId) {
 
   // Remove the duplicate sub-code
   proj.subCodes = (proj.subCodes || []).filter(s => s.id !== removeId);
+
+  // Clear stale badge for removed subcode
+  _staleSubCodes.delete(projKey + '|' + removeId);
+  save('wt_stale_subcodes', [..._staleSubCodes]);
 
   save('wt_tasks', tasks);
   save('wt_bigprojs', bigProjs);
@@ -8859,6 +8873,8 @@ function _scPopupDelete() {
       }
     });
     teamItems.forEach(ti => { if (ti.project === projKey && ti.subCode === scId) ti.subCode = ''; });
+    _staleSubCodes.delete(projKey + '|' + scId);
+    save('wt_stale_subcodes', [..._staleSubCodes]);
     save('wt_tasks', tasks); save('wt_bigprojs', bigProjs); save('wt_team', teamItems);
     saveProjects(); renderProjects(); renderTasks();
   }, () => {
@@ -9061,23 +9077,23 @@ function handleAllocImport(event) {
         detailHtml = `<div id="allocImportDetails" style="display:none;margin-top:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;max-height:300px;overflow-y:auto;">`;
         if (dupeProjects.length || dupeSubs.length) {
           detailHtml += `<div style="font-weight:700;margin-bottom:4px;color:var(--warn);">Possible Duplicates — Merge or dismiss:</div>`;
-          dupeProjects.forEach(d => {
-            detailHtml += `<div style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          dupeProjects.forEach((d, idx) => {
+            detailHtml += `<div id="dupe-proj-${idx}" style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span style="color:var(--warn);">⚠</span>
               <span>Project: "<strong>${d.a.label}</strong>" and "<strong>${d.b.label}</strong>"</span>
               <span style="margin-left:auto;display:flex;gap:4px;">
-                <button class="btn" onclick="_mergeProjects('${d.aKey}','${d.bKey}')" style="font-size:9px;padding:2px 8px;">Merge</button>
-                <button class="btn" onclick="_dismissDup('${d.aKey}','${d.bKey}');this.closest('div').remove();" style="font-size:9px;padding:2px 8px;color:var(--text3);">Not a duplicate</button>
+                <button class="btn" onclick="_mergeProjects('${d.aKey}','${d.bKey}');document.getElementById('dupe-proj-${idx}').innerHTML='<span style=\\'color:var(--success);\\'>✓ Merged into ${d.a.label.replace(/'/g, "\\'")}</span>';" style="font-size:9px;padding:2px 8px;">Merge</button>
+                <button class="btn" onclick="_dismissDup('${d.aKey}','${d.bKey}');document.getElementById('dupe-proj-${idx}').innerHTML='<span style=\\'color:var(--text3);\\'>✓ Kept as separate projects</span>';" style="font-size:9px;padding:2px 8px;color:var(--text3);">Keep separate</button>
               </span>
             </div>`;
           });
-          dupeSubs.forEach(d => {
-            detailHtml += `<div style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          dupeSubs.forEach((d, idx) => {
+            detailHtml += `<div id="dupe-sc-${idx}" style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span style="color:var(--warn);">⚠</span>
               <span>${PROJECTS[d.projKey]?.label}: "<strong>${d.a.label}</strong>" and "<strong>${d.b.label}</strong>"</span>
               <span style="margin-left:auto;display:flex;gap:4px;">
-                <button class="btn" onclick="_mergeSubCodes('${d.projKey}','${d.aId}','${d.bId}')" style="font-size:9px;padding:2px 8px;">Merge</button>
-                <button class="btn" onclick="_dismissDup('${d.projKey}:${d.aId}','${d.projKey}:${d.bId}');this.closest('div').remove();" style="font-size:9px;padding:2px 8px;color:var(--text3);">Not a duplicate</button>
+                <button class="btn" onclick="_mergeSubCodes('${d.projKey}','${d.aId}','${d.bId}');document.getElementById('dupe-sc-${idx}').innerHTML='<span style=\\'color:var(--success);\\'>✓ Merged into ${d.a.label.replace(/'/g, "\\'")}</span>';" style="font-size:9px;padding:2px 8px;">Merge</button>
+                <button class="btn" onclick="_dismissDup('${d.projKey}:${d.aId}','${d.projKey}:${d.bId}');document.getElementById('dupe-sc-${idx}').innerHTML='<span style=\\'color:var(--text3);\\'>✓ Kept as separate sub-codes</span>';" style="font-size:9px;padding:2px 8px;color:var(--text3);">Keep separate</button>
               </span>
             </div>`;
           });
