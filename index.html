@@ -896,11 +896,16 @@
     margin-left: 8px; white-space: nowrap;
   }
   .subcode-alloc-bar {
-    width: 60px; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; border: 1px solid var(--border);
+    width: 70px; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; border: 1px solid var(--border);
+    position: relative;
   }
   .subcode-alloc-fill {
-    height: 100%; border-radius: 3px; transition: width 0.3s;
+    position: absolute; top: 0; left: 0; height: 100%; transition: width 0.3s;
   }
+  .subcode-alloc-labels {
+    display: flex; gap: 8px; font-size: 9px; white-space: nowrap;
+  }
+  .subcode-alloc-labels span { opacity: 0.9; }
   .subcode-alloc-nav {
     background: none; border: none; color: var(--text3); cursor: pointer; font-size: 9px; padding: 0 2px;
   }
@@ -6521,21 +6526,32 @@ function renderProjCodeContent(projKey) {
       if (!allocHrs && subCodes.length === 1) {
         allocHrs = allocations[allocKey(projKey, '', _allocMeterMonth)] || 0;
       }
-      const actualHrs = allocGetActuals(projKey, sec.scId, _allocMeterMonth) +
+      const loggedHrs = allocGetActuals(projKey, sec.scId, _allocMeterMonth) +
         (subCodes.length === 1 ? allocGetActuals(projKey, '', _allocMeterMonth) : 0);
-      const pct = allocHrs > 0 ? Math.min(Math.round((actualHrs / allocHrs) * 100), 100) : 0;
-      const barColor = allocHrs === 0 ? 'var(--border2)' : pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warn)' : 'var(--success)';
+      const plannedHrs = allocGetPlanned(projKey, sec.scId, _allocMeterMonth) +
+        (subCodes.length === 1 ? allocGetPlanned(projKey, '', _allocMeterMonth) : 0);
+      const totalWork = loggedHrs + plannedHrs;
+      const loggedPct = allocHrs > 0 ? Math.min(Math.round((loggedHrs / allocHrs) * 100), 100) : 0;
+      const totalPct = allocHrs > 0 ? Math.min(Math.round((totalWork / allocHrs) * 100), 100) : 0;
+      const loggedColor = allocHrs === 0 ? 'var(--border2)' : loggedPct >= 100 ? 'var(--danger)' : loggedPct >= 80 ? 'var(--warn)' : 'var(--success)';
+      const plannedColor = 'var(--accent)';
       const mParts = _allocMeterMonth.split('-');
       const mLabel = _months[+mParts[1] - 1] + ' ' + mParts[0].slice(2);
       const isStale = _staleSubCodes.has(projKey + '|' + sec.scId);
 
-      if (allocHrs > 0 || actualHrs > 0 || isStale) {
+      if (allocHrs > 0 || loggedHrs > 0 || plannedHrs > 0 || isStale) {
         meterHtml = `<span class="subcode-alloc-meter" onclick="event.stopPropagation();">
           <button class="subcode-alloc-nav" onclick="event.stopPropagation();_shiftProjAllocMonth('${projKey}',-1)" title="Previous month">‹</button>
           <span>${mLabel}</span>
           <button class="subcode-alloc-nav" onclick="event.stopPropagation();_shiftProjAllocMonth('${projKey}',1)" title="Next month">›</button>
-          <span class="subcode-alloc-bar"><span class="subcode-alloc-fill" style="width:${pct}%;background:${barColor};"></span></span>
-          <span>${fmtQ(actualHrs)}/${allocHrs}h</span>
+          <span class="subcode-alloc-bar" title="Blue=planned, Green=logged${allocHrs ? ', of ' + allocHrs + 'h allocated' : ''}">
+            <span class="subcode-alloc-fill" style="width:${totalPct}%;background:${plannedColor};border-radius:4px;opacity:0.4;z-index:1;"></span>
+            <span class="subcode-alloc-fill" style="width:${loggedPct}%;background:${loggedColor};border-radius:4px;z-index:2;"></span>
+          </span>
+          <span class="subcode-alloc-labels">
+            <span style="color:${loggedColor};" title="Logged hours / allocated">${fmtQ(loggedHrs)}/${allocHrs}h</span>
+            <span style="color:var(--accent);opacity:0.7;" title="Logged + planned / allocated">${fmtQ(totalWork)}/${allocHrs}h</span>
+          </span>
           ${isStale ? '<span class="subcode-stale-badge" title="Not in latest allocation import">unallocated</span>' : ''}
         </span>`;
       }
