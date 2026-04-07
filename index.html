@@ -891,6 +891,24 @@
   .subcode-header .subcode-chevron { transition: transform 0.15s; display: inline-block; font-size: 10px; }
   .subcode-header .subcode-chevron.open { transform: rotate(90deg); }
   .subcode-count { font-size: 10px; font-weight: 400; color: var(--text3); margin-left: auto; }
+  .subcode-alloc-meter {
+    display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 400; color: var(--text3);
+    margin-left: 8px; white-space: nowrap;
+  }
+  .subcode-alloc-bar {
+    width: 60px; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; border: 1px solid var(--border);
+  }
+  .subcode-alloc-fill {
+    height: 100%; border-radius: 3px; transition: width 0.3s;
+  }
+  .subcode-alloc-nav {
+    background: none; border: none; color: var(--text3); cursor: pointer; font-size: 9px; padding: 0 2px;
+  }
+  .subcode-alloc-nav:hover { color: var(--text); }
+  .subcode-stale-badge {
+    display: inline-block; background: rgba(248,113,113,0.15); color: var(--danger);
+    font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-left: 6px;
+  }
   .subcode-body {
     border: 1px solid var(--border2); border-top: none; border-radius: 0 0 6px 6px;
     background: var(--bg); overflow: hidden;
@@ -3334,6 +3352,20 @@ if (typeof XLSX === 'undefined') {
     <div class="welcome-subtitle">A quick tour to get you started — takes 30 seconds.</div>
 
     <div class="welcome-step active" data-step="0">
+      <h3>Start with Your BigTime Allocations</h3>
+      <p>The fastest way to set up is to <strong>import your BigTime allocation spreadsheet</strong>. This creates your project codes, sub-codes, and monthly hour budgets automatically.</p>
+      <div class="welcome-tip"><span class="welcome-tip-icon">📊</span><span>In BigTime, the <strong>Job</strong> column becomes your project (parent code), and the <strong>Task</strong> column becomes your sub-code.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">💡</span><span>You can import anytime from the <strong>Allocations</strong> tab. Re-importing updates current and future months without touching past data.</span></div>
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+        <label class="btn primary" style="cursor:pointer;font-size:11px;padding:6px 14px;">
+          📁 Import BigTime Spreadsheet Now
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="handleAllocImport(event);closeWelcome();" style="display:none;">
+        </label>
+        <span style="font-size:11px;color:var(--text3);">or skip and set up manually later</span>
+      </div>
+    </div>
+
+    <div class="welcome-step" data-step="1">
       <h3>Your 5 Tabs</h3>
       <div class="welcome-tip"><span class="welcome-tip-icon">1</span><span><strong>My Tasks</strong> — your personal to-do list with timers, priorities, and recurring tasks.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — organize work into projects with sessions and subtasks.</span></div>
@@ -3342,21 +3374,21 @@ if (typeof XLSX === 'undefined') {
       <div class="welcome-tip"><span class="welcome-tip-icon">5</span><span><strong>Allocations</strong> — monthly capacity planning by person and project.</span></div>
     </div>
 
-    <div class="welcome-step" data-step="1">
+    <div class="welcome-step" data-step="2">
       <h3>Adding Tasks & Tracking Time</h3>
       <p>Use <strong>+ Add Task</strong> or press <strong>N</strong> to create a task. Set a priority, due date, and time estimate.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">⏱</span><span>Click the <strong>play button</strong> on any task to start a timer. When you complete the task, actual hours are logged to your timesheet automatically.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">↻</span><span>Tasks can <strong>recur</strong> weekly, biweekly, or monthly — set it up in the task edit modal.</span></div>
     </div>
 
-    <div class="welcome-step" data-step="2">
+    <div class="welcome-step" data-step="3">
       <h3>Projects & Sessions</h3>
       <p>The <strong>Projects</strong> tab groups work into projects. Each project can have multiple <strong>sessions</strong> (work items) and <strong>subtasks</strong>.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">📂</span><span>Sessions have their own timers, due dates, and can be delegated to team members.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">💡</span><span>Use the <strong>Brain Dump</strong> button (in settings) to paste messy notes — AI turns them into organized tasks.</span></div>
     </div>
 
-    <div class="welcome-step" data-step="3">
+    <div class="welcome-step" data-step="4">
       <h3>Keyboard Shortcuts & Tips</h3>
       <div class="welcome-tip"><span class="welcome-tip-icon">⌨</span><span><strong>N</strong> = new task &nbsp; <strong>1-5</strong> = switch tabs &nbsp; <strong>/</strong> = search &nbsp; <strong>Esc</strong> = close modal &nbsp; <strong>Ctrl+Z</strong> = undo delete</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">☁</span><span>Your data syncs to the cloud automatically. Click the <strong>cloud icon</strong> in the header to force a sync.</span></div>
@@ -6319,6 +6351,16 @@ function renderProjCodeList() {
 // ── Right Panel: sub-code tables for selected project ──
 // Collapse state for sub-code sections (in-memory)
 const collapsedSubSections = new Set();
+const _projAllocMonth = {}; // per-project month override for allocation meters
+let _staleSubCodes = new Set(load('wt_stale_subcodes', [])); // "projKey|scId" entries dropped from last import
+
+function _shiftProjAllocMonth(projKey, dir) {
+  const cur = _projAllocMonth[projKey] || today().slice(0, 7);
+  const [y, m] = cur.split('-').map(Number);
+  const d = new Date(y, m - 1 + dir, 1);
+  _projAllocMonth[projKey] = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  renderProjCodeContent(projKey);
+}
 
 function renderProjCodeContent(projKey) {
   const container = document.getElementById('projCodeContent');
@@ -6407,6 +6449,10 @@ function renderProjCodeContent(projKey) {
   }
   subCodes.forEach(sc => sections.push({ scId: sc.id, label: sc.label || sc.code, code: sc.code }));
 
+  // Allocation meter state (per project view)
+  const _allocMeterMonth = _projAllocMonth[projKey] || today().slice(0, 7);
+  const _months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
   sections.forEach(sec => {
     const items = getItemsForSubCode(sec.scId);
     const openCount = items.filter(i => !(i._type === 'task' ? i.task.completed : i._type === 'session' ? i.s.done : i._type === 'team' ? (i.team.status === 'complete') : i.st?.done)).length;
@@ -6414,10 +6460,34 @@ function renderProjCodeContent(projKey) {
     const sectionKey = projKey + '|' + sec.scId;
     const isCollapsed = collapsedSubSections.has(sectionKey);
 
+    // Allocation meter for this subcode
+    let meterHtml = '';
+    if (sec.scId) {
+      const allocHrs = allocations[allocKey(projKey, sec.scId, _allocMeterMonth)] || 0;
+      const actualHrs = allocGetActuals(projKey, sec.scId, _allocMeterMonth);
+      const pct = allocHrs > 0 ? Math.min(Math.round((actualHrs / allocHrs) * 100), 100) : 0;
+      const barColor = allocHrs === 0 ? 'var(--border2)' : pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warn)' : 'var(--success)';
+      const mParts = _allocMeterMonth.split('-');
+      const mLabel = _months[+mParts[1] - 1] + ' ' + mParts[0].slice(2);
+      const isStale = _staleSubCodes.has(projKey + '|' + sec.scId);
+
+      if (allocHrs > 0 || actualHrs > 0 || isStale) {
+        meterHtml = `<span class="subcode-alloc-meter" onclick="event.stopPropagation();">
+          <button class="subcode-alloc-nav" onclick="event.stopPropagation();_shiftProjAllocMonth('${projKey}',-1)" title="Previous month">‹</button>
+          <span>${mLabel}</span>
+          <button class="subcode-alloc-nav" onclick="event.stopPropagation();_shiftProjAllocMonth('${projKey}',1)" title="Next month">›</button>
+          <span class="subcode-alloc-bar"><span class="subcode-alloc-fill" style="width:${pct}%;background:${barColor};"></span></span>
+          <span>${fmtQ(actualHrs)}/${allocHrs}h</span>
+          ${isStale ? '<span class="subcode-stale-badge" title="Not in latest allocation import">unallocated</span>' : ''}
+        </span>`;
+      }
+    }
+
     html += `<div class="subcode-section">
       <div class="subcode-header" style="border-top:3px solid ${color};" onclick="toggleSubSection('${sectionKey}')">
         <span class="subcode-chevron${isCollapsed ? '' : ' open'}">›</span>
         <span style="color:var(--text);">${sec.code ? '<span style="color:' + color + ';font-weight:700;">' + (proj.billingCode || '') + sec.code + '</span> — ' : ''}${sec.label}</span>
+        ${meterHtml}
         <span class="subcode-count">${openCount} open / ${totalCount} total</span>
       </div>`;
 
@@ -8459,11 +8529,14 @@ function _undoAllocImport() {
   allocations = _allocImportUndo.allocations;
   PROJECTS = _allocImportUndo.projects;
   projOrder = _allocImportUndo.projOrder;
+  _staleSubCodes = new Set();
+  localStorage.removeItem('wt_stale_subcodes');
   saveProjects();
   saveProjOrder();
   saveAllocations();
   populateProjectSelects();
   renderAllocations();
+  renderProjects();
   if (_supabase && _currentUser) syncToCloud();
   _allocImportUndo = null;
   const statusEl = document.getElementById('allocImportStatus');
@@ -8524,6 +8597,14 @@ function handleAllocImport(event) {
       const importMonths = new Set(
         Object.values(monthCols).filter(ym => ym >= currentYM)
       );
+
+      // Track which proj|sc combos had allocations before clearing (for stale detection)
+      const prevAllocatedScs = new Set();
+      Object.keys(allocations).forEach(key => {
+        const [pk, sc, ym] = key.split('|');
+        if (importMonths.has(ym) && sc) prevAllocatedScs.add(pk + '|' + sc);
+      });
+
       Object.keys(allocations).forEach(key => {
         const ym = key.split('|')[2];
         if (importMonths.has(ym)) delete allocations[key];
@@ -8587,24 +8668,44 @@ function handleAllocImport(event) {
         });
       });
 
+      // Detect stale subcodes: had allocations before but not after import
+      const nowAllocatedScs = new Set();
+      Object.keys(allocations).forEach(key => {
+        const [pk, sc, ym] = key.split('|');
+        if (importMonths.has(ym) && sc) nowAllocatedScs.add(pk + '|' + sc);
+      });
+      _staleSubCodes = new Set([...prevAllocatedScs].filter(k => !nowAllocatedScs.has(k)));
+      localStorage.setItem('wt_stale_subcodes', JSON.stringify([..._staleSubCodes]));
+
       // Save everything
       saveProjects();
       saveProjOrder();
       saveAllocations();
       populateProjectSelects();
       renderAllocations();
+      renderProjects();
 
       // Sync to cloud if connected
       if (_supabase && _currentUser) syncToCloud();
+
+      // Build stale subcode names for display
+      const staleNames = [..._staleSubCodes].map(k => {
+        const [pk, scId] = k.split('|');
+        const p = PROJECTS[pk];
+        const sc = p ? (p.subCodes || []).find(s => s.id === scId) : null;
+        return (p?.label || pk) + ' → ' + (sc?.label || scId);
+      });
 
       // Build status with action buttons
       const monthList = [...importMonths].sort().join(', ');
       const parts = [`<strong>${importedRows} rows</strong> imported for ${monthList}`];
       if (newProjectNames.length) parts.push(`<strong>${newProjectNames.length}</strong> new project${newProjectNames.length > 1 ? 's' : ''}`);
       if (newSubCodeNames.length) parts.push(`<strong>${newSubCodeNames.length}</strong> new sub-code${newSubCodeNames.length > 1 ? 's' : ''}`);
+      if (staleNames.length) parts.push(`<strong style="color:var(--danger);">${staleNames.length}</strong> <span style="color:var(--danger);">removed from allocations</span>`);
 
+      const hasDetails = newProjectNames.length || newSubCodeNames.length || staleNames.length;
       let detailHtml = '';
-      if (newProjectNames.length || newSubCodeNames.length) {
+      if (hasDetails) {
         detailHtml = `<div id="allocImportDetails" style="display:none;margin-top:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;max-height:200px;overflow-y:auto;">`;
         if (newProjectNames.length) {
           detailHtml += `<div style="font-weight:700;margin-bottom:4px;">New Projects:</div>`;
@@ -8614,18 +8715,23 @@ function handleAllocImport(event) {
           detailHtml += `<div style="font-weight:700;margin:${newProjectNames.length ? '8' : '0'}px 0 4px;">New Sub-codes:</div>`;
           detailHtml += newSubCodeNames.map(n => `<div style="padding:1px 0;color:var(--text2);">+ ${n}</div>`).join('');
         }
+        if (staleNames.length) {
+          detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--danger);">Removed from Allocations:</div>`;
+          detailHtml += `<div style="padding:2px 0;color:var(--text3);font-style:italic;margin-bottom:4px;">These sub-codes had allocations before but are no longer in the import. Check the Projects tab for an "unallocated" badge.</div>`;
+          detailHtml += staleNames.map(n => `<div style="padding:1px 0;color:var(--danger);">− ${n}</div>`).join('');
+        }
         detailHtml += `</div>`;
       }
 
       statusEl.style.display = '';
-      statusEl.style.background = 'rgba(52,211,153,0.12)';
-      statusEl.style.color = 'var(--success)';
+      statusEl.style.background = staleNames.length ? 'rgba(248,113,113,0.08)' : 'rgba(52,211,153,0.12)';
+      statusEl.style.color = staleNames.length ? 'var(--text2)' : 'var(--success)';
       statusEl.innerHTML = `
         <div>${parts.join(' · ')}</div>
         <div style="margin-top:8px;display:flex;gap:6px;align-items:center;">
           <button class="btn" onclick="this.closest('#allocImportStatus').style.display='none'" style="font-size:10px;padding:3px 10px;">OK</button>
           <button class="btn" onclick="_undoAllocImport()" style="font-size:10px;padding:3px 10px;color:var(--danger);border-color:var(--danger);">↩ Undo Import</button>
-          ${(newProjectNames.length || newSubCodeNames.length) ? `<button class="btn" onclick="document.getElementById('allocImportDetails').style.display=document.getElementById('allocImportDetails').style.display==='none'?'block':'none'" style="font-size:10px;padding:3px 10px;">View Details</button>` : ''}
+          ${hasDetails ? `<button class="btn" onclick="document.getElementById('allocImportDetails').style.display=document.getElementById('allocImportDetails').style.display==='none'?'block':'none'" style="font-size:10px;padding:3px 10px;">View Details</button>` : ''}
         </div>
         ${detailHtml}
       `;
@@ -8882,6 +8988,22 @@ function toggleAllocProjCollapse(projKey) {
 function renderAllocations() {
   const grid = document.getElementById('allocGrid');
   if (!grid) return;
+
+  // Show import prompt if no allocation data exists
+  if (Object.keys(allocations).length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="padding:40px 20px;">
+      <span style="font-size:28px;">📊</span><br><br>
+      <strong style="font-size:14px;color:var(--text);">No allocations yet</strong><br><br>
+      <span>Import your <strong>BigTime allocation spreadsheet</strong> to set up project codes, sub-codes, and monthly hour budgets in one step.</span><br><br>
+      <span style="font-size:11px;color:var(--text3);">The <strong>Job</strong> column maps to your project codes, and the <strong>Task</strong> column maps to sub-codes.</span><br><br>
+      <label class="btn primary" style="cursor:pointer;font-size:12px;padding:8px 18px;">
+        📁 Import BigTime Spreadsheet
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleAllocImport(event)" style="display:none;">
+      </label>
+      <div style="margin-top:12px;font-size:11px;color:var(--text3);">Or enter allocations manually in the grid below.</div>
+    </div>`;
+    return;
+  }
 
   const yearLabel = document.getElementById('allocYearLabel');
   if (yearLabel) yearLabel.textContent = allocYear;
@@ -9171,7 +9293,7 @@ document.getElementById('tsFilterProject')?.addEventListener('change', () => { _
 // =============================================
 
 let _welcomeStep = 0;
-const _WELCOME_STEPS = 4;
+const _WELCOME_STEPS = 5;
 
 function showWelcome() {
   _welcomeStep = 0;
