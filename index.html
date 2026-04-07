@@ -6473,7 +6473,7 @@ function renderTeam() {
         ? `openSubtaskDatePicker(this,'${item._projId}','${item._sessionId}','${item._subtaskId}')`
         : `openSessionDatePicker(this,'${item._projId}','${item._sessionId}')`;
       const statusDropFn = item._isSubtask
-        ? `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')`
+        ? `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}','${item._subtaskId}')`
         : `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')`;
       const _s = item._isSubtask
         ? bigProjs.find(p=>p.id===item._projId)?.sessions.find(s=>s.id===item._sessionId)?.subtasks?.find(st=>st.id===item._subtaskId)
@@ -7389,11 +7389,11 @@ function renderTimesheet() {
         const task = tasks.find(t => t.id === baseId || t.id === p.id);
         if (task) return { ...p, type: 'task', _taskId: task.id };
         for (const proj of bigProjs) {
-          const s = proj.sessions.find(s => s.id === p.id);
-          if (s) return { ...p, type: 'session', _projId: proj.id, _projName: proj.name };
+          const s = proj.sessions.find(s => s.id === baseId || s.id === p.id);
+          if (s) return { ...p, type: 'session', _projId: proj.id, _sessionId: s.id, _projName: proj.name };
           for (const s2 of proj.sessions) {
-            if ((s2.subtasks || []).some(st => st.id === p.id))
-              return { ...p, type: 'session', _projId: proj.id, _projName: proj.name };
+            const st = (s2.subtasks || []).find(st => st.id === baseId || st.id === p.id);
+            if (st) return { ...p, type: 'subtask', _projId: proj.id, _sessionId: s2.id, _subtaskId: st.id, _projName: proj.name };
           }
         }
         return { ...p, type: 'task' };
@@ -7463,10 +7463,11 @@ function renderTimesheet() {
           row.className = 'ts-entry-row';
           const editFn = item._taskId
             ? `openEditModal('${item._taskId}')`
-            : item._projId ? `openEditSessionModal('${item._projId}','${item.id}')` : '';
+            : item._subtaskId ? `openEditSubtaskModal('${item._projId}','${item._sessionId}','${item._subtaskId}')`
+            : item._sessionId ? `openEditSessionModal('${item._projId}','${item._sessionId}')` : '';
           let doneFn = '';
           if (item._taskId) doneFn = `openCompletionModal('${item._taskId}')`;
-          else if (item._projId) doneFn = `openSessionCompletionModal('${item._projId}','${item.id}')`;
+          else if (item._sessionId) doneFn = `openSessionCompletionModal('${item._projId}','${item._sessionId}')`;
           const pCode = projBillingCode(item.project) || projLabel(item.project);
           const scLbl = item.subCode ? getSubCodeLabel(item.project, item.subCode) : '';
           const recurBadge = item._recur ? `<span class="recur-badge">↻</span>` : '';
@@ -8761,16 +8762,18 @@ function showStatusDropdown(e, itemId) {
   });
 }
 
-function showDelegatedStatusDropdown(e, projId, sessionId) {
+function showDelegatedStatusDropdown(e, projId, sessionId, subtaskId) {
   e.stopPropagation();
   const proj = bigProjs.find(p => p.id === projId);
   if (!proj) return;
   const s = proj.sessions.find(s => s.id === sessionId);
   if (!s) return;
-  const curStatus = s.done ? 'complete' : (s.status || 'not-started');
+  const target = subtaskId ? (s.subtasks || []).find(st => st.id === subtaskId) : s;
+  if (!target) return;
+  const curStatus = target.done ? 'complete' : (target.status || 'not-started');
   showDropdown(e.currentTarget, STATUS_OPTS, curStatus, val => {
-    s.done = (val === 'complete');
-    s.status = val;
+    target.done = (val === 'complete');
+    target.status = val;
     save('wt_bigprojs', bigProjs);
     renderTeam();
     renderTasks();
