@@ -2115,6 +2115,17 @@
   .ct-all-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   .ct-all-table tr:hover { background: var(--bg3); }
 
+  .ct-contact-row {
+    display: flex; gap: 6px; align-items: center; padding: 8px 10px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+  }
+  .ct-contact-row input[type="text"], .ct-contact-row input[type="email"] {
+    flex: 1; min-width: 0; font-size: 11px; padding: 5px 8px;
+    border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text);
+  }
+  .ct-contact-row label { font-size: 10px; color: var(--text2); display: flex; align-items: center; gap: 3px; white-space: nowrap; cursor: pointer; }
+  .ct-instructor-badge { font-size: 9px; padding: 1px 6px; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 600; }
+
   .ct-tpl-task {
     display: grid; grid-template-columns: 1fr 60px 70px 70px 30px; gap: 6px; align-items: center;
     padding: 6px 0; border-bottom: 1px solid var(--border);
@@ -2904,27 +2915,22 @@ if (typeof XLSX === 'undefined') {
 
 <!-- CONTACTS: ADD/EDIT PARTNER MODAL -->
 <div class="modal-overlay" id="ctPartnerModal" style="display:none;">
-  <div class="modal" style="max-width:460px;">
+  <div class="modal" style="max-width:520px;">
     <div class="modal-header"><span id="ctPartnerModalTitle">Add Partner</span><button class="modal-close" onclick="closeCtPartnerModal()">×</button></div>
     <div class="modal-body">
-      <label class="modal-label">Partner / Organization Name</label>
+      <label class="modal-label">Organization Name</label>
       <input id="ctPartnerName" class="modal-input" placeholder="e.g. Fletcher Community College">
-      <label class="modal-label">Contact Person</label>
-      <input id="ctPartnerContact" class="modal-input" placeholder="Name">
-      <label class="modal-label">Email</label>
-      <input id="ctPartnerEmail" class="modal-input" type="email" placeholder="email@example.com">
-      <label class="modal-label">Phone</label>
-      <input id="ctPartnerPhone" class="modal-input" placeholder="555-1234">
-      <label class="modal-label">Starting Stage</label>
-      <select id="ctPartnerStage" class="modal-input" onchange="ctPartnerStageChanged()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+        <label class="modal-label" style="margin:0;">Contacts</label>
+        <button class="btn" onclick="ctAddContactRow()" style="font-size:10px;padding:2px 8px;">+ Add Contact</button>
+      </div>
+      <div id="ctPartnerContacts" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;"></div>
+      <label class="modal-label" style="margin-top:12px;">Starting Stage</label>
+      <select id="ctPartnerStage" class="modal-input">
         <option value="">— Select —</option>
       </select>
-      <div id="ctPartnerAnchorWrap" style="display:none;">
-        <label class="modal-label"><span id="ctPartnerAnchorLabel">Anchor Date</span></label>
-        <input id="ctPartnerAnchor" class="modal-input" type="date">
-      </div>
-      <label class="modal-label">Notes</label>
-      <textarea id="ctPartnerNotes" class="modal-input" rows="2"></textarea>
+      <label class="modal-label" style="margin-top:8px;">Notes</label>
+      <textarea id="ctPartnerNotes" class="modal-input" rows="2" placeholder="Optional notes about this partner"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeCtPartnerModal()">Cancel</button>
@@ -2952,19 +2958,25 @@ if (typeof XLSX === 'undefined') {
 
 <!-- CONTACTS: TEMPLATE EDITOR MODAL -->
 <div class="modal-overlay" id="ctTemplateModal" style="display:none;">
-  <div class="modal" style="max-width:640px;max-height:85vh;">
+  <div class="modal" style="max-width:700px;max-height:85vh;">
     <div class="modal-header"><span>Edit Stage Templates</span><button class="modal-close" onclick="document.getElementById('ctTemplateModal').style.display='none'">×</button></div>
     <div class="modal-body" style="overflow-y:auto;max-height:65vh;">
-      <label class="modal-label">Stage</label>
-      <select id="ctTplStage" class="modal-input" onchange="ctRenderTemplateEditor()"></select>
-      <div style="margin-top:4px;display:flex;gap:6px;align-items:center;">
-        <label class="modal-label" style="margin:0;">Project</label>
-        <input id="ctTplProject" class="modal-input" style="width:80px;" placeholder="CWC">
-        <label class="modal-label" style="margin:0;">Sub-Code</label>
-        <input id="ctTplSubCode" class="modal-input" style="width:100px;" placeholder="e.g. Outreach">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div>
+          <label class="modal-label">Stage</label>
+          <select id="ctTplStage" class="modal-input" onchange="ctRenderTemplateEditor()" style="min-width:160px;"></select>
+        </div>
+        <div>
+          <label class="modal-label">Project</label>
+          <select id="ctTplProject" class="modal-input" onchange="populateSubCodeSelect('ctTplSubCode', this.value, ctGetStage(document.getElementById('ctTplStage').value)?.subCode || '')" style="min-width:160px;"></select>
+        </div>
+        <div>
+          <label class="modal-label">Sub-Code</label>
+          <select id="ctTplSubCode" class="modal-input" style="min-width:160px;"></select>
+        </div>
       </div>
-      <div id="ctTplTaskList" style="margin-top:10px;"></div>
-      <button class="btn" onclick="ctAddTemplateTask()" style="margin-top:8px;font-size:11px;">+ Add Template Task</button>
+      <div id="ctTplTaskList" style="margin-top:12px;"></div>
+      <button class="btn" onclick="ctAddTemplateTask()" style="margin-top:8px;font-size:11px;">+ Add Task</button>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="document.getElementById('ctTemplateModal').style.display='none'">Cancel</button>
@@ -11978,11 +11990,11 @@ const CT_ANCHOR_LABELS = {
 };
 
 let contactStages = load('wt_contact_stages', [
-  { id: 'interest', label: 'Interest Meeting', subCode: 'Outreach', project: 'CWC', tasks: [] },
-  { id: 'ipp', label: 'IPP Enrollment', subCode: 'IPP', project: 'CWC', tasks: [] },
-  { id: 'new-license', label: 'New License', subCode: 'IPP', project: 'CWC', tasks: [] },
-  { id: 'renewal', label: 'License Renewal', subCode: 'Cohort', project: 'CWC', tasks: [] },
-  { id: 'cohort', label: 'Cohort in Progress', subCode: 'Cohort', project: 'CWC', tasks: [] }
+  { id: 'interest', label: 'Interest Meeting', subCode: '', project: 'cwc', tasks: [] },
+  { id: 'ipp', label: 'IPP Enrollment', subCode: '', project: 'cwc', tasks: [] },
+  { id: 'new-license', label: 'New License', subCode: '', project: 'cwc', tasks: [] },
+  { id: 'renewal', label: 'License Renewal', subCode: '', project: 'cwc', tasks: [] },
+  { id: 'cohort', label: 'Cohort in Progress', subCode: '', project: 'cwc', tasks: [] }
 ]);
 let contacts = load('wt_contacts', []);
 let _ctActiveStage = 'all';
@@ -12037,7 +12049,7 @@ function getContactTasks() {
         out.push({
           id: '_ct_' + c.id + '_' + sid + '_' + t.id,
           _contactId: c.id, _stageId: sid, _ctTaskId: t.id,
-          name: t.name, project: stageDef.project || 'CWC',
+          name: t.name, project: stageDef.project || 'cwc',
           subCode: stageDef.subCode || '', priority: t.priority || 'med',
           due: t.due || null, est: t.est || 0, notes: t.notes || '',
           waiting: t.waiting || '', delegatedTo: t.delegatedTo || null,
@@ -12193,10 +12205,20 @@ function ctRenderAllGrid(panel) {
 
 function ctRenderProfile(panel, partner) {
   const initials = partner.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const contactParts = [];
-  if (partner.contactName) contactParts.push(escHtml(partner.contactName));
-  if (partner.email) contactParts.push(`<a href="mailto:${escHtml(partner.email)}">${escHtml(partner.email)}</a>`);
-  if (partner.phone) contactParts.push(escHtml(partner.phone));
+  // Build contacts list from new multi-contact structure
+  const pContacts = partner.contacts || [];
+  // Legacy fallback
+  if (!pContacts.length && (partner.contactName || partner.email)) {
+    pContacts.push({ name: partner.contactName || '', email: partner.email || '', role: '', isInstructor: false });
+  }
+  const contactsHtml = pContacts.length ? pContacts.map(c => {
+    const parts = [];
+    if (c.name) parts.push(`<strong>${escHtml(c.name)}</strong>`);
+    if (c.role) parts.push(`<span style="color:var(--text3);">${escHtml(c.role)}</span>`);
+    if (c.isInstructor) parts.push(`<span class="ct-instructor-badge">Instructor</span>`);
+    if (c.email) parts.push(`<a href="mailto:${escHtml(c.email)}" style="color:var(--accent);text-decoration:none;">${escHtml(c.email)}</a>`);
+    return `<div style="font-size:11px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${parts.join('')}</div>`;
+  }).join('') : '<span style="font-size:11px;opacity:0.4;">No contacts added</span>';
 
   let stagesHtml = '';
   const stageIds = Object.keys(partner.stages || {}).filter(s => partner.stages[s].active);
@@ -12245,7 +12267,7 @@ function ctRenderProfile(panel, partner) {
       <div class="ct-profile-avatar">${initials}</div>
       <div class="ct-profile-info">
         <div class="ct-profile-name">${escHtml(partner.name)}</div>
-        <div class="ct-profile-contact">${contactParts.join(' · ') || '<span style="opacity:0.4">No contact info</span>'}</div>
+        <div class="ct-profile-contact" style="display:flex;flex-direction:column;gap:3px;margin-top:4px;">${contactsHtml}</div>
         ${partner.notes ? `<div style="font-size:11px;color:var(--text3);margin-top:4px;">${escHtml(partner.notes)}</div>` : ''}
       </div>
       <div style="display:flex;gap:4px;">
@@ -12269,20 +12291,40 @@ function _ctToggleStage(sid) {
 // CONTACTS: PARTNER MANAGEMENT
 // =============================================
 
+function ctAddContactRow(data) {
+  const wrap = document.getElementById('ctPartnerContacts');
+  const row = document.createElement('div');
+  row.className = 'ct-contact-row';
+  const d = data || {};
+  row.innerHTML = `
+    <input type="text" placeholder="Name" class="ct-cr-name" value="${escHtml(d.name || '')}">
+    <input type="email" placeholder="Email" class="ct-cr-email" value="${escHtml(d.email || '')}">
+    <input type="text" placeholder="Role in org" class="ct-cr-role" value="${escHtml(d.role || '')}" style="max-width:120px;">
+    <label><input type="checkbox" class="ct-cr-instructor"${d.isInstructor ? ' checked' : ''}> Instructor</label>
+    <span style="cursor:pointer;color:var(--danger);font-size:14px;flex-shrink:0;padding:0 2px;" onclick="this.closest('.ct-contact-row').remove()" title="Remove">×</span>`;
+  wrap.appendChild(row);
+}
+
+function _ctReadContacts() {
+  return Array.from(document.querySelectorAll('#ctPartnerContacts .ct-contact-row')).map(row => ({
+    name: row.querySelector('.ct-cr-name').value.trim(),
+    email: row.querySelector('.ct-cr-email').value.trim(),
+    role: row.querySelector('.ct-cr-role').value.trim(),
+    isInstructor: row.querySelector('.ct-cr-instructor').checked
+  })).filter(c => c.name || c.email);
+}
+
 function openCtAddPartnerModal() {
   _ctEditingPartnerId = null;
   document.getElementById('ctPartnerModalTitle').textContent = 'Add Partner';
   document.getElementById('ctPartnerName').value = '';
-  document.getElementById('ctPartnerContact').value = '';
-  document.getElementById('ctPartnerEmail').value = '';
-  document.getElementById('ctPartnerPhone').value = '';
+  document.getElementById('ctPartnerContacts').innerHTML = '';
+  ctAddContactRow(); // Start with one empty contact row
   document.getElementById('ctPartnerNotes').value = '';
   const sel = document.getElementById('ctPartnerStage');
   sel.innerHTML = '<option value="">— Select Stage —</option>' +
     contactStages.map(s => `<option value="${s.id}">${escHtml(s.label)}</option>`).join('');
   sel.value = '';
-  document.getElementById('ctPartnerAnchorWrap').style.display = 'none';
-  document.getElementById('ctPartnerAnchor').value = '';
   document.getElementById('ctPartnerModal').style.display = 'flex';
 }
 
@@ -12292,27 +12334,19 @@ function ctEditPartner(id) {
   _ctEditingPartnerId = id;
   document.getElementById('ctPartnerModalTitle').textContent = 'Edit Partner';
   document.getElementById('ctPartnerName').value = c.name;
-  document.getElementById('ctPartnerContact').value = c.contactName || '';
-  document.getElementById('ctPartnerEmail').value = c.email || '';
-  document.getElementById('ctPartnerPhone').value = c.phone || '';
+  document.getElementById('ctPartnerContacts').innerHTML = '';
+  (c.contacts || []).forEach(ct => ctAddContactRow(ct));
+  if (!(c.contacts || []).length) {
+    // Migrate legacy single-contact fields
+    if (c.contactName || c.email) ctAddContactRow({ name: c.contactName || '', email: c.email || '', role: '', isInstructor: false });
+    else ctAddContactRow();
+  }
   document.getElementById('ctPartnerNotes').value = c.notes || '';
   const sel = document.getElementById('ctPartnerStage');
   sel.innerHTML = '<option value="">— No Change —</option>' +
     contactStages.filter(s => !ctPartnerHasStage(c, s.id)).map(s => `<option value="${s.id}">${escHtml(s.label)}</option>`).join('');
   sel.value = '';
-  document.getElementById('ctPartnerAnchorWrap').style.display = 'none';
   document.getElementById('ctPartnerModal').style.display = 'flex';
-}
-
-function ctPartnerStageChanged() {
-  const sid = document.getElementById('ctPartnerStage').value;
-  const wrap = document.getElementById('ctPartnerAnchorWrap');
-  if (sid) {
-    wrap.style.display = '';
-    document.getElementById('ctPartnerAnchorLabel').textContent = CT_ANCHOR_LABELS[sid] || 'Anchor Date';
-  } else {
-    wrap.style.display = 'none';
-  }
 }
 
 function closeCtPartnerModal() {
@@ -12323,24 +12357,21 @@ function closeCtPartnerModal() {
 function saveCtPartner() {
   const name = document.getElementById('ctPartnerName').value.trim();
   if (!name) return;
-  const contactName = document.getElementById('ctPartnerContact').value.trim();
-  const email = document.getElementById('ctPartnerEmail').value.trim();
-  const phone = document.getElementById('ctPartnerPhone').value.trim();
+  const pContacts = _ctReadContacts();
   const notes = document.getElementById('ctPartnerNotes').value.trim();
   const stageId = document.getElementById('ctPartnerStage').value;
-  const anchorDate = document.getElementById('ctPartnerAnchor').value || null;
 
   if (_ctEditingPartnerId) {
-    // Edit existing
     const c = contacts.find(c => c.id === _ctEditingPartnerId);
     if (c) {
-      c.name = name; c.contactName = contactName; c.email = email; c.phone = phone; c.notes = notes;
-      if (stageId) ctAddStageToPartner(c, stageId, anchorDate);
+      c.name = name; c.contacts = pContacts; c.notes = notes;
+      // Migrate: clear legacy fields
+      c.contactName = ''; c.email = ''; c.phone = '';
+      if (stageId) ctAddStageToPartner(c, stageId, null);
     }
   } else {
-    // Create new
-    const c = { id: uid(), name, contactName, email, phone, notes, stages: {}, _addedDate: today() };
-    if (stageId) ctAddStageToPartner(c, stageId, anchorDate);
+    const c = { id: uid(), name, contacts: pContacts, notes, stages: {}, _addedDate: today() };
+    if (stageId) ctAddStageToPartner(c, stageId, null);
     contacts.push(c);
     _ctSelectedPartner = c.id;
   }
@@ -12357,7 +12388,7 @@ function ctAddStageToPartner(partner, stageId, anchorDate) {
   const tasks = (stageDef.tasks || []).map(t => ({
     id: uid(), name: t.name, est: t.est || 0, priority: t.priority || 'med',
     due: null, delegatedTo: t.delegatedTo || null, notes: t.notes || '',
-    waiting: '', completed: false, dateCompleted: null, actualHours: 0,
+    waiting: t.waiting || '', completed: false, dateCompleted: null, actualHours: 0,
     offsetDays: t.offsetDays || 0
   }));
   partner.stages[stageId] = { active: true, anchorDate: anchorDate || null, addedDate: today(), tasks };
@@ -12474,6 +12505,17 @@ function ctEditTaskInline(partnerId, stageId, taskId) {
 function openCtTemplateModal() {
   const sel = document.getElementById('ctTplStage');
   sel.innerHTML = contactStages.map(s => `<option value="${s.id}">${escHtml(s.label)}</option>`).join('');
+  // Populate project dropdown
+  const projSel = document.getElementById('ctTplProject');
+  projSel.innerHTML = '';
+  Object.keys(PROJECTS).forEach(k => {
+    const p = PROJECTS[k];
+    if (p.hidden) return;
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = `${p.label} (${p.billingCode})`;
+    projSel.appendChild(opt);
+  });
   ctRenderTemplateEditor();
   document.getElementById('ctTemplateModal').style.display = 'flex';
 }
@@ -12482,23 +12524,28 @@ function ctRenderTemplateEditor() {
   const sid = document.getElementById('ctTplStage').value;
   const stage = ctGetStage(sid);
   if (!stage) return;
-  document.getElementById('ctTplProject').value = stage.project || 'CWC';
-  document.getElementById('ctTplSubCode').value = stage.subCode || '';
+  // Set project dropdown to stage's project key (default cwc)
+  document.getElementById('ctTplProject').value = stage.project || 'cwc';
+  // Populate subcode dropdown for selected project
+  populateSubCodeSelect('ctTplSubCode', stage.project || 'cwc', stage.subCode || '');
   const list = document.getElementById('ctTplTaskList');
-  list.innerHTML = '<div style="display:grid;grid-template-columns:1fr 60px 70px 70px 30px;gap:6px;padding:4px 0;font-size:10px;font-weight:600;color:var(--text3);">' +
-    '<span>Task Name</span><span>Est (h)</span><span>Priority</span><span>Offset Days</span><span></span></div>';
+  // Header matching My Tasks form style
+  list.innerHTML = '<div style="display:grid;grid-template-columns:1fr 60px 80px 80px 70px 24px;gap:6px;padding:4px 0;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.03em;">' +
+    '<span>Task Name</span><span>Est (h)</span><span>Priority</span><span>Waiting</span><span>Offset</span><span></span></div>';
   (stage.tasks || []).forEach((t, i) => {
-    list.innerHTML += `<div class="ct-tpl-task" data-idx="${i}">
-      <input class="modal-input" value="${escHtml(t.name)}" data-field="name" style="font-size:11px;padding:4px 6px;">
-      <input class="modal-input" type="number" value="${t.est || 0}" data-field="est" style="font-size:11px;padding:4px 6px;" step="0.25">
-      <select class="modal-input" data-field="priority" style="font-size:11px;padding:4px 6px;">
+    list.innerHTML += `<div class="ct-tpl-task" data-idx="${i}" style="grid-template-columns:1fr 60px 80px 80px 70px 24px;">
+      <input class="form-input" value="${escHtml(t.name)}" data-field="name" placeholder="Task name" style="font-size:11px;padding:4px 8px;">
+      <input class="form-input" type="number" value="${t.est || ''}" data-field="est" placeholder="0" style="font-size:11px;padding:4px 6px;" step="0.25" min="0">
+      <select class="form-input filter-select" data-field="priority" style="font-size:11px;padding:4px 4px;">
+        <option value="meeting"${t.priority === 'meeting' ? ' selected' : ''}>Meeting</option>
         <option value="urgent"${t.priority === 'urgent' ? ' selected' : ''}>Urgent</option>
         <option value="high"${t.priority === 'high' ? ' selected' : ''}>High</option>
         <option value="med"${t.priority === 'med' || !t.priority ? ' selected' : ''}>Med</option>
         <option value="low"${t.priority === 'low' ? ' selected' : ''}>Low</option>
       </select>
-      <input class="modal-input" type="number" value="${t.offsetDays || 0}" data-field="offsetDays" style="font-size:11px;padding:4px 6px;" title="Days relative to anchor date (negative = before)">
-      <span style="cursor:pointer;color:var(--danger);font-size:14px;" onclick="ctRemoveTemplateTask(${i})" title="Remove">×</span>
+      <input class="form-input" type="text" value="${escHtml(t.waiting || '')}" data-field="waiting" placeholder="Optional" style="font-size:11px;padding:4px 6px;">
+      <input class="form-input" type="number" value="${t.offsetDays || 0}" data-field="offsetDays" style="font-size:11px;padding:4px 6px;" title="Days from anchor (negative = before)">
+      <span style="cursor:pointer;color:var(--danger);font-size:14px;text-align:center;" onclick="ctRemoveTemplateTask(${i})" title="Remove">×</span>
     </div>`;
   });
 }
@@ -12524,8 +12571,8 @@ function ctSaveTemplate() {
   const sid = document.getElementById('ctTplStage').value;
   const stage = ctGetStage(sid);
   if (!stage) return;
-  stage.project = document.getElementById('ctTplProject').value.trim() || 'CWC';
-  stage.subCode = document.getElementById('ctTplSubCode').value.trim() || '';
+  stage.project = document.getElementById('ctTplProject').value || 'cwc';
+  stage.subCode = document.getElementById('ctTplSubCode').value || '';
   // Read task rows
   const rows = document.querySelectorAll('#ctTplTaskList .ct-tpl-task');
   const tasks = [];
@@ -12534,9 +12581,10 @@ function ctSaveTemplate() {
     if (!name) return;
     const est = parseFloat(row.querySelector('[data-field="est"]').value) || 0;
     const priority = row.querySelector('[data-field="priority"]').value || 'med';
+    const waiting = row.querySelector('[data-field="waiting"]')?.value?.trim() || '';
     const offsetDays = parseInt(row.querySelector('[data-field="offsetDays"]').value) || 0;
     const oldTask = stage.tasks[+row.dataset.idx] || {};
-    tasks.push({ id: oldTask.id || uid(), name, est, priority, offsetDays, delegatedTo: oldTask.delegatedTo || null, notes: oldTask.notes || '' });
+    tasks.push({ id: oldTask.id || uid(), name, est, priority, offsetDays, waiting, delegatedTo: oldTask.delegatedTo || null, notes: oldTask.notes || '' });
   });
   stage.tasks = tasks;
   save('wt_contact_stages', contactStages);
@@ -12564,7 +12612,7 @@ function ctPlannedItems(fromDate, toDate) {
           items.push({
             id: '_ct_' + c.id + '_' + sid + '_' + t.id,
             name: c.name + ': ' + t.name,
-            project: stageDef.project || 'CWC',
+            project: stageDef.project || 'cwc',
             date: t.due,
             hours: t.est || 0,
             subCode: stageDef.subCode || '',
