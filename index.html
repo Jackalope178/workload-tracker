@@ -58,8 +58,10 @@
   [data-theme="light"] .s-in-review     { background: #f0fdfa; color: #0f766e; border-color: #5eead4; }
   [data-theme="light"] .s-blocked       { background: #fef2f2; color: #b91c1c; border-color: #fca5a5; }
   [data-theme="light"] .s-complete      { background: #f0fdf4; color: #15803d; border-color: #86efac; }
-  [data-theme="light"] .ts-accuracy.good { background: #f0fdf4; }
-  [data-theme="light"] .ts-accuracy.over { background: #fef2f2; }
+  [data-theme="light"] .ts-accuracy.good { background: #f0fdf4; color: #15803d; }
+  [data-theme="light"] .ts-accuracy.warn { background: #fffbeb; color: #a16207; }
+  [data-theme="light"] .ts-accuracy.bad  { background: #fef2f2; color: #b91c1c; }
+  [data-theme="light"] .ts-accuracy.over { background: #fef2f2; color: #b91c1c; }
   [data-theme="light"] .review-card.accepted { border-color: var(--success); background: #f0fdf4; }
   [data-theme="light"] .review-card.accepted .review-toggle { background: #dcfce7; }
   [data-theme="light"] .modal-overlay { background: rgba(0,0,0,0.35); }
@@ -1058,7 +1060,7 @@
   .session-row:hover .session-row-actions { opacity: 1; }
   .session-desc { cursor: pointer; }
   .session-desc:hover { color: var(--accent); }
-  .delegate-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; vertical-align: middle; border: 1px solid transparent; }
+  .delegate-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; vertical-align: middle; border: 1px solid var(--border); background: var(--bg3); color: var(--text3); }
   .recur-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); vertical-align: middle; }
   .task-recur-actions { display: flex; gap: 2px; align-items: center; justify-content: center; }
   .recur-inline-actions { display: none; gap: 3px; flex-shrink: 0; margin-left: auto; }
@@ -1183,6 +1185,10 @@
     text-overflow: ellipsis;
     max-width: 100%;
     display: inline-block;
+    /* Default fallback for unknown/missing status */
+    background: var(--bg3);
+    color: var(--text2);
+    border: 1px solid var(--border);
   }
 
   .status-badge:hover { opacity: 0.75; }
