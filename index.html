@@ -2698,6 +2698,7 @@ if (typeof XLSX === 'undefined') {
       <div class="ts-view-toggle">
         <button id="tsViewWeek"    class="ts-view-btn active" onclick="setTsView('week')">Week</button>
         <button id="tsViewMonth"   class="ts-view-btn"        onclick="setTsView('month')">Month</button>
+        <button id="tsViewPlanned" class="ts-view-btn"        onclick="setTsView('planned')">Planned</button>
       </div>
       <div id="tsPeriodNav" style="display:flex;align-items:center;gap:4px;">
         <button class="btn" onclick="tsPeriodPrev()">‹</button>
@@ -2716,9 +2717,11 @@ if (typeof XLSX === 'undefined') {
       <select id="tsPlannedHorizon" class="filter-select" style="display:none;" onchange="renderTimesheet()">
         <option value="4">Next 4 weeks</option>
         <option value="8">Next 8 weeks</option>
-        <option value="13" selected>Next 3 months</option>
-        <option value="26">Next 6 months</option>
+        <option value="13">Next 3 months</option>
+        <option value="26" selected>Next 6 months</option>
         <option value="52">Next 12 months</option>
+        <option value="104">Next 2 years</option>
+        <option value="260">Next 5 years</option>
       </select>
       <button class="btn" onclick="exportTimesheetCSV()" style="font-size:11px;padding:4px 10px;" title="Export current view to CSV">⬇ CSV</button>
       <button class="btn primary" onclick="openAddTsEntryModal()" style="font-size:11px;padding:4px 10px;">+ Log time</button>
@@ -4977,7 +4980,13 @@ function nextRecurrenceAfter(task, fromDateStr) {
     const [dayOfWeek] = normDows(task.recurrence);
     let m = from.getMonth() + 1, y = from.getFullYear();
     if (m > 11) { m = 0; y++; }
-    return getNthWeekdayOfMonth(y, m, dayOfWeek, weekOfMonth);
+    // Try up to 12 months ahead if Nth weekday doesn't exist in a given month (e.g. 5th Monday)
+    for (let tries = 0; tries < 12; tries++) {
+      const result = getNthWeekdayOfMonth(y, m, dayOfWeek, weekOfMonth);
+      if (result) return result;
+      m++;
+      if (m > 11) { m = 0; y++; }
+    }
   }
   return null;
 }
@@ -6331,8 +6340,12 @@ function confirmComplete() {
       completed.unshift(entry);
       save('wt_completed', completed);
       if (s.recurrence) {
-        const nextDate = nextRecurrenceAfter(s, s.date || today());
+        let nextDate = nextRecurrenceAfter(s, s.date || today());
         const endDate = s.recurrence.endDate;
+        if (!nextDate && !endDate) {
+          const fallbackDays = (s.recurrence.type === 'weekly' || s.recurrence.type === 'biweekly') ? 7 : 30;
+          nextDate = addDays(s.date || today(), fallbackDays);
+        }
         if (nextDate && (!endDate || nextDate <= endDate)) {
           s.date = nextDate;
           s.timer = 0; s.timerStart = null;
@@ -6359,8 +6372,12 @@ function confirmComplete() {
       completed.unshift(entry);
       save('wt_completed', completed);
       if (st.recurrence) {
-        const nextDate = nextRecurrenceAfter(st, st.date || today());
+        let nextDate = nextRecurrenceAfter(st, st.date || today());
         const endDate = st.recurrence.endDate;
+        if (!nextDate && !endDate) {
+          const fallbackDays = (st.recurrence.type === 'weekly' || st.recurrence.type === 'biweekly') ? 7 : 30;
+          nextDate = addDays(st.date || today(), fallbackDays);
+        }
         if (nextDate && (!endDate || nextDate <= endDate)) {
           st.date = nextDate;
           st.timer = 0; st.timerStart = null;
@@ -6392,8 +6409,13 @@ function confirmComplete() {
     save('wt_completed', completed);
 
     if (task.recurrence) {
-      const nextDate = nextRecurrenceAfter(task, task.due || today());
+      let nextDate = nextRecurrenceAfter(task, task.due || today());
       const endDate  = task.recurrence.endDate;
+      // Fallback: if nextRecurrenceAfter returned null but there's no end date, advance by a safe default
+      if (!nextDate && !endDate) {
+        const fallbackDays = (task.recurrence.type === 'weekly' || task.recurrence.type === 'biweekly') ? 7 : 30;
+        nextDate = addDays(task.due || today(), fallbackDays);
+      }
       const withinEnd = nextDate && (!endDate || nextDate <= endDate);
       if (withinEnd) {
         task.due = nextDate; task.timer = 0; task.timerStart = null;
@@ -7730,9 +7752,9 @@ function plannedItems(fromDate, toDate) {
       const skips     = t.recurrence.skips    || [];
       const overrides = t.recurrence.overrides || {};
       let d = t.due; let iters = 0;
-      while (d && d < fromDate && iters++ < 500) d = nextRecurrenceAfter(t, d);
+      while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(t, d);
       iters = 0;
-      while (d && d <= toDate && iters++ < 200) {
+      while (d && d <= toDate && iters++ < 1000) {
         if (recurEnd && d > recurEnd) break;
         if (!skips.includes(d)) {
           const displayDate = overrides[d] || d;
@@ -7754,9 +7776,9 @@ function plannedItems(fromDate, toDate) {
       } else {
         const recurEnd = s.recurrence.endDate || null;
         let d = s.date; let iters = 0;
-        while (d && d < fromDate && iters++ < 500) d = nextRecurrenceAfter(s, d);
+        while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(s, d);
         iters = 0;
-        while (d && d <= toDate && iters++ < 200) {
+        while (d && d <= toDate && iters++ < 1000) {
           if (recurEnd && d > recurEnd) break;
           items.push({ id: s.id + '_' + d, name: s.desc, project: proj.project, date: d, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _src: 'session', _projId: proj.id });
           d = nextRecurrenceAfter(s, d);
@@ -7773,9 +7795,9 @@ function plannedItems(fromDate, toDate) {
         } else {
           const recurEnd = st.recurrence.endDate || null;
           let d = st.date; let iters = 0;
-          while (d && d < fromDate && iters++ < 500) d = nextRecurrenceAfter(st, d);
+          while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(st, d);
           iters = 0;
-          while (d && d <= toDate && iters++ < 200) {
+          while (d && d <= toDate && iters++ < 1000) {
             if (recurEnd && d > recurEnd) break;
             items.push({ id: st.id + '_' + d, name: st.desc, project: proj.project, date: d, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id });
             d = nextRecurrenceAfter(st, d);
