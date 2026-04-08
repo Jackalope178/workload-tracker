@@ -9397,11 +9397,13 @@ function openAllocDrill(projKey, scId, yearMonth) {
   let html = '';
 
   // Allocation source breakdown
-  if (_allocated > 0 || _rolloverAmt > 0) {
+  if (_allocated > 0 || _rolloverAmt !== 0 || _actual > 0) {
     html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:11px;">';
-    if (_rolloverAmt > 0) {
+    if (_rolloverAmt !== 0) {
       html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--text3);">BigTime Allocation</span><span>${fmtQ(_btAmt)}h</span></div>`;
-      html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--accent);">Rolled over</span><span style="color:var(--accent);">${fmtQ(_rolloverAmt)}h</span></div>`;
+      const roColor = _rolloverAmt > 0 ? 'var(--accent)' : 'var(--danger)';
+      const roLabel = _rolloverAmt > 0 ? `+${fmtQ(_rolloverAmt)}h` : `−${fmtQ(Math.abs(_rolloverAmt))}h`;
+      html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:${roColor};">${_rolloverAmt > 0 ? 'Rolled over' : 'Overspend carried'}</span><span style="color:${roColor};">${roLabel}</span></div>`;
       html += `<div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;font-weight:700;"><span>Total allocated</span><span>${fmtQ(_allocated)}h</span></div>`;
     } else {
       html += `<div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">BigTime Allocation</span><span>${fmtQ(_allocated)}h</span></div>`;
