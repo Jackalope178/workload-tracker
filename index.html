@@ -12374,8 +12374,8 @@ function ctRenderAllGrid(panel) {
       if (!st.active) continue;
       st.tasks.forEach(t => {
         if (t.completed) return;
-        // Include if due within 30 days, overdue, or no date (actionable)
-        if (t.due && t.due > horizon) return;
+        // Only include tasks with a due date within 30 days or overdue
+        if (!t.due || t.due > horizon) return;
         allTasks.push({ partner: c.name, partnerId: c.id, stage: CT_STAGE_LABELS[sid] || sid, stageId: sid,
           stageColor: CT_STAGE_COLORS[sid] || '#888', task: t, cid: c.id, sid, tid: t.id });
       });
@@ -12388,7 +12388,7 @@ function ctRenderAllGrid(panel) {
   });
 
   if (!allTasks.length) {
-    panel.innerHTML = '<div class="ct-empty-state"><span style="font-size:20px;">✓</span><span>No tasks due in the next 30 days</span></div>';
+    panel.innerHTML = '<div class="ct-empty-state"><span style="font-size:20px;">✓</span><span>No tasks with dates due in the next 30 days</span><span style="font-size:11px;">Set due dates on partner tasks to see them here.</span></div>';
     return;
   }
 
@@ -12412,7 +12412,7 @@ function ctRenderAllGrid(panel) {
     html += `<div class="ct-task-row" style="grid-template-columns:24px 1fr auto 110px 55px 55px 20px;padding:8px 10px;border-radius:0;border-top:1px solid var(--border);">
       <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask(${ids},true)">${t.completed ? '✓' : ''}</div>
       <div style="min-width:0;">
-        <div class="ct-task-name" onclick="ctOpenEditTaskModal(${ids})" style="cursor:pointer;" title="Click to edit">${escHtml(t.name)}</div>
+        <div class="ct-task-name" onclick="event.stopPropagation();window.ctOpenEditTaskModal(${ids})" style="cursor:pointer;overflow:visible;white-space:normal;" title="Click to edit">${escHtml(t.name)}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:1px;display:flex;gap:6px;align-items:center;">
           <span style="font-weight:600;">${escHtml(r.partner)}</span>
           <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r.stageColor};"></span>
@@ -12476,7 +12476,7 @@ function ctRenderProfile(panel, partner) {
         const ids = `'${partner.id}','${sid}','${t.id}'`;
         return `<div class="ct-task-row${t.completed ? ' ct-task-done' : ''}">
           <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask(${ids},${!t.completed})">${t.completed ? '✓' : ''}</div>
-          <div class="ct-task-name${t.completed ? ' done' : ''}" onclick="ctOpenEditTaskModal(${ids})" style="cursor:pointer;" title="Click to edit">${escHtml(t.name)}${t.waiting ? `<span class="task-waiting" style="font-size:10px;margin-left:4px;">⏳ ${escHtml(t.waiting)}</span>` : ''}</div>
+          <div class="ct-task-name${t.completed ? ' done' : ''}" onclick="event.stopPropagation();window.ctOpenEditTaskModal(${ids})" style="cursor:pointer;overflow:visible;white-space:normal;" title="Click to edit">${escHtml(t.name)}${t.waiting ? `<span class="task-waiting" style="font-size:10px;margin-left:4px;">⏳ ${escHtml(t.waiting)}</span>` : ''}</div>
           <span style="display:inline-flex;gap:2px;align-items:center;flex-shrink:0;">${delTags}<button onclick="event.stopPropagation();ctAssignTask(event,${ids})" title="Assign" style="opacity:0.6;font-size:12px;background:none;border:none;cursor:pointer;padding:1px 3px;color:var(--text3);">↗</button></span>
           <span class="ct-task-date" onclick="event.stopPropagation();ctInlineEditDate(this,${ids})" style="cursor:pointer;white-space:nowrap;" title="Click to set date">${t.due ? fmtDate(t.due) : '<span style="opacity:0.4">No date</span>'}</span>
           <span onclick="event.stopPropagation();ctShowPriority(event,${ids})" style="cursor:pointer;" title="Change priority">${pri}</span>
