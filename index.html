@@ -2992,7 +2992,7 @@ if (typeof XLSX === 'undefined') {
 </div>
 
 <!-- CONTACTS: EDIT TASK MODAL -->
-<div class="modal-overlay" id="ctEditTaskModal" style="display:none;">
+<div class="modal-overlay" id="ctEditTaskDlg" style="display:none;">
   <div class="modal">
     <div class="modal-title">Edit Contact Task</div>
     <div class="modal-subtitle" id="ctEditTaskSub"></div>
@@ -12441,7 +12441,7 @@ function ctRenderProfile(panel, partner) {
           <span style="display:inline-flex;gap:2px;align-items:center;flex-shrink:0;">${delTags}<button class="row-edit-btn" onclick="event.stopPropagation();ctAssignTask(event,'${cid}','${sid}','${tid}')" title="Assign" style="opacity:0.6;font-size:12px;background:none;border:none;cursor:pointer;padding:1px 3px;">↗</button></span>
           <span class="ct-task-date" onclick="event.stopPropagation();ctInlineEditDate(this,'${cid}','${sid}','${tid}')" style="cursor:pointer;white-space:nowrap;" title="Click to set date">${t.due ? fmtDate(t.due) : '<span style="opacity:0.4">No date</span>'}</span>
           <span onclick="event.stopPropagation();ctShowPriority(event,'${cid}','${sid}','${tid}')" style="cursor:pointer;" title="Click to change priority">${pri}</span>
-          <span class="ct-task-hrs" style="cursor:pointer;display:flex;align-items:center;gap:3px;" onclick="event.stopPropagation();ctInlineEditEst(this,'${cid}','${sid}','${tid}')" title="Click to edit hours">${t.est ? t.est + 'h' : '—'} <span style="opacity:0.4;font-size:10px;" onclick="event.stopPropagation();ctEditTaskModal('${cid}','${sid}','${tid}')" title="Edit details">✎</span></span>
+          <span class="ct-task-hrs" style="cursor:pointer;" onclick="event.stopPropagation();ctInlineEditEst(this,'${cid}','${sid}','${tid}')" title="Click to edit hours">${t.est ? t.est + 'h' : '—'}</span>
         </div>`;
       }).join('');
       stagesHtml += `<div style="padding:6px 14px;border-top:1px solid var(--border);">
@@ -12708,7 +12708,7 @@ function ctOpenEditTaskModal(cid, sid, tid) {
       const pc = personColor(cb.value); l.style.border = `1px solid ${a ? pc.border : 'var(--border)'}`; l.style.background = a ? pc.bg : 'transparent'; l.style.color = a ? pc.text : 'var(--text3)'; };
   });
 
-  document.getElementById('ctEditTaskModal').style.display = 'flex';
+  document.getElementById('ctEditTaskDlg').style.display = 'flex';
 }
 
 // Inline edit: due date
@@ -12766,7 +12766,7 @@ function ctEditTaskModal(cid, sid, tid) {
 }
 
 function ctCloseEditModal() {
-  document.getElementById('ctEditTaskModal').style.display = 'none';
+  document.getElementById('ctEditTaskDlg').style.display = 'none';
   _ctEditRef = null;
 }
 
