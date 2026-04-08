@@ -6572,8 +6572,40 @@ function confirmComplete() {
   const dateCompleted = document.getElementById('compDate')?.value || today();
 
   if (_completingCtx) {
-    // Session or subtask completion
     const ctx = _completingCtx;
+
+    // Contact task completion
+    if (ctx.type === 'contact') {
+      const c = contacts.find(c => c.id === ctx.contactId);
+      if (!c || !c.stages[ctx.stageId]) return;
+      const t = c.stages[ctx.stageId].tasks.find(t => t.id === ctx.taskId);
+      if (!t) return;
+      const stageDef = ctGetStage(ctx.stageId);
+      t.completed = true;
+      t.dateCompleted = dateCompleted;
+      t.actualHours = billable;
+      const entry = {
+        id: uid(),
+        name: c.name + ': ' + t.name,
+        project: stageDef?.project || 'cwc',
+        subCode: subCode,
+        dateCompleted: dateCompleted,
+        estHours: t.est || 0,
+        actualHours: billable,
+        category: ''
+      };
+      completed.unshift(entry);
+      save('wt_completed', completed);
+      save('wt_contacts', contacts);
+      closeCompletionModal();
+      renderContacts();
+      renderTasks();
+      renderProjects();
+      renderTimesheet();
+      return;
+    }
+
+    // Session or subtask completion
     const proj = bigProjs.find(p => p.id === ctx.projId);
     if (!proj) return;
     const s = proj.sessions.find(s => s.id === ctx.sessionId);
@@ -12156,34 +12188,37 @@ function ctCompleteTask(contactId, stageId, taskId, markCompleted) {
   const t = c.stages[stageId].tasks.find(t => t.id === taskId);
   if (!t) return;
   const stageDef = ctGetStage(stageId);
-  t.completed = markCompleted;
-  t.dateCompleted = markCompleted ? today() : null;
-  if (markCompleted) {
-    // Log to completed array for timesheet tracking
-    const entry = {
-      id: uid(),
-      name: c.name + ': ' + t.name,
-      project: stageDef?.project || 'cwc',
-      subCode: stageDef?.subCode || '',
-      dateCompleted: today(),
-      estHours: t.est || 0,
-      actualHours: t.est || 0,
-      category: ''
-    };
-    completed.unshift(entry);
-    save('wt_completed', completed);
-  } else {
-    // Un-completing: remove the most recent matching completed entry
+
+  if (!markCompleted) {
+    // Un-completing: direct toggle + remove completed entry
+    t.completed = false;
+    t.dateCompleted = null;
     const idx = completed.findIndex(e => e.name === c.name + ': ' + t.name && e.project === (stageDef?.project || 'cwc'));
     if (idx !== -1) { completed.splice(idx, 1); save('wt_completed', completed); }
+    save('wt_contacts', contacts);
+    renderContacts();
+    return;
   }
-  save('wt_contacts', contacts);
-  renderContacts();
-  // Re-render active tab if it's tasks or timesheet
-  const activeTab = document.querySelector('.tab.active')?.dataset?.tab;
-  if (activeTab === 'tasks') renderTasks();
-  else if (activeTab === 'timesheet') renderTimesheet();
-  else if (activeTab === 'projects') renderProjects();
+
+  // Open the standard completion modal
+  completingTaskId = null;
+  _completingCtx = { type: 'contact', contactId, stageId, taskId };
+  const billable = t.est ? roundToQuarter(t.est) : 0;
+
+  document.getElementById('compModalTitle').textContent = 'Complete Task';
+  document.getElementById('compModalSub').textContent = c.name + ': ' + t.name;
+  document.getElementById('compEst').textContent = t.est ? t.est + 'h' : '—';
+  document.getElementById('compTimer').textContent = 'No timer data';
+  document.getElementById('compBillable').value = billable;
+
+  const varEl = document.getElementById('compVariance');
+  varEl.textContent = '—';
+  varEl.className = 'modal-value';
+
+  populateSubCodeSelect('compSubCode', stageDef?.project || 'cwc', stageDef?.subCode || '');
+  document.getElementById('compDate').value = t.due || today();
+
+  document.getElementById('completionModal').classList.add('open');
 }
 
 
