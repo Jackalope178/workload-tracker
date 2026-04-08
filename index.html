@@ -12468,6 +12468,7 @@ function ctRenderProfile(panel, partner) {
         <span style="font-size:10px;color:var(--text3);">${anchorLabel}</span>
         <span class="ct-stage-progress">${prog.done}/${prog.total} done</span>
         <span class="ct-stage-chevron${isExpanded ? ' open' : ''}">›</span>
+        <button onclick="event.stopPropagation();ctCloseStage('${partner.id}','${sid}')" title="Close this stage (history preserved)" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px;color:var(--text3);">Close Stage</button>
       </div>`;
 
     if (isExpanded) {
@@ -12495,8 +12496,27 @@ function ctRenderProfile(panel, partner) {
     stagesHtml += '</div>';
   });
 
-  // Available stages to add
-  const availableStages = contactStages.filter(s => !stageIds.includes(s.id));
+  // Closed stages section
+  const closedIds = Object.keys(partner.stages || {}).filter(s => !partner.stages[s].active);
+  if (closedIds.length) {
+    stagesHtml += `<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:10px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:8px;">Closed Stages</div>`;
+    closedIds.forEach(sid => {
+      const color = CT_STAGE_COLORS[sid] || '#888';
+      const st = partner.stages[sid];
+      const prog = ctStageProgress(partner, sid);
+      stagesHtml += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;opacity:0.6;">
+        <span class="ct-stage-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;">${CT_STAGE_LABELS[sid] || sid}</span>
+        <span style="font-size:10px;color:var(--text3);">${prog.done}/${prog.total} completed</span>
+        <button onclick="ctReopenStage('${partner.id}','${sid}')" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px;color:var(--text3);" title="Reopen this stage">Reopen</button>
+      </div>`;
+    });
+    stagesHtml += '</div>';
+  }
+
+  // Available stages to add (exclude both active and closed)
+  const usedStages = [...stageIds, ...closedIds];
+  const availableStages = contactStages.filter(s => !usedStages.includes(s.id));
 
   panel.innerHTML = `<div class="ct-profile">
     <div class="ct-profile-header">
@@ -12662,6 +12682,24 @@ function ctConfirmAddStage() {
   ctAddStageToPartner(c, stageId, anchor);
   save('wt_contacts', contacts);
   document.getElementById('ctAddStageModal').style.display = 'none';
+  renderContacts();
+}
+
+function ctCloseStage(partnerId, stageId) {
+  const c = contacts.find(c => c.id === partnerId);
+  if (!c || !c.stages[stageId]) return;
+  const label = CT_STAGE_LABELS[stageId] || stageId;
+  if (!confirm(`Close "${label}" stage? Tasks and logged time will be preserved but the stage will be hidden.`)) return;
+  c.stages[stageId].active = false;
+  save('wt_contacts', contacts);
+  renderContacts();
+}
+
+function ctReopenStage(partnerId, stageId) {
+  const c = contacts.find(c => c.id === partnerId);
+  if (!c || !c.stages[stageId]) return;
+  c.stages[stageId].active = true;
+  save('wt_contacts', contacts);
   renderContacts();
 }
 
