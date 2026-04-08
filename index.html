@@ -2955,12 +2955,16 @@ if (typeof XLSX === 'undefined') {
 
 <!-- CONTACTS: ADD STAGE TO PARTNER MODAL -->
 <div class="modal-overlay" id="ctAddStageModal" style="display:none;">
-  <div class="modal" style="max-width:400px;">
+  <div class="modal" style="max-width:440px;">
     <div class="modal-header"><span>Add Stage</span><button class="modal-close" onclick="document.getElementById('ctAddStageModal').style.display='none'">×</button></div>
     <div class="modal-body">
       <label class="modal-label">Stage</label>
       <select id="ctAddStageSelect" class="modal-input"></select>
-      <label class="modal-label">Anchor Date (e.g. renewal expiration)</label>
+      <label class="modal-label">Tag Contact <span style="font-weight:400;color:var(--text3);">(who is this for?)</span></label>
+      <select id="ctAddStageContact" class="modal-input">
+        <option value="">— General (no specific contact) —</option>
+      </select>
+      <label class="modal-label">Anchor Date <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
       <input id="ctAddStageAnchor" class="modal-input" type="date">
     </div>
     <div class="modal-footer">
@@ -12135,7 +12139,18 @@ let _ctSelectedPartner = null;
 let _ctEditingPartnerId = null;
 let _ctCollapsedStages = new Set();
 
-function ctGetStage(id) { return contactStages.find(s => s.id === id); }
+function ctGetStage(id) {
+  // Handle composite instance keys like 'ipp__2' — strip suffix to find template
+  const baseId = id.includes('__') ? id.split('__')[0] : id;
+  return contactStages.find(s => s.id === baseId);
+}
+
+// Get the base stage key from an instance key (or from the instance's stageKey property)
+function ctStageKey(partner, instanceKey) {
+  const st = partner.stages[instanceKey];
+  if (st && st.stageKey) return st.stageKey;
+  return instanceKey.includes('__') ? instanceKey.split('__')[0] : instanceKey;
+}
 
 function ctNextTask(partner) {
   let earliest = null;
@@ -12151,7 +12166,12 @@ function ctNextTask(partner) {
 }
 
 function ctPartnerHasStage(partner, stageId) {
-  return partner.stages && partner.stages[stageId] && partner.stages[stageId].active;
+  // Check if partner has any active instance of this stage type
+  if (!partner.stages) return false;
+  return Object.keys(partner.stages).some(k => {
+    const baseKey = ctStageKey(partner, k);
+    return baseKey === stageId && partner.stages[k].active;
+  });
 }
 
 function ctStageProgress(partner, stageId) {
@@ -12324,9 +12344,10 @@ function renderContacts() {
     ? '<div style="padding:20px;text-align:center;font-size:11px;color:var(--text3);">No partners found</div>'
     : visible.map(c => {
       const next = ctNextTask(c);
-      const stageDots = Object.keys(c.stages || {}).filter(s => c.stages[s].active).map(s =>
-        `<span class="ct-partner-stage-dot" style="background:${CT_STAGE_COLORS[s] || 'var(--text3)'}" title="${CT_STAGE_LABELS[s] || s}"></span>`
-      ).join('');
+      const stageDots = Object.keys(c.stages || {}).filter(s => c.stages[s].active).map(s => {
+        const bk = ctStageKey(c, s);
+        return `<span class="ct-partner-stage-dot" style="background:${CT_STAGE_COLORS[bk] || 'var(--text3)'}" title="${CT_STAGE_LABELS[bk] || bk}${c.stages[s].contactTag ? ' — ' + escHtml(c.stages[s].contactTag) : ''}"></span>`;
+      }).join('');
       const nextLabel = next ? (next.due ? fmtDate(next.due) : 'No date') : 'All done';
       return `<div class="ct-partner-item${_ctSelectedPartner === c.id ? ' active' : ''}" onclick="ctSelectPartner('${c.id}')">
         <div style="flex:1;min-width:0;">
@@ -12457,17 +12478,19 @@ function ctRenderProfile(panel, partner) {
   let stagesHtml = '';
   const stageIds = Object.keys(partner.stages || {}).filter(s => partner.stages[s].active);
   stageIds.forEach(sid => {
+    const baseKey = ctStageKey(partner, sid);
     const stageDef = ctGetStage(sid);
     const st = partner.stages[sid];
     const prog = ctStageProgress(partner, sid);
     const isExpanded = !_ctCollapsedStages.has(sid);
-    const color = CT_STAGE_COLORS[sid] || '#888';
-    const anchorLabel = st.anchorDate ? `Anchor: ${fmtDate(st.anchorDate)}` : '';
+    const color = CT_STAGE_COLORS[baseKey] || '#888';
+    const contactLabel = st.contactTag ? `<span style="font-size:10px;font-weight:600;color:var(--text2);">— ${escHtml(st.contactTag)}</span>` : '';
+    const anchorLabel = st.anchorDate ? `<span style="font-size:10px;color:var(--text3);">Anchor: ${fmtDate(st.anchorDate)}</span>` : '';
 
     stagesHtml += `<div class="ct-stage-section">
       <div class="ct-stage-header" onclick="_ctToggleStage('${sid}')">
-        <span class="ct-stage-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;">${CT_STAGE_LABELS[sid] || sid}</span>
-        <span style="font-size:10px;color:var(--text3);">${anchorLabel}</span>
+        <span class="ct-stage-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;">${CT_STAGE_LABELS[baseKey] || baseKey}</span>
+        ${contactLabel} ${anchorLabel}
         <span class="ct-stage-progress">${prog.done}/${prog.total} done</span>
         <span class="ct-stage-chevron${isExpanded ? ' open' : ''}">›</span>
         <button onclick="event.stopPropagation();ctCloseStage('${partner.id}','${sid}')" title="Close this stage (history preserved)" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px;color:var(--text3);">Close Stage</button>
@@ -12504,11 +12527,12 @@ function ctRenderProfile(panel, partner) {
     stagesHtml += `<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:10px;">
       <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:8px;">Closed Stages</div>`;
     closedIds.forEach(sid => {
-      const color = CT_STAGE_COLORS[sid] || '#888';
+      const bk = ctStageKey(partner, sid);
+      const color = CT_STAGE_COLORS[bk] || '#888';
       const st = partner.stages[sid];
       const prog = ctStageProgress(partner, sid);
       stagesHtml += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;opacity:0.6;">
-        <span class="ct-stage-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;">${CT_STAGE_LABELS[sid] || sid}</span>
+        <span class="ct-stage-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;">${CT_STAGE_LABELS[bk] || bk}${st.contactTag ? ' — ' + escHtml(st.contactTag) : ''}</span>
         <span style="font-size:10px;color:var(--text3);">${prog.done}/${prog.total} completed</span>
         <button onclick="ctReopenStage('${partner.id}','${sid}')" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px;color:var(--text3);" title="Reopen this stage">Reopen</button>
       </div>`;
@@ -12639,9 +12663,13 @@ function saveCtPartner() {
   renderContacts();
 }
 
-function ctAddStageToPartner(partner, stageId, anchorDate) {
+function ctAddStageToPartner(partner, stageId, anchorDate, contactTag) {
   const stageDef = ctGetStage(stageId);
   if (!stageDef) return;
+  // Generate a unique instance key — allows multiple of the same stage
+  let instanceKey = stageId;
+  let counter = 2;
+  while (partner.stages[instanceKey]) { instanceKey = stageId + '__' + counter; counter++; }
   // Clone template tasks — each task gets its own project/subCode from stage defaults
   const tasks = (stageDef.tasks || []).map(t => ({
     id: uid(), name: t.name, est: t.est || 0, priority: t.priority || 'med',
@@ -12649,7 +12677,7 @@ function ctAddStageToPartner(partner, stageId, anchorDate) {
     due: null, delegatedTo: t.delegatedTo || null, notes: t.notes || '',
     waiting: t.waiting || '', completed: false, dateCompleted: null, actualHours: 0
   }));
-  partner.stages[stageId] = { active: true, anchorDate: anchorDate || null, addedDate: today(), tasks };
+  partner.stages[instanceKey] = { active: true, stageKey: stageId, contactTag: contactTag || '', anchorDate: anchorDate || null, addedDate: today(), tasks };
 }
 
 function ctDeletePartner(id) {
@@ -12669,19 +12697,25 @@ function ctOpenAddStageModal(partnerId) {
   _ctEditingPartnerId = partnerId;
   const c = contacts.find(c => c.id === partnerId);
   if (!c) return;
+  // All stages available (allow multiple instances)
   const sel = document.getElementById('ctAddStageSelect');
-  sel.innerHTML = contactStages.filter(s => !ctPartnerHasStage(c, s.id))
-    .map(s => `<option value="${s.id}">${escHtml(s.label)}</option>`).join('');
+  sel.innerHTML = contactStages.map(s => `<option value="${s.id}">${escHtml(s.label)}</option>`).join('');
+  // Populate contact dropdown from partner's contacts
+  const contactSel = document.getElementById('ctAddStageContact');
+  const pContacts = c.contacts || [];
+  contactSel.innerHTML = '<option value="">— General (no specific contact) —</option>' +
+    pContacts.filter(ct => ct.name).map(ct => `<option value="${escHtml(ct.name)}">${escHtml(ct.name)}${ct.isInstructor ? ' (Instructor)' : ''}${ct.role ? ' — ' + escHtml(ct.role) : ''}</option>`).join('');
   document.getElementById('ctAddStageAnchor').value = '';
   document.getElementById('ctAddStageModal').style.display = 'flex';
 }
 
 function ctConfirmAddStage() {
   const stageId = document.getElementById('ctAddStageSelect').value;
+  const contactTag = document.getElementById('ctAddStageContact').value || '';
   const anchor = document.getElementById('ctAddStageAnchor').value || null;
   const c = contacts.find(c => c.id === _ctEditingPartnerId);
   if (!c || !stageId) return;
-  ctAddStageToPartner(c, stageId, anchor);
+  ctAddStageToPartner(c, stageId, anchor, contactTag);
   save('wt_contacts', contacts);
   document.getElementById('ctAddStageModal').style.display = 'none';
   renderContacts();
