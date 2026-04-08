@@ -12412,7 +12412,7 @@ function ctRenderAllGrid(panel) {
     html += `<div class="ct-task-row" style="grid-template-columns:24px 1fr auto 110px 55px 55px 20px;padding:8px 10px;border-radius:0;border-top:1px solid var(--border);">
       <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask(${ids},true)">${t.completed ? '✓' : ''}</div>
       <div style="min-width:0;">
-        <div class="ct-task-name" onclick="event.stopPropagation();window.ctOpenEditTaskModal(${ids})" style="cursor:pointer;overflow:visible;white-space:normal;" title="Click to edit">${escHtml(t.name)}</div>
+        <div class="ct-task-name ct-clickable-task" data-ct-cid="${r.cid}" data-ct-sid="${r.sid}" data-ct-tid="${r.tid}" style="cursor:pointer;" title="Click to edit">${escHtml(t.name)}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:1px;display:flex;gap:6px;align-items:center;">
           <span style="font-weight:600;">${escHtml(r.partner)}</span>
           <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r.stageColor};"></span>
@@ -12476,7 +12476,7 @@ function ctRenderProfile(panel, partner) {
         const ids = `'${partner.id}','${sid}','${t.id}'`;
         return `<div class="ct-task-row${t.completed ? ' ct-task-done' : ''}">
           <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask(${ids},${!t.completed})">${t.completed ? '✓' : ''}</div>
-          <div class="ct-task-name${t.completed ? ' done' : ''}" onclick="event.stopPropagation();window.ctOpenEditTaskModal(${ids})" style="cursor:pointer;overflow:visible;white-space:normal;" title="Click to edit">${escHtml(t.name)}${t.waiting ? `<span class="task-waiting" style="font-size:10px;margin-left:4px;">⏳ ${escHtml(t.waiting)}</span>` : ''}</div>
+          <div class="ct-task-name${t.completed ? ' done' : ''} ct-clickable-task" data-ct-cid="${partner.id}" data-ct-sid="${sid}" data-ct-tid="${t.id}" style="cursor:pointer;" title="Click to edit">${escHtml(t.name)}${t.waiting ? `<span class="task-waiting" style="font-size:10px;margin-left:4px;">⏳ ${escHtml(t.waiting)}</span>` : ''}</div>
           <span style="display:inline-flex;gap:2px;align-items:center;flex-shrink:0;">${delTags}<button onclick="event.stopPropagation();ctAssignTask(event,${ids})" title="Assign" style="opacity:0.6;font-size:12px;background:none;border:none;cursor:pointer;padding:1px 3px;color:var(--text3);">↗</button></span>
           <span class="ct-task-date" onclick="event.stopPropagation();ctInlineEditDate(this,${ids})" style="cursor:pointer;white-space:nowrap;" title="Click to set date">${t.due ? fmtDate(t.due) : '<span style="opacity:0.4">No date</span>'}</span>
           <span onclick="event.stopPropagation();ctShowPriority(event,${ids})" style="cursor:pointer;" title="Change priority">${pri}</span>
@@ -12991,6 +12991,18 @@ function ctSaveTemplate() {
 
 
 // =============================================
+// CONTACTS: EVENT DELEGATION FOR TASK NAME CLICKS
+// Using delegation because inline onclick in dynamically generated HTML can be unreliable
+document.addEventListener('click', function(e) {
+  const el = e.target.closest('.ct-clickable-task');
+  if (!el) return;
+  e.stopPropagation();
+  const cid = el.dataset.ctCid;
+  const sid = el.dataset.ctSid;
+  const tid = el.dataset.ctTid;
+  if (cid && sid && tid) ctOpenEditTaskModal(cid, sid, tid);
+});
+
 // CONTACTS: INTEGRATION WITH MY TASKS + TIMESHEET
 // =============================================
 
