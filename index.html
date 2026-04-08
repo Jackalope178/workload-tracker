@@ -26,6 +26,10 @@
     --cwc: #22c55e;
 
     --check-fg: #0d0f14;
+
+    --header-h: 52px;
+    --timer-h: 29px;
+    --tabs-h: 34px;
   }
 
   [data-theme="light"] {
@@ -122,7 +126,7 @@
     padding: 0 20px;
     gap: 2px;
     position: sticky;
-    top: 52px;
+    top: var(--header-h);
     z-index: 99;
   }
 
@@ -162,7 +166,7 @@
   #panel-tasks > .toolbar,
   #panel-timesheet > .toolbar {
     position: sticky;
-    top: 90px;
+    top: calc(var(--header-h) + var(--tabs-h) + 4px);
     z-index: 98;
     background: var(--bg);
     padding: 10px 20px;
@@ -967,7 +971,7 @@
   .subcode-inline-add button:hover { opacity: 0.85; }
 
   .proj-item-row {
-    display: grid; grid-template-columns: 20px 1fr minmax(56px,auto) 70px 40px minmax(80px,auto) 90px;
+    display: grid; grid-template-columns: 18px 20px 1fr minmax(56px,auto) 70px 40px minmax(80px,auto) 90px;
     gap: 8px; align-items: center; padding: 7px 14px; border-bottom: 1px solid var(--border2);
     font-size: 12px; transition: background 0.12s; cursor: grab;
   }
@@ -1356,13 +1360,13 @@
     align-items: center;
     gap: 10px;
     position: sticky;
-    top: 52px;
+    top: var(--header-h);
     z-index: 99;
   }
 
-  .active-timer-strip.visible + .tabs { top: 81px; }
+  .active-timer-strip.visible + .tabs { top: calc(var(--header-h) + var(--timer-h)); }
   .active-timer-strip.visible ~ .main #panel-tasks > .toolbar,
-  .active-timer-strip.visible ~ .main #panel-timesheet > .toolbar { top: 119px; }
+  .active-timer-strip.visible ~ .main #panel-timesheet > .toolbar { top: calc(var(--header-h) + var(--timer-h) + var(--tabs-h) + 4px); }
 
   .active-timer-strip.visible { display: flex; }
   .active-timer-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; animation: pulse 1s infinite; }
@@ -2038,6 +2042,23 @@
     align-items: center;
   }
 
+  /* BULK SELECT */
+  .bulk-select-check {
+    width: 16px; height: 16px; border: 1.5px solid var(--border2); border-radius: 3px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s; flex-shrink: 0; background: var(--bg);
+  }
+  .bulk-select-check:hover { border-color: var(--accent); }
+  .bulk-select-check.selected { border-color: var(--accent); background: var(--accent); }
+  .bulk-action-bar {
+    display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+    background: var(--accent); color: #fff; border-radius: 6px;
+    font-size: 12px; font-weight: 600; margin-bottom: 12px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .bulk-action-bar .btn { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: #fff; }
+  .bulk-action-bar .btn:hover { background: rgba(255,255,255,0.35); }
+
   /* =============================================
      RESPONSIVE: TABLET LANDSCAPE (≤1024px)
      ============================================= */
@@ -2078,6 +2099,7 @@
      RESPONSIVE: TABLET PORTRAIT (≤834px)
      ============================================= */
   @media (max-width: 834px) {
+    :root { --header-h: 48px; }
     .main { padding: 10px 10px; }
     .header { padding: 0 10px; gap: 6px; height: 48px; }
     .header-title { font-size: 13px; }
@@ -2088,13 +2110,10 @@
     .header-btn { padding: 6px 10px !important; font-size: 11px !important; min-height: 32px !important; }
 
     /* Scrollable tabs for narrow screens */
-    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 10px; gap: 0; top: 48px; }
+    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 10px; gap: 0; }
     .tabs::-webkit-scrollbar { display: none; }
-    .active-timer-strip.visible + .tabs { top: 77px; }
     #panel-tasks > .toolbar,
-    #panel-timesheet > .toolbar { top: 84px; margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
-    .active-timer-strip.visible ~ .main #panel-tasks > .toolbar,
-    .active-timer-strip.visible ~ .main #panel-timesheet > .toolbar { top: 113px; }
+    #panel-timesheet > .toolbar { margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
     .tab { padding: 10px 12px; font-size: 10px; flex-shrink: 0; }
 
     /* Toolbar — stack search full-width */
@@ -2182,6 +2201,7 @@
      RESPONSIVE: PHONE (≤600px)
      ============================================= */
   @media (max-width: 600px) {
+    :root { --header-h: 44px; }
     .main { padding: 8px 6px; }
     .header { padding: 0 8px; gap: 4px; height: 44px; }
     .header-title { font-size: 12px; letter-spacing: 0; }
@@ -2190,13 +2210,11 @@
     .header-btn { padding: 5px 7px !important; font-size: 10px !important; min-height: 28px !important; }
 
     /* Tabs: compact, scrollable */
-    .tabs { top: 44px; padding: 0 4px; gap: 0; }
-    .active-timer-strip.visible + .tabs { top: 73px; }
+    .tabs { padding: 0 4px; gap: 0; }
     .tab { padding: 8px 10px; font-size: 9px; }
 
     /* Toolbar: stack vertically */
-    .toolbar { flex-wrap: wrap; gap: 4px; top: 78px; padding: 6px 6px; }
-    .active-timer-strip.visible ~ .main .toolbar { top: 107px; }
+    .toolbar { flex-wrap: wrap; gap: 4px; padding: 6px 6px; }
     #panel-tasks > .toolbar,
     #panel-timesheet > .toolbar { margin: 0 -6px; padding-left: 6px; padding-right: 6px; }
     .search-box { font-size: 12px; padding: 6px 8px; }
@@ -2549,6 +2567,7 @@ if (typeof XLSX === 'undefined') {
       <!-- Brain Dump disabled — re-enable by removing display:none -->
       <button class="btn" onclick="openBrainDumpModal()" style="display:none;border-color:#7c3aed;color:#a78bfa;" title="AI-powered task import from free text">⚡ Brain Dump</button>
       <button class="btn primary" onclick="toggleAddForm()">+ Add Task</button>
+      <button class="btn" id="clearFiltersBtn" onclick="_clearAllTaskFilters()" style="display:none;font-size:10px;padding:4px 10px;color:var(--text3);">✕ Clear filters</button>
     </div>
 
     <div class="add-form" id="addForm">
@@ -2668,6 +2687,7 @@ if (typeof XLSX === 'undefined') {
       <button class="btn" onclick="openManagePersonsModal()">+ Add Team Member</button>
       <button class="btn primary" onclick="openAddTeamModal()">+ Add Deliverable</button>
       <button class="btn" id="teamGroupBtn" onclick="toggleTeamGroupByPerson()" style="margin-left:auto;font-size:10px;padding:3px 10px;">👤 Group by Person</button>
+      <button class="btn" id="clearTeamFiltersBtn" onclick="_clearAllTeamFilters()" style="display:none;font-size:10px;padding:4px 10px;color:var(--text3);">✕ Clear filters</button>
     </div>
     <div id="teamList"></div>
   </div>
@@ -4822,8 +4842,15 @@ function secsToHours(s) {
 
 function roundToQuarter(h) {
   if (h <= 0) return 0.25;
-  const q = Math.ceil(h / 0.25) * 0.25;
-  return Math.max(0.25, q);
+  // Round to nearest quarter hour, but round DOWN if remainder is 5 min (0.083h) or less
+  const quarterFloor = Math.floor(h / 0.25) * 0.25;
+  const remainder = h - quarterFloor;
+  if (remainder <= 5 / 60) {
+    // 5 minutes or less over: round down
+    return Math.max(0.25, quarterFloor);
+  }
+  // Otherwise round up
+  return Math.max(0.25, Math.ceil(h / 0.25) * 0.25);
 }
 
 // Round to nearest 0.25 for display (billing in 15-min increments)
@@ -5140,6 +5167,10 @@ function renderTasks() {
   const fPri   = document.getElementById('filterPriority')?.value || 'all';
   const fProj  = document.getElementById('filterProject')?.value || 'all';
   const fWait  = document.getElementById('filterWaiting')?.value || 'all';
+
+  const hasActiveFilters = search || fDate !== 'all' || fPri !== 'all' || fProj !== 'all' || fWait !== 'all';
+  const clearBtn = document.getElementById('clearFiltersBtn');
+  if (clearBtn) clearBtn.style.display = hasActiveFilters ? '' : 'none';
 
   let visible = tasks.filter(t => !t.completed);
 
@@ -6492,6 +6523,66 @@ function _dropScReorder(projKey, targetScId) {
 }
 let _staleSubCodes = new Set(load('wt_stale_subcodes', [])); // "projKey|scId" entries dropped from last import
 
+// Multi-select state for bulk actions in Projects tab
+const _selectedProjItems = new Set(); // Set of "type:id" strings e.g. "task:abc123"
+let _bulkActionVisible = false;
+
+function _toggleProjItemSelect(type, id, projId, sessionId) {
+  const key = type + ':' + id;
+  if (_selectedProjItems.has(key)) _selectedProjItems.delete(key);
+  else _selectedProjItems.add(key);
+  // Simpler: just re-render the full content
+  if (selectedProjCode) renderProjCodeContent(selectedProjCode);
+}
+
+function _clearBulkSelection() {
+  _selectedProjItems.clear();
+  if (selectedProjCode) renderProjCodeContent(selectedProjCode);
+}
+
+function _bulkMoveToSubCode(projKey) {
+  const targetScId = document.getElementById('projBulkMoveTarget')?.value;
+  if (!targetScId) { showSyncToast('Select a target sub-code first.', 'warn'); return; }
+  let moved = 0;
+  let movedTeam = false;
+  _selectedProjItems.forEach(key => {
+    const [type, id] = key.split(':');
+    if (type === 'task') {
+      const t = tasks.find(t => t.id === id);
+      if (t && t.project === projKey) { t.subCode = targetScId; moved++; }
+    } else if (type === 'session') {
+      bigProjs.forEach(bp => {
+        if (bp.project === projKey) {
+          const s = bp.sessions.find(s => s.id === id);
+          if (s) { s.subCode = targetScId; moved++; }
+        }
+      });
+    } else if (type === 'subtask') {
+      bigProjs.forEach(bp => {
+        if (bp.project === projKey) {
+          bp.sessions.forEach(s => {
+            const st = (s.subtasks || []).find(st => st.id === id);
+            if (st) { st.subCode = targetScId; moved++; }
+          });
+        }
+      });
+    } else if (type === 'team') {
+      const ti = teamItems.find(ti => ti.id === id);
+      if (ti && ti.project === projKey) { ti.subCode = targetScId; moved++; movedTeam = true; }
+    }
+  });
+  if (moved > 0) {
+    save('wt_tasks', tasks);
+    save('wt_bigprojs', bigProjs);
+    if (movedTeam) save('wt_team', teamItems);
+    const sc = getSubCodes(projKey).find(s => s.id === targetScId);
+    showSyncToast(`Moved ${moved} item${moved !== 1 ? 's' : ''} to ${sc?.label || 'sub-code'}.`, 'success');
+  }
+  _selectedProjItems.clear();
+  renderProjCodeContent(projKey);
+  renderTasks();
+}
+
 function _dismissStale(projKey, scId) {
   _staleSubCodes.delete(projKey + '|' + scId);
   save('wt_stale_subcodes', [..._staleSubCodes]);
@@ -6583,6 +6674,17 @@ function renderProjCodeContent(projKey) {
       <button class="btn" onclick="openManagePersonsModal()" style="font-size:11px;padding:3px 10px;">Manage Persons</button>
       <button class="btn primary" onclick="openAddProjectModal()" style="font-size:11px;padding:3px 10px;">+ Add Project</button>
     </div>
+  </div>`;
+
+  // Bulk action bar (shown when items selected)
+  html += `<div id="projBulkBar" class="bulk-action-bar" style="${_selectedProjItems.size ? '' : 'display:none;'}">
+    <span>${_selectedProjItems.size} selected</span>
+    <select id="projBulkMoveTarget" class="filter-select" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);font-size:11px;">
+      <option value="">Move to sub-code...</option>
+      ${subCodes.map(sc => `<option value="${sc.id}">${sc.code} ${escHtml(sc.label)}</option>`).join('')}
+    </select>
+    <button class="btn" onclick="_bulkMoveToSubCode('${projKey}')">Move</button>
+    <button class="btn" onclick="_clearBulkSelection()" style="margin-left:auto;">Cancel</button>
   </div>`;
 
   // Build sub-code sections: "Unassigned" first, then each sub-code
@@ -6704,6 +6806,7 @@ function renderProjItemRow(item, projKey, scId) {
       ondragover="event.preventDefault();if(_dragItemData&&_dragItemData.fromSc==='${scId}')this.classList.add('drag-over-row');"
       ondragleave="this.classList.remove('drag-over-row');"
       ondrop="event.preventDefault();event.stopPropagation();this.classList.remove('drag-over-row');reorderItemInSection('${projKey}','${scId}','task','${t.id}');">
+      <div class="bulk-select-check${_selectedProjItems.has('task:'+t.id) ? ' selected' : ''}" onclick="event.stopPropagation();_toggleProjItemSelect('task','${t.id}')" title="Select for bulk action">${_selectedProjItems.has('task:'+t.id) ? '<span style="color:#fff;font-size:10px;">✓</span>' : ''}</div>
       <div class="session-check${isDone ? ' done' : ''}" onclick="toggleTaskFromProjects('${t.id}')" style="cursor:pointer;">
         ${isDone ? '<span style="color:var(--check-fg);font-size:11px;">✓</span>' : ''}
       </div>
@@ -6737,6 +6840,7 @@ function renderProjItemRow(item, projKey, scId) {
       ondragover="event.preventDefault();if(_dragItemData&&_dragItemData.fromSc==='${scId}')this.classList.add('drag-over-row');"
       ondragleave="this.classList.remove('drag-over-row');"
       ondrop="event.preventDefault();event.stopPropagation();this.classList.remove('drag-over-row');reorderItemInSection('${projKey}','${scId}','session','${s.id}');">
+      <div class="bulk-select-check${_selectedProjItems.has('session:'+s.id) ? ' selected' : ''}" onclick="event.stopPropagation();_toggleProjItemSelect('session','${s.id}','${bp.id}')" title="Select for bulk action">${_selectedProjItems.has('session:'+s.id) ? '<span style="color:#fff;font-size:10px;">✓</span>' : ''}</div>
       <div class="session-check${s.done ? ' done' : ''}" onclick="openSessionCompletionModal('${bp.id}','${s.id}')" title="${s.done ? 'Mark incomplete' : 'Mark complete'}">
         ${s.done ? '<span style="color:var(--check-fg);font-size:11px;">✓</span>' : ''}
       </div>
@@ -6773,6 +6877,7 @@ function renderProjItemRow(item, projKey, scId) {
       ondragover="event.preventDefault();if(_dragItemData&&_dragItemData.fromSc==='${scId}')this.classList.add('drag-over-row');"
       ondragleave="this.classList.remove('drag-over-row');"
       ondrop="event.preventDefault();event.stopPropagation();this.classList.remove('drag-over-row');reorderItemInSection('${projKey}','${scId}','subtask','${st.id}');">
+      <div class="bulk-select-check${_selectedProjItems.has('subtask:'+st.id) ? ' selected' : ''}" onclick="event.stopPropagation();_toggleProjItemSelect('subtask','${st.id}','${bp.id}','${s.id}')" title="Select for bulk action">${_selectedProjItems.has('subtask:'+st.id) ? '<span style="color:#fff;font-size:10px;">✓</span>' : ''}</div>
       <div class="session-check${st.done ? ' done' : ''}" onclick="openSubtaskCompletionModal('${bp.id}','${s.id}','${st.id}')" title="${st.done ? 'Mark incomplete' : 'Mark complete'}" style="cursor:pointer;">
         ${st.done ? '<span style="color:var(--check-fg);font-size:10px;">✓</span>' : ''}
       </div>
@@ -6807,6 +6912,7 @@ function renderProjItemRow(item, projKey, scId) {
       return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 5px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">${o}</span>`;
     }).join('');
     return `<div class="proj-item-row">
+      <div class="bulk-select-check${_selectedProjItems.has('team:'+ti.id) ? ' selected' : ''}" onclick="event.stopPropagation();_toggleProjItemSelect('team','${ti.id}')" title="Select for bulk action">${_selectedProjItems.has('team:'+ti.id) ? '<span style="color:#fff;font-size:10px;">✓</span>' : ''}</div>
       <div style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;opacity:0.6;" title="Team deliverable">👤</div>
       <div class="session-desc" style="${isDone ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditTeamModal('${ti.id}')">
         ${ti.name}
@@ -7134,6 +7240,10 @@ function renderTeam() {
   const fPerson = document.getElementById('teamFilterPerson')?.value || 'all';
   const fProj   = document.getElementById('teamFilterProject')?.value || 'all';
   const fStatus = document.getElementById('teamFilterStatus')?.value || 'all';
+
+  const hasActiveTeamFilters = search || fPerson !== 'all' || fProj !== 'all' || fStatus !== 'all';
+  const clearTeamBtn = document.getElementById('clearTeamFiltersBtn');
+  if (clearTeamBtn) clearTeamBtn.style.display = hasActiveTeamFilters ? '' : 'none';
 
   // Collect delegated sessions — one row per session, multiple owners
   const delegatedItems = [];
@@ -7826,7 +7936,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
     const hdr = document.createElement('div');
     hdr.className = 'ts-day-header';
     hdr.style.paddingLeft = '32px';
-    hdr.innerHTML = `<span class="ts-day-chevron${isDayCollapsed ? '' : ' open'}">›</span><span>${dayLabel}</span><span style="font-size:10px;font-weight:500;color:var(--text3);margin-left:4px;">${rawItems.length} item${rawItems.length !== 1 ? 's' : ''}</span>${dayCapHtml}`;
+    hdr.innerHTML = `<span class="ts-day-chevron${isDayCollapsed ? '' : ' open'}">›</span><span>${dayLabel}</span><span style="font-size:10px;font-weight:500;color:var(--text3);margin-left:4px;">${rawItems.length} item${rawItems.length !== 1 ? 's' : ''}</span>${dayCapHtml}<button class="btn" onclick="event.stopPropagation();openAddTsEntryForDate('${date}')" style="font-size:10px;padding:2px 8px;margin-left:6px;flex-shrink:0;" title="Log time for this day">+ Log</button>`;
     hdr.onclick = () => {
       if (tsCollapsedDays.has(date)) tsCollapsedDays.delete(date);
       else tsCollapsedDays.add(date);
@@ -8374,6 +8484,20 @@ function openAddTsEntryModal() {
   document.getElementById('tsEntryModalTitle').textContent = 'Log Time';
   document.getElementById('tsEntryName').value = '';
   document.getElementById('tsEntryDate').value = today();
+  document.getElementById('tsEntryEst').value = '';
+  document.getElementById('tsEntryActual').value = '';
+  document.getElementById('tsEntryDeleteBtn').style.display = 'none';
+  populateProjectSelects();
+  const selProj = document.getElementById('tsEntryProject').value || '';
+  populateSubCodeSelect('tsEntrySubCode', selProj);
+  document.getElementById('tsEntryModal').classList.add('open');
+}
+
+function openAddTsEntryForDate(dateStr) {
+  editingTsEntryId = null;
+  document.getElementById('tsEntryModalTitle').textContent = 'Log Time';
+  document.getElementById('tsEntryName').value = '';
+  document.getElementById('tsEntryDate').value = dateStr;
   document.getElementById('tsEntryEst').value = '';
   document.getElementById('tsEntryActual').value = '';
   document.getElementById('tsEntryDeleteBtn').style.display = 'none';
@@ -9822,6 +9946,25 @@ const _FILTER_IDS = [
 function _persistFilter(id) {
   const el = document.getElementById(id);
   if (el) localStorage.setItem('wt_filter_' + id, el.value);
+}
+
+function _clearAllTaskFilters() {
+  document.getElementById('taskSearch').value = '';
+  document.getElementById('filterDate').value = 'all';
+  document.getElementById('filterPriority').value = 'all';
+  document.getElementById('filterProject').value = 'all';
+  document.getElementById('filterWaiting').value = 'all';
+  _FILTER_IDS.filter(id => id.startsWith('task') || id.startsWith('filter')).forEach(id => _persistFilter(id));
+  renderTasks();
+}
+
+function _clearAllTeamFilters() {
+  document.getElementById('teamSearch').value = '';
+  document.getElementById('teamFilterPerson').value = 'all';
+  document.getElementById('teamFilterProject').value = 'all';
+  document.getElementById('teamFilterStatus').value = 'all';
+  _FILTER_IDS.filter(id => id.startsWith('team')).forEach(id => _persistFilter(id));
+  renderTeam();
 }
 
 // Restore saved filter values on load
