@@ -12586,7 +12586,7 @@ function ctRenderTemplateEditor() {
   const list = document.getElementById('ctTplTaskList');
   // Header matching My Tasks form style
   list.innerHTML = '<div style="display:grid;grid-template-columns:2fr 65px 85px 1fr 70px 24px;gap:8px;padding:4px 0;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.03em;">' +
-    '<span>Task Name</span><span>Est (h)</span><span>Priority</span><span>Waiting On</span><span>Offset</span><span></span></div>';
+    '<span>Task Name</span><span>Est (h)</span><span>Priority</span><span>Waiting On</span><span>Days Before</span><span></span></div>';
   (stage.tasks || []).forEach((t, i) => {
     list.innerHTML += `<div class="ct-tpl-task" data-idx="${i}" style="grid-template-columns:2fr 65px 85px 1fr 70px 24px;">
       <input class="form-input" value="${escHtml(t.name)}" data-field="name" placeholder="Task name" style="font-size:11px;padding:4px 8px;">
@@ -12599,22 +12599,51 @@ function ctRenderTemplateEditor() {
         <option value="low"${t.priority === 'low' ? ' selected' : ''}>Low</option>
       </select>
       <input class="form-input" type="text" value="${escHtml(t.waiting || '')}" data-field="waiting" placeholder="Optional" style="font-size:11px;padding:4px 6px;">
-      <input class="form-input" type="number" value="${t.offsetDays || 0}" data-field="offsetDays" style="font-size:11px;padding:4px 6px;" title="Days from anchor (negative = before)">
+      <input class="form-input" type="number" value="${Math.abs(t.offsetDays || 0)}" data-field="offsetDays" min="0" style="font-size:11px;padding:4px 6px;" title="Days before the anchor date (e.g. 60 = task due 60 days before renewal)">
       <span style="cursor:pointer;color:var(--danger);font-size:14px;text-align:center;" onclick="ctRemoveTemplateTask(${i})" title="Remove">×</span>
     </div>`;
   });
 }
 
+// Read current DOM values back into the stage's tasks array (preserves unsaved edits)
+function _ctSyncTemplateFieldsToData() {
+  const sid = document.getElementById('ctTplStage').value;
+  const stage = ctGetStage(sid);
+  if (!stage) return;
+  const rows = document.querySelectorAll('#ctTplTaskList .ct-tpl-task');
+  rows.forEach(row => {
+    const idx = +row.dataset.idx;
+    const t = stage.tasks[idx];
+    if (!t) return;
+    const nameEl = row.querySelector('[data-field="name"]');
+    const estEl = row.querySelector('[data-field="est"]');
+    const priEl = row.querySelector('[data-field="priority"]');
+    const waitEl = row.querySelector('[data-field="waiting"]');
+    const offsetEl = row.querySelector('[data-field="offsetDays"]');
+    if (nameEl) t.name = nameEl.value.trim() || t.name;
+    if (estEl) t.est = parseFloat(estEl.value) || 0;
+    if (priEl) t.priority = priEl.value || 'med';
+    if (waitEl) t.waiting = waitEl.value.trim();
+    if (offsetEl) t.offsetDays = -(parseInt(offsetEl.value) || 0);
+  });
+}
+
 function ctAddTemplateTask() {
+  _ctSyncTemplateFieldsToData();
   const sid = document.getElementById('ctTplStage').value;
   const stage = ctGetStage(sid);
   if (!stage) return;
   if (!stage.tasks) stage.tasks = [];
-  stage.tasks.push({ id: uid(), name: 'New task', est: 0, priority: 'med', offsetDays: 0, delegatedTo: null, notes: '' });
+  stage.tasks.push({ id: uid(), name: '', est: 0, priority: 'med', offsetDays: 0, waiting: '', delegatedTo: null, notes: '' });
   ctRenderTemplateEditor();
+  // Focus the new task's name field
+  const rows = document.querySelectorAll('#ctTplTaskList .ct-tpl-task');
+  const lastRow = rows[rows.length - 1];
+  if (lastRow) lastRow.querySelector('[data-field="name"]')?.focus();
 }
 
 function ctRemoveTemplateTask(idx) {
+  _ctSyncTemplateFieldsToData();
   const sid = document.getElementById('ctTplStage').value;
   const stage = ctGetStage(sid);
   if (!stage || !stage.tasks) return;
@@ -12637,7 +12666,8 @@ function ctSaveTemplate() {
     const est = parseFloat(row.querySelector('[data-field="est"]').value) || 0;
     const priority = row.querySelector('[data-field="priority"]').value || 'med';
     const waiting = row.querySelector('[data-field="waiting"]')?.value?.trim() || '';
-    const offsetDays = parseInt(row.querySelector('[data-field="offsetDays"]').value) || 0;
+    const daysBefore = parseInt(row.querySelector('[data-field="offsetDays"]').value) || 0;
+    const offsetDays = -(Math.abs(daysBefore)); // Store as negative (days before anchor)
     const oldTask = stage.tasks[+row.dataset.idx] || {};
     tasks.push({ id: oldTask.id || uid(), name, est, priority, offsetDays, waiting, delegatedTo: oldTask.delegatedTo || null, notes: oldTask.notes || '' });
   });
