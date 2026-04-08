@@ -12224,7 +12224,7 @@ function ctAssignTask(e, contactId, stageId, taskId) {
   const current = normDelegated(t.delegatedTo);
   const pList = menu.querySelector('.assign-list') || menu;
   let html = '';
-  (persons || []).forEach(p => {
+  (PERSONS || []).forEach(p => {
     const isActive = current.includes(p);
     html += `<div class="assign-item${isActive ? ' active' : ''}" onclick="event.stopPropagation();_ctToggleAssign('${contactId}','${stageId}','${taskId}','${escHtml(p)}')">${isActive ? '✓ ' : ''}${escHtml(p)}</div>`;
   });
@@ -12747,53 +12747,49 @@ function ctInlineEditName(el, cid, sid, tid) {
   ctOpenEditTaskModal(cid, sid, tid);
 }
 function ctOpenEditTaskModal(cid, sid, tid) {
-  try {
-    const t = _ctTask(cid, sid, tid);
-    if (!t) { alert('Task not found: ' + cid + ' / ' + sid + ' / ' + tid); return; }
-    const c = contacts.find(c => c.id === cid);
-    const stageDef = ctGetStage(sid);
-    _ctEditRef = { cid, sid, tid };
+  const t = _ctTask(cid, sid, tid);
+  if (!t) return;
+  const c = contacts.find(c => c.id === cid);
+  const stageDef = ctGetStage(sid);
+  _ctEditRef = { cid, sid, tid };
 
-    document.getElementById('ctEditTaskSub').textContent = (c ? c.name : '') + ' — ' + (stageDef ? stageDef.label : sid);
-    document.getElementById('ctEditName').value = t.name;
-    document.getElementById('ctEditDue').value = t.due || '';
-    document.getElementById('ctEditEst').value = t.est || '';
-    document.getElementById('ctEditPriority').value = t.priority || 'med';
-    document.getElementById('ctEditWaiting').value = t.waiting || '';
-    document.getElementById('ctEditNotes').value = t.notes || '';
+  document.getElementById('ctEditTaskSub').textContent = (c ? c.name : '') + ' — ' + (stageDef ? stageDef.label : sid);
+  document.getElementById('ctEditName').value = t.name;
+  document.getElementById('ctEditDue').value = t.due || '';
+  document.getElementById('ctEditEst').value = t.est || '';
+  document.getElementById('ctEditPriority').value = t.priority || 'med';
+  document.getElementById('ctEditWaiting').value = t.waiting || '';
+  document.getElementById('ctEditNotes').value = t.notes || '';
 
-    // Populate project dropdown
-    const projSel = document.getElementById('ctEditProject');
-    projSel.innerHTML = '';
-    Object.keys(PROJECTS).forEach(k => {
-      const p = PROJECTS[k];
-      if (!p || !p.label) return;
-      const opt = document.createElement('option');
-      opt.value = k;
-      opt.textContent = p.label + ' (' + (p.billingCode || '') + ')';
-      projSel.appendChild(opt);
-    });
-    projSel.value = t.project || (stageDef ? stageDef.project : 'cwc') || 'cwc';
-    populateSubCodeSelect('ctEditSubCode', projSel.value, t.subCode || (stageDef ? stageDef.subCode : '') || '');
+  // Populate project dropdown
+  const projSel = document.getElementById('ctEditProject');
+  projSel.innerHTML = '';
+  Object.keys(PROJECTS).forEach(k => {
+    const p = PROJECTS[k];
+    if (!p || !p.label) return;
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = p.label + ' (' + (p.billingCode || '') + ')';
+    projSel.appendChild(opt);
+  });
+  projSel.value = t.project || (stageDef ? stageDef.project : 'cwc') || 'cwc';
+  populateSubCodeSelect('ctEditSubCode', projSel.value, t.subCode || (stageDef ? stageDef.subCode : '') || '');
 
-    // Delegation checkboxes
-    const wrap = document.getElementById('ctEditDelegateWrap');
-    const current = normDelegated(t.delegatedTo);
-    const allPersons = ['Me'].concat(persons || []);
-    wrap.innerHTML = allPersons.map(function(p) {
-      const active = current.includes(p);
-      const pc = personColor(p);
-      return '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:500;border:1px solid ' + (active ? pc.border : 'var(--border)') + ';background:' + (active ? pc.bg : 'transparent') + ';color:' + (active ? pc.text : 'var(--text3)') + ';"><input type="checkbox" value="' + escHtml(p) + '" ' + (active ? 'checked' : '') + ' style="display:none;">' + escHtml(p) + '</label>';
-    }).join('');
-    wrap.querySelectorAll('label').forEach(function(l) {
-      l.onclick = function() { var cb = l.querySelector('input'); cb.checked = !cb.checked; var a = cb.checked;
-        var pc = personColor(cb.value); l.style.border = '1px solid ' + (a ? pc.border : 'var(--border)'); l.style.background = a ? pc.bg : 'transparent'; l.style.color = a ? pc.text : 'var(--text3)'; };
-    });
+  // Delegation checkboxes
+  const wrap = document.getElementById('ctEditDelegateWrap');
+  const current = normDelegated(t.delegatedTo);
+  const allPersons = ['Me'].concat(PERSONS || []);
+  wrap.innerHTML = allPersons.map(function(p) {
+    const active = current.includes(p);
+    const pc = personColor(p);
+    return '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:500;border:1px solid ' + (active ? pc.border : 'var(--border)') + ';background:' + (active ? pc.bg : 'transparent') + ';color:' + (active ? pc.text : 'var(--text3)') + ';"><input type="checkbox" value="' + escHtml(p) + '" ' + (active ? 'checked' : '') + ' style="display:none;">' + escHtml(p) + '</label>';
+  }).join('');
+  wrap.querySelectorAll('label').forEach(function(l) {
+    l.onclick = function() { var cb = l.querySelector('input'); cb.checked = !cb.checked; var a = cb.checked;
+      var pc = personColor(cb.value); l.style.border = '1px solid ' + (a ? pc.border : 'var(--border)'); l.style.background = a ? pc.bg : 'transparent'; l.style.color = a ? pc.text : 'var(--text3)'; };
+  });
 
-    document.getElementById('ctEditTaskDlg').classList.add('open');
-  } catch(e) {
-    alert('Edit modal error: ' + e.message);
-  }
+  document.getElementById('ctEditTaskDlg').classList.add('open');
 }
 
 // Inline edit: due date
