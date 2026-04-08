@@ -2127,9 +2127,13 @@
   .ct-instructor-badge { font-size: 9px; padding: 1px 6px; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 600; }
 
   .ct-tpl-task {
-    display: grid; grid-template-columns: 1fr 60px 70px 70px 30px; gap: 6px; align-items: center;
+    display: grid; gap: 6px; align-items: center;
     padding: 6px 0; border-bottom: 1px solid var(--border);
   }
+  .ct-tpl-task.dragging { opacity: 0.4; }
+  .ct-tpl-task.drag-over { border-top: 2px solid var(--accent); }
+  .ct-tpl-drag { cursor: grab; color: var(--text3); font-size: 13px; text-align: center; user-select: none; }
+  .ct-tpl-drag:active { cursor: grabbing; }
 
   input[type="color"].color-picker {
     width: 34px;
@@ -12832,10 +12836,17 @@ function ctRenderTemplateEditor() {
   populateSubCodeSelect('ctTplSubCode', stage.project || 'cwc', stage.subCode || '');
   const list = document.getElementById('ctTplTaskList');
   // Header matching My Tasks form style
-  list.innerHTML = '<div style="display:grid;grid-template-columns:2fr 65px 85px 1fr 24px;gap:8px;padding:4px 0;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.03em;">' +
-    '<span>Task Name</span><span>Est (h)</span><span>Priority</span><span>Waiting On</span><span></span></div>';
+  const cols = '20px 2fr 65px 85px 1fr 24px';
+  list.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:4px 0;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.03em;">` +
+    '<span></span><span>Task Name</span><span>Est (h)</span><span>Priority</span><span>Waiting On</span><span></span></div>';
   (stage.tasks || []).forEach((t, i) => {
-    list.innerHTML += `<div class="ct-tpl-task" data-idx="${i}" style="grid-template-columns:2fr 65px 85px 1fr 24px;">
+    list.innerHTML += `<div class="ct-tpl-task" data-idx="${i}" draggable="true" style="grid-template-columns:${cols};"
+      ondragstart="_ctTplDragIdx=${i};this.classList.add('dragging');"
+      ondragend="this.classList.remove('dragging');_ctTplDragIdx=null;"
+      ondragover="event.preventDefault();this.classList.add('drag-over');"
+      ondragleave="this.classList.remove('drag-over');"
+      ondrop="event.preventDefault();this.classList.remove('drag-over');_ctTplDrop(${i});">
+      <span class="ct-tpl-drag" title="Drag to reorder">⠿</span>
       <input class="form-input" value="${escHtml(t.name)}" data-field="name" placeholder="Task name" style="font-size:11px;padding:4px 8px;">
       <input class="form-input" type="number" value="${t.est || ''}" data-field="est" placeholder="0" style="font-size:11px;padding:4px 6px;" step="0.25" min="0">
       <select class="form-input filter-select" data-field="priority" style="font-size:11px;padding:4px 4px;">
@@ -12892,6 +12903,19 @@ function ctRemoveTemplateTask(idx) {
   const stage = ctGetStage(sid);
   if (!stage || !stage.tasks) return;
   stage.tasks.splice(idx, 1);
+  ctRenderTemplateEditor();
+}
+
+let _ctTplDragIdx = null;
+function _ctTplDrop(targetIdx) {
+  if (_ctTplDragIdx === null || _ctTplDragIdx === targetIdx) return;
+  _ctSyncTemplateFieldsToData();
+  const sid = document.getElementById('ctTplStage').value;
+  const stage = ctGetStage(sid);
+  if (!stage || !stage.tasks) return;
+  const item = stage.tasks.splice(_ctTplDragIdx, 1)[0];
+  stage.tasks.splice(targetIdx, 0, item);
+  _ctTplDragIdx = null;
   ctRenderTemplateEditor();
 }
 
