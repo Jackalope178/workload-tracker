@@ -2881,7 +2881,7 @@ if (typeof XLSX === 'undefined') {
   <div class="panel" id="panel-contacts" role="tabpanel" aria-labelledby="tab-contacts">
     <div class="ct-toolbar">
       <div class="ct-stage-tabs">
-        <button class="ct-stage-tab active" data-stage="all" onclick="ctSetStage('all')">All Partners</button>
+        <button class="ct-stage-tab active" data-stage="all" onclick="ctSetStage('all')">Quickview</button>
         <button class="ct-stage-tab" data-stage="interest" onclick="ctSetStage('interest')">Interest</button>
         <button class="ct-stage-tab" data-stage="ipp" onclick="ctSetStage('ipp')">IPP</button>
         <button class="ct-stage-tab" data-stage="new-license" onclick="ctSetStage('new-license')">New License</button>
@@ -12364,40 +12364,71 @@ function ctRenderRightPanel() {
 }
 
 function ctRenderAllGrid(panel) {
-  // Gather all tasks across all partners
+  // Quickview: all tasks due in the next 30 days across all partners/stages
+  const todayStr = today();
+  const horizon = addDays(todayStr, 30);
   const allTasks = [];
   contacts.forEach(c => {
     for (const sid in c.stages) {
       const st = c.stages[sid];
       if (!st.active) continue;
       st.tasks.forEach(t => {
-        if (!t.completed) {
-          allTasks.push({ partner: c.name, partnerId: c.id, stage: CT_STAGE_LABELS[sid] || sid, stageId: sid,
-            stageColor: CT_STAGE_COLORS[sid] || '#888', task: t });
-        }
+        if (t.completed) return;
+        // Include if due within 30 days, overdue, or no date (actionable)
+        if (t.due && t.due > horizon) return;
+        allTasks.push({ partner: c.name, partnerId: c.id, stage: CT_STAGE_LABELS[sid] || sid, stageId: sid,
+          stageColor: CT_STAGE_COLORS[sid] || '#888', task: t, cid: c.id, sid, tid: t.id });
       });
     }
   });
-  allTasks.sort((a, b) => (a.task.due || '9999').localeCompare(b.task.due || '9999'));
+  // Sort: overdue first, then by date, then no-date last
+  allTasks.sort((a, b) => {
+    const ad = a.task.due || '9998', bd = b.task.due || '9998';
+    return ad.localeCompare(bd);
+  });
 
   if (!allTasks.length) {
-    panel.innerHTML = '<div class="ct-empty-state"><span style="font-size:20px;">✓</span><span>No outstanding tasks across partners</span></div>';
+    panel.innerHTML = '<div class="ct-empty-state"><span style="font-size:20px;">✓</span><span>No tasks due in the next 30 days</span></div>';
     return;
   }
 
-  panel.innerHTML = `<div class="ct-all-grid">
-    <table class="ct-all-table">
-      <thead><tr><th>Partner</th><th>Stage</th><th>Task</th><th>Due</th><th>Priority</th><th>Est</th></tr></thead>
-      <tbody>${allTasks.map(r => `<tr onclick="ctSelectPartner('${r.partnerId}')" style="cursor:pointer;">
-        <td style="font-weight:600;">${escHtml(r.partner)}</td>
-        <td><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.stageColor};margin-right:4px;"></span>${escHtml(r.stage)}</td>
-        <td>${escHtml(r.task.name)}</td>
-        <td style="font-size:10px;color:var(--text3);">${r.task.due ? fmtDate(r.task.due) : '—'}</td>
-        <td>${r.task.priority ? priorityBadge(r.task.priority) : ''}</td>
-        <td style="font-size:10px;color:var(--text3);">${r.task.est ? r.task.est + 'h' : '—'}</td>
-      </tr>`).join('')}</tbody>
-    </table>
+  const overdue = allTasks.filter(r => r.task.due && r.task.due < todayStr).length;
+  const thisWeek = allTasks.filter(r => r.task.due && r.task.due >= todayStr && r.task.due <= addDays(todayStr, 7)).length;
+
+  let html = `<div style="padding:14px 16px 8px;display:flex;gap:14px;align-items:center;font-size:11px;color:var(--text3);">
+    <span style="font-size:14px;font-weight:700;color:var(--text);">Next 30 Days</span>
+    <span>${allTasks.length} task${allTasks.length !== 1 ? 's' : ''}</span>
+    ${overdue ? `<span style="color:var(--danger);font-weight:600;">${overdue} overdue</span>` : ''}
+    ${thisWeek ? `<span style="color:var(--accent);font-weight:600;">${thisWeek} this week</span>` : ''}
   </div>`;
+
+  html += '<div style="padding:0 8px 12px;">';
+  allTasks.forEach(r => {
+    const t = r.task;
+    const ids = `'${r.cid}','${r.sid}','${r.tid}'`;
+    const isOverdue = t.due && t.due < todayStr;
+    const delTags = delegateTagsHtml(t.delegatedTo);
+    const pri = t.priority ? priorityBadge(t.priority) : '';
+    html += `<div class="ct-task-row" style="grid-template-columns:24px 1fr auto 110px 55px 55px 20px;padding:8px 10px;border-radius:0;border-top:1px solid var(--border);">
+      <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask(${ids},true)">${t.completed ? '✓' : ''}</div>
+      <div style="min-width:0;">
+        <div class="ct-task-name" onclick="ctOpenEditTaskModal(${ids})" style="cursor:pointer;" title="Click to edit">${escHtml(t.name)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:1px;display:flex;gap:6px;align-items:center;">
+          <span style="font-weight:600;">${escHtml(r.partner)}</span>
+          <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r.stageColor};"></span>
+          <span>${escHtml(r.stage)}</span>
+        </div>
+      </div>
+      <span style="display:inline-flex;gap:2px;align-items:center;flex-shrink:0;">${delTags}<button onclick="event.stopPropagation();ctAssignTask(event,${ids})" title="Assign" style="opacity:0.6;font-size:12px;background:none;border:none;cursor:pointer;padding:1px 3px;color:var(--text3);">↗</button></span>
+      <span class="ct-task-date${isOverdue ? ' overdue' : ''}" onclick="event.stopPropagation();ctInlineEditDate(this,${ids})" style="cursor:pointer;white-space:nowrap;${isOverdue ? 'color:var(--danger);font-weight:600;' : ''}" title="Click to set date">${t.due ? fmtDate(t.due) : '<span style="opacity:0.4">No date</span>'}</span>
+      <span onclick="event.stopPropagation();ctShowPriority(event,${ids})" style="cursor:pointer;" title="Change priority">${pri}</span>
+      <span class="ct-task-hrs" style="cursor:pointer;" onclick="event.stopPropagation();ctInlineEditEst(this,${ids})" title="Click to edit hours">${t.est ? t.est + 'h' : '—'}</span>
+      <span style="cursor:pointer;color:var(--danger);font-size:13px;opacity:0.3;text-align:center;" onclick="event.stopPropagation();ctQuickDeleteTask(${ids})" title="Delete">×</span>
+    </div>`;
+  });
+  html += '</div>';
+
+  panel.innerHTML = html;
 }
 
 
@@ -12855,13 +12886,13 @@ function ctRenderTemplateEditor() {
   list.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:4px 0;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.03em;">` +
     '<span></span><span>Task Name</span><span>Est (h)</span><span>Priority</span><span>Waiting On</span><span></span></div>';
   (stage.tasks || []).forEach((t, i) => {
-    list.innerHTML += `<div class="ct-tpl-task" data-idx="${i}" draggable="true" style="grid-template-columns:${cols};"
-      ondragstart="_ctTplDragIdx=${i};this.classList.add('dragging');"
-      ondragend="this.classList.remove('dragging');_ctTplDragIdx=null;"
+    list.innerHTML += `<div class="ct-tpl-task" data-idx="${i}" style="grid-template-columns:${cols};"
       ondragover="event.preventDefault();this.classList.add('drag-over');"
       ondragleave="this.classList.remove('drag-over');"
       ondrop="event.preventDefault();this.classList.remove('drag-over');_ctTplDrop(${i});">
-      <span class="ct-tpl-drag" title="Drag to reorder">⠿</span>
+      <span class="ct-tpl-drag" draggable="true" title="Drag to reorder"
+        ondragstart="event.stopPropagation();_ctTplDragIdx=${i};this.closest('.ct-tpl-task').classList.add('dragging');"
+        ondragend="this.closest('.ct-tpl-task').classList.remove('dragging');_ctTplDragIdx=null;">⠿</span>
       <input class="form-input" value="${escHtml(t.name)}" data-field="name" placeholder="Task name" style="font-size:11px;padding:4px 8px;">
       <input class="form-input" type="number" value="${t.est || ''}" data-field="est" placeholder="0" style="font-size:11px;padding:4px 6px;" step="0.25" min="0">
       <select class="form-input filter-select" data-field="priority" style="font-size:11px;padding:4px 4px;">
