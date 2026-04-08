@@ -52,6 +52,7 @@
   [data-theme="light"] .p-high   { background: #fffbeb; }
   [data-theme="light"] .p-med    { background: #eff6ff; }
   [data-theme="light"] .p-low    { background: #f0fdf4; }
+  [data-theme="light"] .p-meeting { background: #f5f3ff; }
   [data-theme="light"] .s-need-delegate { background: #fef9ee; color: #be185d; border-color: #f9a8d4; }
   [data-theme="light"] .s-in-progress   { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
   [data-theme="light"] .s-ready-review  { background: #fffbeb; color: #7e22ce; border-color: #d8b4fe; }
@@ -414,10 +415,11 @@
 
   .priority-badge:hover { opacity: 0.7; }
 
-  .p-urgent { background: #3d1515; color: #f87171; border: 1px solid #f87171; }
-  .p-high   { background: #3d2a10; color: #fbbf24; border: 1px solid #fbbf24; }
-  .p-med    { background: #1a2d3d; color: #60a5fa; border: 1px solid #60a5fa; }
-  .p-low    { background: #1a2a1a; color: #4ade80; border: 1px solid #4ade80; }
+  .p-urgent  { background: #3d1515; color: #f87171; border: 1px solid #f87171; }
+  .p-high    { background: #3d2a10; color: #fbbf24; border: 1px solid #fbbf24; }
+  .p-med     { background: #1a2d3d; color: #60a5fa; border: 1px solid #60a5fa; }
+  .p-low     { background: #1a2a1a; color: #4ade80; border: 1px solid #4ade80; }
+  .p-meeting { background: #1f1a2e; color: #a78bfa; border: 1px solid #a78bfa; }
 
   .task-due {
     font-size: 11px;
@@ -2530,6 +2532,7 @@ if (typeof XLSX === 'undefined') {
       </select>
       <select class="filter-select" id="filterPriority">
         <option value="all">All priorities</option>
+        <option value="meeting">Meeting</option>
         <option value="urgent">Urgent</option>
         <option value="high">High</option>
         <option value="med">Med</option>
@@ -2821,6 +2824,7 @@ if (typeof XLSX === 'undefined') {
       <div class="edit-form-group">
         <label class="edit-label">Priority</label>
         <select class="edit-input" id="editPriority">
+          <option value="meeting">Meeting</option>
           <option value="urgent">Urgent</option>
           <option value="high">High</option>
           <option value="med">Med</option>
@@ -5082,7 +5086,7 @@ function _toggleWeekExpand(wk) {
 }
 
 function priorityBadge(p) {
-  const map = { urgent: ['Urgent', 'p-urgent'], high: ['High', 'p-high'], med: ['Med', 'p-med'], low: ['Low', 'p-low'] };
+  const map = { urgent: ['Urgent', 'p-urgent'], high: ['High', 'p-high'], med: ['Med', 'p-med'], low: ['Low', 'p-low'], meeting: ['Meeting', 'p-meeting'] };
   const [label, cls] = map[p] || ['Med', 'p-med'];
   return `<span class="priority-badge ${cls}">${label}</span>`;
 }
@@ -5181,7 +5185,7 @@ function renderTasks() {
     });
   });
 
-  const priorityOrder = { urgent: 0, high: 1, med: 2, low: 3 };
+  const priorityOrder = { meeting: -1, urgent: 0, high: 1, med: 2, low: 3 };
   const itemPri = i => i._type === 'task' ? priorityOrder[i.task.priority] : i._type === 'session' ? (priorityOrder[i.s.priority] ?? 2) : (priorityOrder[i.st.priority] ?? 2);
   allItems.sort((a, b) => (a._date || 'zzz').localeCompare(b._date || 'zzz') || itemPri(a) - itemPri(b));
 
@@ -10298,10 +10302,11 @@ document.addEventListener('click', e => {
 // =============================================
 
 const PRIORITY_OPTS = [
-  { value: 'urgent', label: 'Urgent', swatch: '#f87171' },
-  { value: 'high',   label: 'High',   swatch: '#fbbf24' },
-  { value: 'med',    label: 'Med',    swatch: '#60a5fa' },
-  { value: 'low',    label: 'Low',    swatch: '#4ade80' }
+  { value: 'meeting', label: 'Meeting', swatch: '#a78bfa' },
+  { value: 'urgent',  label: 'Urgent',  swatch: '#f87171' },
+  { value: 'high',    label: 'High',    swatch: '#fbbf24' },
+  { value: 'med',     label: 'Med',     swatch: '#60a5fa' },
+  { value: 'low',     label: 'Low',     swatch: '#4ade80' }
 ];
 
 function showPriorityDropdown(e, taskId) {
@@ -11252,7 +11257,7 @@ Return ONLY a single valid JSON object — no preamble, no markdown, no code fen
 }
 
 Definitions:
-- new_tasks: Array of full task objects for items that don't match anything existing. Fields: name (string), project (must be one of the project codes listed below — choose the best fit; use "overhead" if unclear), priority ("urgent" | "high" | "med" | "low"), due ("YYYY-MM-DD" or ""), est (number of hours or 0), category (string), waiting (string), notes (string).
+- new_tasks: Array of full task objects for items that don't match anything existing. Fields: name (string), project (must be one of the project codes listed below — choose the best fit; use "overhead" if unclear), priority ("meeting" | "urgent" | "high" | "med" | "low"), due ("YYYY-MM-DD" or ""), est (number of hours or 0), category (string), waiting (string), notes (string). Use "meeting" priority for meetings, conferences, and blocked calendar time.
 
 Project codes and their tags/abbreviations (use these to match shorthand in the brain dump):
 ${Object.keys(PROJECTS).map(k => { const p = PROJECTS[k]; const tags = (p.tags || []).length ? ' [tags: ' + p.tags.join(', ') + ']' : ''; return k + ' = "' + p.label + '"' + tags; }).join('\n')}
@@ -11466,7 +11471,7 @@ function confirmImport() {
       id: uid(),
       name: item.name || 'Untitled',
       project: PROJECTS[item.project] ? item.project : 'overhead',
-      priority: ['urgent','high','med','low'].includes(item.priority) ? item.priority : 'med',
+      priority: ['meeting','urgent','high','med','low'].includes(item.priority) ? item.priority : 'med',
       due: item.due || '',
       est: parseFloat(item.est) || 0,
       category: item.category || '',
