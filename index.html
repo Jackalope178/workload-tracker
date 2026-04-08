@@ -2094,11 +2094,13 @@
   .ct-stage-chevron.open { transform: rotate(90deg); }
 
   .ct-task-row {
-    display: grid; grid-template-columns: 24px 1fr auto 110px 55px 55px 20px; gap: 8px;
+    display: grid; grid-template-columns: 24px 1fr auto 110px 55px 55px 24px 20px; gap: 8px;
     align-items: center; padding: 7px 14px; font-size: 12px; border-top: 1px solid var(--border);
   }
   .ct-task-row:hover { background: var(--bg3); }
   .ct-task-row:hover span[title="Delete task"] { opacity: 0.7 !important; }
+  .ct-edit-btn { background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 11px; padding: 2px 5px; color: var(--text3); line-height: 1; }
+  .ct-edit-btn:hover { background: var(--bg3); color: var(--text); border-color: var(--accent); }
   .ct-task-done { opacity: 0.55; }
   .ct-task-check {
     width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--border2);
@@ -12409,10 +12411,10 @@ function ctRenderAllGrid(panel) {
     const isOverdue = t.due && t.due < todayStr;
     const delTags = delegateTagsHtml(t.delegatedTo);
     const pri = t.priority ? priorityBadge(t.priority) : '';
-    html += `<div class="ct-task-row" style="grid-template-columns:24px 1fr auto 110px 55px 55px 20px;padding:8px 10px;border-radius:0;border-top:1px solid var(--border);">
+    html += `<div class="ct-task-row" style="grid-template-columns:24px 1fr auto 110px 55px 55px 24px 20px;padding:8px 10px;border-radius:0;border-top:1px solid var(--border);">
       <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask(${ids},true)">${t.completed ? '✓' : ''}</div>
       <div style="min-width:0;">
-        <div class="ct-task-name ct-clickable-task" data-ct-cid="${r.cid}" data-ct-sid="${r.sid}" data-ct-tid="${r.tid}" style="cursor:pointer;" title="Click to edit">${escHtml(t.name)}</div>
+        <div class="ct-task-name" style="cursor:default;">${escHtml(t.name)}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:1px;display:flex;gap:6px;align-items:center;">
           <span style="font-weight:600;">${escHtml(r.partner)}</span>
           <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r.stageColor};"></span>
@@ -12423,6 +12425,7 @@ function ctRenderAllGrid(panel) {
       <span class="ct-task-date${isOverdue ? ' overdue' : ''}" onclick="event.stopPropagation();ctInlineEditDate(this,${ids})" style="cursor:pointer;white-space:nowrap;${isOverdue ? 'color:var(--danger);font-weight:600;' : ''}" title="Click to set date">${t.due ? fmtDate(t.due) : '<span style="opacity:0.4">No date</span>'}</span>
       <span onclick="event.stopPropagation();ctShowPriority(event,${ids})" style="cursor:pointer;" title="Change priority">${pri}</span>
       <span class="ct-task-hrs" style="cursor:pointer;" onclick="event.stopPropagation();ctInlineEditEst(this,${ids})" title="Click to edit hours">${t.est ? t.est + 'h' : '—'}</span>
+      <button class="ct-edit-btn" onclick="event.stopPropagation();ctOpenEditTaskModal(${ids})" title="Edit task">✎</button>
       <span style="cursor:pointer;color:var(--danger);font-size:13px;opacity:0.3;text-align:center;" onclick="event.stopPropagation();ctQuickDeleteTask(${ids})" title="Delete">×</span>
     </div>`;
   });
@@ -12481,6 +12484,7 @@ function ctRenderProfile(panel, partner) {
           <span class="ct-task-date" onclick="event.stopPropagation();ctInlineEditDate(this,${ids})" style="cursor:pointer;white-space:nowrap;" title="Click to set date">${t.due ? fmtDate(t.due) : '<span style="opacity:0.4">No date</span>'}</span>
           <span onclick="event.stopPropagation();ctShowPriority(event,${ids})" style="cursor:pointer;" title="Change priority">${pri}</span>
           <span class="ct-task-hrs" style="cursor:pointer;" onclick="event.stopPropagation();ctInlineEditEst(this,${ids})" title="Click to edit hours">${t.est ? t.est + 'h' : '—'}</span>
+          <button class="ct-edit-btn" onclick="event.stopPropagation();ctOpenEditTaskModal(${ids})" title="Edit task">✎</button>
           <span style="cursor:pointer;color:var(--danger);font-size:13px;opacity:0.4;text-align:center;" onclick="event.stopPropagation();ctQuickDeleteTask(${ids})" title="Delete task">×</span>
         </div>`;
       }).join('');
