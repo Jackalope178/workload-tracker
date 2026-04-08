@@ -12165,6 +12165,8 @@ function ctStageProgress(partner, stageId) {
 // Set active stage filter tab
 function ctSetStage(stage) {
   _ctActiveStage = stage;
+  // Clear partner selection when switching to quickview
+  if (stage === 'all') _ctSelectedPartner = null;
   document.querySelectorAll('.ct-stage-tab').forEach(b => b.classList.toggle('active', b.dataset.stage === stage));
   renderContacts();
 }
