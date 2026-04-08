@@ -2556,6 +2556,7 @@ if (typeof XLSX === 'undefined') {
         <select class="form-input filter-select" id="newTaskProject" onchange="populateSubCodeSelect('newTaskSubCode', this.value)"></select>
         <select class="form-input filter-select" id="newTaskSubCode" style="max-width:160px;"></select>
         <select class="form-input filter-select" id="newTaskPriority">
+          <option value="meeting">Meeting</option>
           <option value="urgent">Urgent</option>
           <option value="high">High</option>
           <option value="med" selected>Med</option>
@@ -7586,9 +7587,9 @@ function plannedItems(fromDate, toDate) {
       const skips     = t.recurrence.skips    || [];
       const overrides = t.recurrence.overrides || {};
       let d = t.due; let iters = 0;
-      while (d && d < fromDate && iters++ < 200) d = nextRecurrenceAfter(t, d);
+      while (d && d < fromDate && iters++ < 500) d = nextRecurrenceAfter(t, d);
       iters = 0;
-      while (d && d <= toDate && iters++ < 60) {
+      while (d && d <= toDate && iters++ < 200) {
         if (recurEnd && d > recurEnd) break;
         if (!skips.includes(d)) {
           const displayDate = overrides[d] || d;
@@ -7610,9 +7611,9 @@ function plannedItems(fromDate, toDate) {
       } else {
         const recurEnd = s.recurrence.endDate || null;
         let d = s.date; let iters = 0;
-        while (d && d < fromDate && iters++ < 200) d = nextRecurrenceAfter(s, d);
+        while (d && d < fromDate && iters++ < 500) d = nextRecurrenceAfter(s, d);
         iters = 0;
-        while (d && d <= toDate && iters++ < 60) {
+        while (d && d <= toDate && iters++ < 200) {
           if (recurEnd && d > recurEnd) break;
           items.push({ id: s.id + '_' + d, name: s.desc, project: proj.project, date: d, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _src: 'session', _projId: proj.id });
           d = nextRecurrenceAfter(s, d);
@@ -7629,9 +7630,9 @@ function plannedItems(fromDate, toDate) {
         } else {
           const recurEnd = st.recurrence.endDate || null;
           let d = st.date; let iters = 0;
-          while (d && d < fromDate && iters++ < 200) d = nextRecurrenceAfter(st, d);
+          while (d && d < fromDate && iters++ < 500) d = nextRecurrenceAfter(st, d);
           iters = 0;
-          while (d && d <= toDate && iters++ < 60) {
+          while (d && d <= toDate && iters++ < 200) {
             if (recurEnd && d > recurEnd) break;
             items.push({ id: st.id + '_' + d, name: st.desc, project: proj.project, date: d, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id });
             d = nextRecurrenceAfter(st, d);
