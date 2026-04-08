@@ -9310,55 +9310,35 @@ function openAllocDrill(projKey, scId, yearMonth) {
   document.getElementById('allocDrillTitle').textContent = codeLabel;
   document.getElementById('allocDrillSub').textContent = monthLabel + (matchAllSubs ? ' (all sub-codes)' : '');
 
-  // Gather planned tasks — matching subcode, or all if project-level
+  // Use recurrence-aware planned items for the month
+  const allPlanned = _getPlannedForMonth(yearMonth).filter(i => i.project === projKey);
+
+  // Split into matched vs unassigned
   const plannedTasks = [];
   const unassignedTasks = [];
-  tasks.forEach(t => {
-    if (t.completed || t.project !== projKey) return;
-    if ((t.due || '').slice(0, 7) !== yearMonth) return;
-    const tsc = t.subCode || '';
-    if (!scId || tsc === scId) {
-      plannedTasks.push(t);
-    } else if (scId && tsc === '') {
-      unassignedTasks.push(t);
-    }
-  });
-
-  // Gather big project sessions & subtasks
   const plannedSessions = [];
-  const plannedSubtasks = [];
   const unassignedSessions = [];
+  const plannedSubtasks = [];
   const unassignedSubtasks = [];
-  bigProjs.forEach(bp => {
-    if (bp.project !== projKey) return;
-    bp.sessions.forEach(s => {
-      if (s.done) return;
-      const sDel = normDelegated(s.delegatedTo);
-      if (sDel.length && !sDel.includes('Me')) return;
-      const ssc = s.subCode || '';
-      if ((s.date || '').slice(0, 7) === yearMonth) {
-        const item = { name: `${bp.name}: ${s.desc || s.title || 'Session'}`, hours: s.hours || 0, subCode: ssc };
-        if (!scId || ssc === scId) {
-          plannedSessions.push(item);
-        } else if (scId && ssc === '') {
-          unassignedSessions.push(item);
-        }
-      }
-      (s.subtasks || []).forEach(st => {
-        if (st.done) return;
-        const stDel = normDelegated(st.delegatedTo);
-        if (stDel.length && !stDel.includes('Me')) return;
-        const stsc = st.subCode || '';
-        if ((st.date || '').slice(0, 7) === yearMonth) {
-          const item = { name: `${bp.name}: ${st.desc || st.title || 'Subtask'}`, hours: st.hours || 0, subCode: stsc };
-          if (!scId || stsc === scId) {
-            plannedSubtasks.push(item);
-          } else if (scId && stsc === '') {
-            unassignedSubtasks.push(item);
-          }
-        }
-      });
-    });
+
+  allPlanned.forEach(i => {
+    const isc = i.subCode || '';
+    const matched = !scId || isc === scId;
+    const unassigned = scId && isc === '';
+
+    if (i._src === 'task') {
+      const item = { name: i.name, est: i.hours, priority: '', subCode: isc, _recur: i._recur };
+      if (matched) plannedTasks.push(item);
+      else if (unassigned) unassignedTasks.push(item);
+    } else if (i._src === 'session') {
+      const item = { name: i.name, hours: i.hours, subCode: isc, _recur: i._recur };
+      if (matched) plannedSessions.push(item);
+      else if (unassigned) unassignedSessions.push(item);
+    } else if (i._src === 'subtask') {
+      const item = { name: i.name, hours: i.hours, subCode: isc, _recur: i._recur };
+      if (matched) plannedSubtasks.push(item);
+      else if (unassigned) unassignedSubtasks.push(item);
+    }
   });
 
   // Gather completed items
@@ -9426,16 +9406,18 @@ function openAllocDrill(projKey, scId, yearMonth) {
 
   function renderTaskItem(t) {
     const pri = t.priority === 'urgent' ? ' style="color:var(--danger)"' : t.priority === 'high' ? ' style="color:var(--warn)"' : '';
+    const recurBadge = t._recur ? '<span class="recur-badge" style="font-size:9px;padding:0 4px;margin-left:4px;">↻</span>' : '';
     return `<div class="alloc-drill-item">
       <span class="adi-type">Task</span>${scBadge(t.subCode)}
-      <span class="adi-name"${pri}>${escHtml(t.name)}</span>
+      <span class="adi-name"${pri}>${escHtml(t.name)}${recurBadge}</span>
       <span class="adi-hours">${t.est ? fmtQ(t.est) + 'h est' : '—'}</span>
     </div>`;
   }
   function renderSessionItem(s, type) {
+    const recurBadge = s._recur ? '<span class="recur-badge" style="font-size:9px;padding:0 4px;margin-left:4px;">↻</span>' : '';
     return `<div class="alloc-drill-item">
       <span class="adi-type">${type}</span>${scBadge(s.subCode)}
-      <span class="adi-name">${escHtml(s.name)}</span>
+      <span class="adi-name">${escHtml(s.name)}${recurBadge}</span>
       <span class="adi-hours">${s.hours ? fmtQ(s.hours) + 'h' : '—'}</span>
     </div>`;
   }
