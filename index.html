@@ -6922,10 +6922,20 @@ function renderProjCodeContent(projKey) {
         items.push({ _type: 'team', team: ti, _date: ti.due || null, _src: 'Team Deliverables' });
       }
     });
+    // Contact tasks tagged to this project
+    if (typeof getContactTasks === 'function') {
+      getContactTasks().forEach(ct => {
+        if (ct.project !== projKey || ct.completed) return;
+        const ctsc = ct.subCode || '';
+        if (ctsc === (scId || '')) {
+          items.push({ _type: 'contact', ct, _date: ct.due || null, _src: ct._stageName || 'Contact' });
+        }
+      });
+    }
     // Sort: incomplete first, then by manual order if set, then date, then priority
     const po = { urgent: 0, high: 1, med: 2, low: 3 };
-    const pri = i => i._type === 'task' ? po[i.task.priority] : i._type === 'session' ? (po[i.s.priority] ?? 2) : i._type === 'team' ? 2 : (po[i.st.priority] ?? 2);
-    const done = i => i._type === 'task' ? !!i.task.completed : i._type === 'session' ? !!i.s.done : i._type === 'team' ? (i.team.status === 'complete') : !!i.st?.done;
+    const pri = i => i._type === 'task' ? po[i.task.priority] : i._type === 'contact' ? (po[i.ct.priority] ?? 2) : i._type === 'session' ? (po[i.s.priority] ?? 2) : i._type === 'team' ? 2 : (po[i.st.priority] ?? 2);
+    const done = i => i._type === 'task' ? !!i.task.completed : i._type === 'contact' ? !!i.ct.completed : i._type === 'session' ? !!i.s.done : i._type === 'team' ? (i.team.status === 'complete') : !!i.st?.done;
     const ord = i => {
       const obj = i._type === 'task' ? i.task : i._type === 'session' ? i.s : i._type === 'team' ? i.team : i.st;
       return obj?.projSortOrder ?? 999999;
@@ -7193,6 +7203,26 @@ function renderProjItemRow(item, projKey, scId) {
       <div class="session-date">${fmtDate(ti.due)}</div>
       <div class="session-hours">—</div>
       <span class="status-badge ${STATUS_CLS[ti.status] || ''}" style="cursor:pointer;white-space:nowrap;" onclick="event.stopPropagation();showStatusDropdown(event,'${ti.id}')">${STATUS_LABELS[ti.status] || ti.status}</span>
+      <div></div>
+    </div>`;
+  }
+
+  if (item._type === 'contact') {
+    const ct = item.ct;
+    return `<div class="proj-item-row">
+      <div style="width:20px;"></div>
+      <div class="session-check${ct.completed ? ' done' : ''}" onclick="ctCompleteTask('${ct._contactId}','${ct._stageId}','${ct._ctTaskId}',${!ct.completed})" style="cursor:pointer;">
+        ${ct.completed ? '<span style="color:var(--check-fg);font-size:11px;">✓</span>' : ''}
+      </div>
+      <div class="session-desc" style="${ct.completed ? 'text-decoration:line-through;color:var(--text3);' : ''}">
+        ${escHtml(ct.name)}
+        <span style="font-size:10px;color:var(--text3);font-style:italic;margin-left:4px;">${escHtml(ct._partnerName)}</span>
+        ${ct.waiting ? `<span class="task-waiting">⏳ ${escHtml(ct.waiting)}</span>` : ''}
+      </div>
+      <div>${priorityBadge(ct.priority || 'med')}</div>
+      <div class="session-date">${fmtDate(ct.due)}</div>
+      <div class="session-hours">${ct.est ? ct.est + 'h' : '—'}</div>
+      <div></div>
       <div></div>
     </div>`;
   }
@@ -12075,15 +12105,40 @@ function ctFindTask(compositeId) {
   return t ? { contact: c, stageId: sId, task: t } : null;
 }
 
-function ctCompleteTask(contactId, stageId, taskId, completed) {
+function ctCompleteTask(contactId, stageId, taskId, markCompleted) {
   const c = contacts.find(c => c.id === contactId);
   if (!c || !c.stages[stageId]) return;
   const t = c.stages[stageId].tasks.find(t => t.id === taskId);
   if (!t) return;
-  t.completed = completed;
-  t.dateCompleted = completed ? today() : null;
+  const stageDef = ctGetStage(stageId);
+  t.completed = markCompleted;
+  t.dateCompleted = markCompleted ? today() : null;
+  if (markCompleted) {
+    // Log to completed array for timesheet tracking
+    const entry = {
+      id: uid(),
+      name: c.name + ': ' + t.name,
+      project: stageDef?.project || 'cwc',
+      subCode: stageDef?.subCode || '',
+      dateCompleted: today(),
+      estHours: t.est || 0,
+      actualHours: t.est || 0,
+      category: ''
+    };
+    completed.unshift(entry);
+    save('wt_completed', completed);
+  } else {
+    // Un-completing: remove the most recent matching completed entry
+    const idx = completed.findIndex(e => e.name === c.name + ': ' + t.name && e.project === (stageDef?.project || 'cwc'));
+    if (idx !== -1) { completed.splice(idx, 1); save('wt_completed', completed); }
+  }
   save('wt_contacts', contacts);
   renderContacts();
+  // Re-render active tab if it's tasks or timesheet
+  const activeTab = document.querySelector('.tab.active')?.dataset?.tab;
+  if (activeTab === 'tasks') renderTasks();
+  else if (activeTab === 'timesheet') renderTimesheet();
+  else if (activeTab === 'projects') renderProjects();
 }
 
 
