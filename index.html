@@ -2991,6 +2991,63 @@ if (typeof XLSX === 'undefined') {
   </div>
 </div>
 
+<!-- CONTACTS: EDIT TASK MODAL -->
+<div class="modal-overlay" id="ctEditTaskModal" style="display:none;">
+  <div class="modal">
+    <div class="modal-title">Edit Contact Task</div>
+    <div class="modal-subtitle" id="ctEditTaskSub"></div>
+    <div class="edit-form-grid">
+      <div class="edit-form-group full">
+        <label class="edit-label">Task Name</label>
+        <input class="edit-input" id="ctEditName">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Project</label>
+        <select class="edit-input" id="ctEditProject" onchange="populateSubCodeSelect('ctEditSubCode', this.value)"></select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Sub-Code</label>
+        <select class="edit-input" id="ctEditSubCode"></select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Priority</label>
+        <select class="edit-input" id="ctEditPriority">
+          <option value="meeting">Meeting</option>
+          <option value="urgent">Urgent</option>
+          <option value="high">High</option>
+          <option value="med">Med</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Due Date</label>
+        <input class="edit-input" type="date" id="ctEditDue">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Est. Hours</label>
+        <input class="edit-input" type="number" id="ctEditEst" step="0.25" min="0">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Waiting On</label>
+        <input class="edit-input" type="text" id="ctEditWaiting">
+      </div>
+      <div class="edit-form-group full">
+        <label class="edit-label">Notes</label>
+        <input class="edit-input" type="text" id="ctEditNotes">
+      </div>
+      <div class="edit-form-group full">
+        <label class="edit-label">Assign to</label>
+        <div id="ctEditDelegateWrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn danger" id="ctEditDeleteBtn" style="margin-right:auto;color:var(--danger);border-color:var(--danger);" onclick="ctDeleteTask()">Delete</button>
+      <button class="btn" onclick="ctCloseEditModal()">Cancel</button>
+      <button class="btn primary" onclick="ctSaveEditTask()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- RESCHEDULE OCCURRENCE MODAL -->
 <div class="modal-overlay" id="rescheduleModal" style="display:none;">
   <div class="modal" style="max-width:320px;">
@@ -12117,8 +12174,8 @@ function getContactTasks() {
         out.push({
           id: '_ct_' + c.id + '_' + sid + '_' + t.id,
           _contactId: c.id, _stageId: sid, _ctTaskId: t.id,
-          name: t.name, project: stageDef.project || 'cwc',
-          subCode: stageDef.subCode || '', priority: t.priority || 'med',
+          name: t.name, project: t.project || stageDef.project || 'cwc',
+          subCode: t.subCode ?? stageDef.subCode ?? '', priority: t.priority || 'med',
           due: t.due || null, est: t.est || 0, notes: t.notes || '',
           waiting: t.waiting || '', delegatedTo: t.delegatedTo || null,
           completed: t.completed || false, dateCompleted: t.dateCompleted || null,
@@ -12519,9 +12576,10 @@ function saveCtPartner() {
 function ctAddStageToPartner(partner, stageId, anchorDate) {
   const stageDef = ctGetStage(stageId);
   if (!stageDef) return;
-  // Clone template tasks
+  // Clone template tasks — each task gets its own project/subCode from stage defaults
   const tasks = (stageDef.tasks || []).map(t => ({
     id: uid(), name: t.name, est: t.est || 0, priority: t.priority || 'med',
+    project: stageDef.project || 'cwc', subCode: stageDef.subCode || '',
     due: null, delegatedTo: t.delegatedTo || null, notes: t.notes || '',
     waiting: t.waiting || '', completed: false, dateCompleted: null, actualHours: 0
   }));
@@ -12601,21 +12659,56 @@ function _ctSaveAndRender() {
 }
 
 // Inline edit: task name
+// Open full edit modal (same as clicking task name)
+let _ctEditRef = null;
 function ctInlineEditName(el, cid, sid, tid) {
-  if (el.querySelector('input')) return;
+  ctOpenEditTaskModal(cid, sid, tid);
+}
+function ctOpenEditTaskModal(cid, sid, tid) {
   const t = _ctTask(cid, sid, tid);
   if (!t) return;
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = t.name;
-  input.style.cssText = 'width:100%;font-size:12px;padding:3px 6px;border:1px solid var(--accent);border-radius:3px;background:var(--bg);color:var(--text);';
-  function commit() { t.name = input.value.trim() || t.name; _ctSaveAndRender(); }
-  input.addEventListener('blur', commit);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') renderContacts(); });
-  el.textContent = '';
-  el.appendChild(input);
-  input.focus();
-  input.select();
+  const c = contacts.find(c => c.id === cid);
+  const stageDef = ctGetStage(sid);
+  _ctEditRef = { cid, sid, tid };
+
+  document.getElementById('ctEditTaskSub').textContent = (c?.name || '') + ' — ' + (stageDef?.label || sid);
+  document.getElementById('ctEditName').value = t.name;
+  document.getElementById('ctEditDue').value = t.due || '';
+  document.getElementById('ctEditEst').value = t.est || '';
+  document.getElementById('ctEditPriority').value = t.priority || 'med';
+  document.getElementById('ctEditWaiting').value = t.waiting || '';
+  document.getElementById('ctEditNotes').value = t.notes || '';
+
+  // Populate project dropdown
+  const projSel = document.getElementById('ctEditProject');
+  projSel.innerHTML = '';
+  Object.keys(PROJECTS).forEach(k => {
+    const p = PROJECTS[k];
+    if (p.hidden) return;
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = `${p.label} (${p.billingCode})`;
+    projSel.appendChild(opt);
+  });
+  projSel.value = t.project || stageDef?.project || 'cwc';
+  populateSubCodeSelect('ctEditSubCode', projSel.value, t.subCode ?? stageDef?.subCode ?? '');
+
+  // Delegation checkboxes
+  const wrap = document.getElementById('ctEditDelegateWrap');
+  const current = normDelegated(t.delegatedTo);
+  const allPersons = ['Me', ...(persons || [])];
+  wrap.innerHTML = allPersons.map(p => {
+    const active = current.includes(p);
+    const pc = personColor(p);
+    return `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:500;border:1px solid ${active ? pc.border : 'var(--border)'};background:${active ? pc.bg : 'transparent'};color:${active ? pc.text : 'var(--text3)'};">
+      <input type="checkbox" value="${escHtml(p)}" ${active ? 'checked' : ''} style="display:none;">${escHtml(p)}</label>`;
+  }).join('');
+  wrap.querySelectorAll('label').forEach(l => {
+    l.onclick = () => { const cb = l.querySelector('input'); cb.checked = !cb.checked; const a = cb.checked;
+      const pc = personColor(cb.value); l.style.border = `1px solid ${a ? pc.border : 'var(--border)'}`; l.style.background = a ? pc.bg : 'transparent'; l.style.color = a ? pc.text : 'var(--text3)'; };
+  });
+
+  document.getElementById('ctEditTaskModal').style.display = 'flex';
 }
 
 // Inline edit: due date
@@ -12669,16 +12762,41 @@ function ctShowPriority(e, cid, sid, tid) {
 
 // Full edit modal (replaces the old prompt-based edit)
 function ctEditTaskModal(cid, sid, tid) {
-  const t = _ctTask(cid, sid, tid);
+  ctOpenEditTaskModal(cid, sid, tid);
+}
+
+function ctCloseEditModal() {
+  document.getElementById('ctEditTaskModal').style.display = 'none';
+  _ctEditRef = null;
+}
+
+function ctSaveEditTask() {
+  if (!_ctEditRef) return;
+  const t = _ctTask(_ctEditRef.cid, _ctEditRef.sid, _ctEditRef.tid);
   if (!t) return;
-  const name = prompt('Task name:', t.name);
-  if (name === null) return;
-  t.name = name.trim() || t.name;
-  const waiting = prompt('Waiting on (leave blank if none):', t.waiting || '');
-  if (waiting !== null) t.waiting = waiting.trim();
-  const notes = prompt('Notes:', t.notes || '');
-  if (notes !== null) t.notes = notes.trim();
+  t.name = document.getElementById('ctEditName').value.trim() || t.name;
+  t.project = document.getElementById('ctEditProject').value || 'cwc';
+  t.subCode = document.getElementById('ctEditSubCode').value || '';
+  t.priority = document.getElementById('ctEditPriority').value || 'med';
+  t.due = document.getElementById('ctEditDue').value || null;
+  t.est = parseFloat(document.getElementById('ctEditEst').value) || 0;
+  t.waiting = document.getElementById('ctEditWaiting').value.trim();
+  t.notes = document.getElementById('ctEditNotes').value.trim();
+  // Read delegation
+  const checks = document.querySelectorAll('#ctEditDelegateWrap input[type="checkbox"]:checked');
+  const del = Array.from(checks).map(cb => cb.value);
+  t.delegatedTo = del.length ? del : null;
   _ctSaveAndRender();
+  ctCloseEditModal();
+}
+
+function ctDeleteTask() {
+  if (!_ctEditRef) return;
+  const c = contacts.find(c => c.id === _ctEditRef.cid);
+  if (!c || !c.stages[_ctEditRef.sid]) return;
+  c.stages[_ctEditRef.sid].tasks = c.stages[_ctEditRef.sid].tasks.filter(t => t.id !== _ctEditRef.tid);
+  _ctSaveAndRender();
+  ctCloseEditModal();
 }
 
 
@@ -12821,10 +12939,10 @@ function ctPlannedItems(fromDate, toDate) {
           items.push({
             id: '_ct_' + c.id + '_' + sid + '_' + t.id,
             name: c.name + ': ' + t.name,
-            project: stageDef.project || 'cwc',
+            project: t.project || stageDef.project || 'cwc',
             date: t.due,
             hours: t.est || 0,
-            subCode: stageDef.subCode || '',
+            subCode: t.subCode ?? stageDef.subCode ?? '',
             _planned: true,
             _src: 'contact',
             _contactId: c.id,
