@@ -2094,7 +2094,7 @@
   .ct-stage-chevron.open { transform: rotate(90deg); }
 
   .ct-task-row {
-    display: grid; grid-template-columns: 24px 1fr 70px 60px 50px 30px; gap: 6px;
+    display: grid; grid-template-columns: 24px 1fr auto 70px 60px 50px 30px 30px; gap: 6px;
     align-items: center; padding: 6px 14px; font-size: 12px; border-top: 1px solid var(--border);
   }
   .ct-task-row:hover { background: var(--bg3); }
@@ -2116,11 +2116,11 @@
   .ct-all-table tr:hover { background: var(--bg3); }
 
   .ct-contact-row {
-    display: flex; gap: 6px; align-items: center; padding: 8px 10px;
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    display: grid; grid-template-columns: 1fr 1fr 100px auto auto; gap: 8px; align-items: center;
+    padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
   }
   .ct-contact-row input[type="text"], .ct-contact-row input[type="email"] {
-    flex: 1; min-width: 0; font-size: 11px; padding: 5px 8px;
+    width: 100%; min-width: 0; font-size: 12px; padding: 6px 8px;
     border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text);
   }
   .ct-contact-row label { font-size: 10px; color: var(--text2); display: flex; align-items: center; gap: 3px; white-space: nowrap; cursor: pointer; }
@@ -2915,22 +2915,28 @@ if (typeof XLSX === 'undefined') {
 
 <!-- CONTACTS: ADD/EDIT PARTNER MODAL -->
 <div class="modal-overlay" id="ctPartnerModal" style="display:none;">
-  <div class="modal" style="max-width:520px;">
+  <div class="modal" style="max-width:640px;width:90vw;">
     <div class="modal-header"><span id="ctPartnerModalTitle">Add Partner</span><button class="modal-close" onclick="closeCtPartnerModal()">×</button></div>
     <div class="modal-body">
       <label class="modal-label">Organization Name</label>
-      <input id="ctPartnerName" class="modal-input" placeholder="e.g. Fletcher Community College">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
-        <label class="modal-label" style="margin:0;">Contacts</label>
-        <button class="btn" onclick="ctAddContactRow()" style="font-size:10px;padding:2px 8px;">+ Add Contact</button>
+      <input id="ctPartnerName" class="modal-input" style="font-size:13px;padding:8px 10px;" placeholder="e.g. Fletcher Community College">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;">
+        <label class="modal-label" style="margin:0;font-size:12px;">Contacts</label>
+        <button class="btn" onclick="ctAddContactRow()" style="font-size:10px;padding:3px 10px;">+ Add Contact</button>
       </div>
-      <div id="ctPartnerContacts" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;"></div>
-      <label class="modal-label" style="margin-top:12px;">Starting Stage</label>
-      <select id="ctPartnerStage" class="modal-input">
-        <option value="">— Select —</option>
-      </select>
-      <label class="modal-label" style="margin-top:8px;">Notes</label>
-      <textarea id="ctPartnerNotes" class="modal-input" rows="2" placeholder="Optional notes about this partner"></textarea>
+      <div id="ctPartnerContacts" style="margin-top:8px;display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+        <div>
+          <label class="modal-label">Starting Stage</label>
+          <select id="ctPartnerStage" class="modal-input" style="width:100%;">
+            <option value="">— Select —</option>
+          </select>
+        </div>
+        <div>
+          <label class="modal-label">Notes</label>
+          <textarea id="ctPartnerNotes" class="modal-input" rows="2" style="width:100%;" placeholder="Optional"></textarea>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeCtPartnerModal()">Cancel</button>
@@ -12105,6 +12111,45 @@ function ctFindTask(compositeId) {
   return t ? { contact: c, stageId: sId, task: t } : null;
 }
 
+function ctAssignTask(e, contactId, stageId, taskId) {
+  e.stopPropagation();
+  const c = contacts.find(c => c.id === contactId);
+  if (!c || !c.stages[stageId]) return;
+  const t = c.stages[stageId].tasks.find(t => t.id === taskId);
+  if (!t) return;
+  // Reuse existing assign dropdown by temporarily setting global refs
+  _assignTaskId = null; _assignProjId = null;
+  const menu = document.getElementById('assignDropdown');
+  const rect = e.currentTarget.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+  // Build person list
+  const current = normDelegated(t.delegatedTo);
+  const pList = menu.querySelector('.assign-list') || menu;
+  let html = '';
+  (persons || []).forEach(p => {
+    const isActive = current.includes(p);
+    html += `<div class="assign-item${isActive ? ' active' : ''}" onclick="event.stopPropagation();_ctToggleAssign('${contactId}','${stageId}','${taskId}','${escHtml(p)}')">${isActive ? '✓ ' : ''}${escHtml(p)}</div>`;
+  });
+  html += `<div class="assign-item${current.includes('Me') ? ' active' : ''}" onclick="event.stopPropagation();_ctToggleAssign('${contactId}','${stageId}','${taskId}','Me')">${current.includes('Me') ? '✓ ' : ''}Me</div>`;
+  pList.innerHTML = html;
+  menu.classList.add('open');
+}
+
+function _ctToggleAssign(contactId, stageId, taskId, name) {
+  const c = contacts.find(c => c.id === contactId);
+  if (!c || !c.stages[stageId]) return;
+  const t = c.stages[stageId].tasks.find(t => t.id === taskId);
+  if (!t) return;
+  let current = normDelegated(t.delegatedTo);
+  if (current.includes(name)) current = current.filter(n => n !== name);
+  else current.push(name);
+  t.delegatedTo = current.length ? current : null;
+  save('wt_contacts', contacts);
+  document.getElementById('assignDropdown').classList.remove('open');
+  renderContacts();
+}
+
 function ctCompleteTask(contactId, stageId, taskId, markCompleted) {
   const c = contacts.find(c => c.id === contactId);
   if (!c || !c.stages[stageId]) return;
@@ -12296,9 +12341,11 @@ function ctRenderProfile(panel, partner) {
     if (isExpanded) {
       stagesHtml += st.tasks.map(t => {
         const pri = t.priority ? priorityBadge(t.priority) : '';
+        const delTags = delegateTagsHtml(t.delegatedTo);
         return `<div class="ct-task-row">
           <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask('${partner.id}','${sid}','${t.id}',${!t.completed})">${t.completed ? '✓' : ''}</div>
-          <span class="ct-task-name${t.completed ? ' done' : ''}">${escHtml(t.name)}</span>
+          <span class="ct-task-name${t.completed ? ' done' : ''}">${escHtml(t.name)}${t.waiting ? `<span class="task-waiting" style="font-size:10px;">⏳ ${escHtml(t.waiting)}</span>` : ''}</span>
+          <span style="display:inline-flex;gap:2px;align-items:center;">${delTags}<button class="row-edit-btn" onclick="event.stopPropagation();ctAssignTask(event,'${partner.id}','${sid}','${t.id}')" title="Assign" style="opacity:0.6;font-size:12px;background:none;border:none;cursor:pointer;padding:1px 3px;">↗</button></span>
           <span class="ct-task-date">${t.due ? fmtDate(t.due) : '<span style="opacity:0.4">No date</span>'}</span>
           ${pri}
           <span class="ct-task-hrs">${t.est ? t.est + 'h' : ''}</span>
@@ -12307,8 +12354,6 @@ function ctRenderProfile(panel, partner) {
       }).join('');
       stagesHtml += `<div style="padding:6px 14px;border-top:1px solid var(--border);">
         <button class="btn" onclick="ctAddTaskToStage('${partner.id}','${sid}')" style="font-size:10px;padding:2px 8px;">+ Add Task</button>
-        <button class="btn" onclick="ctSetAnchorDate('${partner.id}','${sid}')" style="font-size:10px;padding:2px 8px;">📅 Set Anchor</button>
-        <button class="btn" onclick="ctApplyAnchorDates('${partner.id}','${sid}')" style="font-size:10px;padding:2px 8px;" title="Recalculate all task dates from anchor">↻ Apply Dates</button>
       </div>`;
     }
     stagesHtml += '</div>';
@@ -12443,23 +12488,10 @@ function ctAddStageToPartner(partner, stageId, anchorDate) {
   const tasks = (stageDef.tasks || []).map(t => ({
     id: uid(), name: t.name, est: t.est || 0, priority: t.priority || 'med',
     due: null, delegatedTo: t.delegatedTo || null, notes: t.notes || '',
-    waiting: t.waiting || '', completed: false, dateCompleted: null, actualHours: 0,
-    offsetDays: t.offsetDays || 0
+    waiting: t.waiting || '', completed: false, dateCompleted: null, actualHours: 0
   }));
   partner.stages[stageId] = { active: true, anchorDate: anchorDate || null, addedDate: today(), tasks };
-  // Auto-calc dates if anchor provided
-  if (anchorDate) ctCalcDatesFromAnchor(partner, stageId);
   _ctExpandedStages.add(stageId);
-}
-
-function ctCalcDatesFromAnchor(partner, stageId) {
-  const st = partner.stages[stageId];
-  if (!st || !st.anchorDate) return;
-  st.tasks.forEach(t => {
-    if (t.offsetDays !== undefined && t.offsetDays !== null) {
-      t.due = addDays(st.anchorDate, t.offsetDays);
-    }
-  });
 }
 
 function ctDeletePartner(id) {
@@ -12509,15 +12541,6 @@ function ctSetAnchorDate(partnerId, stageId) {
   renderContacts();
 }
 
-function ctApplyAnchorDates(partnerId, stageId) {
-  const c = contacts.find(c => c.id === partnerId);
-  if (!c || !c.stages[stageId]) return;
-  if (!c.stages[stageId].anchorDate) { alert('Set an anchor date first.'); return; }
-  ctCalcDatesFromAnchor(c, stageId);
-  save('wt_contacts', contacts);
-  renderContacts();
-}
-
 function ctAddTaskToStage(partnerId, stageId) {
   const c = contacts.find(c => c.id === partnerId);
   if (!c || !c.stages[stageId]) return;
@@ -12544,8 +12567,6 @@ function ctEditTaskInline(partnerId, stageId, taskId) {
   if (due !== null) t.due = due || null;
   const est = prompt('Estimated hours:', t.est || 0);
   if (est !== null) t.est = parseFloat(est) || 0;
-  const offset = prompt('Offset days from anchor (negative = before, e.g. -60):', t.offsetDays || 0);
-  if (offset !== null) t.offsetDays = parseInt(offset) || 0;
   const pri = prompt('Priority (urgent/high/med/low):', t.priority || 'med');
   if (pri !== null && ['urgent','high','med','low'].includes(pri)) t.priority = pri;
   save('wt_contacts', contacts);
@@ -12585,10 +12606,10 @@ function ctRenderTemplateEditor() {
   populateSubCodeSelect('ctTplSubCode', stage.project || 'cwc', stage.subCode || '');
   const list = document.getElementById('ctTplTaskList');
   // Header matching My Tasks form style
-  list.innerHTML = '<div style="display:grid;grid-template-columns:2fr 65px 85px 1fr 70px 24px;gap:8px;padding:4px 0;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.03em;">' +
-    '<span>Task Name</span><span>Est (h)</span><span>Priority</span><span>Waiting On</span><span>Days Before</span><span></span></div>';
+  list.innerHTML = '<div style="display:grid;grid-template-columns:2fr 65px 85px 1fr 24px;gap:8px;padding:4px 0;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.03em;">' +
+    '<span>Task Name</span><span>Est (h)</span><span>Priority</span><span>Waiting On</span><span></span></div>';
   (stage.tasks || []).forEach((t, i) => {
-    list.innerHTML += `<div class="ct-tpl-task" data-idx="${i}" style="grid-template-columns:2fr 65px 85px 1fr 70px 24px;">
+    list.innerHTML += `<div class="ct-tpl-task" data-idx="${i}" style="grid-template-columns:2fr 65px 85px 1fr 24px;">
       <input class="form-input" value="${escHtml(t.name)}" data-field="name" placeholder="Task name" style="font-size:11px;padding:4px 8px;">
       <input class="form-input" type="number" value="${t.est || ''}" data-field="est" placeholder="0" style="font-size:11px;padding:4px 6px;" step="0.25" min="0">
       <select class="form-input filter-select" data-field="priority" style="font-size:11px;padding:4px 4px;">
@@ -12599,7 +12620,6 @@ function ctRenderTemplateEditor() {
         <option value="low"${t.priority === 'low' ? ' selected' : ''}>Low</option>
       </select>
       <input class="form-input" type="text" value="${escHtml(t.waiting || '')}" data-field="waiting" placeholder="Optional" style="font-size:11px;padding:4px 6px;">
-      <input class="form-input" type="number" value="${Math.abs(t.offsetDays || 0)}" data-field="offsetDays" min="0" style="font-size:11px;padding:4px 6px;" title="Days before the anchor date (e.g. 60 = task due 60 days before renewal)">
       <span style="cursor:pointer;color:var(--danger);font-size:14px;text-align:center;" onclick="ctRemoveTemplateTask(${i})" title="Remove">×</span>
     </div>`;
   });
@@ -12619,12 +12639,10 @@ function _ctSyncTemplateFieldsToData() {
     const estEl = row.querySelector('[data-field="est"]');
     const priEl = row.querySelector('[data-field="priority"]');
     const waitEl = row.querySelector('[data-field="waiting"]');
-    const offsetEl = row.querySelector('[data-field="offsetDays"]');
     if (nameEl) t.name = nameEl.value.trim() || t.name;
     if (estEl) t.est = parseFloat(estEl.value) || 0;
     if (priEl) t.priority = priEl.value || 'med';
     if (waitEl) t.waiting = waitEl.value.trim();
-    if (offsetEl) t.offsetDays = -(parseInt(offsetEl.value) || 0);
   });
 }
 
@@ -12634,7 +12652,7 @@ function ctAddTemplateTask() {
   const stage = ctGetStage(sid);
   if (!stage) return;
   if (!stage.tasks) stage.tasks = [];
-  stage.tasks.push({ id: uid(), name: '', est: 0, priority: 'med', offsetDays: 0, waiting: '', delegatedTo: null, notes: '' });
+  stage.tasks.push({ id: uid(), name: '', est: 0, priority: 'med', waiting: '', delegatedTo: null, notes: '' });
   ctRenderTemplateEditor();
   // Focus the new task's name field
   const rows = document.querySelectorAll('#ctTplTaskList .ct-tpl-task');
@@ -12666,10 +12684,8 @@ function ctSaveTemplate() {
     const est = parseFloat(row.querySelector('[data-field="est"]').value) || 0;
     const priority = row.querySelector('[data-field="priority"]').value || 'med';
     const waiting = row.querySelector('[data-field="waiting"]')?.value?.trim() || '';
-    const daysBefore = parseInt(row.querySelector('[data-field="offsetDays"]').value) || 0;
-    const offsetDays = -(Math.abs(daysBefore)); // Store as negative (days before anchor)
     const oldTask = stage.tasks[+row.dataset.idx] || {};
-    tasks.push({ id: oldTask.id || uid(), name, est, priority, offsetDays, waiting, delegatedTo: oldTask.delegatedTo || null, notes: oldTask.notes || '' });
+    tasks.push({ id: oldTask.id || uid(), name, est, priority, waiting, delegatedTo: oldTask.delegatedTo || null, notes: oldTask.notes || '' });
   });
   stage.tasks = tasks;
   save('wt_contact_stages', contactStages);
