@@ -5857,6 +5857,7 @@ function saveEditTask() {
   closeEditModal();
   renderTasks();
   renderProjects();
+  renderTimesheet();
   updateHeaderMeta();
 }
 
@@ -5968,11 +5969,11 @@ function deleteEditTask() {
   _performDelete('Task deleted', () => {
     tasks = tasks.filter(t => t.id !== id);
     save('wt_tasks', tasks);
-    renderTasks(); renderProjects(); updateHeaderMeta();
+    renderTasks(); renderProjects(); renderTimesheet(); updateHeaderMeta();
   }, () => {
     tasks.push(deleted);
     save('wt_tasks', tasks);
-    renderTasks(); renderProjects(); updateHeaderMeta();
+    renderTasks(); renderProjects(); renderTimesheet(); updateHeaderMeta();
   });
 }
 
@@ -10671,6 +10672,7 @@ function saveSession() {
   renderProjects();
   renderTeam();
   renderTasks();
+  renderTimesheet();
 }
 
 function deleteSessionFromModal() {
