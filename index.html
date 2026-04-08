@@ -7900,6 +7900,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
       const parentCode = projBillingCode(item.project) || projLabel(item.project);
       const scLabel = item.subCode ? getSubCodeLabel(item.project, item.subCode) : '';
       const taskObj = tasks.find(t => t.id === item.id || (item.id || '').startsWith(t.id + '_'));
+      const baseId = taskObj?.id || (item.id || '').split('_').slice(0, -1).join('_');
       let editFn = '';
       if (item._src === 'task' && taskObj) editFn = `openEditModal('${taskObj.id}')`;
       else if (item._src === 'session' && item._projId) editFn = `openEditSessionModal('${item._projId}','${item.id}')`;
@@ -7908,12 +7909,19 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
       if (item._src === 'task' && taskObj) doneFn = `openCompletionModal('${taskObj.id}')`;
       else if (item._src === 'session') doneFn = `openSessionCompletionModal('${item._projId}','${item.id}')`;
       else if (item._src === 'subtask') doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${item.id}')`;
+      // Recurrence actions (skip / reschedule)
+      let recurActions = '';
+      if (item._recur && item._src === 'task' && taskObj) {
+        recurActions = `<span onclick="event.stopPropagation();skipRecurOccurrence('${taskObj.id}','${item.date}')" title="Skip this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">⊘</span>
+          <span onclick="event.stopPropagation();openRescheduleModal('${taskObj.id}','${item.date}')" title="Reschedule this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">📅</span>`;
+      }
       row.innerHTML = `
         <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
         <span class="ts-entry-subcode">${scLabel || '—'}</span>
         <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}</span>
         <span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>
         <div class="ts-entry-actions" style="opacity:1;">
+          ${recurActions}
           ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
         </div>
       `;
@@ -8229,12 +8237,18 @@ function renderTimesheet() {
           const pCode = projBillingCode(item.project) || projLabel(item.project);
           const scLbl = item.subCode ? getSubCodeLabel(item.project, item.subCode) : '';
           const recurBadge = item._recur ? `<span class="recur-badge">↻</span>` : '';
+          let recurActions = '';
+          if (item._recur && item._taskId) {
+            recurActions = `<span onclick="event.stopPropagation();skipRecurOccurrence('${item._taskId}','${item.date}')" title="Skip this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">⊘</span>
+              <span onclick="event.stopPropagation();openRescheduleModal('${item._taskId}','${item.date}')" title="Reschedule this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">📅</span>`;
+          }
           row.innerHTML = `
             <span class="ts-entry-code" title="${projLabel(item.project)}">${pCode}</span>
             <span class="ts-entry-subcode">${scLbl || '—'}</span>
             <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${recurBadge}</span>
             <span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>
             <div class="ts-entry-actions" style="opacity:1;">
+              ${recurActions}
               ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
               </div>
           `;
