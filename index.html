@@ -1047,7 +1047,7 @@
 
   .session-row {
     display: grid;
-    grid-template-columns: 20px 1fr 56px 70px 40px 80px 90px;
+    grid-template-columns: 20px 1fr 56px 70px 70px 40px 80px 90px;
     gap: 8px;
     align-items: center;
     padding: 8px 14px;
@@ -2118,7 +2118,7 @@
 
     /* Session rows — fewer columns */
     .session-row {
-      grid-template-columns: 20px 1fr 56px 70px 40px 70px 80px !important;
+      grid-template-columns: 20px 1fr 56px 60px 60px 40px 70px 80px !important;
       gap: 6px;
     }
 
@@ -6677,7 +6677,7 @@ function renderProjItemRow(item, projKey, scId) {
         ${t.notes ? '<span class="notes-icon" title="Has notes">📝</span>' : ''}
         ${t.recurrence ? `<span class="recur-badge">${recurLabel(t)}</span>` : ''}
       </div>
-      <div onclick="event.stopPropagation();">${priorityBadge(t.priority || 'med')}</div>
+      <div onclick="event.stopPropagation();showPriorityDropdown(event,'${t.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(t.priority || 'med')}</div>
       <div class="session-date" onclick="event.stopPropagation();inlineEditDate(this,'task','${t.id}')" style="cursor:pointer;" title="Click to edit">${fmtDate(t.due)}</div>
       <div class="session-hours" onclick="event.stopPropagation();inlineEditEst(this,'task','${t.id}')" style="cursor:pointer;" title="Click to edit">${t.est ? t.est + 'h' : '—'}</div>
       <div style="display:flex;align-items:center;gap:4px;font-size:11px;" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
@@ -6711,6 +6711,7 @@ function renderProjItemRow(item, projKey, scId) {
         ${s.recurrence ? `<span class="recur-badge">${recurLabel(s)}</span>` : ''}
       </div>
       <div onclick="event.stopPropagation();showSessionPriorityDropdown(event,'${bp.id}','${s.id}')" style="cursor:pointer;">${priorityBadge(s.priority || 'med')}</div>
+      <span class="status-badge ${STATUS_CLS[s.status] || ''}" style="cursor:pointer;white-space:nowrap;font-size:8px;" onclick="event.stopPropagation();showDelegatedStatusDropdown(event,'${bp.id}','${s.id}')">${STATUS_LABELS[s.status] || s.status || '—'}</span>
       <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openSessionDatePicker(this,'${bp.id}','${s.id}')">${fmtDate(s.date)}</div>
       <div class="session-hours" onclick="event.stopPropagation();inlineEditEst(this,'session','${bp.id}','${s.id}')" style="cursor:pointer;" title="Click to edit">${s.hours}h</div>
       <div style="display:flex;align-items:center;gap:4px;font-size:11px;" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
@@ -6746,6 +6747,7 @@ function renderProjItemRow(item, projKey, scId) {
         ${st.recurrence ? `<span class="recur-badge">${recurLabel(st)}</span>` : ''}
       </div>
       <div onclick="event.stopPropagation();showSubtaskPriorityDropdown(event,'${bp.id}','${s.id}','${st.id}')" style="cursor:pointer;">${priorityBadge(st.priority || 'med')}</div>
+      <span class="status-badge ${STATUS_CLS[st.status] || ''}" style="cursor:pointer;white-space:nowrap;font-size:8px;" onclick="event.stopPropagation();showDelegatedStatusDropdown(event,'${bp.id}','${s.id}','${st.id}')">${STATUS_LABELS[st.status] || st.status || '—'}</span>
       <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openSubtaskDatePicker(this,'${bp.id}','${s.id}','${st.id}')">${fmtDate(st.date)}</div>
       <div class="session-hours" onclick="event.stopPropagation();inlineEditEst(this,'subtask','${bp.id}','${s.id}','${st.id}')" style="cursor:pointer;" title="Click to edit">${st.hours}h</div>
       <div style="display:flex;align-items:center;gap:4px;font-size:11px;" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
