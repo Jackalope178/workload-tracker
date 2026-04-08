@@ -3000,7 +3000,7 @@ if (typeof XLSX === 'undefined') {
 </div>
 
 <!-- CONTACTS: EDIT TASK MODAL -->
-<div class="modal-overlay" id="ctEditTaskDlg" style="display:none;">
+<div class="modal-overlay" id="ctEditTaskDlg">
   <div class="modal">
     <div class="modal-title">Edit Contact Task</div>
     <div class="modal-subtitle" id="ctEditTaskSub"></div>
@@ -12752,7 +12752,7 @@ function ctOpenEditTaskModal(cid, sid, tid) {
       const pc = personColor(cb.value); l.style.border = `1px solid ${a ? pc.border : 'var(--border)'}`; l.style.background = a ? pc.bg : 'transparent'; l.style.color = a ? pc.text : 'var(--text3)'; };
   });
 
-  document.getElementById('ctEditTaskDlg').style.display = 'flex';
+  document.getElementById('ctEditTaskDlg').classList.add('open');
 }
 
 // Inline edit: due date
@@ -12810,7 +12810,7 @@ function ctEditTaskModal(cid, sid, tid) {
 }
 
 function ctCloseEditModal() {
-  document.getElementById('ctEditTaskDlg').style.display = 'none';
+  document.getElementById('ctEditTaskDlg').classList.remove('open');
   _ctEditRef = null;
 }
 
