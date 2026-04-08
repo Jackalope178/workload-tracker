@@ -3881,7 +3881,7 @@ const SYNC_KEYS = [
   'wt_theme', 'wt_api_key',
   'wt_dup_decisions', 'wt_stale_subcodes',
   'wt_onboarded', 'wt_xlsx_alloc_imported',
-  'wt_alloc_rollovers'
+  'wt_alloc_rollovers', 'wt_collapsed_task_sections'
 ];
 
 async function cloudSave(key, data) {
@@ -6236,10 +6236,10 @@ function closeCompletionModal() {
 }
 
 function confirmComplete() {
-  const rawBillable = parseFloat(document.getElementById('compBillable').value);
+  const rawBillable = parseFloat(document.getElementById('compBillable')?.value);
   const billable = isNaN(rawBillable) ? 0.25 : rawBillable;
   const subCode = document.getElementById('compSubCode')?.value || '';
-  const dateCompleted = document.getElementById('compDate').value || today();
+  const dateCompleted = document.getElementById('compDate')?.value || today();
 
   if (_completingCtx) {
     // Session or subtask completion
@@ -10041,6 +10041,7 @@ function reloadStateFromLocalStorage() {
   _dupDecisions = load('wt_dup_decisions', {});
   _staleSubCodes = new Set(load('wt_stale_subcodes', []));
   _allocRollovers = load('wt_alloc_rollovers', {});
+  _collapsedTaskSections = new Set(load('wt_collapsed_task_sections', []));
 }
 
 function initApp() {
