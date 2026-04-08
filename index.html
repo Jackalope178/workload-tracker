@@ -12342,14 +12342,15 @@ function ctRenderProfile(panel, partner) {
       stagesHtml += st.tasks.map(t => {
         const pri = t.priority ? priorityBadge(t.priority) : '';
         const delTags = delegateTagsHtml(t.delegatedTo);
+        const cid = partner.id, tid = t.id;
         return `<div class="ct-task-row">
-          <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask('${partner.id}','${sid}','${t.id}',${!t.completed})">${t.completed ? '✓' : ''}</div>
-          <span class="ct-task-name${t.completed ? ' done' : ''}">${escHtml(t.name)}${t.waiting ? `<span class="task-waiting" style="font-size:10px;">⏳ ${escHtml(t.waiting)}</span>` : ''}</span>
-          <span style="display:inline-flex;gap:2px;align-items:center;">${delTags}<button class="row-edit-btn" onclick="event.stopPropagation();ctAssignTask(event,'${partner.id}','${sid}','${t.id}')" title="Assign" style="opacity:0.6;font-size:12px;background:none;border:none;cursor:pointer;padding:1px 3px;">↗</button></span>
-          <span class="ct-task-date">${t.due ? fmtDate(t.due) : '<span style="opacity:0.4">No date</span>'}</span>
-          ${pri}
-          <span class="ct-task-hrs">${t.est ? t.est + 'h' : ''}</span>
-          <span style="cursor:pointer;font-size:11px;opacity:0.5;" onclick="event.stopPropagation();ctEditTaskInline('${partner.id}','${sid}','${t.id}')" title="Edit">✎</span>
+          <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask('${cid}','${sid}','${tid}',${!t.completed})">${t.completed ? '✓' : ''}</div>
+          <span class="ct-task-name${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctInlineEditName(this,'${cid}','${sid}','${tid}')" style="cursor:pointer;" title="Click to edit name">${escHtml(t.name)}${t.waiting ? `<span class="task-waiting" style="font-size:10px;">⏳ ${escHtml(t.waiting)}</span>` : ''}</span>
+          <span style="display:inline-flex;gap:2px;align-items:center;">${delTags}<button class="row-edit-btn" onclick="event.stopPropagation();ctAssignTask(event,'${cid}','${sid}','${tid}')" title="Assign" style="opacity:0.6;font-size:12px;background:none;border:none;cursor:pointer;padding:1px 3px;">↗</button></span>
+          <span class="ct-task-date" onclick="event.stopPropagation();ctInlineEditDate(this,'${cid}','${sid}','${tid}')" style="cursor:pointer;" title="Click to set date">${t.due ? fmtDate(t.due) : '<span style="opacity:0.4">No date</span>'}</span>
+          <span onclick="event.stopPropagation();ctShowPriority(event,'${cid}','${sid}','${tid}')" style="cursor:pointer;" title="Click to change priority">${pri}</span>
+          <span class="ct-task-hrs" onclick="event.stopPropagation();ctInlineEditEst(this,'${cid}','${sid}','${tid}')" style="cursor:pointer;" title="Click to edit hours">${t.est ? t.est + 'h' : '—'}</span>
+          <span style="cursor:pointer;font-size:11px;opacity:0.5;" onclick="event.stopPropagation();ctEditTaskModal('${cid}','${sid}','${tid}')" title="Full edit">✎</span>
         </div>`;
       }).join('');
       stagesHtml += `<div style="padding:6px 14px;border-top:1px solid var(--border);">
@@ -12555,22 +12556,96 @@ function ctAddTaskToStage(partnerId, stageId) {
   renderContacts();
 }
 
-function ctEditTaskInline(partnerId, stageId, taskId) {
-  const c = contacts.find(c => c.id === partnerId);
-  if (!c || !c.stages[stageId]) return;
-  const t = c.stages[stageId].tasks.find(t => t.id === taskId);
+// Helper to get a contact task by IDs
+function _ctTask(cid, sid, tid) {
+  const c = contacts.find(c => c.id === cid);
+  return c?.stages?.[sid]?.tasks?.find(t => t.id === tid) || null;
+}
+
+function _ctSaveAndRender() {
+  save('wt_contacts', contacts);
+  renderContacts();
+}
+
+// Inline edit: task name
+function ctInlineEditName(el, cid, sid, tid) {
+  if (el.querySelector('input')) return;
+  const t = _ctTask(cid, sid, tid);
+  if (!t) return;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = t.name;
+  input.style.cssText = 'width:100%;font-size:12px;padding:3px 6px;border:1px solid var(--accent);border-radius:3px;background:var(--bg);color:var(--text);';
+  function commit() { t.name = input.value.trim() || t.name; _ctSaveAndRender(); }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') renderContacts(); });
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+}
+
+// Inline edit: due date
+function ctInlineEditDate(el, cid, sid, tid) {
+  if (el.querySelector('input')) return;
+  const t = _ctTask(cid, sid, tid);
+  if (!t) return;
+  const input = document.createElement('input');
+  input.type = 'date';
+  input.value = t.due || '';
+  input.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid var(--accent);border-radius:3px;background:var(--bg);color:var(--text);';
+  function commit() { t.due = input.value || null; _ctSaveAndRender(); }
+  input.addEventListener('blur', commit);
+  input.addEventListener('change', commit);
+  input.addEventListener('keydown', e => { if (e.key === 'Escape') renderContacts(); });
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+}
+
+// Inline edit: estimated hours
+function ctInlineEditEst(el, cid, sid, tid) {
+  if (el.querySelector('input')) return;
+  const t = _ctTask(cid, sid, tid);
+  if (!t) return;
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '0';
+  input.step = '0.25';
+  input.value = t.est || '';
+  input.style.cssText = 'width:50px;font-size:12px;padding:2px 4px;border:1px solid var(--accent);border-radius:3px;background:var(--bg);color:var(--text);text-align:center;';
+  function commit() { t.est = parseFloat(input.value) || 0; _ctSaveAndRender(); }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') renderContacts(); });
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+}
+
+// Priority dropdown
+function ctShowPriority(e, cid, sid, tid) {
+  e.stopPropagation();
+  const t = _ctTask(cid, sid, tid);
+  if (!t) return;
+  showDropdown(e.currentTarget, PRIORITY_OPTS, t.priority || 'med', val => {
+    t.priority = val;
+    _ctSaveAndRender();
+  });
+}
+
+// Full edit modal (replaces the old prompt-based edit)
+function ctEditTaskModal(cid, sid, tid) {
+  const t = _ctTask(cid, sid, tid);
   if (!t) return;
   const name = prompt('Task name:', t.name);
   if (name === null) return;
-  t.name = name || t.name;
-  const due = prompt('Due date (YYYY-MM-DD):', t.due || '');
-  if (due !== null) t.due = due || null;
-  const est = prompt('Estimated hours:', t.est || 0);
-  if (est !== null) t.est = parseFloat(est) || 0;
-  const pri = prompt('Priority (urgent/high/med/low):', t.priority || 'med');
-  if (pri !== null && ['urgent','high','med','low'].includes(pri)) t.priority = pri;
-  save('wt_contacts', contacts);
-  renderContacts();
+  t.name = name.trim() || t.name;
+  const waiting = prompt('Waiting on (leave blank if none):', t.waiting || '');
+  if (waiting !== null) t.waiting = waiting.trim();
+  const notes = prompt('Notes:', t.notes || '');
+  if (notes !== null) t.notes = notes.trim();
+  _ctSaveAndRender();
 }
 
 
