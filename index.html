@@ -2546,7 +2546,8 @@ if (typeof XLSX === 'undefined') {
         <option value="waiting">Waiting on...</option>
         <option value="active">Not waiting</option>
       </select>
-      <button class="btn" onclick="openBrainDumpModal()" style="border-color:#7c3aed;color:#a78bfa;" title="AI-powered task import from free text">⚡ Brain Dump</button>
+      <!-- Brain Dump disabled — re-enable by removing display:none -->
+      <button class="btn" onclick="openBrainDumpModal()" style="display:none;border-color:#7c3aed;color:#a78bfa;" title="AI-powered task import from free text">⚡ Brain Dump</button>
       <button class="btn primary" onclick="toggleAddForm()">+ Add Task</button>
     </div>
 
@@ -2751,6 +2752,19 @@ if (typeof XLSX === 'undefined') {
     <div class="modal-actions">
       <button class="btn" onclick="closeRescheduleModal()">Cancel</button>
       <button class="btn primary" onclick="confirmReschedule()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE RECURRING TASK MODAL -->
+<div class="modal-overlay" id="deleteRecurModal" style="display:none;">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-title">Delete Recurring Task</div>
+    <div class="modal-subtitle" id="deleteRecurModalSub">Delete just this occurrence or the entire series?</div>
+    <div class="modal-actions" style="flex-direction:column;gap:8px;margin-top:16px;">
+      <button class="btn" onclick="_confirmDeleteRecur('this')" style="width:100%;justify-content:center;">Skip this occurrence</button>
+      <button class="btn" onclick="_confirmDeleteRecur('all')" style="width:100%;justify-content:center;color:var(--danger);border-color:var(--danger);">Delete entire series</button>
+      <button class="btn" onclick="_closeDeleteRecurModal()" style="width:100%;justify-content:center;">Cancel</button>
     </div>
   </div>
 </div>
@@ -3324,8 +3338,8 @@ if (typeof XLSX === 'undefined') {
   </div>
 </div>
 
-<!-- BRAIN DUMP MODAL -->
-<div class="modal-overlay" id="brainDumpModal">
+<!-- BRAIN DUMP MODAL (disabled) -->
+<div class="modal-overlay" id="brainDumpModal" style="display:none !important;">
   <div class="modal modal-wide">
     <div class="modal-title">Brain Dump</div>
     <div class="modal-subtitle">Paste notes, a messy to-do list, or upload a spreadsheet. Claude will parse it against your current tasks.</div>
@@ -3346,7 +3360,7 @@ if (typeof XLSX === 'undefined') {
   </div>
 </div>
 
-<!-- BRAIN DUMP REVIEW MODAL -->
+<!-- BRAIN DUMP REVIEW MODAL (disabled) -->
 <div class="modal-overlay" id="reviewModal">
   <div class="modal modal-xl">
     <div class="modal-title">Review Proposed Changes</div>
@@ -3399,12 +3413,14 @@ if (typeof XLSX === 'undefined') {
       <div id="backupStatus" style="font-size:10px;margin-top:6px;"></div>
     </div>
 
-    <!-- API Key -->
-    <div class="modal-subtitle" style="margin-bottom:6px;">Anthropic API key for Brain Dump.</div>
-    <div style="margin-bottom:14px;">
-      <label class="edit-label" style="display:block;margin-bottom:6px;">Anthropic API Key</label>
-      <input class="settings-input" type="password" id="settingsApiKey" placeholder="sk-ant-api03-...">
-      <div style="font-size:10px;color:var(--text3);margin-top:6px;">Key is sent only to api.anthropic.com. Never logged or shared.</div>
+    <!-- API Key (hidden — Brain Dump disabled) -->
+    <div style="display:none;">
+      <div class="modal-subtitle" style="margin-bottom:6px;">Anthropic API key for Brain Dump.</div>
+      <div style="margin-bottom:14px;">
+        <label class="edit-label" style="display:block;margin-bottom:6px;">Anthropic API Key</label>
+        <input class="settings-input" type="password" id="settingsApiKey" placeholder="sk-ant-api03-...">
+        <div style="font-size:10px;color:var(--text3);margin-top:6px;">Key is sent only to api.anthropic.com. Never logged or shared.</div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeSettingsModal()">Cancel</button>
@@ -3452,7 +3468,8 @@ if (typeof XLSX === 'undefined') {
       <h3>Projects & Sessions</h3>
       <p>The <strong>Projects</strong> tab groups work into projects. Each project can have multiple <strong>sessions</strong> (work items) and <strong>subtasks</strong>.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">📂</span><span>Sessions have their own timers, due dates, and can be delegated to team members.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">💡</span><span>Use the <strong>Brain Dump</strong> button (in settings) to paste messy notes — AI turns them into organized tasks.</span></div>
+      <!-- Brain Dump tip hidden while feature is disabled -->
+      <!-- <div class="welcome-tip"><span class="welcome-tip-icon">💡</span><span>Use the <strong>Brain Dump</strong> button (in settings) to paste messy notes — AI turns them into organized tasks.</span></div> -->
     </div>
 
     <div class="welcome-step" data-step="4">
@@ -5033,7 +5050,7 @@ function delegateTagsHtml(val) {
   const people = normDelegated(val);
   return people.map(p => {
     const c = personColor(p);
-    const label = p === 'Me' ? '📌 Me' : `↗ ${p}`;
+    const label = p === 'Me' ? '📌 Me' : `↗ ${escHtml(p)}`;
     return `<span class="delegate-tag" style="background:${c.bg};color:${c.text};border-color:${c.border};">${label}</span>`;
   }).join('');
 }
@@ -5268,7 +5285,7 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${projColor(task.project)};" title="${projLabel(task.project)}"></div>
-        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${task.name}</span>${delegateTagsHtml(task.delegatedTo)}${task.waiting ? `<span class="task-waiting">⏳ ${task.waiting}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}</div>
+        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${delegateTagsHtml(task.delegatedTo)}${task.waiting ? `<span class="task-waiting">⏳ ${escHtml(task.waiting)}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}</div>
         <div class="task-recur-actions"><button class="row-edit-btn" onclick="event.stopPropagation();showTaskAssignDropdown(event,'${task.id}')" title="Assign" style="font-size:11px;padding:2px 4px;">↗</button>${task.recurrence ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>` : ''}</div>
         <span class="task-category">${projLabel(task.project)}</span>
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
@@ -5289,9 +5306,9 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check${s.done ? ' done' : ''}" onclick="openSessionCompletionModal('${proj.id}','${s.id}')" title="Mark complete" style="cursor:pointer;"></div>
         <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${projLabel(proj.project)}"></div>
-        <div class="task-name" onclick="openEditSessionModal('${proj.id}','${s.id}')">${s.desc}${delegateTagsHtml(s.delegatedTo)}${s.waiting ? `<span class="task-waiting">⏳ ${s.waiting}</span>` : ''}${s.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${s.id}','${proj.id}')" title="View notes">📝</span>` : ''}</div>
+        <div class="task-name" onclick="openEditSessionModal('${proj.id}','${s.id}')">${escHtml(s.desc)}${delegateTagsHtml(s.delegatedTo)}${s.waiting ? `<span class="task-waiting">⏳ ${escHtml(s.waiting)}</span>` : ''}${s.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${s.id}','${proj.id}')" title="View notes">📝</span>` : ''}</div>
         <div class="task-recur-actions"></div>
-        <span class="task-category" style="color:var(--text3);font-style:italic;">${proj.name}</span>
+        <span class="task-category" style="color:var(--text3);font-style:italic;">${escHtml(proj.name)}</span>
         <div onclick="showSessionPriorityDropdown(event,'${proj.id}','${s.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(s.priority || 'med')}</div>
         <div class="task-due ${dc}" onclick="openSessionDatePicker(this,'${proj.id}','${s.id}')" style="cursor:pointer;">${fmtDate(s.date)}</div>
         <div class="task-est" onclick="event.stopPropagation();inlineEditEst(this,'session','${proj.id}','${s.id}')" style="cursor:pointer;" title="Click to edit">${s.hours ? s.hours + 'h' : '—'}</div>
@@ -5311,10 +5328,10 @@ function renderTasks() {
       row.style.borderLeft = '2px solid var(--border)';
       row.innerHTML = `
         <div class="task-check${st.done ? ' done' : ''}" onclick="openSubtaskCompletionModal('${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;"></div>
-        <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${proj.name}"></div>
-        <div class="task-name" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" style="font-size:11px;">╰ ${st.desc}${delegateTagsHtml(st.delegatedTo)}${st.waiting ? `<span class="task-waiting">⏳ ${st.waiting}</span>` : ''}${st.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('subtask','${st.id}','${proj.id}','${s.id}')" title="View notes">📝</span>` : ''}</div>
+        <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${escHtml(proj.name)}"></div>
+        <div class="task-name" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" style="font-size:11px;">╰ ${escHtml(st.desc)}${delegateTagsHtml(st.delegatedTo)}${st.waiting ? `<span class="task-waiting">⏳ ${escHtml(st.waiting)}</span>` : ''}${st.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('subtask','${st.id}','${proj.id}','${s.id}')" title="View notes">📝</span>` : ''}</div>
         <div class="task-recur-actions"></div>
-        <span class="task-category" style="color:var(--text3);font-style:italic;font-size:10px;">${proj.name}</span>
+        <span class="task-category" style="color:var(--text3);font-style:italic;font-size:10px;">${escHtml(proj.name)}</span>
         <div onclick="showSubtaskPriorityDropdown(event,'${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(st.priority || 'med')}</div>
         <div class="task-due ${dc}" style="font-size:11px;cursor:pointer;" onclick="openSubtaskDatePicker(this,'${proj.id}','${s.id}','${st.id}')">${fmtDate(st.date)}</div>
         <div class="task-est" onclick="event.stopPropagation();inlineEditEst(this,'subtask','${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;font-size:11px;" title="Click to edit">${st.hours ? st.hours + 'h' : '—'}</div>
@@ -5612,7 +5629,7 @@ function renderTasks() {
     if (tasks.filter(t => !t.completed).length === 0) {
       container.innerHTML = '<div class="empty-state"><span style="font-size:20px;">✅</span><br>No tasks yet.<br><span style="font-size:11px;color:var(--text3);">Click <strong>+ Add Task</strong> above to create your first task.</span></div>';
     } else {
-      container.innerHTML = '<div class="empty-state">No tasks match your filters.<br><span style="font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;" onclick="document.getElementById(\'taskSearch\').value=\'\';document.getElementById(\'filterPriority\').value=\'\';document.getElementById(\'filterProject\').value=\'all\';document.getElementById(\'filterWaiting\').value=\'\';renderTasks();">Clear all filters</span></div>';
+      container.innerHTML = '<div class="empty-state">No tasks match your filters.<br><span style="font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;" onclick="document.getElementById(\'taskSearch\').value=\'\';document.getElementById(\'filterDate\').value=\'all\';document.getElementById(\'filterPriority\').value=\'all\';document.getElementById(\'filterProject\').value=\'all\';document.getElementById(\'filterWaiting\').value=\'all\';renderTasks();">Clear all filters</span></div>';
     }
   }
 }
@@ -6051,28 +6068,15 @@ function inlineEditDate(el, type, id1) {
   input.focus();
 }
 
+let _deleteRecurState = null;
+
 function deleteTaskInline(taskId, occurrenceDate) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
   if (task.recurrence && task.recurrence.type) {
-    const choice = prompt('Delete just this occurrence or all in series?\nType "this" or "all":', 'this');
-    if (!choice) return;
-    if (choice.trim().toLowerCase() === 'all') {
-      const deleted = JSON.parse(JSON.stringify(task));
-      _performDelete('Recurring task deleted', () => {
-        tasks = tasks.filter(t => t.id !== taskId);
-        save('wt_tasks', tasks); renderTasks(); renderProjects(); updateHeaderMeta();
-      }, () => {
-        tasks.push(deleted);
-        save('wt_tasks', tasks); renderTasks(); renderProjects(); updateHeaderMeta();
-      });
-    } else {
-      const occ = occurrenceDate || task.due;
-      pushRecurUndo(`Skipped occurrence on ${occ}`, taskId, task.due, task.recurrence);
-      task.recurrence.skips = [...(task.recurrence.skips || []), occ];
-      if (occ === task.due) task.due = nextRecurrenceAfter(task, occ) || occ;
-      save('wt_tasks', tasks); renderTasks(); renderProjects(); updateHeaderMeta();
-    }
+    _deleteRecurState = { taskId, occurrenceDate };
+    document.getElementById('deleteRecurModalSub').textContent = `"${task.name}" — delete just this occurrence or the entire series?`;
+    document.getElementById('deleteRecurModal').style.display = 'flex';
   } else {
     const deleted = JSON.parse(JSON.stringify(task));
     _performDelete('Task deleted', () => {
@@ -6082,6 +6086,35 @@ function deleteTaskInline(taskId, occurrenceDate) {
       tasks.push(deleted);
       save('wt_tasks', tasks); renderTasks(); renderProjects(); updateHeaderMeta();
     });
+  }
+}
+
+function _closeDeleteRecurModal() {
+  document.getElementById('deleteRecurModal').style.display = 'none';
+  _deleteRecurState = null;
+}
+
+function _confirmDeleteRecur(choice) {
+  if (!_deleteRecurState) return;
+  const { taskId, occurrenceDate } = _deleteRecurState;
+  const task = tasks.find(t => t.id === taskId);
+  _closeDeleteRecurModal();
+  if (!task) return;
+  if (choice === 'all') {
+    const deleted = JSON.parse(JSON.stringify(task));
+    _performDelete('Recurring task deleted', () => {
+      tasks = tasks.filter(t => t.id !== taskId);
+      save('wt_tasks', tasks); renderTasks(); renderProjects(); updateHeaderMeta();
+    }, () => {
+      tasks.push(deleted);
+      save('wt_tasks', tasks); renderTasks(); renderProjects(); updateHeaderMeta();
+    });
+  } else {
+    const occ = occurrenceDate || task.due;
+    pushRecurUndo(`Skipped occurrence on ${occ}`, taskId, task.due, task.recurrence);
+    task.recurrence.skips = [...(task.recurrence.skips || []), occ];
+    if (occ === task.due) task.due = nextRecurrenceAfter(task, occ) || occ;
+    save('wt_tasks', tasks); renderTasks(); renderProjects(); updateHeaderMeta();
   }
 }
 
@@ -6674,9 +6707,9 @@ function renderProjItemRow(item, projKey, scId) {
         ${isDone ? '<span style="color:var(--check-fg);font-size:11px;">✓</span>' : ''}
       </div>
       <div class="session-desc" style="${isDone ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditModal('${t.id}')">
-        ${t.name}
+        ${escHtml(t.name)}
         ${delegateTagsHtml(t.delegatedTo)}
-        ${t.waiting ? `<span class="task-waiting">⏳ ${t.waiting}</span>` : ''}
+        ${t.waiting ? `<span class="task-waiting">⏳ ${escHtml(t.waiting)}</span>` : ''}
         ${t.notes ? '<span class="notes-icon" title="Has notes">📝</span>' : ''}
         ${t.recurrence ? `<span class="recur-badge">${recurLabel(t)}</span>` : ''}
       </div>
@@ -6707,9 +6740,9 @@ function renderProjItemRow(item, projKey, scId) {
         ${s.done ? '<span style="color:var(--check-fg);font-size:11px;">✓</span>' : ''}
       </div>
       <div class="session-desc" style="${s.done ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditSessionModal('${bp.id}','${s.id}')">
-        ${s.desc}
+        ${escHtml(s.desc)}
         <span id="session-tags-${s.id}">${delegateTagsHtml(s.delegatedTo)}</span>
-        ${s.waiting ? `<span class="task-waiting">⏳ ${s.waiting}</span>` : ''}
+        ${s.waiting ? `<span class="task-waiting">⏳ ${escHtml(s.waiting)}</span>` : ''}
         ${s.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${s.id}','${bp.id}')" title="View notes">📝</span>` : ''}
         ${s.recurrence ? `<span class="recur-badge">${recurLabel(s)}</span>` : ''}
       </div>
@@ -6743,9 +6776,9 @@ function renderProjItemRow(item, projKey, scId) {
         ${st.done ? '<span style="color:var(--check-fg);font-size:10px;">✓</span>' : ''}
       </div>
       <div class="session-desc" style="${st.done ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditSubtaskModal('${bp.id}','${s.id}','${st.id}')">
-        ${st.desc}
+        ${escHtml(st.desc)}
         <span id="subtask-tags-${st.id}">${delegateTagsHtml(st.delegatedTo)}</span>
-        ${st.waiting ? `<span class="task-waiting">⏳ ${st.waiting}</span>` : ''}
+        ${st.waiting ? `<span class="task-waiting">⏳ ${escHtml(st.waiting)}</span>` : ''}
         ${st.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('subtask','${st.id}','${bp.id}','${s.id}')" title="View notes">📝</span>` : ''}
         ${st.recurrence ? `<span class="recur-badge">${recurLabel(st)}</span>` : ''}
       </div>
@@ -7186,7 +7219,7 @@ function renderTeam() {
     if (teamItems.length === 0) {
       container.innerHTML = '<div class="empty-state"><span style="font-size:20px;">👥</span><br>No team deliverables yet.<br><span style="font-size:11px;color:var(--text3);">Click <strong>+ Add Deliverable</strong> above to track cross-team work.</span></div>';
     } else {
-      container.innerHTML = '<div class="empty-state">No deliverables match your filters.<br><span style="font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;" onclick="document.getElementById(\'teamSearch\').value=\'\';document.getElementById(\'teamFilterPerson\').value=\'\';document.getElementById(\'teamFilterProject\').value=\'all\';document.getElementById(\'teamFilterStatus\').value=\'\';renderTeam();">Clear all filters</span></div>';
+      container.innerHTML = '<div class="empty-state">No deliverables match your filters.<br><span style="font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;" onclick="document.getElementById(\'teamSearch\').value=\'\';document.getElementById(\'teamFilterPerson\').value=\'all\';document.getElementById(\'teamFilterProject\').value=\'all\';document.getElementById(\'teamFilterStatus\').value=\'all\';renderTeam();">Clear all filters</span></div>';
     }
     return;
   }
@@ -7245,7 +7278,7 @@ function renderTeam() {
         ? bigProjs.find(p=>p.id===item._projId)?.sessions.find(s=>s.id===item._sessionId)?.subtasks?.find(st=>st.id===item._subtaskId)
         : bigProjs.find(p=>p.id===item._projId)?.sessions.find(s=>s.id===item._sessionId);
       row.innerHTML = `
-        <div class="team-task-name" onclick="${editFn}">${item._isSubtask ? '<span style="color:var(--text3);margin-right:4px;">╰</span>' : ''}${item.name}${_s?.waiting ? `<span class="task-waiting">⏳ ${_s.waiting}</span>` : ''}${_s?.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('${item._isSubtask ? 'subtask' : 'session'}','${item._isSubtask ? item._subtaskId : item._sessionId}','${item._projId}'${item._isSubtask ? `,'${item._sessionId}'` : ''})" title="View notes">📝</span>` : ''} <span class="delegate-tag">↗</span></div>
+        <div class="team-task-name" onclick="${editFn}">${item._isSubtask ? '<span style="color:var(--text3);margin-right:4px;">╰</span>' : ''}${escHtml(item.name)}${_s?.waiting ? `<span class="task-waiting">⏳ ${escHtml(_s.waiting)}</span>` : ''}${_s?.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('${item._isSubtask ? 'subtask' : 'session'}','${item._isSubtask ? item._subtaskId : item._sessionId}','${item._projId}'${item._isSubtask ? `,'${item._sessionId}'` : ''})" title="View notes">📝</span>` : ''} <span class="delegate-tag">↗</span></div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
@@ -7254,7 +7287,7 @@ function renderTeam() {
         `;
     } else if (item._taskDelegated) {
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditModal('${item._taskId}')">${item.name} <span class="delegate-tag" style="background:var(--bg3);color:var(--text3);font-size:9px;">task</span></div>
+        <div class="team-task-name" onclick="openEditModal('${item._taskId}')">${escHtml(item.name)} <span class="delegate-tag" style="background:var(--bg3);color:var(--text3);font-size:9px;">task</span></div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
@@ -7263,7 +7296,7 @@ function renderTeam() {
         `;
     } else {
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${item.name}${item.waiting ? `<span class="task-waiting">⏳ ${item.waiting}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
+        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${escHtml(item.name)}${item.waiting ? `<span class="task-waiting">⏳ ${escHtml(item.waiting)}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
@@ -7866,7 +7899,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
           row.innerHTML = `
             <span></span>
             <span></span>
-            <span class="ts-entry-name" onclick="openEditTsEntry('${item.id}')">${item.name}</span>
+            <span class="ts-entry-name" onclick="openEditTsEntry('${item.id}')">${escHtml(item.name)}</span>
             <span class="ts-entry-hours">${item.actualHours}h</span>
             <div class="ts-entry-actions">
               <button class="row-edit-btn" onclick="deleteTsEntry('${item.id}')" title="Delete" style="color:var(--danger);">×</button>
@@ -7876,7 +7909,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
           row.innerHTML = `
             <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
             <span class="ts-entry-subcode">${scLabel || '—'}</span>
-            <span class="ts-entry-name" onclick="openEditTsEntry('${item.id}')">${item.name}</span>
+            <span class="ts-entry-name" onclick="openEditTsEntry('${item.id}')">${escHtml(item.name)}</span>
             <span class="ts-entry-hours">${item.actualHours}h</span>
             <div class="ts-entry-actions">
               <button class="row-edit-btn" onclick="deleteTsEntry('${item.id}')" title="Delete" style="color:var(--danger);">×</button>
@@ -7928,7 +7961,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
       row.innerHTML = `
         <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
         <span class="ts-entry-subcode">${scLabel || '—'}</span>
-        <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}</span>
+        <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(item.name)}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}</span>
         ${recurActions ? `<span class="ts-entry-hours" style="color:var(--text3);display:flex;align-items:center;gap:3px;justify-content:flex-end;">${recurActions}<span>${item.hours}h</span></span>` : `<span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>`}
         <div class="ts-entry-actions" style="opacity:1;">
           ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
@@ -8254,7 +8287,7 @@ function renderTimesheet() {
           row.innerHTML = `
             <span class="ts-entry-code" title="${projLabel(item.project)}">${pCode}</span>
             <span class="ts-entry-subcode">${scLbl || '—'}</span>
-            <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${item.name}${recurBadge}</span>
+            <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(item.name)}${recurBadge}</span>
             ${recurActions ? `<span class="ts-entry-hours" style="color:var(--text3);display:flex;align-items:center;gap:3px;justify-content:flex-end;">${recurActions}<span>${item.hours}h</span></span>` : `<span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>`}
             <div class="ts-entry-actions" style="opacity:1;">
               ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
@@ -8303,7 +8336,7 @@ function renderTimesheet() {
               return `<tr>
                 <td style="color:var(--text3);font-size:11px;font-family:monospace;">${code}</td>
                 <td style="color:var(--accent);font-size:11px;opacity:0.8;">${sc}</td>
-                <td style="cursor:pointer;color:var(--text);" onclick="openEditTsEntry('${item.id}')" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">${item.name}</td>
+                <td style="cursor:pointer;color:var(--text);" onclick="openEditTsEntry('${item.id}')" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">${escHtml(item.name)}</td>
                 <td style="color:var(--text3)">${fmtDate(item.date)}</td>
                 <td style="font-weight:600;text-align:right;">${item.actualHours}h</td>
                 <td style="white-space:nowrap;">
@@ -8653,7 +8686,6 @@ function _findOrCreateProject(billingCode, jobLabel) {
   // 4. Key collision check
   const newKey = (billingCode || jobLabel).toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
   if (PROJECTS[newKey]) return newKey;
-  if (PROJECTS[newKey]) return newKey; // key collision — already exists
 
   // Pick a color from a palette
   const palette = ['#0ea5e9','#f97316','#16a34a','#dc2626','#84cc16','#14b8a6',
@@ -10087,41 +10119,38 @@ function initApp() {
   }
 }
 
-// First-time init for offline / no-Supabase
-applyTheme(getTheme());
-populateProjectSelects();
-_restoreFilters();
-renderTasks();
-renderProjects();
-renderTeam();
-// Init timesheet capacity input before first render
-const _capInput = document.getElementById('tsCapacityInput');
-if (_capInput) _capInput.value = tsCapacity;
-renderTimesheet();
-renderAllocations();
-updateHeaderMeta();
-
-// Resume all running timers on page reload
-_ensureTickerRunning();
-updateActiveStrip();
-
-// Restore last active tab on refresh (first-time / offline init)
+// First-time init — only run eager renders if Supabase is NOT configured
+// (otherwise boot() → showApp() → initApp() handles it, avoiding double-render)
 (function() {
-  const savedTab = localStorage.getItem('wt_active_tab');
-  if (savedTab) {
-    const tabEl = document.querySelector(`.tab[data-tab="${savedTab}"]`);
-    const panelEl = document.getElementById('panel-' + savedTab);
-    if (tabEl && panelEl) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      tabEl.classList.add('active');
-      panelEl.classList.add('active');
+  const hasSB = getSupabaseConfig() && typeof supabase !== 'undefined';
+  applyTheme(getTheme());
+  if (!hasSB) {
+    populateProjectSelects();
+    _restoreFilters();
+    renderTasks();
+    renderProjects();
+    renderTeam();
+    const _capInput = document.getElementById('tsCapacityInput');
+    if (_capInput) _capInput.value = tsCapacity;
+    renderTimesheet();
+    renderAllocations();
+    updateHeaderMeta();
+    _ensureTickerRunning();
+    updateActiveStrip();
+    // Restore last active tab
+    const savedTab = localStorage.getItem('wt_active_tab');
+    if (savedTab) {
+      const tabEl = document.querySelector(`.tab[data-tab="${savedTab}"]`);
+      const panelEl = document.getElementById('panel-' + savedTab);
+      if (tabEl && panelEl) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tabEl.classList.add('active');
+        panelEl.classList.add('active');
+      }
     }
   }
 })();
-
-// Update header meta periodically
-setInterval(updateHeaderMeta, 5000);
 
 // =============================================
 // SHARED FLOATING DROPDOWN
@@ -11233,6 +11262,9 @@ function clearBrainDumpFile() {
 }
 
 async function submitBrainDump() {
+  // Brain Dump feature is currently disabled
+  showSyncToast('Brain Dump is currently disabled.', 'warn');
+  return;
   const text = document.getElementById('brainDumpText').value.trim();
   const hasFile = !!_bdFileText;
   if (!text && !hasFile) { _formError('brainDumpText', 'Please enter some text or upload a file first.'); return; }
