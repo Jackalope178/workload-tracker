@@ -4562,6 +4562,8 @@ function save(key, data) {
     console.error('localStorage save failed for', key, e);
     showSyncToast('Local storage full — some changes may not be saved.', 'warn');
   }
+  // Invalidate planned items cache when task/project data changes
+  if (key === 'wt_tasks' || key === 'wt_bigprojs') _invalidatePlannedCache();
   // Fire-and-forget cloud sync (non-blocking) with failure notification
   if (_supabase && _currentUser && SYNC_KEYS.includes(key)) {
     cloudSave(key, data).catch(err => {
@@ -8469,59 +8471,38 @@ function allocGetAllProjectActuals(projKey, yearMonth) {
   }, 0);
 }
 
+// Cache for expanded planned items per month (cleared on data changes)
+let _plannedItemsCache = {};
+
+function _getPlannedForMonth(yearMonth) {
+  if (_plannedItemsCache[yearMonth]) return _plannedItemsCache[yearMonth];
+  // Expand all recurring tasks/sessions into the month
+  const fromDate = yearMonth + '-01';
+  const [y, m] = yearMonth.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  const toDate = yearMonth + '-' + String(lastDay).padStart(2, '0');
+  const items = plannedItems(fromDate, toDate);
+  _plannedItemsCache[yearMonth] = items;
+  return items;
+}
+
+function _invalidatePlannedCache() { _plannedItemsCache = {}; }
+
 function allocGetPlanned(projKey, scId, yearMonth) {
-  // Sum planned hours from active tasks + undone sessions/subtasks for project+subCode+month
-  let sum = 0;
-  tasks.forEach(t => {
-    if (t.completed) return;
-    if (t.project !== projKey) return;
-    if ((t.subCode || '') !== (scId || '')) return;
-    if ((t.due || '').slice(0, 7) !== yearMonth) return;
-    sum += t.est || 0;
-  });
-  bigProjs.forEach(proj => {
-    if (proj.project !== projKey) return;
-    proj.sessions.forEach(s => {
-      if (s.done) return;
-      const sDel = normDelegated(s.delegatedTo);
-      if (sDel.length && !sDel.includes('Me')) return;
-      if ((s.subCode || '') === (scId || '') && (s.date || '').slice(0, 7) === yearMonth) {
-        sum += s.hours || 0;
-      }
-      (s.subtasks || []).forEach(st => {
-        if (st.done) return;
-        const stDel = normDelegated(st.delegatedTo);
-        if (stDel.length && !stDel.includes('Me')) return;
-        if ((st.subCode || '') === (scId || '') && (st.date || '').slice(0, 7) === yearMonth) {
-          sum += st.hours || 0;
-        }
-      });
-    });
-  });
-  return sum;
+  const items = _getPlannedForMonth(yearMonth);
+  return items.reduce((sum, i) => {
+    if (i.project !== projKey) return sum;
+    if ((i.subCode || '') !== (scId || '')) return sum;
+    return sum + (i.hours || 0);
+  }, 0);
 }
 
 function allocGetAllProjectPlanned(projKey, yearMonth) {
-  let sum = 0;
-  tasks.forEach(t => {
-    if (t.completed || t.project !== projKey) return;
-    if ((t.due || '').slice(0, 7) !== yearMonth) return;
-    sum += t.est || 0;
-  });
-  bigProjs.forEach(proj => {
-    if (proj.project !== projKey) return;
-    proj.sessions.forEach(s => {
-      const sDel = normDelegated(s.delegatedTo);
-      const isMyWork = !sDel.length || sDel.includes('Me');
-      if (!s.done && isMyWork && (s.date || '').slice(0, 7) === yearMonth) sum += s.hours || 0;
-      (s.subtasks || []).forEach(st => {
-        const stDel = normDelegated(st.delegatedTo);
-        const stIsMyWork = !stDel.length || stDel.includes('Me');
-        if (!st.done && stIsMyWork && (st.date || '').slice(0, 7) === yearMonth) sum += st.hours || 0;
-      });
-    });
-  });
-  return sum;
+  const items = _getPlannedForMonth(yearMonth);
+  return items.reduce((sum, i) => {
+    if (i.project !== projKey) return sum;
+    return sum + (i.hours || 0);
+  }, 0);
 }
 
 function allocKey(projKey, scId, ym) {
