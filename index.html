@@ -2728,6 +2728,7 @@ if (typeof XLSX === 'undefined') {
       <div class="form-row">
         <select class="form-input" id="nrType" onchange="onNewRecurChange()" style="min-width:155px;">
           <option value="">No repeat</option>
+          <option value="monthly">Monthly</option>
           <option value="weekly">Weekly</option>
           <option value="biweekly">Bi-weekly</option>
           <option value="monthly-date">Monthly on a date</option>
@@ -3222,6 +3223,7 @@ if (typeof XLSX === 'undefined') {
         <label class="edit-label">Repeats</label>
         <select class="edit-input" id="editRecurType" onchange="onRecurTypeChange()">
           <option value="">Does not repeat</option>
+          <option value="monthly">Monthly</option>
           <option value="weekly">Weekly</option>
           <option value="biweekly">Bi-weekly</option>
           <option value="monthly-date">Monthly on a date</option>
@@ -3508,6 +3510,7 @@ if (typeof XLSX === 'undefined') {
         <label class="edit-label">Repeats</label>
         <select class="edit-input" id="editSessionRecurType" onchange="onSessionRecurTypeChange()">
           <option value="">Does not repeat</option>
+          <option value="monthly">Monthly</option>
           <option value="weekly">Weekly</option>
           <option value="biweekly">Bi-weekly</option>
           <option value="monthly-date">Monthly on a date</option>
@@ -5300,6 +5303,11 @@ function nextRecurrenceAfter(task, fromDateStr) {
     d.setDate(d.getDate() + (gap - fromDow + dows[0]));
     return localDateStr(d);
   }
+  if (type === 'monthly') {
+    const d = new Date(from);
+    d.setMonth(d.getMonth() + 1);
+    return localDateStr(d);
+  }
   if (type === 'monthly-date' || type === 'monthly-last-day') {
     let m = from.getMonth() + 1, y = from.getFullYear();
     if (m > 11) { m = 0; y++; }
@@ -5334,6 +5342,7 @@ function recurLabel(task) {
   const { type, dayOfMonth, weekOfMonth } = task.recurrence;
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const ordinal = n => { const s=['th','st','nd','rd']; const v=+n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+  if (type === 'monthly')  return '↻ Monthly';
   if (type === 'weekly')   return `↻ Weekly ${normDows(task.recurrence).map(d=>days[d]).join('/')}`;
   if (type === 'biweekly') return `↻ Biweekly ${normDows(task.recurrence).map(d=>days[d]).join('/')}`;
   if (type === 'monthly-date') return `↻ ${ordinal(dayOfMonth)} monthly${task.recurrence.weekdayAdjust ? ' (wkday)' : ''}`;
