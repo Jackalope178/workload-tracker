@@ -6932,6 +6932,12 @@ let _staleSubCodes = new Set(load('wt_stale_subcodes', [])); // "projKey|scId" e
 
 // Multi-select state for bulk actions in Projects tab
 const _selectedProjItems = new Set(); // Set of "type:id" strings e.g. "task:abc123"
+let _projHorizon = 'all'; // 'all' or '30d'
+
+function _toggleProjHorizon() {
+  _projHorizon = _projHorizon === 'all' ? '30d' : 'all';
+  renderProjects();
+}
 let _bulkActionVisible = false;
 
 function _toggleProjItemSelect(type, id, projId, sessionId) {
@@ -7070,6 +7076,19 @@ function renderProjCodeContent(projKey) {
         }
       });
     }
+    // Filter by horizon if set to 30 days
+    if (_projHorizon === '30d') {
+      const horizon = addDays(today(), 30);
+      const todayStr = today();
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        const d = it._date;
+        const isDone = it._type === 'task' ? !!it.task.completed : it._type === 'contact' ? !!it.ct.completed : it._type === 'session' ? !!it.s.done : it._type === 'team' ? (it.team.status === 'complete') : !!it.st?.done;
+        if (isDone) { items.splice(i, 1); continue; }
+        // Keep overdue, undated, and within 30 days
+        if (d && d > horizon) items.splice(i, 1);
+      }
+    }
     // Sort: incomplete first, then by manual order if set, then date, then priority
     const po = { urgent: 0, high: 1, med: 2, low: 3 };
     const pri = i => i._type === 'task' ? po[i.task.priority] : i._type === 'contact' ? (po[i.ct.priority] ?? 2) : i._type === 'session' ? (po[i.s.priority] ?? 2) : i._type === 'team' ? 2 : (po[i.st.priority] ?? 2);
@@ -7087,7 +7106,8 @@ function renderProjCodeContent(projKey) {
     <div class="proj-code-dot" style="background:${color};width:12px;height:12px;border-radius:50%;"></div>
     <span class="proj-right-title">${proj.label || projKey}</span>
     <span class="proj-right-code">${proj.billingCode || ''}</span>
-    <div style="margin-left:auto;display:flex;gap:6px;">
+    <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+      <button class="btn${_projHorizon === '30d' ? ' active' : ''}" onclick="_toggleProjHorizon()" style="font-size:10px;padding:3px 10px;${_projHorizon === '30d' ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : ''}" title="Toggle between next 30 days and all tasks">${_projHorizon === '30d' ? 'Next 30 Days' : 'All Tasks'}</button>
       <button class="btn" onclick="openManagePersonsModal()" style="font-size:11px;padding:3px 10px;">Manage Persons</button>
       <button class="btn primary" onclick="openAddProjectModal()" style="font-size:11px;padding:3px 10px;">+ Add Project</button>
     </div>
