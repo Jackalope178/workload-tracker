@@ -8150,6 +8150,13 @@ function allTsEntries() {
 }
 
 // Planned items: active tasks with a due date, plus undone project sessions
+// Increment a YYYY-MM string by N months
+function _nextAllocMonth(ym, n) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1 + (n || 1), 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
 function plannedItems(fromDate, toDate) {
   const items = [];
   const fromYM = fromDate.slice(0, 7);
@@ -8162,20 +8169,35 @@ function plannedItems(fromDate, toDate) {
         items.push({ id: t.id, name: t.name + ' (hold)', project: t.project, date: t.allocMonth + '-15', hours: t.est || 0, subCode: t.subCode || '', _planned: true, _src: 'task', _allocHold: true });
       }
     } else {
-      // Expand recurring task into all occurrences in period, capped at end date
-      const recurEnd  = t.recurrence.endDate || null;
-      const skips     = t.recurrence.skips    || [];
-      const overrides = t.recurrence.overrides || {};
-      let d = t.due; let iters = 0;
-      while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(t, d);
-      iters = 0;
-      while (d && d <= toDate && iters++ < 1000) {
-        if (recurEnd && d > recurEnd) break;
-        if (!skips.includes(d)) {
-          const displayDate = overrides[d] || d;
-          items.push({ id: t.id + '_' + d, name: t.name, project: t.project, date: displayDate, hours: t.est || 0, subCode: t.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[d], _src: 'task' });
+      // Expand recurring task
+      if (t.due) {
+        // Date-based recurrence (existing behavior)
+        const recurEnd  = t.recurrence.endDate || null;
+        const skips     = t.recurrence.skips    || [];
+        const overrides = t.recurrence.overrides || {};
+        let d = t.due; let iters = 0;
+        while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(t, d);
+        iters = 0;
+        while (d && d <= toDate && iters++ < 1000) {
+          if (recurEnd && d > recurEnd) break;
+          if (!skips.includes(d)) {
+            const displayDate = overrides[d] || d;
+            items.push({ id: t.id + '_' + d, name: t.name, project: t.project, date: displayDate, hours: t.est || 0, subCode: t.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[d], _src: 'task' });
+          }
+          d = nextRecurrenceAfter(t, d);
         }
-        d = nextRecurrenceAfter(t, d);
+      } else if (t.allocMonth && !t.completed) {
+        // Hold-month recurrence: expand monthly into future months
+        const recurEnd = t.recurrence.endDate ? t.recurrence.endDate.slice(0, 7) : null;
+        let ym = t.allocMonth;
+        let iters = 0;
+        while (ym < fromYM && iters++ < 120) ym = _nextAllocMonth(ym, 1);
+        iters = 0;
+        while (ym <= toYM && iters++ < 24) {
+          if (recurEnd && ym > recurEnd) break;
+          items.push({ id: t.id + '_' + ym, name: t.name + ' (hold)', project: t.project, date: ym + '-15', hours: t.est || 0, subCode: t.subCode || '', _planned: true, _recur: true, _src: 'task', _allocHold: true });
+          ym = _nextAllocMonth(ym, 1);
+        }
       }
     }
   });
@@ -8191,14 +8213,26 @@ function plannedItems(fromDate, toDate) {
           items.push({ id: s.id, name: s.desc + ' (hold)', project: proj.project, date: s.allocMonth + '-15', hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _src: 'session', _projId: proj.id, _allocHold: true });
         }
       } else {
-        const recurEnd = s.recurrence.endDate || null;
-        let d = s.date; let iters = 0;
-        while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(s, d);
-        iters = 0;
-        while (d && d <= toDate && iters++ < 1000) {
-          if (recurEnd && d > recurEnd) break;
-          items.push({ id: s.id + '_' + d, name: s.desc, project: proj.project, date: d, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _src: 'session', _projId: proj.id });
-          d = nextRecurrenceAfter(s, d);
+        if (s.date) {
+          const recurEnd = s.recurrence.endDate || null;
+          let d = s.date; let iters = 0;
+          while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(s, d);
+          iters = 0;
+          while (d && d <= toDate && iters++ < 1000) {
+            if (recurEnd && d > recurEnd) break;
+            items.push({ id: s.id + '_' + d, name: s.desc, project: proj.project, date: d, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _src: 'session', _projId: proj.id });
+            d = nextRecurrenceAfter(s, d);
+          }
+        } else if (s.allocMonth) {
+          const recurEnd = s.recurrence.endDate ? s.recurrence.endDate.slice(0, 7) : null;
+          let ym = s.allocMonth; let iters = 0;
+          while (ym < fromYM && iters++ < 120) ym = _nextAllocMonth(ym, 1);
+          iters = 0;
+          while (ym <= toYM && iters++ < 24) {
+            if (recurEnd && ym > recurEnd) break;
+            items.push({ id: s.id + '_' + ym, name: s.desc + ' (hold)', project: proj.project, date: ym + '-15', hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _src: 'session', _projId: proj.id, _allocHold: true });
+            ym = _nextAllocMonth(ym, 1);
+          }
         }
       }
       (s.subtasks || []).forEach(st => {
@@ -8212,14 +8246,26 @@ function plannedItems(fromDate, toDate) {
             items.push({ id: st.id, name: st.desc + ' (hold)', project: proj.project, date: st.allocMonth + '-15', hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id, _allocHold: true });
           }
         } else {
-          const recurEnd = st.recurrence.endDate || null;
-          let d = st.date; let iters = 0;
-          while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(st, d);
-          iters = 0;
-          while (d && d <= toDate && iters++ < 1000) {
-            if (recurEnd && d > recurEnd) break;
-            items.push({ id: st.id + '_' + d, name: st.desc, project: proj.project, date: d, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id });
-            d = nextRecurrenceAfter(st, d);
+          if (st.date) {
+            const recurEnd = st.recurrence.endDate || null;
+            let d = st.date; let iters = 0;
+            while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(st, d);
+            iters = 0;
+            while (d && d <= toDate && iters++ < 1000) {
+              if (recurEnd && d > recurEnd) break;
+              items.push({ id: st.id + '_' + d, name: st.desc, project: proj.project, date: d, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id });
+              d = nextRecurrenceAfter(st, d);
+            }
+          } else if (st.allocMonth) {
+            const recurEnd = st.recurrence.endDate ? st.recurrence.endDate.slice(0, 7) : null;
+            let ym = st.allocMonth; let iters = 0;
+            while (ym < fromYM && iters++ < 120) ym = _nextAllocMonth(ym, 1);
+            iters = 0;
+            while (ym <= toYM && iters++ < 24) {
+              if (recurEnd && ym > recurEnd) break;
+              items.push({ id: st.id + '_' + ym, name: st.desc + ' (hold)', project: proj.project, date: ym + '-15', hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id, _allocHold: true });
+              ym = _nextAllocMonth(ym, 1);
+            }
           }
         }
       });
