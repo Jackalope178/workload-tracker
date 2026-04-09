@@ -6902,6 +6902,10 @@ function _toggleProjHorizon() {
   _projHorizon = _projHorizon === 'all' ? '30d' : 'all';
   renderProjects();
 }
+function _setProjHorizon(val) {
+  _projHorizon = val;
+  renderProjects();
+}
 let _bulkActionVisible = false;
 
 function _toggleProjItemSelect(type, id, projId, sessionId) {
@@ -7071,7 +7075,10 @@ function renderProjCodeContent(projKey) {
     <span class="proj-right-title">${proj.label || projKey}</span>
     <span class="proj-right-code">${proj.billingCode || ''}</span>
     <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
-      <button class="btn${_projHorizon === '30d' ? ' active' : ''}" onclick="_toggleProjHorizon()" style="font-size:10px;padding:3px 10px;${_projHorizon === '30d' ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : ''}" title="Toggle between next 30 days and all tasks">${_projHorizon === '30d' ? 'Next 30 Days' : 'All Tasks'}</button>
+      <div style="display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:10px;">
+        <button onclick="_setProjHorizon('all')" style="padding:3px 10px;border:none;cursor:pointer;font-size:10px;font-weight:600;${_projHorizon === 'all' ? 'background:var(--accent);color:#fff;' : 'background:var(--bg2);color:var(--text3);'}">All Tasks</button>
+        <button onclick="_setProjHorizon('30d')" style="padding:3px 10px;border:none;border-left:1px solid var(--border);cursor:pointer;font-size:10px;font-weight:600;${_projHorizon === '30d' ? 'background:var(--accent);color:#fff;' : 'background:var(--bg2);color:var(--text3);'}">Next 30 Days</button>
+      </div>
       <button class="btn" onclick="openManagePersonsModal()" style="font-size:11px;padding:3px 10px;">Manage Persons</button>
       <button class="btn primary" onclick="openAddProjectModal()" style="font-size:11px;padding:3px 10px;">+ Add Project</button>
     </div>
@@ -7197,6 +7204,11 @@ function renderProjCodeContent(projKey) {
 }
 
 // ── Render a single item row (task, session, or subtask) ──
+function holdMonthPill(allocMonth) {
+  if (!allocMonth) return '';
+  return `<span style="background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;white-space:nowrap;" title="Held for capacity in ${allocMonth}">${ctFmtMonth(allocMonth)}</span>`;
+}
+
 function renderProjItemRow(item, projKey, scId) {
   if (item._type === 'task') {
     const t = item.task;
@@ -7219,7 +7231,7 @@ function renderProjItemRow(item, projKey, scId) {
         ${t.recurrence ? `<span class="recur-badge">${recurLabel(t)}</span>` : ''}
       </div>
       <div onclick="event.stopPropagation();showPriorityDropdown(event,'${t.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(t.priority || 'med')}</div>
-      <div class="session-date" onclick="event.stopPropagation();inlineEditDate(this,'task','${t.id}')" style="cursor:pointer;" title="Click to edit">${fmtDate(t.due)}</div>
+      <div class="session-date" onclick="event.stopPropagation();inlineEditDate(this,'task','${t.id}')" style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Click to edit">${fmtDate(t.due)} ${holdMonthPill(t.allocMonth)}</div>
       <div class="session-hours" onclick="event.stopPropagation();inlineEditEst(this,'task','${t.id}')" style="cursor:pointer;" title="Click to edit">${t.est ? t.est + 'h' : '—'}</div>
       <div style="display:flex;align-items:center;gap:4px;font-size:11px;" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
         <button class="row-edit-btn" onclick="showTaskAssignDropdown(event,'${t.id}')" title="Assign" style="opacity:0.7;font-size:13px;">↗</button>
@@ -7254,7 +7266,7 @@ function renderProjItemRow(item, projKey, scId) {
       </div>
       <div onclick="event.stopPropagation();showSessionPriorityDropdown(event,'${bp.id}','${s.id}')" style="cursor:pointer;">${priorityBadge(s.priority || 'med')}</div>
       <span class="status-badge ${STATUS_CLS[s.status] || ''}" style="cursor:pointer;white-space:nowrap;font-size:8px;" onclick="event.stopPropagation();showDelegatedStatusDropdown(event,'${bp.id}','${s.id}')">${STATUS_LABELS[s.status] || s.status || '—'}</span>
-      <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openSessionDatePicker(this,'${bp.id}','${s.id}')">${fmtDate(s.date)}</div>
+      <div class="session-date" style="cursor:pointer;display:flex;align-items:center;gap:4px;" onclick="event.stopPropagation();openSessionDatePicker(this,'${bp.id}','${s.id}')">${fmtDate(s.date)} ${holdMonthPill(s.allocMonth)}</div>
       <div class="session-hours" onclick="event.stopPropagation();inlineEditEst(this,'session','${bp.id}','${s.id}')" style="cursor:pointer;" title="Click to edit">${s.hours}h</div>
       <div style="display:flex;align-items:center;gap:4px;font-size:11px;" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
         <button class="row-edit-btn" onclick="showAssignDropdown(event,'${bp.id}','${s.id}')" title="Assign" style="opacity:0.7;font-size:13px;">↗</button>
@@ -7291,7 +7303,7 @@ function renderProjItemRow(item, projKey, scId) {
       </div>
       <div onclick="event.stopPropagation();showSubtaskPriorityDropdown(event,'${bp.id}','${s.id}','${st.id}')" style="cursor:pointer;">${priorityBadge(st.priority || 'med')}</div>
       <span class="status-badge ${STATUS_CLS[st.status] || ''}" style="cursor:pointer;white-space:nowrap;font-size:8px;" onclick="event.stopPropagation();showDelegatedStatusDropdown(event,'${bp.id}','${s.id}','${st.id}')">${STATUS_LABELS[st.status] || st.status || '—'}</span>
-      <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openSubtaskDatePicker(this,'${bp.id}','${s.id}','${st.id}')">${fmtDate(st.date)}</div>
+      <div class="session-date" style="cursor:pointer;display:flex;align-items:center;gap:4px;" onclick="event.stopPropagation();openSubtaskDatePicker(this,'${bp.id}','${s.id}','${st.id}')">${fmtDate(st.date)} ${holdMonthPill(st.allocMonth)}</div>
       <div class="session-hours" onclick="event.stopPropagation();inlineEditEst(this,'subtask','${bp.id}','${s.id}','${st.id}')" style="cursor:pointer;" title="Click to edit">${st.hours}h</div>
       <div style="display:flex;align-items:center;gap:4px;font-size:11px;" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
         <button class="row-edit-btn" onclick="showAssignDropdown(event,'${bp.id}','${s.id}','${st.id}')" title="Assign" style="opacity:0.7;font-size:13px;">↗</button>
@@ -7342,7 +7354,7 @@ function renderProjItemRow(item, projKey, scId) {
         ${ct.waiting ? `<span class="task-waiting">⏳ ${escHtml(ct.waiting)}</span>` : ''}
       </div>
       <div>${priorityBadge(ct.priority || 'med')}</div>
-      <div class="session-date">${fmtDate(ct.due)}</div>
+      <div class="session-date" style="display:flex;align-items:center;gap:4px;">${fmtDate(ct.due)} ${holdMonthPill(ct.allocMonth)}</div>
       <div class="session-hours">${ct.est ? ct.est + 'h' : '—'}</div>
       <div></div>
       <div></div>
