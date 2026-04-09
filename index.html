@@ -3199,6 +3199,10 @@ if (typeof XLSX === 'undefined') {
         <input class="edit-input" type="date" id="editDue">
       </div>
       <div class="edit-form-group">
+        <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
+        <input class="edit-input" type="month" id="editAllocMonth">
+      </div>
+      <div class="edit-form-group">
         <label class="edit-label">Est. Hours</label>
         <input class="edit-input" type="number" id="editEst" step="0.25" min="0.25">
       </div>
@@ -3471,6 +3475,10 @@ if (typeof XLSX === 'undefined') {
         <input class="edit-input" type="date" id="editSessionDate">
       </div>
       <div class="edit-form-group">
+        <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
+        <input class="edit-input" type="month" id="editSessionAllocMonth">
+      </div>
+      <div class="edit-form-group">
         <label class="edit-label">Hours</label>
         <input class="edit-input" type="number" id="editSessionHours" min="0.25" step="0.25" placeholder="1">
       </div>
@@ -3624,6 +3632,10 @@ if (typeof XLSX === 'undefined') {
       <div class="edit-form-group">
         <label class="edit-label">Due Date</label>
         <input class="edit-input" type="date" id="editTeamDue">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
+        <input class="edit-input" type="month" id="editTeamAllocMonth">
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Status</label>
@@ -6188,6 +6200,7 @@ function openEditModal(taskId) {
   populateSubCodeSelect('editSubCode', task.project, task.subCode || '');
   document.getElementById('editPriority').value = task.priority;
   document.getElementById('editDue').value = task.due || '';
+  document.getElementById('editAllocMonth').value = task.allocMonth || '';
   document.getElementById('editEst').value = task.est || '';
   // category removed from UI
   document.getElementById('editWaiting').value = task.waiting || '';
@@ -6238,6 +6251,7 @@ function saveEditTask() {
   task.subCode  = document.getElementById('editSubCode').value;
   task.priority = document.getElementById('editPriority').value;
   task.due      = document.getElementById('editDue').value;
+  task.allocMonth = document.getElementById('editAllocMonth').value || null;
   task.est      = parseFloat(document.getElementById('editEst').value) || 0;
   // category field preserved in data but removed from UI
   task.waiting  = document.getElementById('editWaiting').value.trim();
@@ -8176,10 +8190,14 @@ function allTsEntries() {
 // Planned items: active tasks with a due date, plus undone project sessions
 function plannedItems(fromDate, toDate) {
   const items = [];
+  const fromYM = fromDate.slice(0, 7);
+  const toYM = toDate.slice(0, 7);
   tasks.forEach(t => {
     if (!t.recurrence) {
       if (t.due && t.due >= fromDate && t.due <= toDate) {
         items.push({ id: t.id, name: t.name, project: t.project, date: t.due, hours: t.est || 0, subCode: t.subCode || '', _planned: true, _src: 'task' });
+      } else if (!t.due && t.allocMonth && t.allocMonth >= fromYM && t.allocMonth <= toYM && !t.completed) {
+        items.push({ id: t.id, name: t.name + ' (hold)', project: t.project, date: t.allocMonth + '-15', hours: t.est || 0, subCode: t.subCode || '', _planned: true, _src: 'task', _allocHold: true });
       }
     } else {
       // Expand recurring task into all occurrences in period, capped at end date
@@ -8207,6 +8225,8 @@ function plannedItems(fromDate, toDate) {
       if (!s.recurrence) {
         if (s.date && s.date >= fromDate && s.date <= toDate) {
           items.push({ id: s.id, name: s.desc, project: proj.project, date: s.date, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _src: 'session', _projId: proj.id });
+        } else if (!s.date && s.allocMonth && s.allocMonth >= fromYM && s.allocMonth <= toYM) {
+          items.push({ id: s.id, name: s.desc + ' (hold)', project: proj.project, date: s.allocMonth + '-15', hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _src: 'session', _projId: proj.id, _allocHold: true });
         }
       } else {
         const recurEnd = s.recurrence.endDate || null;
@@ -8226,6 +8246,8 @@ function plannedItems(fromDate, toDate) {
         if (!st.recurrence) {
           if (st.date && st.date >= fromDate && st.date <= toDate) {
             items.push({ id: st.id, name: st.desc, project: proj.project, date: st.date, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id });
+          } else if (!st.date && st.allocMonth && st.allocMonth >= fromYM && st.allocMonth <= toYM) {
+            items.push({ id: st.id, name: st.desc + ' (hold)', project: proj.project, date: st.allocMonth + '-15', hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _src: 'subtask', _projId: proj.id, _sessionId: s.id, _allocHold: true });
           }
         } else {
           const recurEnd = st.recurrence.endDate || null;
@@ -11229,7 +11251,7 @@ function sessionRecurLabel(item) {
   return recurLabel(item);
 }
 
-function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting, delegatedTo, subtaskMode, parentSessionId, subCode, priority, recurrence) {
+function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting, delegatedTo, subtaskMode, parentSessionId, subCode, priority, recurrence, allocMonth) {
   editingSessionProjId  = projId;
   editingSessionId      = sessionId;
   editingSubtaskMode    = subtaskMode || false;
@@ -11237,6 +11259,7 @@ function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting,
   document.getElementById('editSessionModalTitle').textContent = title;
   document.getElementById('editSessionDesc').value    = desc || '';
   document.getElementById('editSessionDate').value    = date || today();
+  document.getElementById('editSessionAllocMonth').value = allocMonth || '';
   document.getElementById('editSessionHours').value   = hours || '1';
   document.getElementById('editSessionWaiting').value = waiting || '';
   const proj = bigProjs.find(p => p.id === projId);
@@ -11260,7 +11283,7 @@ function openEditSessionModal(projId, sessionId) {
   const proj = bigProjs.find(p => p.id === projId);
   const s = proj && proj.sessions.find(s => s.id === sessionId);
   if (!s) return;
-  _openSessionModal(projId, sessionId, 'Edit Work Item', s.desc, s.date, s.hours, s.waiting || '', s.delegatedTo, false, null, s.subCode || '', s.priority || 'med', s.recurrence || null);
+  _openSessionModal(projId, sessionId, 'Edit Work Item', s.desc, s.date, s.hours, s.waiting || '', s.delegatedTo, false, null, s.subCode || '', s.priority || 'med', s.recurrence || null, s.allocMonth || '');
 }
 
 function openAddSubtaskModal(projId, sessionId) {
@@ -11274,7 +11297,7 @@ function openEditSubtaskModal(projId, sessionId, subtaskId) {
   const s = proj && proj.sessions.find(s => s.id === sessionId);
   const st = s && (s.subtasks || []).find(st => st.id === subtaskId);
   if (!st) return;
-  _openSessionModal(projId, subtaskId, 'Edit Subtask', st.desc, st.date, st.hours, st.waiting || '', st.delegatedTo, true, sessionId, st.subCode || '', st.priority || 'med', st.recurrence || null);
+  _openSessionModal(projId, subtaskId, 'Edit Subtask', st.desc, st.date, st.hours, st.waiting || '', st.delegatedTo, true, sessionId, st.subCode || '', st.priority || 'med', st.recurrence || null, st.allocMonth || '');
 }
 
 function closeEditSessionModal() {
@@ -11290,6 +11313,7 @@ function saveSession() {
   if (!proj) return;
   const desc        = document.getElementById('editSessionDesc').value.trim();
   const date        = document.getElementById('editSessionDate').value;
+  const allocMonth  = document.getElementById('editSessionAllocMonth').value || null;
   const hours       = parseFloat(document.getElementById('editSessionHours').value) || 1;
   const subCode     = document.getElementById('editSessionSubCode')?.value || '';
   const priority    = document.getElementById('editSessionPriority')?.value || 'med';
@@ -11304,17 +11328,17 @@ function saveSession() {
     if (!parentS.subtasks) parentS.subtasks = [];
     if (editingSessionId) {
       const st = parentS.subtasks.find(st => st.id === editingSessionId);
-      if (st) { st.desc = desc; st.date = date; st.hours = hours; st.subCode = subCode; st.priority = priority; st.waiting = waiting; st.delegatedTo = delegatedTo.length ? delegatedTo : null; st.recurrence = recurrence; }
+      if (st) { st.desc = desc; st.date = date; st.allocMonth = allocMonth; st.hours = hours; st.subCode = subCode; st.priority = priority; st.waiting = waiting; st.delegatedTo = delegatedTo.length ? delegatedTo : null; st.recurrence = recurrence; }
     } else {
-      parentS.subtasks.push({ id: uid(), desc, date, hours, done: false, subCode, priority, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting, recurrence });
+      parentS.subtasks.push({ id: uid(), desc, date, allocMonth, hours, done: false, subCode, priority, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting, recurrence });
     }
   } else {
     if (editingSessionId) {
       const s = proj.sessions.find(s => s.id === editingSessionId);
-      if (s) { s.desc = desc; s.date = date; s.hours = hours; s.subCode = subCode; s.priority = priority; s.waiting = waiting; s.delegatedTo = delegatedTo.length ? delegatedTo : null; s.recurrence = recurrence; }
+      if (s) { s.desc = desc; s.date = date; s.allocMonth = allocMonth; s.hours = hours; s.subCode = subCode; s.priority = priority; s.waiting = waiting; s.delegatedTo = delegatedTo.length ? delegatedTo : null; s.recurrence = recurrence; }
     } else {
       const maxNum = proj.sessions.reduce((m, s) => Math.max(m, s.num), 0);
-      proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, hours, done: false, subCode, priority, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting, recurrence, subtasks: [] });
+      proj.sessions.push({ id: uid(), num: maxNum + 1, desc, date, allocMonth, hours, done: false, subCode, priority, delegatedTo: delegatedTo.length ? delegatedTo : null, waiting, recurrence, subtasks: [] });
     }
   }
 
@@ -11398,6 +11422,7 @@ function openEditTeamModal(itemId) {
   document.getElementById('editTeamProject').value = item.project || 'overhead';
   populateSubCodeSelect('editTeamSubCode', item.project || 'overhead', item.subCode || '');
   document.getElementById('editTeamDue').value     = item.due || '';
+  document.getElementById('editTeamAllocMonth').value = item.allocMonth || '';
   document.getElementById('editTeamStatus').value  = item.status || 'need-delegate';
   document.getElementById('editTeamWaiting').value = item.waiting || '';
   document.getElementById('editTeamNotes').value   = item.notes || '';
@@ -11419,6 +11444,7 @@ function saveEditTeamItem() {
   item.project = document.getElementById('editTeamProject').value;
   item.subCode = document.getElementById('editTeamSubCode').value || '';
   item.due     = document.getElementById('editTeamDue').value;
+  item.allocMonth = document.getElementById('editTeamAllocMonth').value || null;
   item.status  = document.getElementById('editTeamStatus').value;
   item.waiting = document.getElementById('editTeamWaiting').value.trim();
   item.notes   = document.getElementById('editTeamNotes').value.trim();
