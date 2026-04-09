@@ -1091,10 +1091,10 @@
   }
 
   .session-check {
-    width: 16px;
-    height: 16px;
-    border: 1.5px solid var(--border2);
-    border-radius: 3px;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--success);
+    border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -2180,12 +2180,13 @@
 
   /* BULK SELECT */
   .bulk-select-check {
-    width: 16px; height: 16px; border: 1.5px solid var(--border2); border-radius: 3px;
+    width: 14px; height: 14px; border: 1.5px dashed var(--border2); border-radius: 2px;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: all 0.12s; flex-shrink: 0; background: var(--bg);
+    transition: all 0.12s; flex-shrink: 0; background: none; opacity: 0.3;
   }
-  .bulk-select-check:hover { border-color: var(--accent); }
-  .bulk-select-check.selected { border-color: var(--accent); background: var(--accent); }
+  .proj-item-row:hover .bulk-select-check { opacity: 0.7; }
+  .bulk-select-check:hover { border-color: var(--accent); opacity: 1 !important; }
+  .bulk-select-check.selected { border-color: var(--accent); background: var(--accent); border-style: solid; opacity: 1 !important; }
   .bulk-action-bar {
     display: flex; align-items: center; gap: 10px; padding: 8px 14px;
     background: var(--accent); color: #fff; border-radius: 6px;
