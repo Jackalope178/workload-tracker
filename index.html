@@ -12296,11 +12296,15 @@ function ctFmtMonth(ym) {
 }
 
 function ctEditLicenseDate(partnerId) {
+  // Legacy prompt fallback removed — now handled by inline date input
+}
+
+function ctSaveLicenseDate(partnerId) {
   const c = contacts.find(c => c.id === partnerId);
   if (!c) return;
-  const val = prompt('License Start Date (YYYY-MM-DD):', c.licenseStartDate || '');
-  if (val === null) return;
-  c.licenseStartDate = val || null;
+  const input = document.getElementById('ctLicenseDateInput');
+  if (!input) return;
+  c.licenseStartDate = input.value || null;
   save('wt_contacts', contacts);
   renderContacts();
 }
@@ -12712,18 +12716,18 @@ function ctRenderProfile(panel, partner) {
     const isWarning = !isExpired && daysUntilExp <= 60;
     const expColor = isExpired ? 'var(--danger)' : isWarning ? 'var(--warn, #f59e0b)' : 'var(--success)';
     const expLabel = isExpired ? `Expired ${Math.abs(daysUntilExp)}d ago` : isWarning ? `Expires in ${daysUntilExp}d` : `Expires ${fmtDate(expDate)}`;
-    licenseHtml = `<div class="ct-license-bar" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;font-size:11px;">
+    licenseHtml = `<div class="ct-license-bar" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;font-size:11px;flex-wrap:wrap;">
       <span style="font-weight:600;color:var(--text2);">License</span>
-      <span>Start: <strong>${fmtDate(lsd)}</strong></span>
+      <span style="display:flex;align-items:center;gap:4px;">Start: <input id="ctLicenseDateInput" type="date" value="${lsd}" onchange="ctSaveLicenseDate('${partner.id}')" style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);"></span>
       <span>Renewal: <strong>${fmtDate(renewalDate)}</strong></span>
       <span style="color:${expColor};font-weight:700;">${expLabel}</span>
       ${isWarning ? '<span style="background:var(--warn, #f59e0b);color:#000;padding:1px 8px;border-radius:10px;font-size:9px;font-weight:700;">60-DAY NOTICE</span>' : ''}
       ${isExpired ? '<span style="background:var(--danger);color:#fff;padding:1px 8px;border-radius:10px;font-size:9px;font-weight:700;">EXPIRED</span>' : ''}
-      <button class="btn" onclick="ctEditLicenseDate('${partner.id}')" style="font-size:9px;padding:2px 6px;margin-left:auto;">Edit</button>
     </div>`;
   } else {
-    licenseHtml = `<div style="margin-bottom:16px;">
-      <button class="btn" onclick="ctEditLicenseDate('${partner.id}')" style="font-size:10px;padding:4px 10px;">+ Set License Start Date</button>
+    licenseHtml = `<div class="ct-license-bar" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;font-size:11px;">
+      <span style="font-weight:600;color:var(--text2);">License Start Date</span>
+      <input id="ctLicenseDateInput" type="date" value="" onchange="ctSaveLicenseDate('${partner.id}')" style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);">
     </div>`;
   }
 
