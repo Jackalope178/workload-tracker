@@ -12645,13 +12645,14 @@ function ctRenderProfile(panel, partner) {
     const prog = ctStageProgress(partner, sid);
     const isExpanded = !_ctCollapsedStages.has(sid);
     const color = CT_STAGE_COLORS[baseKey] || '#888';
-    const contactLabel = st.contactTag ? `<span style="font-size:10px;font-weight:600;color:var(--text2);">— ${escHtml(st.contactTag)}</span>` : '';
+    const contactLabel = st.contactTag ? `<span style="font-size:10px;font-weight:600;color:var(--text2);">— ${escHtml(st.contactTag)}</span>` : '<span style="font-size:10px;color:var(--text3);font-style:italic;">no contact</span>';
     const anchorLabel = st.anchorDate ? `<span style="font-size:10px;color:var(--text3);">Anchor: ${fmtDate(st.anchorDate)}</span>` : '';
 
     stagesHtml += `<div class="ct-stage-section">
       <div class="ct-stage-header" onclick="_ctToggleStage('${sid}')">
-        <span class="ct-stage-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;">${CT_STAGE_LABELS[baseKey] || baseKey}</span>
-        ${contactLabel} ${anchorLabel}
+        <span class="ct-stage-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;cursor:pointer;" onclick="event.stopPropagation();ctEditStageContact('${partner.id}','${sid}')" title="Click to change contact">${CT_STAGE_LABELS[baseKey] || baseKey}</span>
+        <span style="cursor:pointer;font-size:10px;" onclick="event.stopPropagation();ctEditStageContact('${partner.id}','${sid}')" title="Click to change contact">${contactLabel}</span>
+        ${anchorLabel}
         <span class="ct-stage-progress">${prog.done}/${prog.total} done</span>
         <span class="ct-stage-chevron${isExpanded ? ' open' : ''}">›</span>
         <button onclick="event.stopPropagation();ctCloseStage('${partner.id}','${sid}')" title="Close this stage (history preserved)" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px;color:var(--text3);">Close Stage</button>
@@ -12909,6 +12910,65 @@ function ctConfirmAddStage() {
   save('wt_contacts', contacts);
   document.getElementById('ctAddStageModal').style.display = 'none';
   renderContacts();
+}
+
+let _ctStageContactMenu = null;
+function ctEditStageContact(partnerId, stageId) {
+  const c = contacts.find(c => c.id === partnerId);
+  if (!c || !c.stages[stageId]) return;
+  const st = c.stages[stageId];
+  const pContacts = (c.contacts || []).filter(ct => ct.name);
+
+  // Remove existing menu if open
+  if (_ctStageContactMenu) { _ctStageContactMenu.remove(); _ctStageContactMenu = null; }
+
+  const menu = document.createElement('div');
+  menu.style.cssText = 'position:fixed;z-index:9999;background:var(--bg);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.18);padding:4px 0;min-width:180px;font-size:12px;';
+
+  // Position near the clicked badge
+  const badge = event.target.closest('.ct-stage-badge') || event.target;
+  const rect = badge.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+
+  // "None" option
+  const noneItem = document.createElement('div');
+  noneItem.style.cssText = 'padding:6px 14px;cursor:pointer;color:var(--text3);';
+  noneItem.textContent = '— No contact —';
+  noneItem.onmouseover = () => noneItem.style.background = 'var(--bg3)';
+  noneItem.onmouseout = () => noneItem.style.background = '';
+  if (!st.contactTag) noneItem.style.fontWeight = '700';
+  noneItem.onclick = () => { st.contactTag = ''; save('wt_contacts', contacts); menu.remove(); _ctStageContactMenu = null; renderContacts(); };
+  menu.appendChild(noneItem);
+
+  // Contact options
+  pContacts.forEach(ct => {
+    const item = document.createElement('div');
+    item.style.cssText = 'padding:6px 14px;cursor:pointer;color:var(--text);';
+    const label = ct.name + (ct.isInstructor ? ' (Instructor)' : '') + (ct.role ? ' — ' + ct.role : '');
+    item.textContent = label;
+    if (st.contactTag === ct.name) item.style.fontWeight = '700';
+    item.onmouseover = () => item.style.background = 'var(--bg3)';
+    item.onmouseout = () => item.style.background = '';
+    item.onclick = () => { st.contactTag = ct.name; save('wt_contacts', contacts); menu.remove(); _ctStageContactMenu = null; renderContacts(); };
+    menu.appendChild(item);
+  });
+
+  if (!pContacts.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:6px 14px;color:var(--text3);font-style:italic;font-size:11px;';
+    empty.textContent = 'No contacts on this org — add via Edit';
+    menu.appendChild(empty);
+  }
+
+  document.body.appendChild(menu);
+  _ctStageContactMenu = menu;
+
+  // Close on outside click
+  setTimeout(() => {
+    const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); _ctStageContactMenu = null; document.removeEventListener('click', close); } };
+    document.addEventListener('click', close);
+  }, 0);
 }
 
 function ctCloseStage(partnerId, stageId) {
