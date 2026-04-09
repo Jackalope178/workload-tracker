@@ -12707,26 +12707,24 @@ function ctRenderProfile(panel, partner) {
 
   // License info
   let licenseHtml = '';
+  const _fmtDateY = d => { if (!d) return '—'; const [y,m,day] = d.split('-'); const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${mo[parseInt(m)-1]} ${parseInt(day)}, ${y}`; };
   if (partner.licenseStartDate) {
     const lsd = partner.licenseStartDate;
     const expDate = ctCalcLicenseExpiration(lsd);
-    const renewalDate = expDate; // 1 year from start
     const daysUntilExp = ctDaysUntil(expDate);
     const isExpired = daysUntilExp < 0;
     const isWarning = !isExpired && daysUntilExp <= 60;
-    const expColor = isExpired ? 'var(--danger)' : isWarning ? 'var(--warn, #f59e0b)' : 'var(--success)';
-    const expLabel = isExpired ? `Expired ${Math.abs(daysUntilExp)}d ago` : isWarning ? `Expires in ${daysUntilExp}d` : `Expires ${fmtDate(expDate)}`;
-    licenseHtml = `<div class="ct-license-bar" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;font-size:11px;flex-wrap:wrap;">
-      <span style="font-weight:600;color:var(--text2);">License</span>
-      <span style="display:flex;align-items:center;gap:4px;">Start: <input id="ctLicenseDateInput" type="date" value="${lsd}" onchange="ctSaveLicenseDate('${partner.id}')" style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);"></span>
-      <span>Renewal: <strong>${fmtDate(renewalDate)}</strong></span>
-      <span style="color:${expColor};font-weight:700;">${expLabel}</span>
-      ${isWarning ? '<span style="background:var(--warn, #f59e0b);color:#000;padding:1px 8px;border-radius:10px;font-size:9px;font-weight:700;">60-DAY NOTICE</span>' : ''}
-      ${isExpired ? '<span style="background:var(--danger);color:#fff;padding:1px 8px;border-radius:10px;font-size:9px;font-weight:700;">EXPIRED</span>' : ''}
+    const expColor = isExpired ? 'var(--danger)' : isWarning ? 'var(--warn, #f59e0b)' : 'var(--text2)';
+    const badges = isExpired ? '<span style="background:var(--danger);color:#fff;padding:1px 8px;border-radius:10px;font-size:9px;font-weight:700;">EXPIRED</span>'
+      : isWarning ? '<span style="background:var(--warn, #f59e0b);color:#000;padding:1px 8px;border-radius:10px;font-size:9px;font-weight:700;">60-DAY NOTICE</span>' : '';
+    licenseHtml = `<div class="ct-license-bar" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;font-size:11px;">
+      <span style="display:flex;align-items:center;gap:4px;"><span style="font-weight:600;color:var(--text3);">License Start</span> <input id="ctLicenseDateInput" type="date" value="${lsd}" onchange="ctSaveLicenseDate('${partner.id}')" style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);"></span>
+      <span style="color:${expColor};font-weight:700;">License Expiration: ${_fmtDateY(expDate)}</span>
+      ${badges}
     </div>`;
   } else {
     licenseHtml = `<div class="ct-license-bar" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;font-size:11px;">
-      <span style="font-weight:600;color:var(--text2);">License Start Date</span>
+      <span style="font-weight:600;color:var(--text3);">License Start</span>
       <input id="ctLicenseDateInput" type="date" value="" onchange="ctSaveLicenseDate('${partner.id}')" style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);">
     </div>`;
   }
