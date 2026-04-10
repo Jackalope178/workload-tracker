@@ -1351,7 +1351,7 @@
   .cap-month-name { font-weight: 700; color: var(--text); font-size: 13px; }
   .cap-month-detail { background: var(--bg2); border-bottom: 1px solid var(--border); }
   .cap-proj-row {
-    display: grid; grid-template-columns: 24px 10px 1fr minmax(80px,240px) 80px 18px;
+    display: grid; grid-template-columns: 24px 10px 1fr minmax(80px,240px) 80px;
     gap: 8px; align-items: center;
     padding: 9px 22px; border-bottom: 1px solid var(--border2); font-size: 12px;
     cursor: pointer; user-select: none;
@@ -1373,6 +1373,27 @@
   .cap-item-hours { font-weight: 700; text-align: right; }
   .cap-item-actions { display: flex; gap: 4px; justify-content: flex-end; }
   .cap-item-actions .btn { font-size: 9px; padding: 2px 6px; }
+  .cap-sc-header {
+    display: grid; grid-template-columns: 120px 1fr;
+    gap: 10px; align-items: center;
+    padding: 7px 32px; background: var(--bg2); border-bottom: 1px solid var(--border);
+  }
+  .cap-sc-label {
+    font-size: 10px; font-weight: 700; font-family: monospace; color: var(--text2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cap-sc-meters { display: flex; flex-direction: column; gap: 3px; }
+  .cap-sc-meter-row {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .cap-sc-meter-label { font-size: 9px; color: var(--text3); width: 52px; text-align: right; white-space: nowrap; }
+  .cap-sc-meter-bar { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; position: relative; max-width: 200px; }
+  .cap-sc-meter-fill { height: 100%; border-radius: 3px; transition: width 0.2s; }
+  .cap-sc-meter-value { font-size: 9px; color: var(--text3); min-width: 36px; white-space: nowrap; }
+  .cap-sc-meter-fill.alloc { background: var(--text3); opacity: 0.5; }
+  .cap-sc-meter-fill.planned-ok { background: var(--accent); }
+  .cap-sc-meter-fill.planned-warn { background: var(--warn); }
+  .cap-sc-meter-fill.planned-over { background: var(--danger); }
   .cap-empty { padding: 40px 14px; text-align: center; font-size: 12px; color: var(--text3); }
   .cap-summary {
     display: flex; gap: 20px; padding: 12px 14px; border-bottom: 1px solid var(--border);
@@ -9313,7 +9334,6 @@ function _renderCapMonthDetail(container, ym, ms, me, entries, planned, cap) {
     const projPct = cap > 0 ? Math.min(Math.round((projTotal / cap) * 100), 100) : 0;
     const expandKey = ym + '|' + projKey;
     const isExpanded = _capExpandedProjects.has(expandKey);
-    const code = proj.billingCode || projLabel(projKey);
 
     const projRow = document.createElement('div');
     projRow.className = 'cap-proj-row' + (isExpanded ? ' expanded' : '');
@@ -9332,63 +9352,97 @@ function _renderCapMonthDetail(container, ym, ms, me, entries, planned, cap) {
           <div class="ts-cap-bar-fill" style="width:${projPct}%;background:${proj.color};opacity:0.7;"></div>
         </div>
       </div>
-      <span class="cap-proj-hours">
-        ${data.logged > 0 ? '<span style="color:var(--text);">' + fmtQ(data.logged) + 'h</span>' : ''}${data.logged > 0 && plannedH > 0 ? ' + ' : ''}${plannedH > 0 ? '<span style="color:var(--text3);">' + fmtQ(plannedH) + 'h</span>' : ''}
-      </span>
-      <span style="font-size:10px;color:var(--text3);text-align:right;">${fmtQ(projTotal)}h</span>
+      <span class="cap-proj-hours"><span style="color:var(--text);font-weight:700;">${fmtQ(projTotal)}h</span></span>
     `;
     detail.appendChild(projRow);
 
     if (isExpanded) {
-      _renderCapItemList(detail, projKey, ym, data, entries);
+      _renderCapItemList(detail, projKey, ym, data);
     }
   });
 
   container.appendChild(detail);
 }
 
-function _renderCapItemList(container, projKey, ym, data, entries) {
+function _renderCapItemList(container, projKey, ym, data) {
   const list = document.createElement('div');
   list.className = 'cap-item-list';
 
-  // Logged entries for this project
-  const projEntries = entries.filter(e => (e.project || '_none') === projKey);
-  if (projEntries.length) {
-    const logHdr = document.createElement('div');
-    logHdr.style.cssText = 'padding:4px 32px;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);background:var(--bg2);border-bottom:1px solid var(--border);';
-    logHdr.textContent = 'Logged';
-    list.appendChild(logHdr);
+  const proj = PROJECTS[projKey] || {};
+  const subs = proj.subCodes || [];
 
-    projEntries.forEach(e => {
-      const row = document.createElement('div');
-      row.className = 'cap-item-row';
-      row.innerHTML = `
-        <span style="color:var(--success);font-size:10px;">✓</span>
-        <span style="font-size:10px;color:var(--text3);font-family:monospace;">${e.subCode ? getFullCode(e.project, e.subCode) : (PROJECTS[e.project]?.billingCode || '—')}</span>
-        <span class="cap-item-name">${escHtml(e.name)}</span>
-        <span class="cap-item-hours">${fmtQ(e.actualHours)}h</span>
-        <span style="font-size:10px;color:var(--text3);">${fmtDate(e.date)}</span>
-      `;
-      list.appendChild(row);
-    });
+  // Group planned items by sub-code
+  const scMap = {}; // scId → items[]
+  data.planned.forEach(p => {
+    const sc = p.subCode || '';
+    if (!scMap[sc]) scMap[sc] = [];
+    scMap[sc].push(p);
+  });
+
+  // Build ordered sub-code list: defined sub-codes first, then '' (unassigned)
+  const scOrder = [];
+  subs.forEach(sc => { if (scMap[sc.id]) scOrder.push(sc.id); });
+  // Add any sub-code keys that aren't in the project definition
+  Object.keys(scMap).forEach(sc => { if (sc && !scOrder.includes(sc)) scOrder.push(sc); });
+  // Unassigned last
+  if (scMap['']) scOrder.push('');
+
+  if (!scOrder.length) {
+    list.innerHTML = '<div class="cap-empty" style="padding:10px 32px;">No planned items.</div>';
+    container.appendChild(list);
+    return;
   }
 
-  // Planned items for this project
-  if (data.planned.length) {
-    const planHdr = document.createElement('div');
-    planHdr.style.cssText = 'padding:4px 32px;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);background:var(--bg2);border-bottom:1px solid var(--border);';
-    planHdr.textContent = 'Planned / Outstanding';
-    list.appendChild(planHdr);
+  scOrder.forEach(scId => {
+    const items = scMap[scId] || [];
+    const plannedH = items.reduce((s, i) => s + (i.hours || 0), 0);
+    const allocated = allocations[allocKey(projKey, scId, ym)] || 0;
+    const scDef = subs.find(s => s.id === scId);
+    const fullCode = scId ? getFullCode(projKey, scId) : (proj.billingCode || projKey);
+    const scLabel = scDef ? scDef.label : (scId ? scId : 'Unassigned');
 
-    // Sort planned items by date
-    const sorted = [...data.planned].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    // Determine scale: max of allocated or planned for bar percentages
+    const barMax = Math.max(allocated, plannedH, 1);
+
+    // Sub-code header with dual meters
+    const hdr = document.createElement('div');
+    hdr.className = 'cap-sc-header';
+
+    let metersHtml = '<div class="cap-sc-meters">';
+    // Allocated meter
+    const allocPct = Math.min(Math.round((allocated / barMax) * 100), 100);
+    metersHtml += `<div class="cap-sc-meter-row">
+      <span class="cap-sc-meter-label">Allocated</span>
+      <div class="cap-sc-meter-bar"><div class="cap-sc-meter-fill alloc" style="width:${allocPct}%;"></div></div>
+      <span class="cap-sc-meter-value">${allocated > 0 ? allocated + 'h' : '—'}</span>
+    </div>`;
+    // Planned meter
+    const planPct = Math.min(Math.round((plannedH / barMax) * 100), 100);
+    const planCls = allocated > 0 && plannedH > allocated ? 'planned-over' : allocated > 0 && plannedH > allocated * 0.8 ? 'planned-warn' : 'planned-ok';
+    const planNote = allocated > 0 ? (plannedH > allocated ? `+${fmtQ(plannedH - allocated)}h over` : `${fmtQ(allocated - plannedH)}h under`) : '';
+    metersHtml += `<div class="cap-sc-meter-row">
+      <span class="cap-sc-meter-label">Planned</span>
+      <div class="cap-sc-meter-bar"><div class="cap-sc-meter-fill ${planCls}" style="width:${planPct}%;"></div></div>
+      <span class="cap-sc-meter-value">${fmtQ(plannedH)}h${planNote ? ' <span style="font-size:8px;color:' + (plannedH > allocated ? 'var(--danger)' : 'var(--success)') + ';">' + planNote + '</span>' : ''}</span>
+    </div>`;
+    metersHtml += '</div>';
+
+    hdr.innerHTML = `
+      <div>
+        <span class="cap-sc-label">${fullCode}</span>
+        <div style="font-size:9px;color:var(--text3);margin-top:1px;">${escHtml(scLabel)}</div>
+      </div>
+      ${metersHtml}
+    `;
+    list.appendChild(hdr);
+
+    // Render items under this sub-code
+    const sorted = [...items].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     sorted.forEach(item => {
       const baseId = item.id.includes('_') ? item.id.split('_').slice(0, -1).join('_') : item.id;
-      // Find the source object to enable actions
       let editFn = '', delegateFn = '', moveFn = '';
-      let taskObj = null;
       if (item._src === 'task') {
-        taskObj = tasks.find(t => t.id === baseId || t.id === item.id);
+        const taskObj = tasks.find(t => t.id === baseId || t.id === item.id);
         if (taskObj) {
           editFn = `openEditModal('${taskObj.id}')`;
           delegateFn = `capDelegateItem('task','${taskObj.id}')`;
@@ -9406,10 +9460,9 @@ function _renderCapItemList(container, projKey, ym, data, entries) {
 
       const row = document.createElement('div');
       row.className = 'cap-item-row';
-      const scCode = item.subCode ? getFullCode(item.project, item.subCode) : (PROJECTS[item.project]?.billingCode || '—');
       row.innerHTML = `
         <span style="font-size:10px;color:var(--accent);">${item._recur ? '↻' : '○'}</span>
-        <span style="font-size:10px;color:var(--text3);font-family:monospace;">${scCode}</span>
+        <span style="font-size:10px;color:var(--text3);">${fmtDate(item.date)}</span>
         <span class="cap-item-name${item._recur ? ' recur' : ''}" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(item.name)}${item._allocHold ? ' <span style="color:var(--text3);font-size:9px;">(hold)</span>' : ''}</span>
         <span class="cap-item-hours" style="color:var(--text3);">${item.hours > 0 ? fmtQ(item.hours) + 'h' : '—'}</span>
         <span class="cap-item-actions">
@@ -9420,11 +9473,7 @@ function _renderCapItemList(container, projKey, ym, data, entries) {
       `;
       list.appendChild(row);
     });
-  }
-
-  if (!projEntries.length && !data.planned.length) {
-    list.innerHTML = '<div class="cap-empty" style="padding:10px 32px;">No items.</div>';
-  }
+  });
 
   container.appendChild(list);
 }
