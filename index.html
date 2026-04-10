@@ -8199,6 +8199,7 @@ let tsCapacity = parseFloat(load('wt_ts_capacity', 8)) || 8;
 let tsExpandedWeeks = new Set();   // week-start strings that are expanded in week view
 let tsExpandedMonths = new Set();  // 'YYYY-MM' strings expanded in month view
 let tsCollapsedDays = new Set();   // date strings of collapsed day sections
+let _tsAutoCollapsedInit = new Set(); // dates already considered for auto-collapse (so manual toggles are respected)
 let _tsCurrentWeekAutoExpanded = false; // track if we've auto-expanded current week
 let tsMonthExpandedWeeks = new Set(); // week-start strings expanded inside month view
 
@@ -8502,6 +8503,15 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
   for (let i = 0; i < 7; i++) byDay[addDays(wStart, i)] = [];
   wEntries.forEach(e => { if (byDay[e.date]) byDay[e.date].push({ ...e, _isLogged: true }); });
   wPlanned.forEach(p => { if (byDay[p.date]) byDay[p.date].push({ ...p, _isPlanned: true }); });
+
+  // Auto-collapse past days (before today) on first encounter
+  const _today = today();
+  Object.keys(byDay).forEach(date => {
+    if (!_tsAutoCollapsedInit.has(date)) {
+      _tsAutoCollapsedInit.add(date);
+      if (date < _today) tsCollapsedDays.add(date);
+    }
+  });
 
   const wrap = document.createElement('div');
   wrap.className = 'ts-week-entries';
