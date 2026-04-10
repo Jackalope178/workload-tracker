@@ -1374,7 +1374,7 @@
   .cap-item-actions { display: flex; gap: 4px; justify-content: flex-end; }
   .cap-item-actions .btn { font-size: 9px; padding: 2px 6px; }
   .cap-sc-header {
-    display: grid; grid-template-columns: 120px 1fr;
+    display: grid; grid-template-columns: 100px 1fr;
     gap: 10px; align-items: center;
     padding: 7px 32px; background: var(--bg2); border-bottom: 1px solid var(--border);
   }
@@ -1382,18 +1382,29 @@
     font-size: 10px; font-weight: 700; font-family: monospace; color: var(--text2);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .cap-sc-meters { display: flex; flex-direction: column; gap: 3px; }
-  .cap-sc-meter-row {
-    display: flex; align-items: center; gap: 6px;
+  .cap-sc-bar-wrap {
+    display: flex; align-items: center; gap: 8px;
   }
-  .cap-sc-meter-label { font-size: 9px; color: var(--text3); width: 52px; text-align: right; white-space: nowrap; }
-  .cap-sc-meter-bar { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; position: relative; max-width: 200px; }
-  .cap-sc-meter-fill { height: 100%; border-radius: 3px; transition: width 0.2s; }
-  .cap-sc-meter-value { font-size: 9px; color: var(--text3); min-width: 36px; white-space: nowrap; }
-  .cap-sc-meter-fill.alloc { background: var(--text3); opacity: 0.5; }
-  .cap-sc-meter-fill.planned-ok { background: var(--accent); }
-  .cap-sc-meter-fill.planned-warn { background: var(--warn); }
-  .cap-sc-meter-fill.planned-over { background: var(--danger); }
+  .cap-sc-bar {
+    flex: 1; height: 8px; background: var(--bg3); border-radius: 4px;
+    overflow: visible; position: relative; max-width: 320px;
+  }
+  .cap-sc-bar-inner { position: relative; height: 100%; border-radius: 4px; overflow: hidden; }
+  .cap-sc-fill-logged {
+    position: absolute; top: 0; left: 0; height: 100%;
+    background: var(--success); opacity: 0.9; transition: width 0.2s;
+  }
+  .cap-sc-fill-planned {
+    position: absolute; top: 0; height: 100%;
+    background: var(--accent); opacity: 0.6; transition: width 0.2s, left 0.2s;
+  }
+  .cap-sc-fill-planned.warn { background: var(--warn); opacity: 0.8; }
+  .cap-sc-fill-planned.over { background: var(--danger); opacity: 0.8; }
+  .cap-sc-bar-legend {
+    display: flex; gap: 10px; font-size: 9px; color: var(--text3); white-space: nowrap; align-items: center;
+  }
+  .cap-sc-bar-legend .dot { display: inline-block; width: 6px; height: 6px; border-radius: 2px; margin-right: 2px; vertical-align: middle; }
+  .cap-sc-status { font-size: 9px; white-space: nowrap; font-weight: 600; }
   .cap-empty { padding: 40px 14px; text-align: center; font-size: 12px; color: var(--text3); }
   .cap-summary {
     display: flex; gap: 20px; padding: 12px 14px; border-bottom: 1px solid var(--border);
@@ -9399,42 +9410,69 @@ function _renderCapItemList(container, projKey, ym, data) {
     const items = scMap[scId] || [];
     const plannedH = items.reduce((s, i) => s + (i.hours || 0), 0);
     const allocated = allocations[allocKey(projKey, scId, ym)] || 0;
+    const logged = allocGetActuals(projKey, scId, ym);
+    const used = logged + plannedH; // total committed against this budget
     const scDef = subs.find(s => s.id === scId);
     const fullCode = scId ? getFullCode(projKey, scId) : (proj.billingCode || projKey);
     const scLabel = scDef ? scDef.label : (scId ? scId : 'Unassigned');
 
-    // Determine scale: max of allocated or planned for bar percentages
-    const barMax = Math.max(allocated, plannedH, 1);
-
-    // Sub-code header with dual meters
+    // Single composite bar: logged + planned fills inside allocation track
     const hdr = document.createElement('div');
     hdr.className = 'cap-sc-header';
 
-    let metersHtml = '<div class="cap-sc-meters">';
-    // Allocated meter
-    const allocPct = Math.min(Math.round((allocated / barMax) * 100), 100);
-    metersHtml += `<div class="cap-sc-meter-row">
-      <span class="cap-sc-meter-label">Allocated</span>
-      <div class="cap-sc-meter-bar"><div class="cap-sc-meter-fill alloc" style="width:${allocPct}%;"></div></div>
-      <span class="cap-sc-meter-value">${allocated > 0 ? allocated + 'h' : '—'}</span>
-    </div>`;
-    // Planned meter
-    const planPct = Math.min(Math.round((plannedH / barMax) * 100), 100);
-    const planCls = allocated > 0 && plannedH > allocated ? 'planned-over' : allocated > 0 && plannedH > allocated * 0.8 ? 'planned-warn' : 'planned-ok';
-    const planNote = allocated > 0 ? (plannedH > allocated ? `+${fmtQ(plannedH - allocated)}h over` : `${fmtQ(allocated - plannedH)}h under`) : '';
-    metersHtml += `<div class="cap-sc-meter-row">
-      <span class="cap-sc-meter-label">Planned</span>
-      <div class="cap-sc-meter-bar"><div class="cap-sc-meter-fill ${planCls}" style="width:${planPct}%;"></div></div>
-      <span class="cap-sc-meter-value">${fmtQ(plannedH)}h${planNote ? ' <span style="font-size:8px;color:' + (plannedH > allocated ? 'var(--danger)' : 'var(--success)') + ';">' + planNote + '</span>' : ''}</span>
-    </div>`;
-    metersHtml += '</div>';
+    const barMax = Math.max(allocated, used, 1);
+    const loggedPct = Math.round((logged / barMax) * 100);
+    const plannedPct = Math.round((plannedH / barMax) * 100);
+    // If no allocation set, bar track represents the committed total
+    const barWidthPct = allocated > 0 ? 100 : 100;
+    const overBudget = allocated > 0 && used > allocated;
+    const nearBudget = allocated > 0 && used > allocated * 0.8 && !overBudget;
+    const planCls = overBudget ? 'over' : nearBudget ? 'warn' : '';
+
+    // Status text
+    let statusHtml = '';
+    if (allocated > 0) {
+      const free = allocated - used;
+      if (free > 0) {
+        statusHtml = `<span class="cap-sc-status" style="color:var(--success);">${fmtQ(free)}h free</span>`;
+      } else if (free < 0) {
+        statusHtml = `<span class="cap-sc-status" style="color:var(--danger);">+${fmtQ(Math.abs(free))}h over</span>`;
+      } else {
+        statusHtml = `<span class="cap-sc-status" style="color:var(--warn);">fully committed</span>`;
+      }
+    }
+
+    // Legend
+    let legendParts = [];
+    if (logged > 0) legendParts.push(`<span><span class="dot" style="background:var(--success);"></span>${fmtQ(logged)}h logged</span>`);
+    if (plannedH > 0) legendParts.push(`<span><span class="dot" style="background:var(--accent);"></span>${fmtQ(plannedH)}h planned</span>`);
+    if (allocated > 0) legendParts.push(`<span style="color:var(--text2);">${allocated}h allocated</span>`);
+    legendParts.push(statusHtml);
+
+    // Bar math: track = allocation (or total used if no allocation)
+    // logged fills from left, planned continues from where logged ends
+    const track = allocated > 0 ? allocated : used;
+    const logPct = track > 0 ? Math.min(Math.round((logged / track) * 100), 100) : 0;
+    const planPctFill = track > 0 ? Math.min(Math.round((plannedH / track) * 100), 100 - logPct) : 0;
+    // If over budget, the inner div overflows past the track
+    const innerPct = track > 0 ? Math.round((used / track) * 100) : 0;
 
     hdr.innerHTML = `
       <div>
         <span class="cap-sc-label">${fullCode}</span>
         <div style="font-size:9px;color:var(--text3);margin-top:1px;">${escHtml(scLabel)}</div>
       </div>
-      ${metersHtml}
+      <div>
+        <div class="cap-sc-bar-wrap">
+          <div class="cap-sc-bar">
+            <div class="cap-sc-bar-inner" style="width:${Math.min(innerPct, 100)}%;">
+              <div class="cap-sc-fill-logged" style="width:${innerPct > 0 ? Math.round((logged / used) * 100) : 0}%;"></div>
+              <div class="cap-sc-fill-planned ${planCls}" style="left:${innerPct > 0 ? Math.round((logged / used) * 100) : 0}%;width:${innerPct > 0 ? Math.round((plannedH / used) * 100) : 0}%;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="cap-sc-bar-legend" style="margin-top:3px;">${legendParts.join('')}</div>
+      </div>
     `;
     list.appendChild(hdr);
 
