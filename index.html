@@ -4483,6 +4483,9 @@ const DEFAULT_PROJECTS = {
   overhead:   { label: 'Training Overhead',          color: '#fb923c', billingCode: 'T-09-999' }
 };
 
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
 let PROJECTS = load('wt_projects_meta', null);
 if (!PROJECTS) { PROJECTS = DEFAULT_PROJECTS; save('wt_projects_meta', PROJECTS); }
 // Migration: add billingCode field and new overhead projects for existing users
@@ -4948,8 +4951,11 @@ function save(key, data) {
     console.error('localStorage save failed for', key, e);
     showSyncToast('Local storage full — some changes may not be saved.', 'warn');
   }
-  // Invalidate planned items cache when task/project data changes
-  if (key === 'wt_tasks' || key === 'wt_bigprojs' || key === 'wt_contacts') _invalidatePlannedCache();
+  // Invalidate caches when underlying data changes
+  try {
+    if (key === 'wt_tasks' || key === 'wt_bigprojs' || key === 'wt_contacts') _invalidatePlannedCache();
+    if (key === 'wt_completed') _invalidateActualsCache();
+  } catch(e) { /* caches not yet initialized during early bootstrap */ }
   // Fire-and-forget cloud sync (non-blocking) with failure notification
   if (_supabase && _currentUser && SYNC_KEYS.includes(key)) {
     cloudSave(key, data).catch(err => {
@@ -5377,8 +5383,7 @@ function onNewRecurChange() {
 function fmtDate(d) {
   if (!d) return '—';
   const [y, m, day] = d.split('-');
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${months[parseInt(m)-1]} ${parseInt(day)}`;
+  return `${MONTH_NAMES[parseInt(m)-1]} ${parseInt(day)}`;
 }
 
 function dateGroup(due) {
@@ -5495,18 +5500,10 @@ function priorityBadge(p) {
 
 function computeWeekCapacity(wkStart, wkEnd) {
   let planned = 0, done = 0;
-  // Use plannedItems() which already handles recurrence expansion correctly
+  // plannedItems() already filters to undone items and respects delegation
   const items = plannedItems(wkStart, wkEnd);
   items.forEach(p => {
-    const t = tasks.find(t => t.id === p.id || p.id.startsWith(t.id + '_'));
-    // Only count items that are mine: unassigned, or "Me" is in the delegation list
-    if (t) {
-      const del = normDelegated(t.delegatedTo);
-      if (del.length && !del.includes('Me')) return; // delegated to others only — not my capacity
-    }
-    const isCompleted = t ? t.completed : false;
-    if (isCompleted) done += (p.hours || 0);
-    else planned += (p.hours || 0);
+    planned += (p.hours || 0);
   });
   // Completed items from the completed array (moved via completion modal)
   completed.forEach(c => {
@@ -5608,8 +5605,7 @@ function renderTasks() {
   const todayStr  = today();
   const wkStart   = startOfWeek();   // Sunday
   const wkEnd     = endOfWeek();     // Saturday
-  const days      = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const months    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const days      = DAY_NAMES;
 
   // Current week's Mon–Fri day buckets (overdue → today)
   const currentWeekDays = [];
@@ -5869,7 +5865,7 @@ function renderTasks() {
     const items = dayBuckets[d] || [];
     const dt = new Date(d + 'T00:00:00');
     const dayName = days[dt.getDay()];
-    const mo = months[dt.getMonth()];
+    const mo = MONTH_NAMES[dt.getMonth()];
     const isToday = d === todayStr;
     const isPast  = d < todayStr;
     // hide past days with no items; always show today and future days
@@ -5887,7 +5883,7 @@ function renderTasks() {
     for (let i = 0; i < 7; i++) { wkDates.push(addDays(wk, i)); }
     const isExpanded = _expandedWeeks.has(wk);
     const chevron = `<span class="week-expand-chevron${isExpanded ? ' open' : ''}" onclick="_toggleWeekExpand('${wk}')" title="${isExpanded ? 'Collapse to week' : 'Expand to days'}">›</span>`;
-    const wkLabel = `Week of ${months[dt.getMonth()]} ${dt.getDate()}`;
+    const wkLabel = `Week of ${MONTH_NAMES[dt.getMonth()]} ${dt.getDate()}`;
 
     if (!isExpanded) {
       // Rolled-up week view: render as single section with chevron in header
@@ -5930,7 +5926,7 @@ function renderTasks() {
         const dayItems = dayMap[d] || [];
         if (!dayItems.length) return;
         const dayDt = new Date(d + 'T00:00:00');
-        const dayLabel = `${days[dayDt.getDay()]} ${months[dayDt.getMonth()]} ${dayDt.getDate()}`;
+        const dayLabel = `${days[dayDt.getDay()]} ${MONTH_NAMES[dayDt.getMonth()]} ${dayDt.getDate()}`;
         const dayDow = dayDt.getDay();
         const dayCap = (dayDow !== 0 && dayDow !== 6) ? tsCapacity : 0;
 
@@ -8316,7 +8312,7 @@ function renderTsCapacityBar(usedH, plannedH, capacityH, label) {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
       <span style="font-size:11px;font-weight:600;color:var(--text2);">${label}</span>
       <span style="font-size:11px;color:var(--text3);">
-        <span style="color:var(--text);font-weight:600;">${fmtQ(usedH)}h</span> logged
+        <span style="color:var(--text);font-weight:600;">${fmtQ(usedH)}h</span> logged${plannedH > 0 ? ' + ' + fmtQ(plannedH) + 'h planned' : ''}
         &nbsp;/&nbsp;${capacityH}h capacity
         &nbsp;·&nbsp;<span style="color:${labelColor};font-weight:700;">${statusText}</span>
       </span>
@@ -8388,8 +8384,6 @@ function _tsColHdr() {
 }
 
 function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) {
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const wEntries = allEntries.filter(e => e.date >= wStart && e.date <= wEnd);
 
   const byDay = {};
@@ -8410,7 +8404,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
     const d = new Date(date + 'T00:00:00');
     const dow = d.getDay();
     const isWorkday = dow !== 0 && dow !== 6;
-    const dayLabel = `${dayNames[dow]} ${months[d.getMonth()]} ${d.getDate()}`;
+    const dayLabel = `${DAY_NAMES[dow]} ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
     const dayLogged = rawItems.filter(i => i._isLogged).reduce((a, i) => a + i.actualHours, 0);
     const dayPlanned = rawItems.filter(i => i._isPlanned).reduce((a, i) => a + (i.hours || 0), 0);
     const dayTotal = dayLogged + dayPlanned;
@@ -8606,8 +8600,7 @@ function renderTimesheet() {
     // Shows all weeks in the current month; clicking a week expands entries inline
     const ms = tsMonthStart(tsAnchor);
     const mDate = new Date(ms + 'T00:00:00');
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const monthLabel = `${months[mDate.getMonth()]} ${mDate.getFullYear()}`;
+    const monthLabel = `${MONTH_NAMES[mDate.getMonth()]} ${mDate.getFullYear()}`;
     document.getElementById('tsPeriodLabel').textContent = monthLabel;
 
     const me = localDateStr(new Date(mDate.getFullYear(), mDate.getMonth() + 1, 0));
@@ -8634,10 +8627,9 @@ function renderTimesheet() {
       if (wStart > me) break;
 
       const wEntries = entries.filter(e => e.date >= wStart && e.date <= wEnd);
-      const wPlanned = plannedItems(wStart, wEnd).filter(p => fProj === 'all' || p.project === fProj);
+      const wPlanned = monthPlanned.filter(p => p.date >= wStart && p.date <= wEnd);
       const wUsed = wEntries.reduce((a, e) => a + e.actualHours, 0);
       const wPlannedH = wPlanned.reduce((a, p) => a + p.hours, 0);
-      const wTotal = wUsed + wPlannedH;
       const wCap = workingDays(wStart, wEnd) * tsCapacity;
       const wLoggedPct = Math.min(Math.round((wUsed / wCap) * 100), 100);
       const wBarColor = wUsed > wCap ? '#3b82f6' : wUsed >= wCap - 0.01 ? 'var(--success)' : 'var(--text3)';
@@ -8645,7 +8637,7 @@ function renderTimesheet() {
       const wStatusText = wUsed > wCap ? `+${fmtQ(wUsed - wCap)}H OVER` : wUsed >= wCap - 0.01 ? 'ON TARGET' : `${fmtQ(wCap - wUsed)}H LEFT`;
 
       const wsParts = wStart.split('-'), weParts = wEnd.split('-');
-      const wLabel = `${months[+wsParts[1]-1]} ${+wsParts[2]} – ${months[+weParts[1]-1]} ${+weParts[2]}`;
+      const wLabel = `${MONTH_NAMES[+wsParts[1]-1]} ${+wsParts[2]} – ${MONTH_NAMES[+weParts[1]-1]} ${+weParts[2]}`;
       const isOpen = tsExpandedWeeks.has(wStart);
 
       const row = document.createElement('div');
@@ -8686,8 +8678,6 @@ function renderTimesheet() {
     document.getElementById('tsPeriodLabel').textContent = String(year);
     document.getElementById('tsCapacityBar').style.display = 'none';
 
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
     // Auto-expand current month and current week in month view
     if (!_tsCurrentWeekAutoExpanded) {
       const curMonth = today().slice(0, 7);
@@ -8706,11 +8696,11 @@ function renderTimesheet() {
       const mPlanned = plannedItems(ms, me).filter(p => fProj === 'all' || p.project === fProj);
       const mUsed = mEntries.reduce((a, e) => a + e.actualHours, 0);
       const mPlannedH = mPlanned.reduce((a, p) => a + p.hours, 0);
-      const mTotal = mUsed + mPlannedH;
       const mCap = workingDays(ms, me) * tsCapacity;
-      const mPct = Math.min(Math.round((mTotal / mCap) * 100), 100);
-      const mCls = mTotal > mCap ? 'over' : mTotal > mCap * 0.8 ? 'warn' : 'ok';
-      const mStatusText = mTotal > mCap ? `+${fmtQ(mTotal - mCap)}h over` : `${fmtQ(mCap - mTotal)}h left`;
+      const mLoggedPct = Math.min(Math.round((mUsed / mCap) * 100), 100);
+      const mBarColor = mUsed > mCap ? '#3b82f6' : mUsed >= mCap - 0.01 ? 'var(--success)' : 'var(--text3)';
+      const mLabelColor = mUsed > mCap ? '#3b82f6' : mUsed >= mCap - 0.01 ? 'var(--success)' : 'var(--text)';
+      const mStatusText = mUsed > mCap ? `+${fmtQ(mUsed - mCap)}h over` : mUsed >= mCap - 0.01 ? 'ON TARGET' : `${fmtQ(mCap - mUsed)}h left`;
       const isMonthOpen = tsExpandedMonths.has(mKey);
 
       const mRow = document.createElement('div');
@@ -8721,14 +8711,14 @@ function renderTimesheet() {
         renderTimesheet();
       };
       mRow.innerHTML = `
-        <span class="ts-month-row-name">${months[mi]} ${year}</span>
+        <span class="ts-month-row-name">${MONTH_NAMES[mi]} ${year}</span>
         <div style="display:flex;align-items:center;gap:6px;">
           <div class="ts-cap-bar-wrap" style="flex:1;margin-top:0;">
-            <div class="ts-cap-bar-fill ${mCls}" style="width:${mPct}%;"></div>
+            <div style="width:${mLoggedPct}%;height:100%;border-radius:3px;background:${mBarColor};" class="ts-cap-bar-fill"></div>
           </div>
-          <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${mPct}%</span>
+          <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${mLoggedPct}%</span>
         </div>
-        <span style="font-size:10px;color:var(--text3);">${fmtQ(mUsed)}h logged${mPlannedH > 0 ? ' + ' + fmtQ(mPlannedH) + 'h planned' : ''} / ${mCap.toFixed(0)}h · <span style="color:${mCls === 'over' ? 'var(--danger)' : mCls === 'warn' ? 'var(--warn)' : 'var(--success)'};font-weight:700;">${mStatusText}</span></span>
+        <span style="font-size:10px;color:var(--text3);">${fmtQ(mUsed)}h logged${mPlannedH > 0 ? ' + ' + fmtQ(mPlannedH) + 'h planned' : ''} / ${mCap.toFixed(0)}h · <span style="color:${mLabelColor};font-weight:700;">${mStatusText}</span></span>
         <span class="ts-month-chevron${isMonthOpen ? ' open' : ''}">›</span>
       `;
       container.appendChild(mRow);
@@ -8746,16 +8736,16 @@ function renderTimesheet() {
           if (wStart > me) break;
 
           const wEntries = entries.filter(e => e.date >= wStart && e.date <= wEnd);
-          const wPlanned = plannedItems(wStart, wEnd).filter(p => fProj === 'all' || p.project === fProj);
+          const wPlanned = mPlanned.filter(p => p.date >= wStart && p.date <= wEnd);
           const wUsed = wEntries.reduce((a, e) => a + e.actualHours, 0);
           const wPlannedH = wPlanned.reduce((a, p) => a + p.hours, 0);
-          const wTotal = wUsed + wPlannedH;
           const wCap = workingDays(wStart, wEnd) * tsCapacity;
-          const wPct = Math.min(Math.round((wTotal / wCap) * 100), 100);
-          const wCls = wTotal > wCap ? 'over' : wTotal > wCap * 0.8 ? 'warn' : 'ok';
-          const wStatusText = wTotal > wCap ? `+${fmtQ(wTotal - wCap)}h over` : `${fmtQ(wCap - wTotal)}h left`;
+          const wLoggedPct = Math.min(Math.round((wUsed / wCap) * 100), 100);
+          const wBarColor = wUsed > wCap ? '#3b82f6' : wUsed >= wCap - 0.01 ? 'var(--success)' : 'var(--text3)';
+          const wLabelColor = wUsed > wCap ? '#3b82f6' : wUsed >= wCap - 0.01 ? 'var(--success)' : 'var(--text)';
+          const wStatusText = wUsed > wCap ? `+${fmtQ(wUsed - wCap)}h over` : wUsed >= wCap - 0.01 ? 'ON TARGET' : `${fmtQ(wCap - wUsed)}h left`;
           const wsParts = wStart.split('-'), weParts = wEnd.split('-');
-          const wLabel = `${months[+wsParts[1]-1]} ${+wsParts[2]} – ${months[+weParts[1]-1]} ${+weParts[2]}`;
+          const wLabel = `${MONTH_NAMES[+wsParts[1]-1]} ${+wsParts[2]} – ${MONTH_NAMES[+weParts[1]-1]} ${+weParts[2]}`;
           const isWeekOpen = tsMonthExpandedWeeks.has(wStart);
 
           const wRow = document.createElement('div');
@@ -8771,13 +8761,13 @@ function renderTimesheet() {
             <div>
               <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
                 <div class="ts-cap-bar-wrap" style="flex:1;">
-                  <div class="ts-cap-bar-fill ${wCls}" style="width:${wPct}%;"></div>
+                  <div style="width:${wLoggedPct}%;height:100%;border-radius:3px;background:${wBarColor};" class="ts-cap-bar-fill"></div>
                 </div>
-                <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${wPct}%</span>
+                <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${wLoggedPct}%</span>
               </div>
               <span style="font-size:10px;color:var(--text3);">${fmtQ(wUsed)}h logged${wPlannedH > 0 ? ' + ' + fmtQ(wPlannedH) + 'h planned' : ''} / ${wCap.toFixed(0)}h</span>
             </div>
-            <span class="ts-month-hours" style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};font-weight:700;">${wStatusText}</span>
+            <span class="ts-month-hours" style="color:${wLabelColor};font-weight:700;">${wStatusText}</span>
             <span class="ts-month-chevron${isWeekOpen ? ' open' : ''}">›</span>
           `;
           wrapEl.appendChild(wRow);
@@ -8797,8 +8787,6 @@ function renderTimesheet() {
     document.getElementById('tsCapacityBar').style.display = 'none';
 
     const todayStr = today();
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
     // Horizon: N weeks forward from today
     const horizonWeeks = parseInt(document.getElementById('tsPlannedHorizon')?.value || '13');
@@ -8858,7 +8846,7 @@ function renderTimesheet() {
         const remaining = Math.max(wCap - wHours, 0);
 
         const wsParts = wStart.split('-'), weParts = wEnd.split('-');
-        const wLabel = `${months[+wsParts[1]-1]} ${+wsParts[2]} – ${months[+weParts[1]-1]} ${+weParts[2]}`;
+        const wLabel = `${MONTH_NAMES[+wsParts[1]-1]} ${+wsParts[2]} – ${MONTH_NAMES[+weParts[1]-1]} ${+weParts[2]}`;
 
         // Week header with capacity bar
         const hdr = document.createElement('div');
@@ -8881,7 +8869,7 @@ function renderTimesheet() {
         // Items in this week, sorted by date
         items.sort((a, b) => a.date.localeCompare(b.date)).forEach(item => {
           const d = new Date(item.date + 'T00:00:00');
-          const dayLabel = `${dayNames[d.getDay()]} ${months[d.getMonth()]} ${d.getDate()}`;
+          const dayLabel = `${DAY_NAMES[d.getDay()]} ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
           const row = document.createElement('div');
           row.className = 'ts-entry-row';
           const editFn = item._taskId
@@ -9135,26 +9123,36 @@ function _toggleAllocPastMonths() {
 function allocYearPrev() { allocYear--; renderAllocations(); }
 function allocYearNext() { allocYear++; renderAllocations(); }
 
+// Cache for actuals lookup (cleared on data changes)
+let _actualsCache = null;
+
+function _getActualsIndex() {
+  if (_actualsCache) return _actualsCache;
+  const bySubCode = {};  // "projKey|scId|YYYY-MM" → hours
+  const byProject = {};  // "projKey|YYYY-MM" → hours (all sub-codes)
+  completed.forEach(c => {
+    const ym = (c.dateCompleted || '').slice(0, 7);
+    if (!ym) return;
+    const sc = c.subCode || '';
+    const scKey = c.project + '|' + sc + '|' + ym;
+    bySubCode[scKey] = (bySubCode[scKey] || 0) + (c.actualHours || 0);
+    const pKey = c.project + '|' + ym;
+    byProject[pKey] = (byProject[pKey] || 0) + (c.actualHours || 0);
+  });
+  _actualsCache = { bySubCode, byProject };
+  return _actualsCache;
+}
+
+function _invalidateActualsCache() { _actualsCache = null; }
+
 function allocGetActuals(projKey, scId, yearMonth) {
-  // Sum actual hours from completed entries matching project + subCode + month
-  return completed.reduce((sum, c) => {
-    if (c.project !== projKey) return sum;
-    const entrySubCode = c.subCode || '';
-    if (entrySubCode !== (scId || '')) return sum;
-    const entryMonth = (c.dateCompleted || '').slice(0, 7); // "YYYY-MM"
-    if (entryMonth !== yearMonth) return sum;
-    return sum + (c.actualHours || 0);
-  }, 0);
+  const idx = _getActualsIndex();
+  return idx.bySubCode[projKey + '|' + (scId || '') + '|' + yearMonth] || 0;
 }
 
 function allocGetAllProjectActuals(projKey, yearMonth) {
-  // Sum ALL actual hours for a project in a month (across all sub-codes)
-  return completed.reduce((sum, c) => {
-    if (c.project !== projKey) return sum;
-    const entryMonth = (c.dateCompleted || '').slice(0, 7);
-    if (entryMonth !== yearMonth) return sum;
-    return sum + (c.actualHours || 0);
-  }, 0);
+  const idx = _getActualsIndex();
+  return idx.byProject[projKey + '|' + yearMonth] || 0;
 }
 
 // Cache for expanded planned items per month (cleared on data changes)
@@ -12340,8 +12338,7 @@ function ctDaysUntil(dateStr) {
 function ctFmtMonth(ym) {
   if (!ym) return '';
   const [y, m] = ym.split('-');
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return months[parseInt(m, 10) - 1] + ' ' + y;
+  return MONTH_NAMES[parseInt(m, 10) - 1] + ' ' + y;
 }
 
 function ctEditLicenseDate(partnerId) {
