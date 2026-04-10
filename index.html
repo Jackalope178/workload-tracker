@@ -9487,10 +9487,9 @@ function _renderCapItemList(container, projKey, ym, data) {
     // Render items under this sub-code
     const sorted = [...items].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     sorted.forEach(item => {
-      const baseId = item.id.includes('_') ? item.id.split('_').slice(0, -1).join('_') : item.id;
       let editFn = '', delegateFn = '', moveFn = '', doneFn = '';
       if (item._src === 'task') {
-        const taskObj = tasks.find(t => t.id === baseId || t.id === item.id);
+        const taskObj = tasks.find(t => t.id === item.id || (item.id || '').startsWith(t.id + '_'));
         if (taskObj) {
           editFn = `openEditModal('${taskObj.id}')`;
           delegateFn = `capDelegateItem('task','${taskObj.id}')`;
@@ -9498,15 +9497,17 @@ function _renderCapItemList(container, projKey, ym, data) {
           doneFn = `openCompletionModal('${taskObj.id}')`;
         }
       } else if (item._src === 'session' && item._projId) {
-        editFn = `openEditSessionModal('${item._projId}','${baseId}')`;
-        delegateFn = `capDelegateItem('session','${item._projId}','${baseId}')`;
-        moveFn = `capMoveItem('session','${item._projId}','${baseId}')`;
-        doneFn = `openSessionCompletionModal('${item._projId}','${baseId}')`;
+        const srcId = _capResolveId(item.id, item._projId, 'session');
+        editFn = `openEditSessionModal('${item._projId}','${srcId}')`;
+        delegateFn = `capDelegateItem('session','${item._projId}','${srcId}')`;
+        moveFn = `capMoveItem('session','${item._projId}','${srcId}')`;
+        doneFn = `openSessionCompletionModal('${item._projId}','${srcId}')`;
       } else if (item._src === 'subtask' && item._projId) {
-        editFn = `openEditSubtaskModal('${item._projId}','${item._sessionId}','${baseId}')`;
-        delegateFn = `capDelegateItem('subtask','${item._projId}','${item._sessionId}','${baseId}')`;
-        moveFn = `capMoveItem('subtask','${item._projId}','${item._sessionId}','${baseId}')`;
-        doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${baseId}')`;
+        const srcId = _capResolveId(item.id, item._projId, 'subtask', item._sessionId);
+        editFn = `openEditSubtaskModal('${item._projId}','${item._sessionId}','${srcId}')`;
+        delegateFn = `capDelegateItem('subtask','${item._projId}','${item._sessionId}','${srcId}')`;
+        moveFn = `capMoveItem('subtask','${item._projId}','${item._sessionId}','${srcId}')`;
+        doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${srcId}')`;
       }
 
       const row = document.createElement('div');
@@ -9529,6 +9530,24 @@ function _renderCapItemList(container, projKey, ym, data) {
   });
 
   container.appendChild(list);
+}
+
+// Resolve a planned item ID back to its source session/subtask ID
+// (recurring items have composite IDs like "_abc123_2026-05-15")
+function _capResolveId(itemId, projId, type, sessionId) {
+  const proj = bigProjs.find(p => p.id === projId);
+  if (!proj) return itemId;
+  if (type === 'session') {
+    const s = proj.sessions.find(s => s.id === itemId || (itemId || '').startsWith(s.id + '_'));
+    return s ? s.id : itemId;
+  }
+  if (type === 'subtask' && sessionId) {
+    const sess = proj.sessions.find(s => s.id === sessionId);
+    if (!sess) return itemId;
+    const st = (sess.subtasks || []).find(st => st.id === itemId || (itemId || '').startsWith(st.id + '_'));
+    return st ? st.id : itemId;
+  }
+  return itemId;
 }
 
 // ── Capacity tab inline actions ──
