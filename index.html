@@ -9226,9 +9226,13 @@ function renderCapacity() {
   if (capInput && capInput.value != tsCapacity) capInput.value = tsCapacity;
 
   const todayYM = today().slice(0, 7);
+  const currentMonth = parseInt(todayYM.split('-')[1], 10); // 1-based
+  const currentYear = parseInt(todayYM.split('-')[0], 10);
+  // For current year, start from the current month; for future years show all 12
+  const startMonth = _capYear === currentYear ? currentMonth - 1 : (_capYear > currentYear ? 0 : 12);
   let totalLogged = 0, totalPlanned = 0, totalCap = 0;
 
-  for (let mi = 0; mi < 12; mi++) {
+  for (let mi = startMonth; mi < 12; mi++) {
     const ym = `${_capYear}-${String(mi + 1).padStart(2, '0')}`;
     const ms = ym + '-01';
     const me = localDateStr(new Date(_capYear, mi + 1, 0));
@@ -9244,7 +9248,6 @@ function renderCapacity() {
     const remaining = cap - total;
     const statusText = total > cap ? `+${fmtQ(total - cap)}h over` : `${fmtQ(Math.max(remaining, 0))}h free`;
     const statusColor = cls === 'over' ? 'var(--danger)' : cls === 'warn' ? 'var(--warn)' : 'var(--success)';
-    const isPast = ym < todayYM;
     const isExpanded = _capExpandedMonths.has(ym);
 
     totalLogged += logged;
@@ -9253,7 +9256,6 @@ function renderCapacity() {
 
     const row = document.createElement('div');
     row.className = 'cap-month-row' + (isExpanded ? ' expanded' : '');
-    if (isPast) row.style.opacity = '0.6';
     row.onclick = () => {
       if (_capExpandedMonths.has(ym)) _capExpandedMonths.delete(ym);
       else _capExpandedMonths.add(ym);
