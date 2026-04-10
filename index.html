@@ -9665,6 +9665,50 @@ function _getActualsIndex() {
 
 function _invalidateActualsCache() { _actualsCache = null; }
 
+// Find sub-code IDs that have logged hours or allocations but are no longer in proj.subCodes
+function _getOrphanedSubCodes(projKey, year) {
+  const idx = _getActualsIndex();
+  const knownIds = new Set((PROJECTS[projKey]?.subCodes || []).map(s => s.id));
+  const orphaned = {}; // scId → true
+  const prefix = projKey + '|';
+  // Scan actuals index
+  Object.keys(idx.bySubCode).forEach(key => {
+    if (!key.startsWith(prefix)) return;
+    const parts = key.split('|');
+    const scId = parts[1];
+    const ym = parts[2];
+    if (!scId || knownIds.has(scId)) return;
+    if (!ym.startsWith(String(year))) return;
+    orphaned[scId] = true;
+  });
+  // Scan allocations
+  Object.keys(allocations).forEach(key => {
+    if (!key.startsWith(prefix)) return;
+    const parts = key.split('|');
+    const scId = parts[1];
+    const ym = parts[2];
+    if (!scId || knownIds.has(scId)) return;
+    if (!ym.startsWith(String(year))) return;
+    orphaned[scId] = true;
+  });
+  return Object.keys(orphaned);
+}
+
+// Reactivate a discontinued sub-code — re-add it to project metadata
+function reactivateSubCode(projKey, scId) {
+  const proj = PROJECTS[projKey];
+  if (!proj) return;
+  if ((proj.subCodes || []).find(s => s.id === scId)) return; // already active
+  const label = prompt('Enter a label for this sub-code:');
+  if (!label) return;
+  if (!proj.subCodes) proj.subCodes = [];
+  const num = proj.subCodes.length + 1;
+  proj.subCodes.push({ id: scId, code: String(num), label: label });
+  saveProjects();
+  renderAllocations();
+  renderProjects();
+}
+
 function allocGetActuals(projKey, scId, yearMonth) {
   const idx = _getActualsIndex();
   return idx.bySubCode[projKey + '|' + (scId || '') + '|' + yearMonth] || 0;
@@ -10557,12 +10601,22 @@ function openAllocDrill(projKey, scId, yearMonth) {
   });
 
   // Build HTML — allocation summary header
-  const _aKey = scId ? allocKey(projKey, scId, yearMonth) : allocKey(projKey, '', yearMonth);
-  const _allocated = allocations[_aKey] || 0;
+  let _allocated;
+  if (matchAllSubs) {
+    // Sum allocations across all sub-codes for project-level view
+    _allocated = 0;
+    (proj.subCodes || []).forEach(sc => {
+      _allocated += allocations[allocKey(projKey, sc.id, yearMonth)] || 0;
+    });
+    _allocated += allocations[allocKey(projKey, '', yearMonth)] || 0;
+  } else {
+    const _aKey = scId ? allocKey(projKey, scId, yearMonth) : allocKey(projKey, '', yearMonth);
+    _allocated = allocations[_aKey] || 0;
+  }
   const _actual = scId ? allocGetActuals(projKey, scId, yearMonth) : allocGetAllProjectActuals(projKey, yearMonth);
   const _remaining = Math.max(_allocated - _actual, 0);
   const _roKey = projKey + '|' + (scId || '') + '|' + yearMonth;
-  const _rolloverAmt = _allocRollovers[_roKey] || 0;
+  const _rolloverAmt = matchAllSubs ? 0 : (_allocRollovers[_roKey] || 0);
   const _btAmt = _allocated - _rolloverAmt;
   const _currentYM = today().slice(0, 7);
   const _balance = _allocated - _actual; // positive = unspent, negative = overspent
@@ -10843,6 +10897,30 @@ function renderAllocations() {
         html += `<div style="font-size:11px;">${scAllocYTD > 0 ? scAllocYTD + 'h' : '—'}</div>`;
         if (scActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(scActualYTD)}h</div>`;
         if (scAllocYTD > 0) html += `<div class="alloc-pct ${scYtdClr}">${scYtdPct}%</div>`;
+        html += `</td></tr>`;
+      });
+
+      // Show discontinued (orphaned) sub-codes that still have logged hours or allocations
+      const orphanedIds = _getOrphanedSubCodes(projKey, allocYear);
+      orphanedIds.forEach(oScId => {
+        html += `<tr class="alloc-sc-row" style="opacity:0.5;"><td><span onclick="reactivateSubCode('${projKey}','${oScId}')" style="cursor:pointer;text-decoration:underline dotted;color:var(--text3);" title="Click to reactivate this sub-code">Discontinued</span></td>`;
+        let oScAllocYTD = 0, oScActualYTD = 0;
+        months.forEach((m, mi) => {
+          const oAlloc = allocations[allocKey(projKey, oScId, m.ym)] || 0;
+          const oActual = allocGetActuals(projKey, oScId, m.ym);
+          oScAllocYTD += oAlloc;
+          oScActualYTD += oActual;
+          html += `<td class="alloc-cell ${mCls(m.ym)}">`;
+          if (oActual > 0) {
+            html += `<div class="alloc-actual" style="font-size:10px;">${fmtQ(oActual)}h logged</div>`;
+          } else {
+            html += `<span style="color:var(--text3);font-size:10px;">—</span>`;
+          }
+          html += `</td>`;
+        });
+        html += `<td class="alloc-cell alloc-ytd-col">`;
+        if (oScAllocYTD > 0) html += `<div style="font-size:11px;">${oScAllocYTD}h</div>`;
+        if (oScActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(oScActualYTD)}h</div>`;
         html += `</td></tr>`;
       });
     }
