@@ -8773,11 +8773,11 @@ function renderTimesheet() {
       const mPlanned = plannedItems(ms, me).filter(p => fProj === 'all' || p.project === fProj);
       const mUsed = mEntries.reduce((a, e) => a + e.actualHours, 0);
       const mPlannedH = mPlanned.reduce((a, p) => a + p.hours, 0);
-      const mTotal = mUsed + mPlannedH;
       const mCap = workingDays(ms, me) * tsCapacity;
-      const mPct = Math.min(Math.round((mTotal / mCap) * 100), 100);
-      const mCls = mTotal > mCap ? 'over' : mTotal > mCap * 0.8 ? 'warn' : 'ok';
-      const mStatusText = mTotal > mCap ? `+${fmtQ(mTotal - mCap)}h over` : `${fmtQ(mCap - mTotal)}h left`;
+      const mLoggedPct = Math.min(Math.round((mUsed / mCap) * 100), 100);
+      const mBarColor = mUsed > mCap ? '#3b82f6' : mUsed >= mCap - 0.01 ? 'var(--success)' : 'var(--text3)';
+      const mLabelColor = mUsed > mCap ? '#3b82f6' : mUsed >= mCap - 0.01 ? 'var(--success)' : 'var(--text)';
+      const mStatusText = mUsed > mCap ? `+${fmtQ(mUsed - mCap)}h over` : mUsed >= mCap - 0.01 ? 'ON TARGET' : `${fmtQ(mCap - mUsed)}h left`;
       const isMonthOpen = tsExpandedMonths.has(mKey);
 
       const mRow = document.createElement('div');
@@ -8791,11 +8791,11 @@ function renderTimesheet() {
         <span class="ts-month-row-name">${MONTH_NAMES[mi]} ${year}</span>
         <div style="display:flex;align-items:center;gap:6px;">
           <div class="ts-cap-bar-wrap" style="flex:1;margin-top:0;">
-            <div class="ts-cap-bar-fill ${mCls}" style="width:${mPct}%;"></div>
+            <div style="width:${mLoggedPct}%;height:100%;border-radius:3px;background:${mBarColor};" class="ts-cap-bar-fill"></div>
           </div>
-          <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${mPct}%</span>
+          <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${mLoggedPct}%</span>
         </div>
-        <span style="font-size:10px;color:var(--text3);">${fmtQ(mUsed)}h logged${mPlannedH > 0 ? ' + ' + fmtQ(mPlannedH) + 'h planned' : ''} / ${mCap.toFixed(0)}h · <span style="color:${mCls === 'over' ? 'var(--danger)' : mCls === 'warn' ? 'var(--warn)' : 'var(--success)'};font-weight:700;">${mStatusText}</span></span>
+        <span style="font-size:10px;color:var(--text3);">${fmtQ(mUsed)}h logged${mPlannedH > 0 ? ' + ' + fmtQ(mPlannedH) + 'h planned' : ''} / ${mCap.toFixed(0)}h · <span style="color:${mLabelColor};font-weight:700;">${mStatusText}</span></span>
         <span class="ts-month-chevron${isMonthOpen ? ' open' : ''}">›</span>
       `;
       container.appendChild(mRow);
@@ -8816,11 +8816,11 @@ function renderTimesheet() {
           const wPlanned = mPlanned.filter(p => p.date >= wStart && p.date <= wEnd);
           const wUsed = wEntries.reduce((a, e) => a + e.actualHours, 0);
           const wPlannedH = wPlanned.reduce((a, p) => a + p.hours, 0);
-          const wTotal = wUsed + wPlannedH;
           const wCap = workingDays(wStart, wEnd) * tsCapacity;
-          const wPct = Math.min(Math.round((wTotal / wCap) * 100), 100);
-          const wCls = wTotal > wCap ? 'over' : wTotal > wCap * 0.8 ? 'warn' : 'ok';
-          const wStatusText = wTotal > wCap ? `+${fmtQ(wTotal - wCap)}h over` : `${fmtQ(wCap - wTotal)}h left`;
+          const wLoggedPct = Math.min(Math.round((wUsed / wCap) * 100), 100);
+          const wBarColor = wUsed > wCap ? '#3b82f6' : wUsed >= wCap - 0.01 ? 'var(--success)' : 'var(--text3)';
+          const wLabelColor = wUsed > wCap ? '#3b82f6' : wUsed >= wCap - 0.01 ? 'var(--success)' : 'var(--text)';
+          const wStatusText = wUsed > wCap ? `+${fmtQ(wUsed - wCap)}h over` : wUsed >= wCap - 0.01 ? 'ON TARGET' : `${fmtQ(wCap - wUsed)}h left`;
           const wsParts = wStart.split('-'), weParts = wEnd.split('-');
           const wLabel = `${MONTH_NAMES[+wsParts[1]-1]} ${+wsParts[2]} – ${MONTH_NAMES[+weParts[1]-1]} ${+weParts[2]}`;
           const isWeekOpen = tsMonthExpandedWeeks.has(wStart);
@@ -8838,13 +8838,13 @@ function renderTimesheet() {
             <div>
               <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
                 <div class="ts-cap-bar-wrap" style="flex:1;">
-                  <div class="ts-cap-bar-fill ${wCls}" style="width:${wPct}%;"></div>
+                  <div style="width:${wLoggedPct}%;height:100%;border-radius:3px;background:${wBarColor};" class="ts-cap-bar-fill"></div>
                 </div>
-                <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${wPct}%</span>
+                <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${wLoggedPct}%</span>
               </div>
               <span style="font-size:10px;color:var(--text3);">${fmtQ(wUsed)}h logged${wPlannedH > 0 ? ' + ' + fmtQ(wPlannedH) + 'h planned' : ''} / ${wCap.toFixed(0)}h</span>
             </div>
-            <span class="ts-month-hours" style="color:${wCls === 'over' ? 'var(--danger)' : wCls === 'warn' ? 'var(--warn)' : 'var(--success)'};font-weight:700;">${wStatusText}</span>
+            <span class="ts-month-hours" style="color:${wLabelColor};font-weight:700;">${wStatusText}</span>
             <span class="ts-month-chevron${isWeekOpen ? ' open' : ''}">›</span>
           `;
           wrapEl.appendChild(wRow);
