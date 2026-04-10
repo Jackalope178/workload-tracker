@@ -8199,6 +8199,7 @@ let tsCapacity = parseFloat(load('wt_ts_capacity', 8)) || 8;
 let tsExpandedWeeks = new Set();   // week-start strings that are expanded in week view
 let tsExpandedMonths = new Set();  // 'YYYY-MM' strings expanded in month view
 let tsCollapsedDays = new Set();   // date strings of collapsed day sections
+let _tsAutoCollapsedInit = new Set(); // dates already considered for auto-collapse (so manual toggles are respected)
 let _tsCurrentWeekAutoExpanded = false; // track if we've auto-expanded current week
 let tsMonthExpandedWeeks = new Set(); // week-start strings expanded inside month view
 
@@ -8503,6 +8504,15 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
   wEntries.forEach(e => { if (byDay[e.date]) byDay[e.date].push({ ...e, _isLogged: true }); });
   wPlanned.forEach(p => { if (byDay[p.date]) byDay[p.date].push({ ...p, _isPlanned: true }); });
 
+  // Auto-collapse past days (before today) on first encounter
+  const _today = today();
+  Object.keys(byDay).forEach(date => {
+    if (!_tsAutoCollapsedInit.has(date)) {
+      _tsAutoCollapsedInit.add(date);
+      if (date < _today) tsCollapsedDays.add(date);
+    }
+  });
+
   const wrap = document.createElement('div');
   wrap.className = 'ts-week-entries';
   let hasAny = false;
@@ -8528,15 +8538,13 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
     if (dayCap > 0) {
       const dayLoggedPct = Math.min(Math.round((dayLogged / dayCap) * 100), 100);
       const dayBarColor = dayLogged > dayCap ? '#3b82f6' : dayLogged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text3)';
-      const dayLabelColor = dayLogged > dayCap ? '#3b82f6' : dayLogged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text)';
-      const dayStatusText = dayLogged > dayCap ? `+${fmtQ(dayLogged - dayCap)}H OVER` : dayLogged >= dayCap - 0.01 ? 'ON TARGET' : `${fmtQ(dayCap - dayLogged)}H LEFT`;
-      dayCapHtml = `<div class="ts-day-cap" style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+      const dayHoursColor = dayLogged > dayCap ? '#3b82f6' : dayLogged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text)';
+      dayCapHtml = `<div class="ts-day-cap" style="display:flex;align-items:center;gap:8px;margin-left:auto;">
         <div class="ts-cap-bar-wrap" style="width:80px;margin-top:0;"><div style="width:${dayLoggedPct}%;height:100%;border-radius:3px;background:${dayBarColor};" class="ts-cap-bar-fill"></div></div>
-        <span style="font-size:9px;color:var(--text);white-space:nowrap;">${fmtQ(dayLogged)}H / ${dayCap}H</span>
-        <span style="font-size:9px;color:${dayLabelColor};white-space:nowrap;font-weight:700;">${dayStatusText}</span>
+        <span style="font-size:13px;color:${dayHoursColor};white-space:nowrap;font-weight:700;">${fmtQ(dayLogged)}H</span>
       </div>`;
     } else {
-      dayCapHtml = `<span class="ts-day-total">${dayLogged > 0 ? fmtQ(dayLogged) + 'h logged' : ''}</span>`;
+      dayCapHtml = `<span class="ts-day-total" style="font-size:13px;font-weight:700;">${dayLogged > 0 ? fmtQ(dayLogged) + 'H' : ''}</span>`;
     }
 
     const hdr = document.createElement('div');
