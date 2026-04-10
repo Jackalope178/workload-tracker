@@ -9220,7 +9220,7 @@ function exportTimesheetCSV() {
 // CAPACITY TAB
 // =============================================
 
-let _capYear = new Date().getFullYear();
+let _capYear = parseInt(today().split('-')[0], 10);
 let _capExpandedMonths = new Set();
 let _capExpandedProjects = new Set(); // keys: "YYYY-MM|projKey"
 
@@ -9292,6 +9292,11 @@ function renderCapacity() {
     if (isExpanded) {
       _renderCapMonthDetail(container, ym, ms, me, entries, planned, cap);
     }
+  }
+
+  if (startMonth >= 12) {
+    container.innerHTML = '<div class="cap-empty">No future months to plan. Use the year arrows to navigate forward.</div>';
+    return;
   }
 
   // Year summary
