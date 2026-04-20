@@ -13889,13 +13889,19 @@ function _ctSaveAndRender() {
   save('wt_contacts', contacts);
   // Contact tasks surface into My Tasks, Projects, Team Deliverables, Capacity,
   // and Timesheet — re-render those too so edits (delegation, due date,
-  // priority, etc.) from any tab propagate live.
-  renderContacts();
-  if (typeof renderTasks === 'function') renderTasks();
-  if (typeof renderProjects === 'function') renderProjects();
-  if (typeof renderTeam === 'function') renderTeam();
-  if (typeof renderCapacity === 'function') renderCapacity();
-  if (typeof renderTimesheet === 'function') renderTimesheet();
+  // priority, etc.) from any tab propagate live. Wrap each render in its own
+  // try/catch so a throw in one view can't abort the rest of the chain and
+  // leave the visible tab stale.
+  const _render = (name, fn) => {
+    try { if (typeof fn === 'function') fn(); }
+    catch (e) { console.error('[_ctSaveAndRender] ' + name + ' threw:', e); }
+  };
+  _render('renderContacts', typeof renderContacts === 'function' ? renderContacts : null);
+  _render('renderTasks', typeof renderTasks === 'function' ? renderTasks : null);
+  _render('renderProjects', typeof renderProjects === 'function' ? renderProjects : null);
+  _render('renderTeam', typeof renderTeam === 'function' ? renderTeam : null);
+  _render('renderCapacity', typeof renderCapacity === 'function' ? renderCapacity : null);
+  _render('renderTimesheet', typeof renderTimesheet === 'function' ? renderTimesheet : null);
 }
 
 // Inline edit: task name
@@ -13971,10 +13977,16 @@ function ctInlineEditDate(el, cid, sid, tid) {
   input.type = 'date';
   input.value = t.due || '';
   input.style.cssText = 'width:100%;max-width:110px;font-size:11px;padding:2px 3px;border:1px solid var(--accent);border-radius:3px;background:var(--bg);color:var(--text);';
-  function commit() { t.due = input.value || null; _ctSaveAndRender(); }
+  let committed = false;
+  function commit() {
+    if (committed) return;
+    committed = true;
+    t.due = input.value || null;
+    _ctSaveAndRender();
+  }
   input.addEventListener('blur', commit);
   input.addEventListener('change', commit);
-  input.addEventListener('keydown', e => { if (e.key === 'Escape') renderContacts(); });
+  input.addEventListener('keydown', e => { if (e.key === 'Escape') { committed = true; renderContacts(); } });
   el.textContent = '';
   el.appendChild(input);
   input.focus();
@@ -13991,9 +14003,15 @@ function ctInlineEditEst(el, cid, sid, tid) {
   input.step = '0.25';
   input.value = t.est || '';
   input.style.cssText = 'width:50px;font-size:12px;padding:2px 4px;border:1px solid var(--accent);border-radius:3px;background:var(--bg);color:var(--text);text-align:center;';
-  function commit() { t.est = parseFloat(input.value) || 0; _ctSaveAndRender(); }
+  let committed = false;
+  function commit() {
+    if (committed) return;
+    committed = true;
+    t.est = parseFloat(input.value) || 0;
+    _ctSaveAndRender();
+  }
   input.addEventListener('blur', commit);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') renderContacts(); });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { committed = true; renderContacts(); } });
   el.textContent = '';
   el.appendChild(input);
   input.focus();
