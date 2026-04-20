@@ -5648,7 +5648,11 @@ function renderTasks() {
 
   let visible = tasks.filter(t => !t.completed);
 
-  if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || t.notes?.toLowerCase().includes(search));
+  if (search) visible = visible.filter(t =>
+    t.name.toLowerCase().includes(search)
+    || t.notes?.toLowerCase().includes(search)
+    || t.waiting?.toLowerCase().includes(search)
+  );
   if (fDate !== 'all') visible = visible.filter(t => {
     const g = dateGroup(t.due);
     if (fDate === 'today') return g === 'today';
@@ -5696,13 +5700,22 @@ function renderTasks() {
       if (s.done) return;
       const delegatees = normDelegated(s.delegatedTo);
       if (delegatees.length && !delegatees.includes('Me')) return;
-      if (search && !s.desc.toLowerCase().includes(search) && !proj.name.toLowerCase().includes(search)) return;
+      const sMatch = !search
+        || s.desc.toLowerCase().includes(search)
+        || proj.name.toLowerCase().includes(search)
+        || s.waiting?.toLowerCase().includes(search);
+      if (!sMatch) return;
       allItems.push({ _type: 'session', s, proj, _date: s.date || (s.allocMonth ? s.allocMonth + '-01' : null) });
       (s.subtasks || []).forEach(st => {
         if (st.done) return;
         const stDel = normDelegated(st.delegatedTo);
         if (stDel.length && !stDel.includes('Me')) return;
-        if (search && !st.desc.toLowerCase().includes(search)) return;
+        if (search
+          && !st.desc.toLowerCase().includes(search)
+          && !s.desc.toLowerCase().includes(search)
+          && !proj.name.toLowerCase().includes(search)
+          && !(st.waiting || '').toLowerCase().includes(search)
+        ) return;
         allItems.push({ _type: 'subtask', st, s, proj, _date: st.date || (st.allocMonth ? st.allocMonth + '-01' : null) });
       });
     });
@@ -5714,7 +5727,13 @@ function renderTasks() {
     getContactTasks().forEach(ct => {
       if (ct.completed || !ct.due) return;
       if (fProj !== 'all' && ct.project !== fProj) return;
-      if (search && !ct.name.toLowerCase().includes(search) && !ct._partnerName.toLowerCase().includes(search)) return;
+      if (search
+        && !ct.name.toLowerCase().includes(search)
+        && !(ct._partnerName || '').toLowerCase().includes(search)
+        && !(ct._stageName || '').toLowerCase().includes(search)
+        && !(ct.waiting || '').toLowerCase().includes(search)
+        && !(ct.notes || '').toLowerCase().includes(search)
+      ) return;
       allItems.push({ _type: 'contact', ct, _date: ct.due || (ct.allocMonth ? ct.allocMonth + '-01' : null) });
     });
   }
