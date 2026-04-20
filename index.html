@@ -5712,6 +5712,9 @@ function renderTasks() {
   if (typeof getContactTasks === 'function') {
     getContactTasks().forEach(ct => {
       if (ct.completed || !ct.due) return;
+      // Hide from My Tasks if delegated to someone other than Me (mirrors session behavior)
+      const ctDel = normDelegated(ct.delegatedTo);
+      if (ctDel.length && !ctDel.includes('Me')) return;
       if (fProj !== 'all' && ct.project !== fProj) return;
       if (search && !ct.name.toLowerCase().includes(search) && !ct._partnerName.toLowerCase().includes(search)) return;
       allItems.push({ _type: 'contact', ct, _date: ct.due || (ct.allocMonth ? ct.allocMonth + '-01' : null) });
@@ -5866,7 +5869,7 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check${ct.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask('${ct._contactId}','${ct._stageId}','${ct._ctTaskId}',${!ct.completed})" style="cursor:pointer;"></div>
         <div class="project-dot" style="background:${pColor};" title="${projLabel(ct.project)}"></div>
-        <div class="task-name">${escHtml(ct.name)} <span style="font-size:10px;color:var(--text3);font-style:italic;">${escHtml(ct._orgName || ct._partnerName)}</span></div>
+        <div class="task-name">${escHtml(ct.name)} <span style="font-size:10px;color:var(--text3);font-style:italic;">${escHtml(ct._orgName || ct._partnerName)}</span>${delegateTagsHtml(ct.delegatedTo)}</div>
         <div class="task-recur-actions"></div>
         <span class="task-category" style="color:var(--text3);font-style:italic;">${escHtml(ct._stageName)}</span>
         <div>${priorityBadge(ct.priority || 'med')}</div>
@@ -7488,6 +7491,7 @@ function renderProjItemRow(item, projKey, scId) {
       <div class="session-desc" style="cursor:pointer;${ct.completed ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="ctOpenEditTaskModal('${ct._contactId}','${ct._stageId}','${ct._ctTaskId}')">
         ${escHtml(ct.name)}
         <span style="font-size:10px;color:var(--text3);font-style:italic;margin-left:4px;">${escHtml(ct._orgName || ct._partnerName)}</span>
+        ${delegateTagsHtml(ct.delegatedTo)}
         ${ct.waiting ? `<span class="task-waiting">⏳ ${escHtml(ct.waiting)}</span>` : ''}
       </div>
       <div>${priorityBadge(ct.priority || 'med')}</div>
@@ -7854,7 +7858,24 @@ function renderTeam() {
     });
   });
 
-  let allItems = [...teamItems.map(t => ({ ...t, owners: [t.owner] })), ...delegatedItems, ...delegatedTasks];
+  // Collect delegated contact (Customer Journey) tasks
+  const delegatedContactTasks = [];
+  if (typeof getContactTasks === 'function') {
+    getContactTasks().forEach(ct => {
+      const people = normDelegated(ct.delegatedTo);
+      if (!people.length) return;
+      delegatedContactTasks.push({
+        id: ct.id + '_ctdel',
+        name: ct.name, owners: people, owner: people.join(', '), project: ct.project,
+        due: ct.due, status: ct.completed ? 'complete' : (ct.status || 'need-delegate'),
+        _contactDelegated: true,
+        _contactId: ct._contactId, _stageId: ct._stageId, _ctTaskId: ct._ctTaskId,
+        _partnerName: ct._partnerName || ct._orgName
+      });
+    });
+  }
+
+  let allItems = [...teamItems.map(t => ({ ...t, owners: [t.owner] })), ...delegatedItems, ...delegatedTasks, ...delegatedContactTasks];
 
   // Populate person filter from all unique people
   const personSelect = document.getElementById('teamFilterPerson');
@@ -7974,6 +7995,16 @@ function renderTeam() {
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
         <span class="team-due ${dc}" style="cursor:pointer;" onclick="openDueDatePicker(this,'${item._taskId}')">${fmtDate(item.due)}</span>
         <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showDelegatedTaskStatusDropdown(event,'${item._taskId}')" style="cursor:pointer;" title="${STATUS_LABELS[item.status]||item.status}">${STATUS_LABELS[item.status]||item.status}</span>
+        `;
+    } else if (item._contactDelegated) {
+      const partner = item._partnerName ? `<span style="font-size:10px;color:var(--text3);font-style:italic;margin-left:4px;">${escHtml(item._partnerName)}</span>` : '';
+      row.innerHTML = `
+        <div class="team-task-name" onclick="ctOpenEditTaskModal('${item._contactId}','${item._stageId}','${item._ctTaskId}')">${escHtml(item.name)}${partner} <span class="delegate-tag" style="background:var(--bg3);color:var(--text3);font-size:9px;">journey</span></div>
+        ${ownerHtml}
+        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
+        <div class="project-dot" style="background:${projColor(item.project)};"></div>
+        <span class="team-due ${dc}">${fmtDate(item.due)}</span>
+        <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showDelegatedContactStatusDropdown(event,'${item._contactId}','${item._stageId}','${item._ctTaskId}')" style="cursor:pointer;" title="${STATUS_LABELS[item.status]||item.status}">${STATUS_LABELS[item.status]||item.status}</span>
         `;
     } else {
       row.innerHTML = `
@@ -11830,6 +11861,22 @@ function showDelegatedTaskStatusDropdown(e, taskId) {
   });
 }
 
+function showDelegatedContactStatusDropdown(e, contactId, stageId, taskId) {
+  e.stopPropagation();
+  const ref = ctFindTask('_ct_' + contactId + '_' + stageId + '_' + taskId);
+  if (!ref) return;
+  const t = ref.task;
+  const curStatus = t.completed ? 'complete' : (t.status || 'need-delegate');
+  showDropdown(e.currentTarget, STATUS_OPTS, curStatus, val => {
+    t.status = val;
+    t.completed = (val === 'complete');
+    if (val === 'complete' && !t.dateCompleted) t.dateCompleted = today();
+    if (val !== 'complete') t.dateCompleted = null;
+    _ctSaveAndRender();
+    renderTeam();
+  });
+}
+
 // =============================================
 // EDIT BIG PROJECT
 // =============================================
@@ -13120,7 +13167,7 @@ function getContactTasks() {
           name: t.name, project: t.project || stageDef.project || 'cwc',
           subCode: t.subCode || stageDef.subCode || '', priority: t.priority || 'med',
           due: t.due || null, allocMonth: t.allocMonth || null, est: t.est || 0, notes: t.notes || '',
-          waiting: t.waiting || '', delegatedTo: t.delegatedTo || null,
+          waiting: t.waiting || '', delegatedTo: t.delegatedTo || null, status: t.status || null,
           completed: t.completed || false, dateCompleted: t.dateCompleted || null,
           actualHours: t.actualHours || 0, timer: 0, timerStart: null,
           _partnerName: c.name, _orgName: c.name, _stageName: stageDef.label,
@@ -13843,12 +13890,13 @@ function _ctTask(cid, sid, tid) {
 
 function _ctSaveAndRender() {
   save('wt_contacts', contacts);
-  // Contact tasks surface into My Tasks, Projects, Capacity, and Timesheet —
-  // re-render those too so edits (delegation, due date, priority, etc.) from
-  // any tab propagate live instead of only refreshing the Contacts view.
+  // Contact tasks surface into My Tasks, Projects, Team Deliverables, Capacity,
+  // and Timesheet — re-render those too so edits (delegation, due date,
+  // priority, etc.) from any tab propagate live.
   renderContacts();
   if (typeof renderTasks === 'function') renderTasks();
   if (typeof renderProjects === 'function') renderProjects();
+  if (typeof renderTeam === 'function') renderTeam();
   if (typeof renderCapacity === 'function') renderCapacity();
   if (typeof renderTimesheet === 'function') renderTimesheet();
 }
