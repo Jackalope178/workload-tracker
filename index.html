@@ -13177,9 +13177,8 @@ function _ctToggleAssign(contactId, stageId, taskId, name) {
   if (current.includes(name)) current = current.filter(n => n !== name);
   else current.push(name);
   t.delegatedTo = current.length ? current : null;
-  save('wt_contacts', contacts);
   document.getElementById('assignDropdown').classList.remove('open');
-  renderContacts();
+  _ctSaveAndRender();
 }
 
 function ctCompleteTask(contactId, stageId, taskId, markCompleted) {
@@ -13195,8 +13194,7 @@ function ctCompleteTask(contactId, stageId, taskId, markCompleted) {
     t.dateCompleted = null;
     const idx = completed.findIndex(e => e.name === c.name + ': ' + t.name && e.project === (stageDef?.project || 'cwc'));
     if (idx !== -1) { completed.splice(idx, 1); save('wt_completed', completed); }
-    save('wt_contacts', contacts);
-    renderContacts();
+    _ctSaveAndRender();
     return;
   }
 
@@ -13845,7 +13843,14 @@ function _ctTask(cid, sid, tid) {
 
 function _ctSaveAndRender() {
   save('wt_contacts', contacts);
+  // Contact tasks surface into My Tasks, Projects, Capacity, and Timesheet —
+  // re-render those too so edits (delegation, due date, priority, etc.) from
+  // any tab propagate live instead of only refreshing the Contacts view.
   renderContacts();
+  if (typeof renderTasks === 'function') renderTasks();
+  if (typeof renderProjects === 'function') renderProjects();
+  if (typeof renderCapacity === 'function') renderCapacity();
+  if (typeof renderTimesheet === 'function') renderTimesheet();
 }
 
 // Inline edit: task name
