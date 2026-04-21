@@ -8854,19 +8854,34 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
         const first = group[0];
         const scLabel = first.subCode ? getSubCodeLabel(first.project, first.subCode) : '';
         const subtotal = group.reduce((a, i) => a + (i.actualHours || 0), 0);
+        const isSingle = group.length === 1;
 
-        // Sub-code header (always rendered now that parent is its own row)
+        // Sub-code header — shows the single entry inline when there's only one
         const subHdr = document.createElement('div');
         subHdr.className = 'ts-entry-row ts-subgroup-header';
         subHdr.style.paddingLeft = '52px';
-        subHdr.innerHTML = `
-          <span></span>
-          <span class="ts-entry-subcode" style="font-weight:700;">${scLabel || '—'}</span>
-          <span style="font-size:11px;color:var(--text3);">${group.length > 1 ? group.length + ' entries' : ''}</span>
-          <span class="ts-entry-hours" style="font-weight:700;">${fmtQ(subtotal)}h</span>
-          <div></div>
-        `;
+        if (isSingle) {
+          subHdr.innerHTML = `
+            <span></span>
+            <span class="ts-entry-subcode" style="font-weight:700;">${scLabel || '—'}</span>
+            <span class="ts-entry-name" onclick="openEditTsEntry('${first.id}')" style="text-transform:none;letter-spacing:normal;">${escHtml(first.name)}</span>
+            <span class="ts-entry-hours" style="font-weight:700;">${fmtQ(subtotal)}h</span>
+            <div class="ts-entry-actions">
+              <button class="row-edit-btn" onclick="deleteTsEntry('${first.id}')" title="Delete" style="color:var(--danger);">×</button>
+            </div>
+          `;
+        } else {
+          subHdr.innerHTML = `
+            <span></span>
+            <span class="ts-entry-subcode" style="font-weight:700;">${scLabel || '—'}</span>
+            <span style="font-size:11px;color:var(--text3);">${group.length} entries</span>
+            <span class="ts-entry-hours" style="font-weight:700;">${fmtQ(subtotal)}h</span>
+            <div></div>
+          `;
+        }
         wrap.appendChild(subHdr);
+
+        if (isSingle) return;
 
         group.forEach(item => {
           const row = document.createElement('div');
