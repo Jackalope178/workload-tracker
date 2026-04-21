@@ -1254,6 +1254,9 @@
   .ts-entry-row:hover { background: var(--bg3); }
   .ts-entry-row:hover .ts-entry-actions { opacity: 1; }
   .ts-group-header { background: var(--bg2); border-bottom: 1px solid var(--border2); }
+  .ts-subgroup-header { background: var(--bg2); border-top: 1px solid var(--border2); border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .ts-subgroup-header:hover { background: var(--bg2); }
+  .ts-subgroup-header .ts-entry-subcode { font-size: 11px; opacity: 1; letter-spacing: 0.4px; }
   .ts-entry-name { font-size: 12px; color: var(--text); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ts-entry-name:hover { color: var(--accent); }
   .ts-entry-planned { color: var(--text3); font-style: italic; }
@@ -8854,7 +8857,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
 
         // Sub-code header (always rendered now that parent is its own row)
         const subHdr = document.createElement('div');
-        subHdr.className = 'ts-entry-row';
+        subHdr.className = 'ts-entry-row ts-subgroup-header';
         subHdr.style.paddingLeft = '52px';
         subHdr.innerHTML = `
           <span></span>
