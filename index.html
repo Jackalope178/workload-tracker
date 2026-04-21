@@ -5620,11 +5620,11 @@ function _toggleSectionSort(sectionId, key) {
   renderTasks();
 }
 
-// Expanded future weeks (day view): Set of week-start date strings
-const _expandedWeeks = new Set();
+// Future weeks default to expanded (per-day view); this tracks explicit collapses
+const _collapsedWeeks = new Set();
 function _toggleWeekExpand(wk) {
-  if (_expandedWeeks.has(wk)) _expandedWeeks.delete(wk);
-  else _expandedWeeks.add(wk);
+  if (_collapsedWeeks.has(wk)) _collapsedWeeks.delete(wk);
+  else _collapsedWeeks.add(wk);
   renderTasks();
 }
 
@@ -6043,7 +6043,7 @@ function renderTasks() {
     const wkCapF = workingDays(wk, addDays(wk, 6)) * tsCapacity;
     const wkDates = [];
     for (let i = 0; i < 7; i++) { wkDates.push(addDays(wk, i)); }
-    const isExpanded = _expandedWeeks.has(wk);
+    const isExpanded = !_collapsedWeeks.has(wk);
     const chevron = `<span class="week-expand-chevron${isExpanded ? ' open' : ''}" onclick="_toggleWeekExpand('${wk}')" title="${isExpanded ? 'Collapse to week' : 'Expand to days'}">›</span>`;
     const wkLabel = `Week of ${MONTH_NAMES[dt.getMonth()]} ${dt.getDate()}`;
 
@@ -6093,11 +6093,12 @@ function renderTasks() {
       const sectionIdBase = 'tg_wk_' + wk.replace(/[^a-zA-Z0-9]/g, '_');
       wkDates.forEach(d => {
         const dayItems = dayMap[d] || [];
-        if (!dayItems.length) return;
         const dayDt = new Date(d + 'T00:00:00');
-        const dayLabel = `${days[dayDt.getDay()]} ${MONTH_NAMES[dayDt.getMonth()]} ${dayDt.getDate()}`;
         const dayDow = dayDt.getDay();
         const dayCap = (dayDow !== 0 && dayDow !== 6) ? tsCapacity : 0;
+        // Show every weekday for capacity visibility; skip only empty weekends
+        if (!dayItems.length && !dayCap) return;
+        const dayLabel = `${days[dayDt.getDay()]} ${MONTH_NAMES[dayDt.getMonth()]} ${dayDt.getDate()}`;
 
         // Day sub-header with capacity bar
         const dayHeader = document.createElement('div');
@@ -6129,6 +6130,8 @@ function renderTasks() {
 
         dayHeader.innerHTML = `${dayLabel} <span class="group-count">${dayItems.length}</span>${dayCapBar}`;
         weekWrapper.appendChild(dayHeader);
+
+        if (!dayItems.length) return;
 
         // Column header
         const sectionId = sectionIdBase + '_' + d;
