@@ -2849,6 +2849,7 @@ if (typeof XLSX === 'undefined') {
       <div class="form-row">
         <input class="form-input flex-1" type="text" id="newTaskNotes" placeholder="Notes (optional)">
         <button class="btn primary" onclick="addTask()">Add</button>
+        <button class="btn" onclick="logTaskDirectly()" style="background:var(--success);border-color:var(--success);color:#fff;" title="Skip the task list — log these hours straight to the timesheet">Log</button>
         <button class="btn" onclick="toggleAddForm()">Cancel</button>
       </div>
     </div>
@@ -6239,6 +6240,36 @@ function addTask() {
   onNewRecurChange();
   toggleAddForm();
   renderTasks();
+}
+
+function logTaskDirectly() {
+  const name = document.getElementById('newTaskName').value.trim();
+  if (!name) return _formError('newTaskName', 'Task name required.');
+  const hours = parseFloat(document.getElementById('newTaskEst').value);
+  if (!hours || hours <= 0) return _formError('newTaskEst', 'Hours required to log.');
+  const project = document.getElementById('newTaskProject').value || 'overhead';
+  const subCode = document.getElementById('newTaskSubCode').value || '';
+  const date = document.getElementById('newTaskDue').value || today();
+
+  completed.unshift({
+    id: uid(),
+    name, project, subCode,
+    dateCompleted: date,
+    estHours: hours,
+    actualHours: hours,
+    category: ''
+  });
+  save('wt_completed', completed);
+
+  ['newTaskName','newTaskDue','newTaskEst','newTaskWaiting','newTaskNotes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('nrType').value = ''; document.getElementById('nrEnd').value = '';
+  document.querySelectorAll('[name="nrDow"]').forEach(cb => { cb.checked = cb.value === '1'; });
+  onNewRecurChange();
+  toggleAddForm();
+  renderTasks();
+  renderTimesheet();
 }
 
 // =============================================
