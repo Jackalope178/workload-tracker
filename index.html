@@ -5964,9 +5964,9 @@ function renderTasks() {
       const loggedPct   = Math.min(Math.round((logged / dayCap) * 100), 100);
       const plannedPct  = Math.min(Math.round((total / dayCap) * 100), 100);
       const barColor = logged > dayCap ? '#3b82f6' : logged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text3)';
-      const labelColor = total > dayCap ? 'var(--danger)' : total >= dayCap - 0.01 ? 'var(--success)' : 'var(--text)';
-      const statusText = total > dayCap ? `+${fmtQ(total - dayCap)}H OVER` : total >= dayCap - 0.01 ? 'ON TARGET' : `${fmtQ(dayCap - total)}H LEFT`;
-      const hoursText = `${fmtQ(logged)}h${planned > 0 ? ` + ${fmtQ(planned)}h planned` : ''} / ${dayCap.toFixed(0)}h`;
+      const labelColor = logged > dayCap ? 'var(--danger)' : logged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text)';
+      const statusText = logged > dayCap ? `+${fmtQ(logged - dayCap)}H OVER` : logged >= dayCap - 0.01 ? 'ON TARGET' : `${fmtQ(dayCap - logged)}H LEFT`;
+      const hoursText = `${fmtQ(planned)}h planned / ${fmtQ(logged)}h logged`;
 
       capHtml = `
         <div style="padding:5px 8px;display:flex;align-items:center;gap:10px;background:var(--bg2);">
@@ -6066,9 +6066,9 @@ function renderTasks() {
         const loggedPct  = Math.min(Math.round((logged / wkCapF) * 100), 100);
         const plannedPct = Math.min(Math.round((total / wkCapF) * 100), 100);
         const barColor = logged > wkCapF ? '#3b82f6' : logged >= wkCapF - 0.01 ? 'var(--success)' : 'var(--text3)';
-        const labelColor = total > wkCapF ? 'var(--danger)' : total >= wkCapF - 0.01 ? 'var(--success)' : 'var(--text)';
-        const statusText = total > wkCapF ? `+${fmtQ(total - wkCapF)}H OVER` : total >= wkCapF - 0.01 ? 'ON TARGET' : `${fmtQ(wkCapF - total)}H LEFT`;
-        const hoursText = `${fmtQ(logged)}h${planned > 0 ? ` + ${fmtQ(planned)}h planned` : ''} / ${wkCapF.toFixed(0)}h`;
+        const labelColor = logged > wkCapF ? 'var(--danger)' : logged >= wkCapF - 0.01 ? 'var(--success)' : 'var(--text)';
+        const statusText = logged > wkCapF ? `+${fmtQ(logged - wkCapF)}H OVER` : logged >= wkCapF - 0.01 ? 'ON TARGET' : `${fmtQ(wkCapF - logged)}H LEFT`;
+        const hoursText = `${fmtQ(planned)}h planned / ${fmtQ(logged)}h logged`;
         wkCapHtml = `<div style="padding:5px 8px;display:flex;align-items:center;gap:10px;background:var(--bg2);">
           <div class="cap-bar-dual" style="flex:1;">
             <div class="cap-bar-planned-hint" style="width:${plannedPct}%;"></div>
@@ -6112,9 +6112,9 @@ function renderTasks() {
           const loggedPct  = Math.min(Math.round((dayLogged / dayCap) * 100), 100);
           const plannedPct = Math.min(Math.round((dayTotal / dayCap) * 100), 100);
           const barColor = dayLogged > dayCap ? '#3b82f6' : dayLogged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text3)';
-          const labelColor = dayTotal > dayCap ? 'var(--danger)' : dayTotal >= dayCap - 0.01 ? 'var(--success)' : 'var(--text)';
-          const statusText = dayTotal > dayCap ? `+${fmtQ(dayTotal - dayCap)}H OVER` : dayTotal >= dayCap - 0.01 ? 'ON TARGET' : `${fmtQ(dayCap - dayTotal)}H LEFT`;
-          const hoursText = `${fmtQ(dayLogged)}h${dayEst > 0 ? ` + ${fmtQ(dayEst)}h planned` : ''} / ${dayCap}h`;
+          const labelColor = dayLogged > dayCap ? 'var(--danger)' : dayLogged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text)';
+          const statusText = dayLogged > dayCap ? `+${fmtQ(dayLogged - dayCap)}H OVER` : dayLogged >= dayCap - 0.01 ? 'ON TARGET' : `${fmtQ(dayCap - dayLogged)}H LEFT`;
+          const hoursText = `${fmtQ(dayEst)}h planned / ${fmtQ(dayLogged)}h logged`;
 
           dayCapBar = `<div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
             <div class="cap-bar-dual" style="width:100px;">
