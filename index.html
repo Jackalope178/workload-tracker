@@ -8784,7 +8784,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
       logMeter.innerHTML = tsMeterHtml(dayLogged, 'logged', dayCap);
       wrap.appendChild(logMeter);
     }
-    if (hasLogged && hasPlanned) {
+    if (hasPlanned) {
       const div = document.createElement('div');
       div.style.cssText = 'padding-left:32px;display:flex;align-items:center;gap:8px;padding-top:4px;padding-bottom:4px;';
       div.innerHTML = '<div style="flex:1;border-top:1px dashed var(--border2);"></div><span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Outstanding</span><div style="flex:1;border-top:1px dashed var(--border2);"></div>'
