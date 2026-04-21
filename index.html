@@ -2855,14 +2855,18 @@ if (typeof XLSX === 'undefined') {
     </div>
 
     <div id="tasksCapBar" style="margin-bottom:10px;display:none;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-        <span style="font-size:11px;font-weight:600;color:var(--text2);" id="tasksCapLabel"></span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;cursor:pointer;" onclick="_toggleTasksCapLogged()" title="Show logged entries for this week">
+        <span style="font-size:11px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:6px;">
+          <span id="tasksCapChevron" class="week-expand-chevron">›</span>
+          <span id="tasksCapLabel"></span>
+        </span>
         <span style="font-size:11px;color:var(--text3);" id="tasksCapDetail"></span>
       </div>
       <div class="ts-cap-bar-wrap">
         <div id="tasksCapFillDone" class="ts-cap-bar-fill" style="width:0%;background:var(--success);opacity:0.35;position:absolute;left:0;top:0;bottom:0;border-radius:4px;"></div>
         <div id="tasksCapFill" class="ts-cap-bar-fill ok" style="width:0%;position:relative;z-index:1;"></div>
       </div>
+      <div id="tasksCapLoggedList" style="display:none;margin-top:8px;padding:8px 10px;background:var(--bg2);border-radius:6px;border:1px solid var(--border);"></div>
     </div>
     <div id="taskList"></div>
   </div>
@@ -5629,6 +5633,51 @@ function _toggleWeekExpand(wk) {
   renderTasks();
 }
 
+let _tasksCapLoggedExpanded = false;
+function _toggleTasksCapLogged() {
+  _tasksCapLoggedExpanded = !_tasksCapLoggedExpanded;
+  _renderTasksCapLoggedList();
+}
+
+function _renderTasksCapLoggedList() {
+  const box = document.getElementById('tasksCapLoggedList');
+  const chev = document.getElementById('tasksCapChevron');
+  if (!box) return;
+  if (chev) chev.classList.toggle('open', _tasksCapLoggedExpanded);
+  if (!_tasksCapLoggedExpanded) { box.style.display = 'none'; return; }
+  box.style.display = '';
+
+  const fProj = document.getElementById('filterProject')?.value || 'all';
+  const wkStart = startOfWeek();
+  const wkEnd   = endOfWeek();
+  const entries = completed
+    .filter(c => c.dateCompleted && c.dateCompleted >= wkStart && c.dateCompleted <= wkEnd)
+    .filter(c => fProj === 'all' || c.project === fProj)
+    .sort((a, b) => (a.dateCompleted || '').localeCompare(b.dateCompleted || ''));
+
+  if (!entries.length) {
+    box.innerHTML = '<div style="font-size:11px;color:var(--text3);text-align:center;padding:6px;">No logged entries this week.</div>';
+    return;
+  }
+
+  const rows = entries.map(e => {
+    const dt = new Date(e.dateCompleted + 'T00:00:00');
+    const dLabel = `${DAY_NAMES[dt.getDay()].slice(0,3)} ${MONTH_NAMES[dt.getMonth()]} ${dt.getDate()}`;
+    const code = projBillingCode(e.project) || projLabel(e.project);
+    const sc = e.subCode ? getSubCodeLabel(e.project, e.subCode) : '';
+    return `<div style="display:grid;grid-template-columns:90px 110px 110px 1fr 60px;gap:10px;align-items:center;font-size:11px;padding:3px 0;border-bottom:1px dashed var(--border);">
+      <span style="color:var(--text3);">${dLabel}</span>
+      <span style="color:var(--text2);">${escHtml(code)}</span>
+      <span style="color:var(--text3);">${escHtml(sc || '—')}</span>
+      <span>${escHtml(e.name || '')}</span>
+      <span style="text-align:right;font-weight:600;">${fmtQ(e.actualHours || 0)}h</span>
+    </div>`;
+  }).join('');
+
+  const total = entries.reduce((s, e) => s + (e.actualHours || 0), 0);
+  box.innerHTML = rows + `<div style="display:flex;justify-content:flex-end;gap:6px;font-size:11px;font-weight:700;padding-top:6px;"><span style="color:var(--text3);">Week total:</span> <span>${fmtQ(total)}h</span></div>`;
+}
+
 function priorityBadge(p) {
   const map = { urgent: ['Urgent', 'p-urgent'], high: ['High', 'p-high'], med: ['Med', 'p-med'], low: ['Low', 'p-low'], meeting: ['Meeting', 'p-meeting'] };
   const [label, cls] = map[p] || ['Med', 'p-med'];
@@ -5800,6 +5849,7 @@ function renderTasks() {
     fill.className = 'ts-cap-bar-fill';
     const doneFill = document.getElementById('tasksCapFillDone');
     if (doneFill) { doneFill.style.width = '0%'; }
+    _renderTasksCapLoggedList();
   }
 
   // ── bucket items ──
