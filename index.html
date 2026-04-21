@@ -8837,18 +8837,36 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
     parentGroups.forEach(pg => {
       const parentCode = projBillingCode(pg.parent) || projLabel(pg.parent);
       const parentTotal = pg.subGroups.reduce((a, g) => a + g.reduce((b, i) => b + (i.actualHours || 0), 0), 0);
+      // Collapse to one line when the parent has a single entry across all sub-codes
+      const parentIsSingle = pg.subGroups.length === 1 && pg.subGroups[0].length === 1;
 
       const parentHdr = document.createElement('div');
       parentHdr.className = 'ts-entry-row ts-group-header';
       parentHdr.style.paddingLeft = '32px';
-      parentHdr.innerHTML = `
-        <span class="ts-entry-code" title="${projLabel(pg.parent)}" style="font-weight:800;">${parentCode}</span>
-        <span></span>
-        <span></span>
-        <span class="ts-entry-hours" style="font-weight:800;">${fmtQ(parentTotal)}h</span>
-        <div></div>
-      `;
+      if (parentIsSingle) {
+        const only = pg.subGroups[0][0];
+        const scLabel = only.subCode ? getSubCodeLabel(only.project, only.subCode) : '';
+        parentHdr.innerHTML = `
+          <span class="ts-entry-code" title="${projLabel(pg.parent)}" style="font-weight:800;">${parentCode}</span>
+          <span class="ts-entry-subcode" style="font-weight:700;">${scLabel || '—'}</span>
+          <span class="ts-entry-name" onclick="openEditTsEntry('${only.id}')">${escHtml(only.name)}</span>
+          <span class="ts-entry-hours" style="font-weight:800;">${fmtQ(parentTotal)}h</span>
+          <div class="ts-entry-actions">
+            <button class="row-edit-btn" onclick="deleteTsEntry('${only.id}')" title="Delete" style="color:var(--danger);">×</button>
+          </div>
+        `;
+      } else {
+        parentHdr.innerHTML = `
+          <span class="ts-entry-code" title="${projLabel(pg.parent)}" style="font-weight:800;">${parentCode}</span>
+          <span></span>
+          <span></span>
+          <span class="ts-entry-hours" style="font-weight:800;">${fmtQ(parentTotal)}h</span>
+          <div></div>
+        `;
+      }
       wrap.appendChild(parentHdr);
+
+      if (parentIsSingle) return;
 
       pg.subGroups.forEach(group => {
         const first = group[0];
