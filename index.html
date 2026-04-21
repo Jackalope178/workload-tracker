@@ -3328,6 +3328,13 @@ if (typeof XLSX === 'undefined') {
         <label class="edit-label">Assign to <span style="font-weight:400;color:var(--text3);">(optional — appears in Team tab)</span></label>
         <div id="editTaskDelegateWrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
       </div>
+      <div class="edit-form-group full" id="editTimerRow" style="display:none;">
+        <label class="edit-label">Logged Time</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="editTimerValue" style="font-size:13px;color:var(--text2);font-family:monospace;">—</span>
+          <button type="button" class="btn" onclick="clearEditingTaskTimer()" style="color:var(--danger);border-color:var(--danger);padding:4px 10px;font-size:11px;">Clear Timer</button>
+        </div>
+      </div>
       <div class="edit-form-group full" style="margin-top:4px;padding-top:10px;border-top:1px solid var(--border);">
         <label class="edit-label">Repeats</label>
         <select class="edit-input" id="editRecurType" onchange="onRecurTypeChange()">
@@ -3626,6 +3633,13 @@ if (typeof XLSX === 'undefined') {
         <label class="edit-label">Assign to <span style="font-weight:400;color:var(--text3);">(optional — appears in Team tab)</span></label>
         <div id="editSessionDelegateWrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
         <div id="editSessionDelegateNote" style="font-size:11px;color:var(--text3);display:none;">No persons yet — add them from the Team Deliverables tab.</div>
+      </div>
+      <div class="edit-form-group full" id="editSessionTimerRow" style="display:none;">
+        <label class="edit-label">Logged Time</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="editSessionTimerValue" style="font-size:13px;color:var(--text2);font-family:monospace;">—</span>
+          <button type="button" class="btn" onclick="clearEditingSessionTimer()" style="color:var(--danger);border-color:var(--danger);padding:4px 10px;font-size:11px;">Clear Timer</button>
+        </div>
       </div>
       <div class="edit-form-group full" style="margin-top:4px;padding-top:10px;border-top:1px solid var(--border);">
         <label class="edit-label">Repeats</label>
@@ -6315,8 +6329,38 @@ function openEditModal(taskId) {
   document.getElementById('editRecurEndDate').value     = r.endDate || '';
   document.getElementById('editRecurWeekdayAdjust').checked = r.weekdayAdjust !== false;
   onRecurTypeChange();
+  _syncEditTaskTimerRow(task);
   document.getElementById('editDeleteBtn').style.display = '';
   document.getElementById('editTaskModal').classList.add('open');
+}
+
+function _syncEditTaskTimerRow(task) {
+  const row = document.getElementById('editTimerRow');
+  const val = document.getElementById('editTimerValue');
+  if (!row || !val) return;
+  const secs = (task?.timer || 0) + (task?.timerStart ? Math.floor((Date.now() - task.timerStart) / 1000) : 0);
+  if (task && (secs > 0 || task.timerStart)) {
+    row.style.display = '';
+    val.textContent = fmtSecs(secs) + (task.timerStart ? ' (running)' : '');
+  } else {
+    row.style.display = 'none';
+  }
+}
+
+function clearEditingTaskTimer() {
+  if (!editingTaskId || editingTaskId === '__new__') return;
+  const task = tasks.find(t => t.id === editingTaskId);
+  if (!task) return;
+  if (!task.timer && !task.timerStart) return;
+  if (!confirm('Clear logged time for this task? This cannot be undone.')) return;
+  task.timer = 0;
+  task.timerStart = null;
+  save('wt_tasks', tasks);
+  _ensureTickerRunning();
+  _syncEditTaskTimerRow(task);
+  renderTasks();
+  renderProjects();
+  updateActiveStrip();
 }
 
 function closeEditModal() {
@@ -12095,7 +12139,47 @@ function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting,
   // Show delete button only when editing an existing item
   const delBtn = document.getElementById('editSessionDeleteBtn');
   delBtn.style.display = sessionId ? '' : 'none';
+  _syncEditSessionTimerRow(_getEditingSessionTarget());
   document.getElementById('editSessionModal').classList.add('open');
+}
+
+function _getEditingSessionTarget() {
+  const proj = bigProjs.find(p => p.id === editingSessionProjId);
+  if (!proj || !editingSessionId) return null;
+  if (editingSubtaskMode) {
+    const parentS = proj.sessions.find(s => s.id === editingSubtaskParentSessionId);
+    return parentS && (parentS.subtasks || []).find(st => st.id === editingSessionId);
+  }
+  return proj.sessions.find(s => s.id === editingSessionId);
+}
+
+function _syncEditSessionTimerRow(target) {
+  const row = document.getElementById('editSessionTimerRow');
+  const val = document.getElementById('editSessionTimerValue');
+  if (!row || !val) return;
+  const secs = (target?.timer || 0) + (target?.timerStart ? Math.floor((Date.now() - target.timerStart) / 1000) : 0);
+  if (target && (secs > 0 || target.timerStart)) {
+    row.style.display = '';
+    val.textContent = fmtSecs(secs) + (target.timerStart ? ' (running)' : '');
+  } else {
+    row.style.display = 'none';
+  }
+}
+
+function clearEditingSessionTimer() {
+  const target = _getEditingSessionTarget();
+  if (!target) return;
+  if (!target.timer && !target.timerStart) return;
+  const label = editingSubtaskMode ? 'subtask' : 'work item';
+  if (!confirm(`Clear logged time for this ${label}? This cannot be undone.`)) return;
+  target.timer = 0;
+  target.timerStart = null;
+  save('wt_bigprojs', bigProjs);
+  _ensureTickerRunning();
+  _syncEditSessionTimerRow(target);
+  renderTasks();
+  renderProjects();
+  updateActiveStrip();
 }
 
 function openAddSessionModal(projId) {
