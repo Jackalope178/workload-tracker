@@ -5667,7 +5667,7 @@ function _renderTasksCapLoggedList() {
   }
 
   const rows = entries.map(e => {
-    const hrs = e.actualHours || e.estHours || 0;
+    const hrs = e.actualHours || 0;
     const dt = new Date(e.dateCompleted + 'T00:00:00');
     const dLabel = `${DAY_NAMES[dt.getDay()].slice(0,3)} ${MONTH_NAMES[dt.getMonth()]} ${dt.getDate()}`;
     const code = projBillingCode(e.project) || projLabel(e.project);
@@ -5681,7 +5681,7 @@ function _renderTasksCapLoggedList() {
     </div>`;
   }).join('');
 
-  const total = entries.reduce((s, e) => s + (e.actualHours || e.estHours || 0), 0);
+  const total = entries.reduce((s, e) => s + (e.actualHours || 0), 0);
   box.innerHTML = rows + `<div style="display:flex;justify-content:flex-end;gap:6px;font-size:11px;font-weight:700;padding-top:6px;"><span style="color:var(--text3);">Week total:</span> <span>${fmtQ(total)}h</span></div>`;
 }
 
@@ -5699,10 +5699,10 @@ function computeWeekCapacity(wkStart, wkEnd) {
   items.forEach(p => {
     planned += (p.hours || 0);
   });
-  // Completed items from the completed array (moved via completion modal)
+  // Completed items from the completed array — actual hours only, no estimate fallback
   completed.forEach(c => {
     if (c.dateCompleted && c.dateCompleted >= wkStart && c.dateCompleted <= wkEnd) {
-      done += (c.actualHours || c.estHours || 0);
+      done += (c.actualHours || 0);
     }
   });
   return { planned, done };
@@ -6007,15 +6007,14 @@ function renderTasks() {
     return sorted;
   }
 
-  // Get logged hours for a date range (from completed entries) — respects
-  // the active project filter and falls back to estHours so totals match
-  // computeWeekCapacity's "This week" bar
+  // Get logged hours for a date range (from completed entries) — actual
+  // hours only (no estimate fallback) so My Tasks matches the Timesheet
   function loggedHoursForDates(dates) {
     const dateSet = new Set(Array.isArray(dates) ? dates : [dates]);
     return completed.reduce((sum, c) => {
       if (!dateSet.has(c.dateCompleted)) return sum;
       if (fProj !== 'all' && c.project !== fProj) return sum;
-      return sum + (c.actualHours || c.estHours || 0);
+      return sum + (c.actualHours || 0);
     }, 0);
   }
 
