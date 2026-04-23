@@ -5452,6 +5452,29 @@ function adjustToWeekday(dateStr) {
   return localDateStr(d);
 }
 
+// Advance a recurring item's due date to the first upcoming non-skipped occurrence
+// on or after today. Returns the stored due/date unchanged if the item has no
+// recurrence, no due date, or if no upcoming occurrence exists (e.g. recurrence
+// has ended). Pure — does not mutate the passed task.
+function _nextUpcomingRecurrence(item, dueKey) {
+  const key = dueKey || 'due';
+  const seed = item[key];
+  if (!item.recurrence || !seed) return seed || '';
+  const todayStr = today();
+  if (seed >= todayStr) return seed;
+  const recurEnd = item.recurrence.endDate || null;
+  const skips = item.recurrence.skips || [];
+  let d = seed;
+  let iters = 0;
+  while (d && (d < todayStr || skips.includes(d)) && iters++ < 2000) {
+    const nxt = nextRecurrenceAfter(item, d);
+    if (!nxt) return seed;
+    if (recurEnd && nxt > recurEnd) return seed;
+    d = nxt;
+  }
+  return d || seed;
+}
+
 function nextRecurrenceAfter(task, fromDateStr) {
   if (!task.recurrence) return null;
   const { type, dayOfMonth, weekOfMonth } = task.recurrence;
@@ -6444,7 +6467,8 @@ function openEditModal(taskId) {
   document.getElementById('editProject').value = task.project;
   populateSubCodeSelect('editSubCode', task.project, task.subCode || '');
   document.getElementById('editPriority').value = task.priority;
-  document.getElementById('editDue').value = task.due || '';
+  // For recurring tasks, show the next upcoming occurrence instead of the stale seed date
+  document.getElementById('editDue').value = _nextUpcomingRecurrence(task);
   document.getElementById('editAllocMonth').value = task.allocMonth || '';
   document.getElementById('editEst').value = task.est || '';
   // category removed from UI
