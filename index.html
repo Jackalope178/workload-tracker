@@ -905,7 +905,7 @@
   .subcode-header .subcode-chevron.open { transform: rotate(90deg); }
   .subcode-count { font-size: 10px; font-weight: 400; color: var(--text3); margin-left: auto; }
   .subcode-alloc-meter {
-    display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 400; color: var(--text3);
+    display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 400; color: var(--text3);
     margin-left: 8px; white-space: nowrap;
   }
   .subcode-alloc-bar {
@@ -916,11 +916,11 @@
     position: absolute; top: 0; left: 0; height: 100%; transition: width 0.3s;
   }
   .subcode-alloc-labels {
-    display: flex; gap: 8px; font-size: 9px; white-space: nowrap;
+    display: flex; gap: 8px; font-size: 11px; white-space: nowrap;
   }
   .subcode-alloc-labels span { opacity: 0.9; }
   .subcode-alloc-nav {
-    background: none; border: none; color: var(--text3); cursor: pointer; font-size: 9px; padding: 0 2px;
+    background: none; border: none; color: var(--text3); cursor: pointer; font-size: 11px; padding: 0 2px;
   }
   .subcode-alloc-nav:hover { color: var(--text); }
   .subcode-stale-badge {
@@ -7494,17 +7494,30 @@ function renderProjCodeContent(projKey) {
       const isStale = _staleSubCodes.has(projKey + '|' + sec.scId);
 
       if (allocHrs > 0 || loggedHrs > 0 || plannedHrs > 0 || isStale) {
+        const _loggedRatio = allocHrs > 0 ? Math.round((loggedHrs / allocHrs) * 100) : 0;
+        const _totalRatio  = allocHrs > 0 ? Math.round((totalWork  / allocHrs) * 100) : 0;
+        const _totalOver   = allocHrs > 0 && totalWork > allocHrs;
+        const _totalColor  = _totalOver ? 'var(--danger)' : 'var(--accent)';
+        const _barTip = allocHrs > 0
+          ? `${fmtQ(loggedHrs)}h logged + ${fmtQ(plannedHrs)}h planned = ${fmtQ(totalWork)}h of ${allocHrs}h allocated (${_totalRatio}%)`
+          : `${fmtQ(loggedHrs)}h logged + ${fmtQ(plannedHrs)}h planned = ${fmtQ(totalWork)}h (no allocation set)`;
+        const _loggedTip = allocHrs > 0
+          ? `${fmtQ(loggedHrs)}h logged of ${allocHrs}h allocated (${_loggedRatio}%)`
+          : `${fmtQ(loggedHrs)}h logged (no allocation set)`;
+        const _totalTip = allocHrs > 0
+          ? `${fmtQ(totalWork)}h committed (${fmtQ(loggedHrs)}h logged + ${fmtQ(plannedHrs)}h planned) of ${allocHrs}h allocated (${_totalRatio}%)`
+          : `${fmtQ(totalWork)}h committed (${fmtQ(loggedHrs)}h logged + ${fmtQ(plannedHrs)}h planned), no allocation set`;
         meterHtml = `<span class="subcode-alloc-meter" onclick="event.stopPropagation();">
           <button class="subcode-alloc-nav" onclick="event.stopPropagation();_shiftProjAllocMonth('${projKey}',-1)" title="Previous month">‹</button>
           <span>${mLabel}</span>
           <button class="subcode-alloc-nav" onclick="event.stopPropagation();_shiftProjAllocMonth('${projKey}',1)" title="Next month">›</button>
-          <span class="subcode-alloc-bar" title="Blue=planned, Green=logged${allocHrs ? ', of ' + allocHrs + 'h allocated' : ''}">
+          <span class="subcode-alloc-bar" title="${_barTip}">
             <span class="subcode-alloc-fill" style="width:${totalPct}%;background:${plannedColor};border-radius:4px;opacity:0.4;z-index:1;"></span>
             <span class="subcode-alloc-fill" style="width:${loggedPct}%;background:${loggedColor};border-radius:4px;z-index:2;"></span>
           </span>
           <span class="subcode-alloc-labels">
-            <span style="color:${loggedColor};" title="Logged hours / allocated">${fmtQ(loggedHrs)}/${allocHrs}h</span>
-            <span style="color:var(--accent);opacity:0.7;" title="Logged + planned / allocated">${fmtQ(totalWork)}/${allocHrs}h</span>
+            <span style="color:${loggedColor};" title="${_loggedTip}">${fmtQ(loggedHrs)}/${allocHrs}h</span>
+            <span style="color:${_totalColor};opacity:0.7;" title="${_totalTip}">${fmtQ(totalWork)}/${allocHrs}h</span>
           </span>
           ${isStale ? `<span class="subcode-stale-badge" style="cursor:pointer;" onclick="event.stopPropagation();_dismissStale('${projKey}','${sec.scId}')" title="Click to dismiss — not in latest allocation import">unallocated ✕</span>` : ''}
         </span>`;
