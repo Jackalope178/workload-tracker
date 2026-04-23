@@ -10850,7 +10850,8 @@ function handleAllocImport(event) {
       header.forEach((val, idx) => {
         const s = String(val || '').trim();
         if (/^job\b/i.test(s)) jobCol = idx;
-        else if (/^task\b/i.test(s)) taskCol = idx;
+        // Match only "Task" or "Task Name" — NOT "Task Priority", "Task Status", etc.
+        else if (/^task(\s*name)?$/i.test(s)) taskCol = idx;
         else {
           const ym = _parseMonthHeader(s);
           if (ym) monthCols[idx] = ym;
