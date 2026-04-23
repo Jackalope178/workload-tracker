@@ -10779,6 +10779,7 @@ function _aipComputePreserved(plan) {
         projKey: pk,
         scId: sc,
         projLabel: proj?.label || pk,
+        billingCode: proj?.billingCode || '',
         label: scRec?.label || sc,
         cells: []
       });
@@ -11040,7 +11041,8 @@ function _aipRenderRow(row, idx) {
     return `<span style="padding:2px 6px;border-radius:3px;color:var(--text2);font-size:11px;">${ml}: ${c.val}h</span>`;
   }).join(' ');
 
-  const projSuffix = row.projIsNew && row.billingCode ? ` <span style="color:var(--text3);font-weight:400;">(${_aipEsc(row.billingCode)})</span>` : '';
+  const effectiveBillingCode = row.projIsNew ? row.billingCode : (PROJECTS[row.projKey]?.billingCode || '');
+  const projSuffix = effectiveBillingCode ? ` <span style="color:var(--text3);font-weight:400;">${_aipEsc(effectiveBillingCode)}</span>` : '';
 
   return `
     <div style="border:1px solid var(--border);border-left:3px solid ${badgeColor};border-radius:4px;padding:8px 10px;margin-bottom:6px;background:var(--bg);font-size:12px;">
@@ -11071,7 +11073,7 @@ function _aipRenderPreserved(p, action) {
         <input type="checkbox" ${willKeep ? 'checked' : ''} onchange="_aipTogglePreserved('${_aipEsc(p.combo)}', this.checked)" style="cursor:pointer;">
         <span style="color:${actionColor};font-size:10px;text-transform:uppercase;letter-spacing:0.3px;">${willKeep ? 'Keep' : 'Clear'}</span>
       </label>
-      <span style="${strikeTi}"><strong>${_aipEsc(p.projLabel)}</strong> → ${_aipEsc(p.label)}</span>
+      <span style="${strikeTi}"><strong>${_aipEsc(p.projLabel)}</strong>${p.billingCode ? ` <span style="color:var(--text3);font-weight:400;">${_aipEsc(p.billingCode)}</span>` : ''} → ${_aipEsc(p.label)}</span>
       <span style="color:var(--text3);font-size:11px;margin-left:auto;${strikeTi}">${monthsText}</span>
     </div>
   `;
