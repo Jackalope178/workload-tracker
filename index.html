@@ -3940,6 +3940,19 @@ if (typeof XLSX === 'undefined') {
     </div>
   </div>
 </div>
+<!-- ALLOCATION IMPORT PREVIEW MODAL -->
+<div class="modal-overlay" id="allocImportPreviewModal" style="display:none;">
+  <div class="modal" style="width:920px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;padding:20px 24px;">
+    <div class="modal-title">Import Preview</div>
+    <div class="modal-subtitle" id="aipSummary" style="margin-bottom:12px;"></div>
+    <div id="aipBody" style="overflow-y:auto;flex:1;padding-right:4px;margin:0 -4px;"></div>
+    <div class="modal-actions" style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px;">
+      <button class="btn" onclick="_cancelAllocImportPlan()">Cancel</button>
+      <button class="btn primary" onclick="_commitAllocImportPlan()">Commit Import</button>
+    </div>
+  </div>
+</div>
+
 <!-- WELCOME OVERLAY (first-time only) -->
 <div class="welcome-overlay" id="welcomeOverlay" style="display:none;">
   <div class="welcome-card">
@@ -10208,6 +10221,59 @@ function _ensureSubCode(projKey, code, label) {
   return newId;
 }
 
+// Pure match: find project key without creating, returns null if no match
+function _matchProject(billingCode, jobLabel) {
+  const normCode = _normBillingCode(billingCode);
+  const normLabel = _normLabel(jobLabel);
+  if (billingCode) {
+    for (const [key, proj] of Object.entries(PROJECTS)) {
+      if (proj.billingCode && _normBillingCode(proj.billingCode) === normCode) return key;
+    }
+  }
+  if (jobLabel) {
+    for (const [key, proj] of Object.entries(PROJECTS)) {
+      if (_normLabel(proj.label) === normLabel) return key;
+    }
+  }
+  if (jobLabel && jobLabel.length >= 4) {
+    for (const [key, proj] of Object.entries(PROJECTS)) {
+      const pn = _normLabel(proj.label);
+      if (pn && (pn.includes(normLabel) || normLabel.includes(pn))) return key;
+    }
+  }
+  return null;
+}
+
+// Pure match: find sub-code without creating, returns { scId, matchType }
+function _matchSubCode(projKey, label) {
+  if (!PROJECTS[projKey]) return { scId: null, matchType: 'new' };
+  const scs = PROJECTS[projKey].subCodes || [];
+  const normLbl = _normLabel(label);
+  let existing = scs.find(s => s.label.toLowerCase() === label.toLowerCase());
+  if (existing) return { scId: existing.id, matchType: 'exact' };
+  existing = scs.find(s => _normLabel(s.label) === normLbl);
+  if (existing) return { scId: existing.id, matchType: 'normalized' };
+  if (normLbl.length >= 4) {
+    existing = scs.find(s => {
+      const sn = _normLabel(s.label);
+      return sn && (sn.includes(normLbl) || normLbl.includes(sn));
+    });
+    if (existing) return { scId: existing.id, matchType: 'contains' };
+  }
+  return { scId: null, matchType: 'new' };
+}
+
+// Force-create a sub-code with no matching (used when user explicitly chose "Create new")
+function _createSubCode(projKey, label) {
+  if (!PROJECTS[projKey]) return '';
+  if (!PROJECTS[projKey].subCodes) PROJECTS[projKey].subCodes = [];
+  const scs = PROJECTS[projKey].subCodes;
+  const newId = uid();
+  const num = scs.length + 1;
+  scs.push({ id: newId, code: String(num), label: label });
+  return newId;
+}
+
 // ── Duplicate decision memory ──
 // Stores pairs the user has already reviewed: { "keyA|keyB": "keep" | "merge" }
 let _dupDecisions = load('wt_dup_decisions', {});
@@ -10588,6 +10654,146 @@ function _scMgrRestore(projKey, oScId) {
 }
 
 let _allocImportUndo = null;
+// Pending import plan shown in the preview modal. Cleared on commit or cancel.
+let _allocImportPlan = null;
+
+// Pure plan builder: takes parsed spreadsheet data, returns a non-mutating plan.
+// Does not touch allocations, PROJECTS, or projOrder.
+function _buildAllocImportPlan(rows, jobCol, taskCol, monthCols) {
+  const currentYM = today().slice(0, 7);
+  const importMonthsSet = new Set(
+    Object.values(monthCols).filter(ym => ym >= currentYM)
+  );
+
+  const plan = {
+    importMonths: [...importMonthsSet].sort(),
+    importMonthsSet,
+    rows: [],
+    preservedActionsByCombo: {} // 'projKey|scId' → 'keep' | 'clear' (default keep)
+  };
+
+  let rowCounter = 0;
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const jobRaw = row[jobCol];
+    if (!jobRaw) continue;
+
+    const { code: billingCode, label: jobLabel } = _parseBillingCode(jobRaw);
+    const taskName = taskCol !== -1 ? String(row[taskCol] || '').trim() : '';
+    if (!billingCode && !taskName) continue; // grand totals row
+
+    const matchedProjKey = _matchProject(billingCode, jobLabel);
+    const projIsNew = !matchedProjKey;
+    const projLabelDisplay = matchedProjKey
+      ? PROJECTS[matchedProjKey].label
+      : (jobLabel || billingCode);
+
+    let scMatch = { scId: null, matchType: taskName ? 'new' : 'none' };
+    if (taskName && matchedProjKey) {
+      scMatch = _matchSubCode(matchedProjKey, taskName);
+    }
+    const scIsNew = taskName ? !scMatch.scId : false;
+    const matchedSc = scMatch.scId && matchedProjKey
+      ? (PROJECTS[matchedProjKey].subCodes || []).find(s => s.id === scMatch.scId)
+      : null;
+    const scLabelDisplay = matchedSc ? matchedSc.label : taskName;
+
+    const availableSubCodes = matchedProjKey
+      ? (PROJECTS[matchedProjKey].subCodes || []).map(s => ({ id: s.id, label: s.label }))
+      : [];
+
+    // Parse cells for current + future months only
+    const cells = [];
+    Object.entries(monthCols).forEach(([colIdx, ym]) => {
+      if (ym < currentYM) return;
+      const val = row[Number(colIdx)];
+      if (val === null || val === undefined || val === '') return;
+      if (isNaN(Number(val))) return;
+      cells.push({ ym, val: Number(val) });
+    });
+
+    // Skip rows with no imported-month cells
+    if (cells.length === 0) continue;
+
+    plan.rows.push({
+      id: 'aiprow_' + rowCounter,
+      jobRaw: String(jobRaw),
+      billingCode,
+      jobLabel,
+      taskName,
+      projKey: matchedProjKey,      // null if project is new
+      projIsNew,
+      projLabelDisplay,
+      scId: scMatch.scId,            // null if sub-code will be created
+      scIsNew,
+      scMatchType: scMatch.matchType, // 'exact' | 'normalized' | 'contains' | 'new' | 'none'
+      scLabelDisplay,
+      availableSubCodes,
+      userOverride: null,            // null | 'create-new' | <existingScId>
+      cells
+    });
+    rowCounter++;
+  }
+
+  return plan;
+}
+
+// Resolve the effective sub-code for a row, honoring user override.
+// Returns { scId: string|null, isNew: bool, label: string }
+function _aipResolveRow(row) {
+  if (row.userOverride === 'create-new') {
+    return { scId: null, isNew: true, label: row.taskName };
+  }
+  if (row.userOverride) {
+    const proj = PROJECTS[row.projKey];
+    const sc = (proj?.subCodes || []).find(s => s.id === row.userOverride);
+    return { scId: row.userOverride, isNew: false, label: sc?.label || row.taskName };
+  }
+  return { scId: row.scId, isNew: row.scIsNew, label: row.scLabelDisplay };
+}
+
+// Compute preservation list: existing sub-codes with non-zero allocations in import
+// months that will NOT be written to by any row in the plan. Honors user overrides.
+function _aipComputePreserved(plan) {
+  const importedCombos = new Set();
+  plan.rows.forEach(r => {
+    if (r.projIsNew) return; // new project → can't collide with existing alloc
+    const resolved = _aipResolveRow(r);
+    if (resolved.scId) importedCombos.add(r.projKey + '|' + resolved.scId);
+    // If resolved.isNew (create-new), the new sub-code won't clash with anything existing,
+    // so we don't add to importedCombos — preservation still lists the old one.
+  });
+
+  const byCombo = new Map();
+  Object.keys(allocations).forEach(key => {
+    const [pk, sc, ym] = key.split('|');
+    if (!plan.importMonthsSet.has(ym) || !sc) return;
+    if (allocations[key] <= 0) return;
+    const combo = pk + '|' + sc;
+    if (importedCombos.has(combo)) return;
+    if (!byCombo.has(combo)) {
+      const proj = PROJECTS[pk];
+      const scRec = (proj?.subCodes || []).find(s => s.id === sc);
+      byCombo.set(combo, {
+        combo,
+        projKey: pk,
+        scId: sc,
+        projLabel: proj?.label || pk,
+        label: scRec?.label || sc,
+        cells: []
+      });
+    }
+    byCombo.get(combo).cells.push({ ym, val: allocations[key] });
+  });
+
+  const list = [...byCombo.values()];
+  list.forEach(e => e.cells.sort((a, b) => a.ym.localeCompare(b.ym)));
+  list.sort((a, b) => {
+    if (a.projLabel !== b.projLabel) return a.projLabel.localeCompare(b.projLabel);
+    return a.label.localeCompare(b.label);
+  });
+  return list;
+}
 
 function _undoAllocImport() {
   if (!_allocImportUndo) return;
@@ -10639,16 +10845,12 @@ function handleAllocImport(event) {
       // Parse header row — find month columns
       const header = rows[0];
       const monthCols = {}; // colIndex → 'YYYY-MM'
-      let jobCol = -1, taskCol = -1, totalCol = -1, priorityCol = -1, billingStatusCol = -1, prodStatusCol = -1;
+      let jobCol = -1, taskCol = -1;
 
       header.forEach((val, idx) => {
         const s = String(val || '').trim();
         if (/^job\b/i.test(s)) jobCol = idx;
         else if (/^task\b/i.test(s)) taskCol = idx;
-        else if (/^total/i.test(s)) totalCol = idx;
-        else if (/^task\s*priority/i.test(s)) priorityCol = idx;
-        else if (/^billing\s*status/i.test(s)) billingStatusCol = idx;
-        else if (/^production\s*status/i.test(s)) prodStatusCol = idx;
         else {
           const ym = _parseMonthHeader(s);
           if (ym) monthCols[idx] = ym;
@@ -10658,199 +10860,16 @@ function handleAllocImport(event) {
       if (jobCol === -1) throw new Error('Could not find "Job" column in header row.');
       if (Object.keys(monthCols).length === 0) throw new Error('Could not find any month columns (e.g. "MAR 2026").');
 
-      // Snapshot state BEFORE any mutation so Undo can restore the true pre-import state
-      const prevAllocations = JSON.parse(JSON.stringify(allocations));
-      const prevPROJECTS = JSON.parse(JSON.stringify(PROJECTS));
-      const prevProjOrder = [...projOrder];
-      const prevRollovers = JSON.parse(JSON.stringify(_allocRollovers));
+      // Build plan without mutating anything. User reviews it in the preview modal;
+      // _commitAllocImportPlan applies it only if they click Commit.
+      const plan = _buildAllocImportPlan(rows, jobCol, taskCol, monthCols);
 
-      // Months this spreadsheet targets (current + future only;
-      // past months are left untouched to preserve historical data)
-      const currentYM = today().slice(0, 7); // 'YYYY-MM'
-      const importMonths = new Set(
-        Object.values(monthCols).filter(ym => ym >= currentYM)
-      );
-
-      // Track proj|sc combos with non-zero allocations in imported months BEFORE import
-      const prevAllocatedScs = new Set();
-      Object.keys(allocations).forEach(key => {
-        const [pk, sc, ym] = key.split('|');
-        if (importMonths.has(ym) && sc && allocations[key] > 0) prevAllocatedScs.add(pk + '|' + sc);
-      });
-
-      // Non-destructive merge: only touch cells for (proj|sc) combos that appear in the
-      // spreadsheet. Existing allocations for un-imported sub-codes in imported months
-      // are preserved. This is tracked as we walk the rows.
-      const importedScs = new Set();
-
-      let importedRows = 0;
-      const newProjectNames = [];
-      const newSubCodeNames = [];
-      const prevProjKeys = new Set(Object.keys(PROJECTS));
-      const prevScIds = new Set(Object.values(PROJECTS).flatMap(p => (p.subCodes || []).map(s => s.id)));
-
-      // Process data rows (skip header, skip totals row at bottom)
-      for (let r = 1; r < rows.length; r++) {
-        const row = rows[r];
-        const jobRaw = row[jobCol];
-        if (!jobRaw) continue; // skip empty job rows (staff name only or totals)
-
-        const { code: billingCode, label: jobLabel } = _parseBillingCode(jobRaw);
-        const taskName = taskCol !== -1 ? String(row[taskCol] || '').trim() : '';
-
-        // Skip the grand totals row (no job code)
-        if (!billingCode && !taskName) continue;
-
-        const projKey = _findOrCreateProject(billingCode, jobLabel);
-
-        // If there's a task/sub-code name, ensure sub-code exists (matches existing or creates)
-        let scId = '';
-        if (taskName) {
-          scId = _ensureSubCode(projKey, '', taskName);
-        }
-
-        importedScs.add(projKey + '|' + scId);
-
-        // Merge allocations for current + future month columns.
-        //   numeric > 0  → overwrite cell with new value
-        //   explicit 0   → clear cell (BigTime says "no planned work")
-        //   blank / NaN  → leave existing value untouched
-        let hasData = false;
-        Object.entries(monthCols).forEach(([colIdx, ym]) => {
-          if (ym < currentYM) return; // preserve historical data
-          const val = row[Number(colIdx)];
-          if (val === null || val === undefined || val === '') return;
-          if (isNaN(Number(val))) return;
-          const hrs = Number(val);
-          const key = allocKey(projKey, scId, ym);
-          if (hrs > 0) {
-            allocations[key] = hrs;
-            hasData = true;
-          } else {
-            delete allocations[key];
-          }
-        });
-
-        if (hasData) importedRows++;
+      if (plan.importMonths.length === 0) {
+        throw new Error('No current or future month columns found. Past-only imports are ignored.');
       }
 
-      // Clear rollovers only for sub-codes that appeared in this import, in imported months.
-      // Un-imported sub-codes keep their rollovers intact.
-      Object.keys(_allocRollovers).forEach(key => {
-        const [pk, sc, ym] = key.split('|');
-        if (importMonths.has(ym) && importedScs.has(pk + '|' + sc)) delete _allocRollovers[key];
-      });
-      _saveRollovers();
-
-      // Collect names of new projects and sub-codes
-      Object.entries(PROJECTS).forEach(([key, proj]) => {
-        if (!prevProjKeys.has(key)) newProjectNames.push(proj.label + (proj.billingCode ? ' (' + proj.billingCode + ')' : ''));
-        (proj.subCodes || []).forEach(sc => {
-          if (!prevScIds.has(sc.id)) newSubCodeNames.push(proj.label + ' → ' + sc.label);
-        });
-      });
-
-      // Stale = sub-code WAS in this import but BigTime zeroed it out across all imported months.
-      // Sub-codes not in the import are preserved and never marked stale.
-      const nowAllocatedScs = new Set();
-      Object.keys(allocations).forEach(key => {
-        const [pk, sc, ym] = key.split('|');
-        if (importMonths.has(ym) && sc && allocations[key] > 0) nowAllocatedScs.add(pk + '|' + sc);
-      });
-      _staleSubCodes = new Set(
-        [...prevAllocatedScs].filter(k => importedScs.has(k) && !nowAllocatedScs.has(k))
-      );
-      save('wt_stale_subcodes', [..._staleSubCodes]);
-
-      // Save everything
-      saveProjects();
-      saveProjOrder();
-      saveAllocations();
-      populateProjectSelects();
-      renderAllocations();
-      renderProjects();
-
-      // Sync to cloud if connected
-      if (_supabase && _currentUser) syncToCloud();
-
-      // Build stale subcode names for display
-      const staleNames = [..._staleSubCodes].map(k => {
-        const [pk, scId] = k.split('|');
-        const p = PROJECTS[pk];
-        const sc = p ? (p.subCodes || []).find(s => s.id === scId) : null;
-        return (p?.label || pk) + ' → ' + (sc?.label || scId);
-      });
-
-      // Detect potential duplicate projects
-      const dupeProjects = _findDuplicateProjects();
-      const dupeSubs = _findDuplicateSubCodes();
-
-      // Build status with action buttons
-      const monthList = [...importMonths].sort().join(', ');
-      const parts = [`<strong>${importedRows} rows</strong> merged for ${monthList}`];
-      if (newProjectNames.length) parts.push(`<strong>${newProjectNames.length}</strong> new project${newProjectNames.length > 1 ? 's' : ''}`);
-      if (newSubCodeNames.length) parts.push(`<strong>${newSubCodeNames.length}</strong> new sub-code${newSubCodeNames.length > 1 ? 's' : ''}`);
-      if (staleNames.length) parts.push(`<strong style="color:var(--danger);">${staleNames.length}</strong> <span style="color:var(--danger);">zeroed by import</span>`);
-      if (dupeProjects.length || dupeSubs.length) parts.push(`<strong style="color:var(--warn);">${dupeProjects.length + dupeSubs.length}</strong> <span style="color:var(--warn);">possible duplicates</span>`);
-
-      const hasDetails = newProjectNames.length || newSubCodeNames.length || staleNames.length || dupeProjects.length || dupeSubs.length;
-      let detailHtml = '';
-      if (hasDetails) {
-        detailHtml = `<div id="allocImportDetails" style="display:none;margin-top:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;max-height:300px;overflow-y:auto;">`;
-        if (dupeProjects.length || dupeSubs.length) {
-          detailHtml += `<div style="font-weight:700;margin-bottom:4px;color:var(--warn);">Possible Duplicates — Merge or dismiss:</div>`;
-          dupeProjects.forEach((d, idx) => {
-            detailHtml += `<div id="dupe-proj-${idx}" style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-              <span style="color:var(--warn);">⚠</span>
-              <span>Project: "<strong>${d.a.label}</strong>" and "<strong>${d.b.label}</strong>"</span>
-              <span style="margin-left:auto;display:flex;gap:4px;">
-                <button class="btn" onclick="_mergeProjects('${d.aKey}','${d.bKey}');document.getElementById('dupe-proj-${idx}').innerHTML='<span style=\\'color:var(--success);\\'>✓ Merged into ${d.a.label.replace(/'/g, "\\'")}</span>';" style="font-size:9px;padding:2px 8px;">Merge</button>
-                <button class="btn" onclick="_dismissDup('${d.aKey}','${d.bKey}');document.getElementById('dupe-proj-${idx}').innerHTML='<span style=\\'color:var(--text3);\\'>✓ Kept as separate projects</span>';" style="font-size:9px;padding:2px 8px;color:var(--text3);">Keep separate</button>
-              </span>
-            </div>`;
-          });
-          dupeSubs.forEach((d, idx) => {
-            detailHtml += `<div id="dupe-sc-${idx}" style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-              <span style="color:var(--warn);">⚠</span>
-              <span>${PROJECTS[d.projKey]?.label}: "<strong>${d.a.label}</strong>" and "<strong>${d.b.label}</strong>"</span>
-              <span style="margin-left:auto;display:flex;gap:4px;">
-                <button class="btn" onclick="_mergeSubCodes('${d.projKey}','${d.aId}','${d.bId}');document.getElementById('dupe-sc-${idx}').innerHTML='<span style=\\'color:var(--success);\\'>✓ Merged into ${d.a.label.replace(/'/g, "\\'")}</span>';" style="font-size:9px;padding:2px 8px;">Merge</button>
-                <button class="btn" onclick="_dismissDup('${d.projKey}:${d.aId}','${d.projKey}:${d.bId}');document.getElementById('dupe-sc-${idx}').innerHTML='<span style=\\'color:var(--text3);\\'>✓ Kept as separate sub-codes</span>';" style="font-size:9px;padding:2px 8px;color:var(--text3);">Keep separate</button>
-              </span>
-            </div>`;
-          });
-        }
-        if (newProjectNames.length) {
-          detailHtml += `<div style="font-weight:700;margin:8px 0 4px;">New Projects:</div>`;
-          detailHtml += newProjectNames.map(n => `<div style="padding:1px 0;color:var(--text2);">+ ${n}</div>`).join('');
-        }
-        if (newSubCodeNames.length) {
-          detailHtml += `<div style="font-weight:700;margin:8px 0 4px;">New Sub-codes:</div>`;
-          detailHtml += newSubCodeNames.map(n => `<div style="padding:1px 0;color:var(--text2);">+ ${n}</div>`).join('');
-        }
-        if (staleNames.length) {
-          detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--danger);">Zeroed by Import:</div>`;
-          detailHtml += `<div style="padding:2px 0;color:var(--text3);font-style:italic;margin-bottom:4px;">These sub-codes were in the import but BigTime set their hours to zero for all imported months. Manual allocations for sub-codes NOT in this spreadsheet were preserved.</div>`;
-          detailHtml += staleNames.map(n => `<div style="padding:1px 0;color:var(--danger);">− ${n}</div>`).join('');
-        }
-        detailHtml += `</div>`;
-      }
-
-      statusEl.style.display = '';
-      statusEl.style.background = staleNames.length ? 'rgba(248,113,113,0.08)' : 'rgba(52,211,153,0.12)';
-      statusEl.style.color = staleNames.length ? 'var(--text2)' : 'var(--success)';
-      statusEl.innerHTML = `
-        <div>${parts.join(' · ')}</div>
-        <div style="margin-top:8px;display:flex;gap:6px;align-items:center;">
-          <button class="btn" onclick="this.closest('#allocImportStatus').style.display='none'" style="font-size:10px;padding:3px 10px;">OK</button>
-          <button class="btn" onclick="_undoAllocImport()" style="font-size:10px;padding:3px 10px;color:var(--danger);border-color:var(--danger);">↩ Undo Import</button>
-          ${hasDetails ? `<button class="btn" onclick="document.getElementById('allocImportDetails').style.display=document.getElementById('allocImportDetails').style.display==='none'?'block':'none'" style="font-size:10px;padding:3px 10px;">View Details</button>` : ''}
-        </div>
-        ${detailHtml}
-      `;
-
-      // Store snapshot for undo
-      _allocImportUndo = { allocations: prevAllocations, projects: prevPROJECTS, projOrder: prevProjOrder, rollovers: prevRollovers };
+      _allocImportPlan = plan;
+      _showAllocImportPreview();
 
     } catch (err) {
       statusEl.style.display = '';
@@ -10860,6 +10879,386 @@ function handleAllocImport(event) {
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ── Allocation Import Preview (Phase 2 UI) ──
+
+function _aipEsc(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[c]);
+}
+
+function _showAllocImportPreview() {
+  document.getElementById('allocImportPreviewModal').style.display = 'flex';
+  _aipRenderPreviewBody();
+}
+
+function _cancelAllocImportPlan() {
+  _allocImportPlan = null;
+  document.getElementById('allocImportPreviewModal').style.display = 'none';
+}
+
+function _aipSetRowSc(idx, val) {
+  const row = _allocImportPlan && _allocImportPlan.rows[idx];
+  if (!row) return;
+  row.userOverride = val;
+  _aipRenderPreviewBody();
+}
+
+function _aipTogglePreserved(combo, keep) {
+  if (!_allocImportPlan) return;
+  _allocImportPlan.preservedActionsByCombo[combo] = keep ? 'keep' : 'clear';
+  _aipRenderPreviewBody();
+}
+
+function _aipRenderPreviewBody() {
+  const plan = _allocImportPlan;
+  if (!plan) return;
+
+  const preserved = _aipComputePreserved(plan);
+
+  // ── Summary counts (dynamic based on current overrides) ──
+  const newProjCount = plan.rows.filter(r => r.projIsNew).length;
+  const newScCount = plan.rows.reduce((n, r) => {
+    const res = _aipResolveRow(r);
+    return n + (r.projIsNew || res.isNew ? 1 : 0);
+  }, 0);
+  let overwriteCount = 0, clearedCount = 0;
+  plan.rows.forEach(r => {
+    if (r.projIsNew) return;
+    const res = _aipResolveRow(r);
+    if (res.isNew) return; // new sub-code — no existing to overwrite
+    r.cells.forEach(c => {
+      const ex = allocations[allocKey(r.projKey, res.scId, c.ym)] || 0;
+      if (c.val > 0 && ex > 0 && ex !== c.val) overwriteCount++;
+      if (c.val === 0 && ex > 0) clearedCount++;
+    });
+  });
+  const clearPresCount = preserved.filter(p => (plan.preservedActionsByCombo[p.combo] || 'keep') === 'clear').length;
+
+  const summaryParts = [
+    `<strong>${plan.rows.length}</strong> rows`,
+    `<strong>${plan.importMonths.length}</strong> month${plan.importMonths.length > 1 ? 's' : ''}: ${plan.importMonths.join(', ')}`
+  ];
+  if (newProjCount) summaryParts.push(`<strong style="color:var(--accent);">${newProjCount}</strong> new project${newProjCount > 1 ? 's' : ''}`);
+  if (newScCount) summaryParts.push(`<strong style="color:var(--accent);">${newScCount}</strong> new sub-code${newScCount > 1 ? 's' : ''}`);
+  if (overwriteCount) summaryParts.push(`<strong style="color:var(--warn);">${overwriteCount}</strong> overwrite${overwriteCount > 1 ? 's' : ''}`);
+  if (clearedCount) summaryParts.push(`<strong style="color:var(--danger);">${clearedCount}</strong> zeroed`);
+  if (preserved.length) summaryParts.push(`<strong style="color:var(--text2);">${preserved.length}</strong> preserved${clearPresCount ? ` (${clearPresCount} will clear)` : ''}`);
+
+  document.getElementById('aipSummary').innerHTML = summaryParts.join(' · ');
+
+  // ── Imported rows section ──
+  let html = `<div style="font-weight:700;font-size:11px;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Imported Rows (${plan.rows.length})</div>`;
+  if (plan.rows.length === 0) {
+    html += `<div style="padding:12px;color:var(--text3);font-style:italic;font-size:12px;">No rows with current or future month data to import.</div>`;
+  } else {
+    plan.rows.forEach((row, idx) => { html += _aipRenderRow(row, idx); });
+  }
+
+  // ── Preserved section ──
+  if (preserved.length) {
+    html += `
+      <div style="font-weight:700;font-size:11px;color:var(--text2);margin:18px 0 6px;text-transform:uppercase;letter-spacing:0.5px;">
+        Preserved — Not in Import (${preserved.length})
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-style:italic;">
+        These sub-codes have allocations in imported months but aren't in the spreadsheet. Checked = keep. Uncheck to clear them.
+      </div>
+    `;
+    preserved.forEach(p => {
+      const action = plan.preservedActionsByCombo[p.combo] || 'keep';
+      html += _aipRenderPreserved(p, action);
+    });
+  }
+
+  document.getElementById('aipBody').innerHTML = html;
+}
+
+function _aipRenderRow(row, idx) {
+  const resolved = _aipResolveRow(row);
+
+  // Determine status badge
+  let badge, badgeColor;
+  if (row.projIsNew) {
+    badge = '★ new project'; badgeColor = 'var(--accent)';
+  } else if (row.userOverride === 'create-new') {
+    badge = '+ create new'; badgeColor = 'var(--accent)';
+  } else if (row.userOverride) {
+    badge = '✎ overridden'; badgeColor = 'var(--warn)';
+  } else if (resolved.isNew) {
+    badge = '+ new sub-code'; badgeColor = 'var(--accent)';
+  } else if (row.scMatchType === 'exact' || row.scMatchType === 'normalized') {
+    badge = '✓ match'; badgeColor = 'var(--success)';
+  } else if (row.scMatchType === 'contains') {
+    badge = '~ fuzzy match'; badgeColor = 'var(--warn)';
+  } else {
+    badge = '✓ match'; badgeColor = 'var(--success)';
+  }
+
+  // Sub-code control: dropdown if project exists, else plain label
+  let scControl;
+  if (row.projIsNew) {
+    scControl = row.taskName
+      ? `<span style="color:var(--accent);font-style:italic;">+ ${_aipEsc(row.taskName)}</span>`
+      : `<span style="color:var(--text3);font-style:italic;">(no sub-code)</span>`;
+  } else if (!row.taskName && row.availableSubCodes.length === 0) {
+    scControl = `<span style="color:var(--text3);font-style:italic;">(project-level, no sub-code)</span>`;
+  } else {
+    const selectedVal = row.userOverride || (resolved.isNew ? 'create-new' : (resolved.scId || ''));
+    const opts = [];
+    if (row.taskName) {
+      opts.push(`<option value="create-new"${selectedVal === 'create-new' ? ' selected' : ''}>+ Create new: "${_aipEsc(row.taskName)}"</option>`);
+    }
+    row.availableSubCodes.forEach(sc => {
+      opts.push(`<option value="${_aipEsc(sc.id)}"${selectedVal === sc.id ? ' selected' : ''}>${_aipEsc(sc.label)}</option>`);
+    });
+    if (!row.taskName) {
+      // project-level allocation is possible — add a "no sub-code" option
+      opts.unshift(`<option value=""${!selectedVal ? ' selected' : ''}>(no sub-code — project-level)</option>`);
+    }
+    scControl = `<select onchange="_aipSetRowSc(${idx}, this.value)" style="background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px;max-width:320px;">${opts.join('')}</select>`;
+  }
+
+  // Cells
+  const cellsHtml = row.cells.map(c => {
+    const ml = c.ym.slice(5) + '/' + c.ym.slice(2, 4);
+    const existing = (row.projIsNew || resolved.isNew)
+      ? 0
+      : (allocations[allocKey(row.projKey, resolved.scId || '', c.ym)] || 0);
+    if (c.val === 0 && existing > 0) {
+      return `<span style="padding:2px 6px;border-radius:3px;background:rgba(248,113,113,0.12);color:var(--danger);font-size:11px;" title="will clear">${ml}: 0h <small style="color:var(--text3);">(was ${existing}h)</small></span>`;
+    }
+    if (c.val > 0 && existing > 0 && existing !== c.val) {
+      return `<span style="padding:2px 6px;border-radius:3px;background:rgba(234,179,8,0.12);color:var(--warn);font-size:11px;" title="overwrite">${ml}: ${c.val}h <small style="color:var(--text3);">(was ${existing}h)</small></span>`;
+    }
+    if (c.val === 0) {
+      return `<span style="padding:2px 6px;border-radius:3px;color:var(--text3);font-size:11px;">${ml}: 0h</span>`;
+    }
+    return `<span style="padding:2px 6px;border-radius:3px;color:var(--text2);font-size:11px;">${ml}: ${c.val}h</span>`;
+  }).join(' ');
+
+  const projSuffix = row.projIsNew && row.billingCode ? ` <span style="color:var(--text3);font-weight:400;">(${_aipEsc(row.billingCode)})</span>` : '';
+
+  return `
+    <div style="border:1px solid var(--border);border-left:3px solid ${badgeColor};border-radius:4px;padding:8px 10px;margin-bottom:6px;background:var(--bg);font-size:12px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:10px;color:${badgeColor};font-weight:700;text-transform:uppercase;letter-spacing:0.3px;min-width:90px;">${badge}</span>
+        <span style="color:var(--text);font-weight:600;">${_aipEsc(row.projLabelDisplay)}${projSuffix}</span>
+        <span style="color:var(--text3);">→</span>
+        ${scControl}
+      </div>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;padding-left:98px;">${cellsHtml}</div>
+    </div>
+  `;
+}
+
+function _aipRenderPreserved(p, action) {
+  const monthsText = p.cells.map(c => {
+    const ml = c.ym.slice(5) + '/' + c.ym.slice(2, 4);
+    return `${ml}: ${c.val}h`;
+  }).join(' · ');
+  const willKeep = action === 'keep';
+  const bg = willKeep ? 'var(--bg)' : 'rgba(248,113,113,0.08)';
+  const strikeTi = willKeep ? '' : 'text-decoration:line-through;color:var(--text3);';
+  const sideColor = willKeep ? 'var(--success)' : 'var(--danger)';
+  const actionColor = willKeep ? 'var(--success)' : 'var(--danger)';
+  return `
+    <div style="border:1px solid var(--border);border-left:3px solid ${sideColor};border-radius:4px;padding:6px 10px;margin-bottom:4px;background:${bg};font-size:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-weight:600;min-width:80px;">
+        <input type="checkbox" ${willKeep ? 'checked' : ''} onchange="_aipTogglePreserved('${_aipEsc(p.combo)}', this.checked)" style="cursor:pointer;">
+        <span style="color:${actionColor};font-size:10px;text-transform:uppercase;letter-spacing:0.3px;">${willKeep ? 'Keep' : 'Clear'}</span>
+      </label>
+      <span style="${strikeTi}"><strong>${_aipEsc(p.projLabel)}</strong> → ${_aipEsc(p.label)}</span>
+      <span style="color:var(--text3);font-size:11px;margin-left:auto;${strikeTi}">${monthsText}</span>
+    </div>
+  `;
+}
+
+function _commitAllocImportPlan() {
+  const plan = _allocImportPlan;
+  if (!plan) return;
+
+  // Snapshot state BEFORE any mutation so Undo can restore the true pre-import state
+  const prevAllocations = JSON.parse(JSON.stringify(allocations));
+  const prevPROJECTS = JSON.parse(JSON.stringify(PROJECTS));
+  const prevProjOrder = [...projOrder];
+  const prevRollovers = JSON.parse(JSON.stringify(_allocRollovers));
+
+  const importMonthsSet = plan.importMonthsSet;
+
+  // Track prev-allocated combos for stale detection
+  const prevAllocatedScs = new Set();
+  Object.keys(allocations).forEach(key => {
+    const [pk, sc, ym] = key.split('|');
+    if (importMonthsSet.has(ym) && sc && allocations[key] > 0) prevAllocatedScs.add(pk + '|' + sc);
+  });
+
+  const prevProjKeys = new Set(Object.keys(PROJECTS));
+  const prevScIds = new Set(Object.values(PROJECTS).flatMap(p => (p.subCodes || []).map(s => s.id)));
+
+  // Apply "clear" actions on preserved sub-codes (those the user toggled off)
+  const preserved = _aipComputePreserved(plan);
+  preserved.forEach(p => {
+    const action = plan.preservedActionsByCombo[p.combo] || 'keep';
+    if (action === 'clear') {
+      p.cells.forEach(c => {
+        delete allocations[allocKey(p.projKey, p.scId, c.ym)];
+      });
+    }
+  });
+
+  const importedScs = new Set();
+  let importedRows = 0;
+
+  plan.rows.forEach(r => {
+    let projKey = r.projKey;
+    if (r.projIsNew) {
+      projKey = _findOrCreateProject(r.billingCode, r.jobLabel);
+    }
+
+    const resolved = _aipResolveRow(r);
+    let scId = '';
+    if (resolved.scId) {
+      scId = resolved.scId;
+    } else if (r.taskName && resolved.isNew) {
+      scId = _createSubCode(projKey, r.taskName);
+    }
+
+    importedScs.add(projKey + '|' + scId);
+
+    let hasData = false;
+    r.cells.forEach(c => {
+      const key = allocKey(projKey, scId, c.ym);
+      if (c.val > 0) {
+        allocations[key] = c.val;
+        hasData = true;
+      } else {
+        delete allocations[key];
+      }
+    });
+    if (hasData) importedRows++;
+  });
+
+  // Clear rollovers only for imported sub-codes in imported months
+  Object.keys(_allocRollovers).forEach(key => {
+    const [pk, sc, ym] = key.split('|');
+    if (importMonthsSet.has(ym) && importedScs.has(pk + '|' + sc)) delete _allocRollovers[key];
+  });
+  _saveRollovers();
+
+  // Collect new project / sub-code names for status summary
+  const newProjectNames = [];
+  const newSubCodeNames = [];
+  Object.entries(PROJECTS).forEach(([key, proj]) => {
+    if (!prevProjKeys.has(key)) newProjectNames.push(proj.label + (proj.billingCode ? ' (' + proj.billingCode + ')' : ''));
+    (proj.subCodes || []).forEach(sc => {
+      if (!prevScIds.has(sc.id)) newSubCodeNames.push(proj.label + ' → ' + sc.label);
+    });
+  });
+
+  // Stale: sub-code was in import but got zeroed across all imported months.
+  // Sub-codes that weren't in the import are preserved (unless user toggled Clear above,
+  // in which case they're already deleted — so they don't appear as stale either).
+  const nowAllocatedScs = new Set();
+  Object.keys(allocations).forEach(key => {
+    const [pk, sc, ym] = key.split('|');
+    if (importMonthsSet.has(ym) && sc && allocations[key] > 0) nowAllocatedScs.add(pk + '|' + sc);
+  });
+  _staleSubCodes = new Set(
+    [...prevAllocatedScs].filter(k => importedScs.has(k) && !nowAllocatedScs.has(k))
+  );
+  save('wt_stale_subcodes', [..._staleSubCodes]);
+
+  saveProjects();
+  saveProjOrder();
+  saveAllocations();
+  populateProjectSelects();
+  renderAllocations();
+  renderProjects();
+  if (_supabase && _currentUser) syncToCloud();
+
+  // Store snapshot for undo
+  _allocImportUndo = { allocations: prevAllocations, projects: prevPROJECTS, projOrder: prevProjOrder, rollovers: prevRollovers };
+
+  // Build post-import status banner (same pattern as before)
+  const staleNames = [..._staleSubCodes].map(k => {
+    const [pk, sId] = k.split('|');
+    const p = PROJECTS[pk];
+    const sc = p ? (p.subCodes || []).find(s => s.id === sId) : null;
+    return (p?.label || pk) + ' → ' + (sc?.label || sId);
+  });
+
+  const dupeProjects = _findDuplicateProjects();
+  const dupeSubs = _findDuplicateSubCodes();
+
+  const monthList = plan.importMonths.join(', ');
+  const parts = [`<strong>${importedRows} rows</strong> merged for ${monthList}`];
+  if (newProjectNames.length) parts.push(`<strong>${newProjectNames.length}</strong> new project${newProjectNames.length > 1 ? 's' : ''}`);
+  if (newSubCodeNames.length) parts.push(`<strong>${newSubCodeNames.length}</strong> new sub-code${newSubCodeNames.length > 1 ? 's' : ''}`);
+  if (staleNames.length) parts.push(`<strong style="color:var(--danger);">${staleNames.length}</strong> <span style="color:var(--danger);">zeroed by import</span>`);
+  if (dupeProjects.length || dupeSubs.length) parts.push(`<strong style="color:var(--warn);">${dupeProjects.length + dupeSubs.length}</strong> <span style="color:var(--warn);">possible duplicates</span>`);
+
+  const hasDetails = newProjectNames.length || newSubCodeNames.length || staleNames.length || dupeProjects.length || dupeSubs.length;
+  let detailHtml = '';
+  if (hasDetails) {
+    detailHtml = `<div id="allocImportDetails" style="display:none;margin-top:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;max-height:300px;overflow-y:auto;">`;
+    if (dupeProjects.length || dupeSubs.length) {
+      detailHtml += `<div style="font-weight:700;margin-bottom:4px;color:var(--warn);">Possible Duplicates — Merge or dismiss:</div>`;
+      dupeProjects.forEach((d, idx) => {
+        detailHtml += `<div id="dupe-proj-${idx}" style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="color:var(--warn);">⚠</span>
+          <span>Project: "<strong>${d.a.label}</strong>" and "<strong>${d.b.label}</strong>"</span>
+          <span style="margin-left:auto;display:flex;gap:4px;">
+            <button class="btn" onclick="_mergeProjects('${d.aKey}','${d.bKey}');document.getElementById('dupe-proj-${idx}').innerHTML='<span style=\\'color:var(--success);\\'>✓ Merged into ${d.a.label.replace(/'/g, "\\'")}</span>';" style="font-size:9px;padding:2px 8px;">Merge</button>
+            <button class="btn" onclick="_dismissDup('${d.aKey}','${d.bKey}');document.getElementById('dupe-proj-${idx}').innerHTML='<span style=\\'color:var(--text3);\\'>✓ Kept as separate projects</span>';" style="font-size:9px;padding:2px 8px;color:var(--text3);">Keep separate</button>
+          </span>
+        </div>`;
+      });
+      dupeSubs.forEach((d, idx) => {
+        detailHtml += `<div id="dupe-sc-${idx}" style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="color:var(--warn);">⚠</span>
+          <span>${PROJECTS[d.projKey]?.label}: "<strong>${d.a.label}</strong>" and "<strong>${d.b.label}</strong>"</span>
+          <span style="margin-left:auto;display:flex;gap:4px;">
+            <button class="btn" onclick="_mergeSubCodes('${d.projKey}','${d.aId}','${d.bId}');document.getElementById('dupe-sc-${idx}').innerHTML='<span style=\\'color:var(--success);\\'>✓ Merged into ${d.a.label.replace(/'/g, "\\'")}</span>';" style="font-size:9px;padding:2px 8px;">Merge</button>
+            <button class="btn" onclick="_dismissDup('${d.projKey}:${d.aId}','${d.projKey}:${d.bId}');document.getElementById('dupe-sc-${idx}').innerHTML='<span style=\\'color:var(--text3);\\'>✓ Kept as separate sub-codes</span>';" style="font-size:9px;padding:2px 8px;color:var(--text3);">Keep separate</button>
+          </span>
+        </div>`;
+      });
+    }
+    if (newProjectNames.length) {
+      detailHtml += `<div style="font-weight:700;margin:8px 0 4px;">New Projects:</div>`;
+      detailHtml += newProjectNames.map(n => `<div style="padding:1px 0;color:var(--text2);">+ ${n}</div>`).join('');
+    }
+    if (newSubCodeNames.length) {
+      detailHtml += `<div style="font-weight:700;margin:8px 0 4px;">New Sub-codes:</div>`;
+      detailHtml += newSubCodeNames.map(n => `<div style="padding:1px 0;color:var(--text2);">+ ${n}</div>`).join('');
+    }
+    if (staleNames.length) {
+      detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--danger);">Zeroed by Import:</div>`;
+      detailHtml += `<div style="padding:2px 0;color:var(--text3);font-style:italic;margin-bottom:4px;">These sub-codes were in the import but BigTime set their hours to zero for all imported months. Manual allocations for sub-codes NOT in this spreadsheet were preserved.</div>`;
+      detailHtml += staleNames.map(n => `<div style="padding:1px 0;color:var(--danger);">− ${n}</div>`).join('');
+    }
+    detailHtml += `</div>`;
+  }
+
+  const statusEl = document.getElementById('allocImportStatus');
+  statusEl.style.display = '';
+  statusEl.style.background = staleNames.length ? 'rgba(248,113,113,0.08)' : 'rgba(52,211,153,0.12)';
+  statusEl.style.color = staleNames.length ? 'var(--text2)' : 'var(--success)';
+  statusEl.innerHTML = `
+    <div>${parts.join(' · ')}</div>
+    <div style="margin-top:8px;display:flex;gap:6px;align-items:center;">
+      <button class="btn" onclick="this.closest('#allocImportStatus').style.display='none'" style="font-size:10px;padding:3px 10px;">OK</button>
+      <button class="btn" onclick="_undoAllocImport()" style="font-size:10px;padding:3px 10px;color:var(--danger);border-color:var(--danger);">↩ Undo Import</button>
+      ${hasDetails ? `<button class="btn" onclick="document.getElementById('allocImportDetails').style.display=document.getElementById('allocImportDetails').style.display==='none'?'block':'none'" style="font-size:10px;padding:3px 10px;">View Details</button>` : ''}
+    </div>
+    ${detailHtml}
+  `;
+
+  _allocImportPlan = null;
+  document.getElementById('allocImportPreviewModal').style.display = 'none';
 }
 
 function barColor(pct) {
