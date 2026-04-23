@@ -7494,19 +7494,19 @@ function renderProjCodeContent(projKey) {
       const isStale = _staleSubCodes.has(projKey + '|' + sec.scId);
 
       if (allocHrs > 0 || loggedHrs > 0 || plannedHrs > 0 || isStale) {
-        const _loggedRatio = allocHrs > 0 ? Math.round((loggedHrs / allocHrs) * 100) : 0;
-        const _totalRatio  = allocHrs > 0 ? Math.round((totalWork  / allocHrs) * 100) : 0;
-        const _totalOver   = allocHrs > 0 && totalWork > allocHrs;
-        const _totalColor  = _totalOver ? 'var(--danger)' : 'var(--accent)';
+        const _totalRatio = allocHrs > 0 ? Math.round((totalWork / allocHrs) * 100) : 0;
+        const _remaining  = allocHrs - totalWork;
+        const _isOver     = allocHrs > 0 && _remaining < 0;
+        const _remainColor = _isOver ? 'var(--danger)' : 'var(--success)';
+        const _remainText  = _isOver
+          ? `${fmtQ(Math.abs(_remaining))}h over`
+          : `${fmtQ(_remaining)}h left`;
         const _barTip = allocHrs > 0
           ? `${fmtQ(loggedHrs)}h logged + ${fmtQ(plannedHrs)}h planned = ${fmtQ(totalWork)}h of ${allocHrs}h allocated (${_totalRatio}%)`
           : `${fmtQ(loggedHrs)}h logged + ${fmtQ(plannedHrs)}h planned = ${fmtQ(totalWork)}h (no allocation set)`;
-        const _loggedTip = allocHrs > 0
-          ? `${fmtQ(loggedHrs)}h logged of ${allocHrs}h allocated (${_loggedRatio}%)`
-          : `${fmtQ(loggedHrs)}h logged (no allocation set)`;
-        const _totalTip = allocHrs > 0
-          ? `${fmtQ(totalWork)}h committed (${fmtQ(loggedHrs)}h logged + ${fmtQ(plannedHrs)}h planned) of ${allocHrs}h allocated (${_totalRatio}%)`
-          : `${fmtQ(totalWork)}h committed (${fmtQ(loggedHrs)}h logged + ${fmtQ(plannedHrs)}h planned), no allocation set`;
+        const _labelHtml = allocHrs > 0
+          ? `<span style="color:${loggedColor};">${fmtQ(loggedHrs)}L</span><span style="color:var(--text3);"> + </span><span style="color:var(--accent);">${fmtQ(plannedHrs)}P</span><span style="color:var(--text3);"> / ${allocHrs}h · </span><span style="color:${_remainColor};font-weight:600;">${_remainText}</span>`
+          : `<span style="color:${loggedColor};">${fmtQ(loggedHrs)}L</span><span style="color:var(--text3);"> + </span><span style="color:var(--accent);">${fmtQ(plannedHrs)}P</span><span style="color:var(--text3);"> · no allocation</span>`;
         meterHtml = `<span class="subcode-alloc-meter" onclick="event.stopPropagation();">
           <button class="subcode-alloc-nav" onclick="event.stopPropagation();_shiftProjAllocMonth('${projKey}',-1)" title="Previous month">‹</button>
           <span>${mLabel}</span>
@@ -7515,10 +7515,7 @@ function renderProjCodeContent(projKey) {
             <span class="subcode-alloc-fill" style="width:${totalPct}%;background:${plannedColor};border-radius:4px;opacity:0.4;z-index:1;"></span>
             <span class="subcode-alloc-fill" style="width:${loggedPct}%;background:${loggedColor};border-radius:4px;z-index:2;"></span>
           </span>
-          <span class="subcode-alloc-labels">
-            <span style="color:${loggedColor};" title="${_loggedTip}">${fmtQ(loggedHrs)}/${allocHrs}h</span>
-            <span style="color:${_totalColor};opacity:0.7;" title="${_totalTip}">${fmtQ(totalWork)}/${allocHrs}h</span>
-          </span>
+          <span class="subcode-alloc-labels" title="${_barTip}">${_labelHtml}</span>
           ${isStale ? `<span class="subcode-stale-badge" style="cursor:pointer;" onclick="event.stopPropagation();_dismissStale('${projKey}','${sec.scId}')" title="Click to dismiss — not in latest allocation import">unallocated ✕</span>` : ''}
         </span>`;
       }
