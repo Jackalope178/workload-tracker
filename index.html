@@ -3004,6 +3004,7 @@ if (typeof XLSX === 'undefined') {
         <option value="summary">Summary Only</option>
       </select>
       <button class="btn" id="allocPastToggle" onclick="_toggleAllocPastMonths()" style="font-size:10px;padding:3px 8px;" title="Show or hide past months">Hide past</button>
+      <button class="btn" id="allocArchivedToggle" onclick="_toggleAllocShowArchived()" style="font-size:10px;padding:3px 8px;" title="Show or hide archived (closed-out) projects">Show archived</button>
       <label class="btn" style="font-size:10px;padding:3px 8px;cursor:pointer;margin-left:auto;" title="Import BigTime allocation spreadsheet (.xlsx)">
         ⬆ Import XLS
         <input type="file" accept=".xlsx,.xls,.csv" onchange="handleAllocImport(event)" style="display:none;">
@@ -3941,6 +3942,35 @@ if (typeof XLSX === 'undefined') {
   </div>
 </div>
 <!-- ALLOCATION IMPORT PREVIEW MODAL -->
+<div class="modal-overlay" id="archiveProjModal" style="display:none;">
+  <div class="modal" style="width:480px;max-width:96vw;padding:20px 24px;">
+    <div class="modal-title">Archive <span id="archiveProjName" style="color:var(--accent);"></span>?</div>
+    <div class="modal-subtitle" style="margin-bottom:12px;">
+      Found <span id="archiveProjSummary" style="color:var(--warn);font-weight:600;"></span>. Past time logs and completed items are always preserved.
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5;">
+      Choose what to do with future-dated open work on this project:
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn" onclick="_confirmArchive('keep')" style="text-align:left;padding:10px 14px;">
+        <div style="font-weight:600;">Keep as-is</div>
+        <div style="font-size:11px;color:var(--text3);">Items stay in your task list but disappear from Capacity and Allocations forward-looking views. Reviving the project brings them back.</div>
+      </button>
+      <button class="btn" onclick="_confirmArchive('complete')" style="text-align:left;padding:10px 14px;">
+        <div style="font-weight:600;">Mark complete</div>
+        <div style="font-size:11px;color:var(--text3);">Closes each one out today. Recurring items have their recurrence ended.</div>
+      </button>
+      <button class="btn" onclick="_confirmArchive('delete')" style="text-align:left;padding:10px 14px;color:var(--danger);">
+        <div style="font-weight:600;">Delete forever</div>
+        <div style="font-size:11px;color:var(--text3);">Permanently removes the future-dated items. Past completed items are not affected.</div>
+      </button>
+    </div>
+    <div class="modal-actions" style="border-top:1px solid var(--border);padding-top:12px;margin-top:16px;">
+      <button class="btn" onclick="_closeArchiveModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="allocImportPreviewModal" style="display:none;">
   <div class="modal" style="width:920px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;padding:20px 24px;">
     <div class="modal-title">Import Preview</div>
@@ -5199,8 +5229,24 @@ let hiddenProjs = new Set(load('wt_hidden_projs', []));
 let selectedProjCode = null;
 let projPanelCollapsed = load('wt_proj_panel_collapsed', false);
 let hiddenSectionOpen = false;
+let archivedSectionOpen = false;
 function saveHiddenProjs() { save('wt_hidden_projs', [...hiddenProjs]); }
 function saveProjPanelCollapsed() { save('wt_proj_panel_collapsed', projPanelCollapsed); }
+
+// ── Project archive (close-out) ──
+// archivedAt timestamp on PROJECTS[key] = closed; absence = active.
+// Archived projects: hidden by default in Allocations + Capacity + new-work pickers,
+// but historical timesheet entries and completed tasks remain visible / editable.
+function isProjArchived(key) {
+  return !!(PROJECTS[key] && PROJECTS[key].archivedAt);
+}
+
+let _allocShowArchived = load('wt_alloc_show_archived', false);
+function _toggleAllocShowArchived() {
+  _allocShowArchived = !_allocShowArchived;
+  save('wt_alloc_show_archived', _allocShowArchived);
+  renderAllocations();
+}
 
 // Drag state for moving items between sub-code tables
 let _dragItemData = null;
@@ -5639,12 +5685,19 @@ function populateProjectSelects() {
     if (!el) return;
     const isFilter = id.startsWith('filter') || id.startsWith('teamFilter') || id.startsWith('tsFilter');
     el.innerHTML = isFilter ? '<option value="all">All projects</option>' : '';
+    // Preserve current selection so a select bound to an archived project doesn't
+    // silently change value when the option is dropped from the list.
+    const currentVal = el.value;
     projOrder.forEach(k => {
       const v = PROJECTS[k];
       if (!v) return;
+      const archived = !!v.archivedAt;
+      // Filter selects keep archived (so users can filter to see archived data).
+      // New-work / edit selects drop archived UNLESS the bound row already references it.
+      if (archived && !isFilter && currentVal !== k) return;
       const opt = document.createElement('option');
       opt.value = k;
-      opt.textContent = v.billingCode ? `${v.label} (${v.billingCode})` : v.label;
+      opt.textContent = (v.billingCode ? `${v.label} (${v.billingCode})` : v.label) + (archived ? ' [archived]' : '');
       el.appendChild(opt);
     });
   });
@@ -7177,11 +7230,12 @@ let _dragSrcCodeKey = null;
 function renderProjCodeList() {
   const container = document.getElementById('projCodeList');
   if (!container) return;
-  const visible = projOrder.filter(k => !hiddenProjs.has(k));
-  const hidden = projOrder.filter(k => hiddenProjs.has(k));
+  const active = projOrder.filter(k => PROJECTS[k] && !PROJECTS[k].archivedAt && !hiddenProjs.has(k));
+  const hidden = projOrder.filter(k => PROJECTS[k] && !PROJECTS[k].archivedAt && hiddenProjs.has(k));
+  const archived = projOrder.filter(k => PROJECTS[k] && PROJECTS[k].archivedAt);
 
   let html = '';
-  visible.forEach(key => {
+  active.forEach(key => {
     const p = PROJECTS[key];
     const isActive = key === selectedProjCode;
     html += `<div class="proj-code-item${isActive ? ' active' : ''}" draggable="true" data-code-key="${key}"
@@ -7193,6 +7247,7 @@ function renderProjCodeList() {
       ondrop="event.preventDefault();this.classList.remove('drag-over-code');dropCodeReorder('${key}');">
       <div class="proj-code-dot" style="background:${p.color || '#666'};"></div>
       <span class="proj-code-label">${p.label || key}</span>
+      <button class="proj-eye-btn" onclick="event.stopPropagation();archiveProject('${key}')" title="Close out / archive this project">📦</button>
       <button class="proj-eye-btn" onclick="event.stopPropagation();toggleProjHidden('${key}')" title="Hide this code">👁</button>
     </div>`;
   });
@@ -7217,6 +7272,27 @@ function renderProjCodeList() {
           <div class="proj-code-dot" style="background:${p.color || '#666'};"></div>
           <span class="proj-code-label">${p.label || key}</span>
           <button class="proj-eye-btn" onclick="event.stopPropagation();toggleProjHidden('${key}')" title="Show this code">👁‍🗨</button>
+        </div>`;
+      });
+    }
+    html += '</div>';
+  }
+
+  // Archived section
+  if (archived.length) {
+    html += `<div class="proj-hidden-section">
+      <div class="proj-hidden-header" onclick="toggleArchivedSection()">
+        <span class="proj-hidden-chevron${archivedSectionOpen ? ' open' : ''}">›</span>
+        <span>Archived (${archived.length})</span>
+      </div>`;
+    if (archivedSectionOpen) {
+      archived.forEach(key => {
+        const p = PROJECTS[key];
+        const dateLbl = p.archivedAt ? ` <span style="font-size:9px;color:var(--text3);">${p.archivedAt}</span>` : '';
+        html += `<div class="proj-code-item hidden-item" data-code-key="${key}">
+          <div class="proj-code-dot" style="background:${p.color || '#666'};"></div>
+          <span class="proj-code-label">${p.label || key}${dateLbl}</span>
+          <button class="proj-eye-btn" onclick="event.stopPropagation();unarchiveProject('${key}')" title="Revive — reopen this project">↩</button>
         </div>`;
       });
     }
@@ -7762,6 +7838,184 @@ function toggleProjHidden(key) {
 function toggleHiddenSection() {
   hiddenSectionOpen = !hiddenSectionOpen;
   renderProjCodeList();
+}
+
+function toggleArchivedSection() {
+  archivedSectionOpen = !archivedSectionOpen;
+  renderProjCodeList();
+}
+
+// ── Archive (close-out) flow ──
+// Collect every future-dated, undone item attached to a project. Used to ask the user
+// what to do with them when archiving.
+function _findFutureWorkForProject(projKey) {
+  const todayStr = today();
+  const result = { tasks: [], sessions: [], subtasks: [], teamItems: [] };
+
+  tasks.forEach(t => {
+    if (t.project !== projKey || t.completed) return;
+    const futureDate = (t.due && t.due >= todayStr)
+      || (t.allocMonth && t.allocMonth >= todayStr.slice(0, 7));
+    const isRecurring = !!t.recurrence;
+    if (futureDate || isRecurring) result.tasks.push(t);
+  });
+
+  bigProjs.forEach(bp => {
+    if (bp.project !== projKey) return;
+    (bp.sessions || []).forEach(s => {
+      if (s.done) return;
+      const futureDate = (s.date && s.date >= todayStr)
+        || (s.allocMonth && s.allocMonth >= todayStr.slice(0, 7));
+      const isRecurring = !!s.recurrence;
+      if (futureDate || isRecurring) result.sessions.push({ bp, session: s });
+      (s.subtasks || []).forEach(st => {
+        if (st.done) return;
+        const stFuture = (st.date && st.date >= todayStr)
+          || (st.allocMonth && st.allocMonth >= todayStr.slice(0, 7));
+        if (stFuture) result.subtasks.push({ bp, session: s, subtask: st });
+      });
+    });
+  });
+
+  if (Array.isArray(teamItems)) {
+    teamItems.forEach(ti => {
+      if (ti.project !== projKey || ti.status === 'complete') return;
+      if (ti.due && ti.due >= todayStr) result.teamItems.push(ti);
+    });
+  }
+
+  return result;
+}
+
+function _futureWorkSummary(work) {
+  const parts = [];
+  if (work.tasks.length) parts.push(`${work.tasks.length} task${work.tasks.length > 1 ? 's' : ''}`);
+  if (work.sessions.length) parts.push(`${work.sessions.length} session${work.sessions.length > 1 ? 's' : ''}`);
+  if (work.subtasks.length) parts.push(`${work.subtasks.length} subtask${work.subtasks.length > 1 ? 's' : ''}`);
+  if (work.teamItems.length) parts.push(`${work.teamItems.length} team item${work.teamItems.length > 1 ? 's' : ''}`);
+  return parts.join(', ');
+}
+
+let _archiveCandidate = null; // { projKey, work }
+
+function archiveProject(projKey) {
+  const proj = PROJECTS[projKey];
+  if (!proj) return;
+  if (proj.archivedAt) { unarchiveProject(projKey); return; }
+
+  const work = _findFutureWorkForProject(projKey);
+  const hasFuture = work.tasks.length || work.sessions.length || work.subtasks.length || work.teamItems.length;
+
+  if (!hasFuture) {
+    _commitArchive(projKey, 'keep');
+    return;
+  }
+
+  _archiveCandidate = { projKey, work };
+  const modal = document.getElementById('archiveProjModal');
+  if (!modal) {
+    // Fallback to confirm if modal isn't in the DOM yet
+    const summary = _futureWorkSummary(work);
+    if (confirm(`Archive "${proj.label}"?\n\nFound ${summary} dated forward. They'll be kept as-is by default — visit each item to clean up later.\n\nProceed?`)) {
+      _commitArchive(projKey, 'keep');
+    }
+    return;
+  }
+  document.getElementById('archiveProjName').textContent = proj.label;
+  document.getElementById('archiveProjSummary').textContent = _futureWorkSummary(work) + ' dated forward';
+  modal.style.display = 'flex';
+}
+
+function _closeArchiveModal() {
+  _archiveCandidate = null;
+  const modal = document.getElementById('archiveProjModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function _confirmArchive(action) {
+  if (!_archiveCandidate) return;
+  const { projKey } = _archiveCandidate;
+  _commitArchive(projKey, action);
+  _closeArchiveModal();
+}
+
+function _commitArchive(projKey, action) {
+  const proj = PROJECTS[projKey];
+  if (!proj) return;
+  const work = _findFutureWorkForProject(projKey);
+  const todayStr = today();
+
+  if (action === 'complete') {
+    work.tasks.forEach(t => {
+      if (!t.recurrence) {
+        t.completed = true;
+        t.completedAt = todayStr;
+      }
+      // Recurring tasks: end recurrence today instead of marking the whole template complete
+      if (t.recurrence) {
+        t.recurrence.endDate = todayStr;
+      }
+    });
+    work.sessions.forEach(({ session }) => {
+      if (!session.recurrence) session.done = true;
+      else session.recurrence.endDate = todayStr;
+    });
+    work.subtasks.forEach(({ subtask }) => { subtask.done = true; });
+    work.teamItems.forEach(ti => { ti.status = 'complete'; });
+    save('wt_tasks', tasks);
+    save('wt_bigprojs', bigProjs);
+    if (Array.isArray(teamItems)) save('wt_team', teamItems);
+  } else if (action === 'delete') {
+    const taskIds = new Set(work.tasks.map(t => t.id));
+    if (taskIds.size) tasks = tasks.filter(t => !taskIds.has(t.id));
+    work.sessions.forEach(({ bp, session }) => {
+      bp.sessions = (bp.sessions || []).filter(s => s.id !== session.id);
+    });
+    work.subtasks.forEach(({ session, subtask }) => {
+      session.subtasks = (session.subtasks || []).filter(st => st.id !== subtask.id);
+    });
+    const teamIds = new Set(work.teamItems.map(ti => ti.id));
+    if (teamIds.size && Array.isArray(teamItems)) teamItems = teamItems.filter(ti => !teamIds.has(ti.id));
+    save('wt_tasks', tasks);
+    save('wt_bigprojs', bigProjs);
+    if (Array.isArray(teamItems)) save('wt_team', teamItems);
+  }
+  // 'keep' — leave items in place; they'll just be hidden from forward-looking views
+  // because plannedItems() filters out archived projects.
+
+  proj.archivedAt = todayStr;
+  saveProjects();
+  _invalidatePlannedCache();
+
+  // Clear stale Projects-tab selection
+  if (selectedProjCode === projKey) selectedProjCode = null;
+
+  populateProjectSelects();
+  renderTasks();
+  renderProjects();
+  renderAllocations();
+  renderCapacity();
+  if (typeof renderTeam === 'function') renderTeam();
+  if (typeof renderTimesheet === 'function') renderTimesheet();
+  if (_supabase && _currentUser) syncToCloud();
+  showSyncToast(`Archived ${proj.label}`, 'success');
+}
+
+function unarchiveProject(projKey) {
+  const proj = PROJECTS[projKey];
+  if (!proj) return;
+  delete proj.archivedAt;
+  saveProjects();
+  _invalidatePlannedCache();
+  populateProjectSelects();
+  renderTasks();
+  renderProjects();
+  renderAllocations();
+  renderCapacity();
+  if (typeof renderTeam === 'function') renderTeam();
+  if (typeof renderTimesheet === 'function') renderTimesheet();
+  if (_supabase && _currentUser) syncToCloud();
+  showSyncToast(`Revived ${proj.label}`, 'success');
 }
 
 function toggleSubSection(sectionKey) {
@@ -8568,6 +8822,10 @@ function plannedItems(fromDate, toDate) {
     // Skip tasks delegated to someone else — they aren't my personal workload
     const tDel = normDelegated(t.delegatedTo);
     if (tDel.length && !tDel.includes('Me')) return;
+    // Skip work attached to archived projects — closed-out projects don't generate
+    // forward-looking workload. Their items remain in the task list (per archive
+    // option "Keep") but stop counting toward Capacity / Allocations planning.
+    if (isProjArchived(t.project)) return;
     if (!t.recurrence) {
       if (t.due && t.due >= fromDate && t.due <= toDate) {
         items.push({ id: t.id, name: t.name, project: t.project, date: t.due, hours: t.est || 0, subCode: t.subCode || '', _planned: true, _src: 'task' });
@@ -8608,6 +8866,7 @@ function plannedItems(fromDate, toDate) {
     }
   });
   bigProjs.forEach(proj => {
+    if (isProjArchived(proj.project)) return;
     proj.sessions.forEach(s => {
       const sDel = normDelegated(s.delegatedTo);
       const isMyWork = !sDel.length || sDel.includes('Me');
@@ -11877,10 +12136,20 @@ function renderAllocations() {
     });
   }
 
-  // Collect projects that have sub-codes or billing codes, in user-defined order
+  // Collect projects that have sub-codes or billing codes, in user-defined order.
+  // Archived projects are excluded by default; toolbar toggle re-includes them as read-only.
   const projEntries = projOrder
     .filter(k => PROJECTS[k] && ((PROJECTS[k].subCodes && PROJECTS[k].subCodes.length > 0) || PROJECTS[k].billingCode))
+    .filter(k => _allocShowArchived || !PROJECTS[k].archivedAt)
     .map(k => [k, PROJECTS[k]]);
+
+  // Reflect the toggle state on the toolbar button
+  const archivedBtn = document.getElementById('allocArchivedToggle');
+  if (archivedBtn) {
+    const archivedCount = Object.keys(PROJECTS).filter(k => PROJECTS[k].archivedAt).length;
+    archivedBtn.textContent = (_allocShowArchived ? 'Hide archived' : 'Show archived') + (archivedCount ? ` (${archivedCount})` : '');
+    archivedBtn.style.display = archivedCount ? '' : 'none';
+  }
 
   if (projEntries.length === 0) {
     grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3);font-size:13px;">No sub-codes configured yet. Go to <strong>Manage Sub-Codes</strong> to add sub-codes under your project billing codes, then set monthly hour allocations here.</div>';
@@ -11925,7 +12194,13 @@ function renderAllocations() {
     const allocCollapsed = collapsedAllocProjs.has(projKey);
     const chevron = subs.length > 0 ? `<span class="alloc-collapse-btn ${allocCollapsed ? '' : 'open'}" onclick="toggleAllocProjCollapse('${projKey}')" title="${allocCollapsed ? 'Expand' : 'Collapse'} sub-codes">›</span>` : '';
     const editBtn = subs.length > 0 ? `<span onclick="event.stopPropagation();openScManager('${projKey}')" style="cursor:pointer;font-size:11px;opacity:0.5;margin-left:4px;" title="Manage sub-codes">✎</span>` : '';
-    html += `<tr class="alloc-proj-header"><td>${chevron}<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${proj.color};margin-right:6px;"></span>${proj.label}${codeStr}${editBtn}</td>`;
+    const projArchived = !!proj.archivedAt;
+    const archBtn = projArchived
+      ? `<span onclick="event.stopPropagation();unarchiveProject('${projKey}')" style="cursor:pointer;font-size:11px;opacity:0.6;margin-left:4px;color:var(--accent);" title="Revive — reopen this project">↩</span>`
+      : `<span onclick="event.stopPropagation();archiveProject('${projKey}')" style="cursor:pointer;font-size:11px;opacity:0.5;margin-left:4px;" title="Close out / archive this project">📦</span>`;
+    const archBadge = projArchived ? ` <span style="font-size:9px;color:var(--text3);font-style:italic;background:var(--bg3);padding:1px 5px;border-radius:3px;margin-left:4px;">archived ${proj.archivedAt}</span>` : '';
+    const rowStyle = projArchived ? ' style="opacity:0.55;"' : '';
+    html += `<tr class="alloc-proj-header"${rowStyle}><td>${chevron}<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${proj.color};margin-right:6px;"></span>${proj.label}${codeStr}${archBadge}${editBtn}${archBtn}</td>`;
 
     // Project-level summary per month
     const noSubs = subs.length === 0;
@@ -11955,14 +12230,20 @@ function renderAllocations() {
       grandActualTotals[mi] += projActual;
       grandPlannedTotals[mi] += projPlanned;
 
+      const isFutureCell = m.ym > currentYM;
+      const cellLocked = projArchived && isFutureCell;
       if (viewMode === 'summary') {
         html += allocSummaryCell(projAlloc, projPlanned, projActual, `openAllocDrill('${projKey}','','${m.ym}')`, mCls(m.ym));
       } else {
-        html += `<td class="alloc-cell alloc-cell-clickable ${mCls(m.ym)}" onclick="openAllocDrill('${projKey}','','${m.ym}')" title="Click to see task breakdown">`;
+        html += `<td class="alloc-cell alloc-cell-clickable ${mCls(m.ym)}" onclick="openAllocDrill('${projKey}','','${m.ym}')" title="${cellLocked ? 'Archived — future months are read-only' : 'Click to see task breakdown'}">`;
         if (noSubs) {
-          html += `<input type="number" min="0" step="1" value="${projAlloc || ''}" placeholder="—"
-                    onchange="allocSet('${projKey}','','${m.ym}',this.value)" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"
-                    title="Allocated hours for ${proj.label} in ${m.label}">`;
+          if (cellLocked) {
+            html += `<div style="font-weight:600;font-size:11px;color:var(--text3);">${projAlloc > 0 ? projAlloc + 'h' : '—'}</div>`;
+          } else {
+            html += `<input type="number" min="0" step="1" value="${projAlloc || ''}" placeholder="—"
+                      onchange="allocSet('${projKey}','','${m.ym}',this.value)" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"
+                      title="Allocated hours for ${proj.label} in ${m.label}">`;
+          }
         } else {
           html += `<div style="font-weight:600;font-size:11px;">${projAlloc > 0 ? projAlloc + 'h' : '—'}</div>`;
         }
@@ -12001,11 +12282,16 @@ function renderAllocations() {
           scActualYTD += actual;
           scPlannedYTD += planned;
 
+          const scFutureLocked = projArchived && m.ym > currentYM;
           if (scIsActive) {
-            html += `<td class="alloc-cell alloc-cell-clickable ${mCls(m.ym)}" onclick="openAllocDrill('${projKey}','${sc.id}','${m.ym}')" title="Click to see task breakdown">`;
-            html += `<input type="number" min="0" step="1" value="${allocated || ''}" placeholder="—"
-                      onchange="allocSet('${projKey}','${sc.id}','${m.ym}',this.value)" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"
-                      title="Allocated hours for ${fullCode} in ${m.label}">`;
+            html += `<td class="alloc-cell alloc-cell-clickable ${mCls(m.ym)}" onclick="openAllocDrill('${projKey}','${sc.id}','${m.ym}')" title="${scFutureLocked ? 'Archived — future months are read-only' : 'Click to see task breakdown'}">`;
+            if (scFutureLocked) {
+              html += `<div style="font-size:11px;color:var(--text3);">${allocated > 0 ? allocated + 'h' : '—'}</div>`;
+            } else {
+              html += `<input type="number" min="0" step="1" value="${allocated || ''}" placeholder="—"
+                        onchange="allocSet('${projKey}','${sc.id}','${m.ym}',this.value)" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"
+                        title="Allocated hours for ${fullCode} in ${m.label}">`;
+            }
             html += allocDualBars(allocated, planned, actual);
           } else {
             html += `<td class="alloc-cell ${mCls(m.ym)}">`;
