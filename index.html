@@ -3944,7 +3944,10 @@ if (typeof XLSX === 'undefined') {
 <div class="modal-overlay" id="allocImportPreviewModal" style="display:none;">
   <div class="modal" style="width:920px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;padding:20px 24px;">
     <div class="modal-title">Import Preview</div>
-    <div class="modal-subtitle" id="aipSummary" style="margin-bottom:12px;"></div>
+    <div class="modal-subtitle" id="aipSummary" style="margin-bottom:6px;"></div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.4;">
+      Each row's <strong>project dropdown</strong> lets you merge into an existing project (rather than creating a duplicate). The <strong>sub-code dropdown</strong> picks which sub-code to merge into. When merging into an existing project or sub-code, check the <strong>name toggles</strong> to rename it to the imported label instead of keeping the existing one.
+    </div>
     <div id="aipBody" style="overflow-y:auto;flex:1;padding-right:4px;margin:0 -4px;"></div>
     <div class="modal-actions" style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px;">
       <button class="btn" onclick="_cancelAllocImportPlan()">Cancel</button>
@@ -10139,6 +10142,60 @@ function _rollRemainingForward(projKey, scId, fromYM) {
   showSyncToast(`${verb} from ${label} → ${toLabel}`, 'success');
 }
 
+// Roll every sub-code of a project forward at once (used when the user clicks roll
+// on the project-parent aggregate row).
+function _rollProjectAllSubsForward(projKey, fromYM) {
+  const proj = PROJECTS[projKey];
+  if (!proj) return;
+  const scs = proj.subCodes || [];
+  const [y, m] = fromYM.split('-').map(Number);
+  const nd = new Date(y, m, 1);
+  const toYM = nd.getFullYear() + '-' + String(nd.getMonth() + 1).padStart(2, '0');
+
+  let rolledCount = 0;
+  let totalRemaining = 0;
+
+  // Include project-level (no sub-code) bucket too
+  const buckets = scs.map(s => s.id);
+  buckets.push('');
+
+  buckets.forEach(scId => {
+    const aKey = allocKey(projKey, scId, fromYM);
+    const allocated = allocations[aKey] || 0;
+    const actual = scId ? allocGetActuals(projKey, scId, fromYM) : 0;
+    const remaining = allocated - actual;
+    if (remaining === 0) return;
+
+    const toKey = allocKey(projKey, scId, toYM);
+    allocations[toKey] = (allocations[toKey] || 0) + remaining;
+    if (allocations[toKey] <= 0) delete allocations[toKey];
+
+    const roKey = projKey + '|' + (scId || '') + '|' + toYM;
+    _allocRollovers[roKey] = (_allocRollovers[roKey] || 0) + remaining;
+
+    allocations[aKey] = actual > 0 ? actual : 0;
+    if (allocations[aKey] <= 0) delete allocations[aKey];
+
+    rolledCount++;
+    totalRemaining += remaining;
+  });
+
+  if (rolledCount === 0) {
+    showSyncToast('Nothing to roll — all sub-codes balanced.', 'warn');
+    return;
+  }
+
+  saveAllocations();
+  _saveRollovers();
+  renderAllocations();
+  closeAllocDrill();
+
+  const [_toY, _toM] = toYM.split('-').map(Number);
+  const toLabel = new Date(_toY, _toM - 1, 1).toLocaleString('default', { month: 'short', year: 'numeric' });
+  const sign = totalRemaining >= 0 ? '+' : '−';
+  showSyncToast(`Rolled ${rolledCount} sub-code${rolledCount > 1 ? 's' : ''} (${sign}${fmtQ(Math.abs(totalRemaining))}h net) from ${proj.label} → ${toLabel}`, 'success');
+}
+
 // =============================================
 // BIGTIME XLS IMPORT
 // =============================================
@@ -10296,6 +10353,30 @@ function _matchSubCode(projKey, label) {
     if (existing) return { scId: existing.id, matchType: 'contains' };
   }
   return { scId: null, matchType: 'new' };
+}
+
+// Force-create a project with no matching (used when user explicitly chose "Force create new")
+function _forceCreateProject(billingCode, jobLabel) {
+  // Generate a unique key — append numeric suffix if collision
+  let baseKey = (billingCode || jobLabel || 'project').toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'project';
+  let newKey = baseKey;
+  let n = 2;
+  while (PROJECTS[newKey]) {
+    newKey = baseKey + '_' + n;
+    n++;
+  }
+  const palette = ['#0ea5e9','#f97316','#16a34a','#dc2626','#84cc16','#14b8a6',
+    '#8b5cf6','#e879f9','#06b6d4','#65a30d','#d946ef','#10b981','#f59e0b','#ef4444','#eab308'];
+  const colorIdx = Object.keys(PROJECTS).length % palette.length;
+  PROJECTS[newKey] = {
+    label: jobLabel || billingCode || 'New Project',
+    color: palette[colorIdx],
+    billingCode: billingCode || '',
+    subCodes: [],
+    tags: []
+  };
+  if (!projOrder.includes(newKey)) projOrder.push(newKey);
+  return newKey;
 }
 
 // Force-create a sub-code with no matching (used when user explicitly chose "Create new")
@@ -10719,23 +10800,6 @@ function _buildAllocImportPlan(rows, jobCol, taskCol, monthCols) {
 
     const matchedProjKey = _matchProject(billingCode, jobLabel);
     const projIsNew = !matchedProjKey;
-    const projLabelDisplay = matchedProjKey
-      ? PROJECTS[matchedProjKey].label
-      : (jobLabel || billingCode);
-
-    let scMatch = { scId: null, matchType: taskName ? 'new' : 'none' };
-    if (taskName && matchedProjKey) {
-      scMatch = _matchSubCode(matchedProjKey, taskName);
-    }
-    const scIsNew = taskName ? !scMatch.scId : false;
-    const matchedSc = scMatch.scId && matchedProjKey
-      ? (PROJECTS[matchedProjKey].subCodes || []).find(s => s.id === scMatch.scId)
-      : null;
-    const scLabelDisplay = matchedSc ? matchedSc.label : taskName;
-
-    const availableSubCodes = matchedProjKey
-      ? (PROJECTS[matchedProjKey].subCodes || []).map(s => ({ id: s.id, label: s.label }))
-      : [];
 
     // Parse cells for current + future months only
     const cells = [];
@@ -10756,15 +10820,12 @@ function _buildAllocImportPlan(rows, jobCol, taskCol, monthCols) {
       billingCode,
       jobLabel,
       taskName,
-      projKey: matchedProjKey,      // null if project is new
-      projIsNew,
-      projLabelDisplay,
-      scId: scMatch.scId,            // null if sub-code will be created
-      scIsNew,
-      scMatchType: scMatch.matchType, // 'exact' | 'normalized' | 'contains' | 'new' | 'none'
-      scLabelDisplay,
-      availableSubCodes,
-      userOverride: null,            // null | 'create-new' | <existingScId>
+      projKey: matchedProjKey,         // auto-matched project (null if new)
+      projIsNew,                       // auto: would create new
+      userProjOverride: null,          // null | 'create-new' | <existingProjKey>
+      userOverride: null,              // null | 'create-new' | <existingScId>
+      useImportedProjLabel: false,     // when matched, rename existing project to imported jobLabel
+      useImportedScLabel: false,       // when matched, rename existing sub-code to imported taskName
       cells
     });
     rowCounter++;
@@ -10773,18 +10834,78 @@ function _buildAllocImportPlan(rows, jobCol, taskCol, monthCols) {
   return plan;
 }
 
+// Resolve the effective project for a row, honoring user override.
+// Returns { projKey: string|null, isNew: bool, label: string, billingCode: string }
+function _aipResolveProject(row) {
+  if (row.userProjOverride === 'create-new') {
+    return {
+      projKey: null,
+      isNew: true,
+      label: row.jobLabel || row.billingCode,
+      billingCode: row.billingCode
+    };
+  }
+  if (row.userProjOverride && PROJECTS[row.userProjOverride]) {
+    const p = PROJECTS[row.userProjOverride];
+    return {
+      projKey: row.userProjOverride,
+      isNew: false,
+      label: row.useImportedProjLabel && row.jobLabel ? row.jobLabel : p.label,
+      billingCode: p.billingCode || row.billingCode
+    };
+  }
+  if (row.projIsNew) {
+    return {
+      projKey: null,
+      isNew: true,
+      label: row.jobLabel || row.billingCode,
+      billingCode: row.billingCode
+    };
+  }
+  const p = PROJECTS[row.projKey];
+  return {
+    projKey: row.projKey,
+    isNew: false,
+    label: row.useImportedProjLabel && row.jobLabel ? row.jobLabel : (p?.label || row.jobLabel),
+    billingCode: p?.billingCode || row.billingCode
+  };
+}
+
 // Resolve the effective sub-code for a row, honoring user override.
-// Returns { scId: string|null, isNew: bool, label: string }
+// Returns { scId: string|null, isNew: bool, label: string, matchType: string }
 function _aipResolveRow(row) {
+  const proj = _aipResolveProject(row);
+
+  // New project → can only create a new sub-code (or none)
+  if (proj.isNew) {
+    if (!row.taskName) return { scId: null, isNew: false, label: '', matchType: 'none' };
+    return { scId: null, isNew: true, label: row.taskName, matchType: 'new' };
+  }
+
+  // User explicitly chose create-new
   if (row.userOverride === 'create-new') {
-    return { scId: null, isNew: true, label: row.taskName };
+    return { scId: null, isNew: true, label: row.taskName, matchType: 'new' };
   }
+
+  // User explicitly picked an existing sub-code
   if (row.userOverride) {
-    const proj = PROJECTS[row.projKey];
-    const sc = (proj?.subCodes || []).find(s => s.id === row.userOverride);
-    return { scId: row.userOverride, isNew: false, label: sc?.label || row.taskName };
+    const sc = (PROJECTS[proj.projKey]?.subCodes || []).find(s => s.id === row.userOverride);
+    if (sc) {
+      const label = row.useImportedScLabel && row.taskName ? row.taskName : sc.label;
+      return { scId: row.userOverride, isNew: false, label, matchType: 'override' };
+    }
+    // Fall through if override is stale (e.g. project changed)
   }
-  return { scId: row.scId, isNew: row.scIsNew, label: row.scLabelDisplay };
+
+  // Auto-match against the resolved project's sub-codes
+  if (!row.taskName) return { scId: null, isNew: false, label: '', matchType: 'none' };
+  const m = _matchSubCode(proj.projKey, row.taskName);
+  if (m.scId) {
+    const sc = (PROJECTS[proj.projKey]?.subCodes || []).find(s => s.id === m.scId);
+    const label = row.useImportedScLabel && row.taskName ? row.taskName : (sc?.label || row.taskName);
+    return { scId: m.scId, isNew: false, label, matchType: m.matchType };
+  }
+  return { scId: null, isNew: true, label: row.taskName, matchType: 'new' };
 }
 
 // Compute preservation list: existing sub-codes with non-zero allocations in import
@@ -10792,9 +10913,10 @@ function _aipResolveRow(row) {
 function _aipComputePreserved(plan) {
   const importedCombos = new Set();
   plan.rows.forEach(r => {
-    if (r.projIsNew) return; // new project → can't collide with existing alloc
+    const proj = _aipResolveProject(r);
+    if (proj.isNew) return; // new project → can't collide with existing alloc
     const resolved = _aipResolveRow(r);
-    if (resolved.scId) importedCombos.add(r.projKey + '|' + resolved.scId);
+    if (resolved.scId) importedCombos.add(proj.projKey + '|' + resolved.scId);
     // If resolved.isNew (create-new), the new sub-code won't clash with anything existing,
     // so we don't add to importedCombos — preservation still lists the old one.
   });
@@ -10943,6 +11065,31 @@ function _aipSetRowSc(idx, val) {
   _aipRenderPreviewBody();
 }
 
+function _aipSetRowProj(idx, val) {
+  const row = _allocImportPlan && _allocImportPlan.rows[idx];
+  if (!row) return;
+  row.userProjOverride = val;
+  // Project changed → drop any sub-code override since it referenced the old project's sub-codes
+  row.userOverride = null;
+  // Renaming an existing project's label only makes sense when merging into a different one
+  if (val === 'create-new') row.useImportedProjLabel = false;
+  _aipRenderPreviewBody();
+}
+
+function _aipSetRowUseImportedProjLabel(idx, checked) {
+  const row = _allocImportPlan && _allocImportPlan.rows[idx];
+  if (!row) return;
+  row.useImportedProjLabel = !!checked;
+  _aipRenderPreviewBody();
+}
+
+function _aipSetRowUseImportedScLabel(idx, checked) {
+  const row = _allocImportPlan && _allocImportPlan.rows[idx];
+  if (!row) return;
+  row.useImportedScLabel = !!checked;
+  _aipRenderPreviewBody();
+}
+
 function _aipTogglePreserved(combo, keep) {
   if (!_allocImportPlan) return;
   _allocImportPlan.preservedActionsByCombo[combo] = keep ? 'keep' : 'clear';
@@ -10956,18 +11103,23 @@ function _aipRenderPreviewBody() {
   const preserved = _aipComputePreserved(plan);
 
   // ── Summary counts (dynamic based on current overrides) ──
-  const newProjCount = plan.rows.filter(r => r.projIsNew).length;
-  const newScCount = plan.rows.reduce((n, r) => {
-    const res = _aipResolveRow(r);
-    return n + (r.projIsNew || res.isNew ? 1 : 0);
-  }, 0);
+  let newProjCount = 0, newScCount = 0, renamedProjCount = 0, renamedScCount = 0;
   let overwriteCount = 0, clearedCount = 0;
   plan.rows.forEach(r => {
-    if (r.projIsNew) return;
+    const proj = _aipResolveProject(r);
     const res = _aipResolveRow(r);
-    if (res.isNew) return; // new sub-code — no existing to overwrite
+    if (proj.isNew) newProjCount++;
+    if (proj.isNew || res.isNew) newScCount++;
+    if (!proj.isNew && r.useImportedProjLabel && r.jobLabel && PROJECTS[proj.projKey]?.label !== r.jobLabel) {
+      renamedProjCount++;
+    }
+    if (!proj.isNew && !res.isNew && res.scId && r.useImportedScLabel && r.taskName) {
+      const sc = (PROJECTS[proj.projKey]?.subCodes || []).find(s => s.id === res.scId);
+      if (sc && sc.label !== r.taskName) renamedScCount++;
+    }
+    if (proj.isNew || res.isNew) return;
     r.cells.forEach(c => {
-      const ex = allocations[allocKey(r.projKey, res.scId, c.ym)] || 0;
+      const ex = allocations[allocKey(proj.projKey, res.scId || '', c.ym)] || 0;
       if (c.val > 0 && ex > 0 && ex !== c.val) overwriteCount++;
       if (c.val === 0 && ex > 0) clearedCount++;
     });
@@ -10980,6 +11132,8 @@ function _aipRenderPreviewBody() {
   ];
   if (newProjCount) summaryParts.push(`<strong style="color:var(--accent);">${newProjCount}</strong> new project${newProjCount > 1 ? 's' : ''}`);
   if (newScCount) summaryParts.push(`<strong style="color:var(--accent);">${newScCount}</strong> new sub-code${newScCount > 1 ? 's' : ''}`);
+  if (renamedProjCount) summaryParts.push(`<strong style="color:var(--warn);">${renamedProjCount}</strong> project rename${renamedProjCount > 1 ? 's' : ''}`);
+  if (renamedScCount) summaryParts.push(`<strong style="color:var(--warn);">${renamedScCount}</strong> sub-code rename${renamedScCount > 1 ? 's' : ''}`);
   if (overwriteCount) summaryParts.push(`<strong style="color:var(--warn);">${overwriteCount}</strong> overwrite${overwriteCount > 1 ? 's' : ''}`);
   if (clearedCount) summaryParts.push(`<strong style="color:var(--danger);">${clearedCount}</strong> zeroed`);
   if (preserved.length) summaryParts.push(`<strong style="color:var(--text2);">${preserved.length}</strong> preserved${clearPresCount ? ` (${clearPresCount} will clear)` : ''}`);
@@ -11014,56 +11168,118 @@ function _aipRenderPreviewBody() {
 }
 
 function _aipRenderRow(row, idx) {
+  const proj = _aipResolveProject(row);
   const resolved = _aipResolveRow(row);
 
   // Determine status badge
   let badge, badgeColor;
-  if (row.projIsNew) {
-    badge = '★ new project'; badgeColor = 'var(--accent)';
+  if (proj.isNew) {
+    badge = row.userProjOverride === 'create-new' && !row.projIsNew
+      ? '+ force new project'
+      : '★ new project';
+    badgeColor = 'var(--accent)';
+  } else if (row.userProjOverride) {
+    badge = '⇄ merged'; badgeColor = 'var(--warn)';
   } else if (row.userOverride === 'create-new') {
-    badge = '+ create new'; badgeColor = 'var(--accent)';
+    badge = '+ create new sub'; badgeColor = 'var(--accent)';
   } else if (row.userOverride) {
     badge = '✎ overridden'; badgeColor = 'var(--warn)';
   } else if (resolved.isNew) {
     badge = '+ new sub-code'; badgeColor = 'var(--accent)';
-  } else if (row.scMatchType === 'exact' || row.scMatchType === 'normalized') {
+  } else if (resolved.matchType === 'exact' || resolved.matchType === 'normalized') {
     badge = '✓ match'; badgeColor = 'var(--success)';
-  } else if (row.scMatchType === 'contains') {
+  } else if (resolved.matchType === 'contains') {
     badge = '~ fuzzy match'; badgeColor = 'var(--warn)';
   } else {
     badge = '✓ match'; badgeColor = 'var(--success)';
   }
 
-  // Sub-code control: dropdown if project exists, else plain label
+  // Project control: dropdown to merge into a different existing project, or force new
+  const projOpts = [];
+  if (row.projKey && PROJECTS[row.projKey]) {
+    const autoP = PROJECTS[row.projKey];
+    const autoLabel = `${autoP.label}${autoP.billingCode ? ' (' + autoP.billingCode + ')' : ''}`;
+    projOpts.push(`<option value=""${!row.userProjOverride ? ' selected' : ''}>${row.projIsNew ? '+ New project' : '✓ Auto: ' + _aipEsc(autoLabel)}</option>`);
+  } else {
+    projOpts.push(`<option value=""${!row.userProjOverride ? ' selected' : ''}>★ New project: "${_aipEsc(row.jobLabel || row.billingCode)}"</option>`);
+  }
+  // Build sorted list of existing projects (excluding the auto-matched one to avoid duplicate)
+  const existingEntries = Object.entries(PROJECTS)
+    .filter(([k]) => k !== row.projKey)
+    .sort((a, b) => (a[1].label || '').localeCompare(b[1].label || ''));
+  if (existingEntries.length) {
+    projOpts.push(`<optgroup label="── Merge into existing ──">`);
+    existingEntries.forEach(([k, p]) => {
+      const lbl = `${p.label}${p.billingCode ? ' (' + p.billingCode + ')' : ''}`;
+      projOpts.push(`<option value="${_aipEsc(k)}"${row.userProjOverride === k ? ' selected' : ''}>⇄ ${_aipEsc(lbl)}</option>`);
+    });
+    projOpts.push(`</optgroup>`);
+  }
+  // "Force create new" option only meaningful when auto-match found a project
+  if (row.projKey) {
+    projOpts.push(`<option value="create-new"${row.userProjOverride === 'create-new' ? ' selected' : ''}>+ Force create new project</option>`);
+  }
+  const projControl = `<select onchange="_aipSetRowProj(${idx}, this.value)" style="background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px;max-width:280px;">${projOpts.join('')}</select>`;
+
+  // Sub-code control: dropdown if resolved project exists
   let scControl;
-  if (row.projIsNew) {
+  if (proj.isNew) {
     scControl = row.taskName
       ? `<span style="color:var(--accent);font-style:italic;">+ ${_aipEsc(row.taskName)}</span>`
       : `<span style="color:var(--text3);font-style:italic;">(no sub-code)</span>`;
-  } else if (!row.taskName && row.availableSubCodes.length === 0) {
-    scControl = `<span style="color:var(--text3);font-style:italic;">(project-level, no sub-code)</span>`;
   } else {
-    const selectedVal = row.userOverride || (resolved.isNew ? 'create-new' : (resolved.scId || ''));
-    const opts = [];
-    if (row.taskName) {
-      opts.push(`<option value="create-new"${selectedVal === 'create-new' ? ' selected' : ''}>+ Create new: "${_aipEsc(row.taskName)}"</option>`);
+    const availableSubCodes = (PROJECTS[proj.projKey]?.subCodes || []).map(s => ({ id: s.id, label: s.label }));
+    if (!row.taskName && availableSubCodes.length === 0) {
+      scControl = `<span style="color:var(--text3);font-style:italic;">(project-level, no sub-code)</span>`;
+    } else {
+      const selectedVal = row.userOverride || (resolved.isNew ? 'create-new' : (resolved.scId || ''));
+      const opts = [];
+      if (row.taskName) {
+        opts.push(`<option value="create-new"${selectedVal === 'create-new' ? ' selected' : ''}>+ Create new: "${_aipEsc(row.taskName)}"</option>`);
+      }
+      availableSubCodes.forEach(sc => {
+        opts.push(`<option value="${_aipEsc(sc.id)}"${selectedVal === sc.id ? ' selected' : ''}>⇄ ${_aipEsc(sc.label)}</option>`);
+      });
+      if (!row.taskName) {
+        opts.unshift(`<option value=""${!selectedVal ? ' selected' : ''}>(no sub-code — project-level)</option>`);
+      }
+      scControl = `<select onchange="_aipSetRowSc(${idx}, this.value)" style="background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px;max-width:320px;">${opts.join('')}</select>`;
     }
-    row.availableSubCodes.forEach(sc => {
-      opts.push(`<option value="${_aipEsc(sc.id)}"${selectedVal === sc.id ? ' selected' : ''}>${_aipEsc(sc.label)}</option>`);
-    });
-    if (!row.taskName) {
-      // project-level allocation is possible — add a "no sub-code" option
-      opts.unshift(`<option value=""${!selectedVal ? ' selected' : ''}>(no sub-code — project-level)</option>`);
+  }
+
+  // Name selection toggles — when merging into an existing project/sub-code, let user
+  // choose whether to keep the existing name or rename it to the imported one
+  let nameToggles = '';
+  if (!proj.isNew && row.jobLabel) {
+    const existingLbl = PROJECTS[proj.projKey]?.label || '';
+    if (existingLbl && _normLabel(existingLbl) !== _normLabel(row.jobLabel)) {
+      const id = `aip_pl_${idx}`;
+      nameToggles += `
+        <label for="${id}" style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);cursor:pointer;" title="If checked, the existing project will be renamed to the imported label">
+          <input type="checkbox" id="${id}" ${row.useImportedProjLabel ? 'checked' : ''} onchange="_aipSetRowUseImportedProjLabel(${idx}, this.checked)" style="cursor:pointer;">
+          <span>Project name: <strong style="color:${row.useImportedProjLabel ? 'var(--warn)' : 'var(--text2)'};">${_aipEsc(row.useImportedProjLabel ? row.jobLabel : existingLbl)}</strong> <span style="color:var(--text3);font-size:10px;">(${row.useImportedProjLabel ? 'imported' : 'existing'} — toggle to use "${_aipEsc(row.useImportedProjLabel ? existingLbl : row.jobLabel)}")</span></span>
+        </label>`;
     }
-    scControl = `<select onchange="_aipSetRowSc(${idx}, this.value)" style="background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px;max-width:320px;">${opts.join('')}</select>`;
+  }
+  if (!proj.isNew && !resolved.isNew && resolved.scId && row.taskName) {
+    const sc = (PROJECTS[proj.projKey]?.subCodes || []).find(s => s.id === resolved.scId);
+    const existingScLbl = sc?.label || '';
+    if (existingScLbl && _normLabel(existingScLbl) !== _normLabel(row.taskName)) {
+      const id = `aip_sl_${idx}`;
+      nameToggles += `
+        <label for="${id}" style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);cursor:pointer;" title="If checked, the matched sub-code will be renamed to the imported label">
+          <input type="checkbox" id="${id}" ${row.useImportedScLabel ? 'checked' : ''} onchange="_aipSetRowUseImportedScLabel(${idx}, this.checked)" style="cursor:pointer;">
+          <span>Sub-code name: <strong style="color:${row.useImportedScLabel ? 'var(--warn)' : 'var(--text2)'};">${_aipEsc(row.useImportedScLabel ? row.taskName : existingScLbl)}</strong> <span style="color:var(--text3);font-size:10px;">(${row.useImportedScLabel ? 'imported' : 'existing'} — toggle to use "${_aipEsc(row.useImportedScLabel ? existingScLbl : row.taskName)}")</span></span>
+        </label>`;
+    }
   }
 
   // Cells
   const cellsHtml = row.cells.map(c => {
     const ml = c.ym.slice(5) + '/' + c.ym.slice(2, 4);
-    const existing = (row.projIsNew || resolved.isNew)
+    const existing = (proj.isNew || resolved.isNew)
       ? 0
-      : (allocations[allocKey(row.projKey, resolved.scId || '', c.ym)] || 0);
+      : (allocations[allocKey(proj.projKey, resolved.scId || '', c.ym)] || 0);
     if (c.val === 0 && existing > 0) {
       return `<span style="padding:2px 6px;border-radius:3px;background:rgba(248,113,113,0.12);color:var(--danger);font-size:11px;" title="will clear">${ml}: 0h <small style="color:var(--text3);">(was ${existing}h)</small></span>`;
     }
@@ -11076,18 +11292,27 @@ function _aipRenderRow(row, idx) {
     return `<span style="padding:2px 6px;border-radius:3px;color:var(--text2);font-size:11px;">${ml}: ${c.val}h</span>`;
   }).join(' ');
 
-  const effectiveBillingCode = row.projIsNew ? row.billingCode : (PROJECTS[row.projKey]?.billingCode || '');
+  const effectiveBillingCode = proj.billingCode || '';
   const projSuffix = effectiveBillingCode ? ` <span style="color:var(--text3);font-weight:400;">${_aipEsc(effectiveBillingCode)}</span>` : '';
+  const importedJobBlurb = row.jobLabel
+    ? `<span style="color:var(--text3);font-style:italic;font-size:11px;">imported: &ldquo;${_aipEsc(row.jobLabel)}&rdquo;</span>`
+    : '';
 
   return `
     <div style="border:1px solid var(--border);border-left:3px solid ${badgeColor};border-radius:4px;padding:8px 10px;margin-bottom:6px;background:var(--bg);font-size:12px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <span style="font-size:10px;color:${badgeColor};font-weight:700;text-transform:uppercase;letter-spacing:0.3px;min-width:90px;">${badge}</span>
-        <span style="color:var(--text);font-weight:600;">${_aipEsc(row.projLabelDisplay)}${projSuffix}</span>
-        ${row.taskName ? `<span style="color:var(--text3);font-style:italic;font-size:11px;">imported: &ldquo;${_aipEsc(row.taskName)}&rdquo;</span>` : ''}
+        ${importedJobBlurb}
+        <span style="color:var(--text3);">→</span>
+        ${projControl}
+        <span style="color:var(--text);font-weight:600;">${_aipEsc(proj.label)}${projSuffix}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;padding-left:98px;">
+        ${row.taskName ? `<span style="color:var(--text3);font-style:italic;font-size:11px;">imported task: &ldquo;${_aipEsc(row.taskName)}&rdquo;</span>` : ''}
         <span style="color:var(--text3);">→</span>
         ${scControl}
       </div>
+      ${nameToggles ? `<div style="margin-top:6px;padding-left:98px;display:flex;flex-direction:column;gap:3px;">${nameToggles}</div>` : ''}
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;padding-left:98px;">${cellsHtml}</div>
     </div>
   `;
@@ -11149,18 +11374,42 @@ function _commitAllocImportPlan() {
   });
 
   const importedScs = new Set();
+  const renamedProjects = []; // [{ key, from, to }]
+  const renamedSubCodes = []; // [{ projKey, scId, from, to }]
   let importedRows = 0;
 
   plan.rows.forEach(r => {
-    let projKey = r.projKey;
-    if (r.projIsNew) {
-      projKey = _findOrCreateProject(r.billingCode, r.jobLabel);
+    const projRes = _aipResolveProject(r);
+    let projKey;
+    if (projRes.isNew) {
+      // Force create a new project (don't reuse _findOrCreateProject's matching when user
+      // explicitly chose "create new" — only use it when there was no auto-match either)
+      if (r.userProjOverride === 'create-new') {
+        projKey = _forceCreateProject(r.billingCode, r.jobLabel);
+      } else {
+        projKey = _findOrCreateProject(r.billingCode, r.jobLabel);
+      }
+    } else {
+      projKey = projRes.projKey;
+      // Honor "use imported name" by renaming the existing project
+      if (r.useImportedProjLabel && r.jobLabel && PROJECTS[projKey] && PROJECTS[projKey].label !== r.jobLabel) {
+        renamedProjects.push({ key: projKey, from: PROJECTS[projKey].label, to: r.jobLabel });
+        PROJECTS[projKey].label = r.jobLabel;
+      }
     }
 
     const resolved = _aipResolveRow(r);
     let scId = '';
     if (resolved.scId) {
       scId = resolved.scId;
+      // Honor "use imported name" by renaming the matched sub-code
+      if (r.useImportedScLabel && r.taskName && PROJECTS[projKey]) {
+        const sc = (PROJECTS[projKey].subCodes || []).find(s => s.id === scId);
+        if (sc && sc.label !== r.taskName) {
+          renamedSubCodes.push({ projKey, scId, from: sc.label, to: r.taskName });
+          sc.label = r.taskName;
+        }
+      }
     } else if (r.taskName && resolved.isNew) {
       scId = _createSubCode(projKey, r.taskName);
     }
@@ -11236,10 +11485,12 @@ function _commitAllocImportPlan() {
   const parts = [`<strong>${importedRows} rows</strong> merged for ${monthList}`];
   if (newProjectNames.length) parts.push(`<strong>${newProjectNames.length}</strong> new project${newProjectNames.length > 1 ? 's' : ''}`);
   if (newSubCodeNames.length) parts.push(`<strong>${newSubCodeNames.length}</strong> new sub-code${newSubCodeNames.length > 1 ? 's' : ''}`);
+  if (renamedProjects.length) parts.push(`<strong style="color:var(--warn);">${renamedProjects.length}</strong> project rename${renamedProjects.length > 1 ? 's' : ''}`);
+  if (renamedSubCodes.length) parts.push(`<strong style="color:var(--warn);">${renamedSubCodes.length}</strong> sub-code rename${renamedSubCodes.length > 1 ? 's' : ''}`);
   if (staleNames.length) parts.push(`<strong style="color:var(--danger);">${staleNames.length}</strong> <span style="color:var(--danger);">zeroed by import</span>`);
   if (dupeProjects.length || dupeSubs.length) parts.push(`<strong style="color:var(--warn);">${dupeProjects.length + dupeSubs.length}</strong> <span style="color:var(--warn);">possible duplicates</span>`);
 
-  const hasDetails = newProjectNames.length || newSubCodeNames.length || staleNames.length || dupeProjects.length || dupeSubs.length;
+  const hasDetails = newProjectNames.length || newSubCodeNames.length || renamedProjects.length || renamedSubCodes.length || staleNames.length || dupeProjects.length || dupeSubs.length;
   let detailHtml = '';
   if (hasDetails) {
     detailHtml = `<div id="allocImportDetails" style="display:none;margin-top:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;max-height:300px;overflow-y:auto;">`;
@@ -11273,6 +11524,14 @@ function _commitAllocImportPlan() {
     if (newSubCodeNames.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;">New Sub-codes:</div>`;
       detailHtml += newSubCodeNames.map(n => `<div style="padding:1px 0;color:var(--text2);">+ ${n}</div>`).join('');
+    }
+    if (renamedProjects.length) {
+      detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--warn);">Renamed Projects:</div>`;
+      detailHtml += renamedProjects.map(r => `<div style="padding:1px 0;color:var(--text2);">✎ "${r.from}" → "${r.to}"</div>`).join('');
+    }
+    if (renamedSubCodes.length) {
+      detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--warn);">Renamed Sub-codes:</div>`;
+      detailHtml += renamedSubCodes.map(r => `<div style="padding:1px 0;color:var(--text2);">✎ ${PROJECTS[r.projKey]?.label || r.projKey} → "${r.from}" → "${r.to}"</div>`).join('');
     }
     if (staleNames.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--danger);">Zeroed by Import:</div>`;
@@ -11462,7 +11721,10 @@ function openAllocDrill(projKey, scId, yearMonth) {
   const _currentYM = today().slice(0, 7);
   const _loggedBalance = _allocated - _actual; // for rollover logic (budget vs spend)
   const _balance = _allocated - _actual - _planned; // for display (budget vs commitment)
-  const _canRoll = _loggedBalance !== 0 && yearMonth <= _currentYM && (scId || !hasSubs);
+  // Allow rollover from any square that has a non-zero balance, including future months
+  // and project-parent rows (which roll every sub-code at once).
+  const _canRoll = _loggedBalance !== 0;
+  const _isFutureRoll = yearMonth > _currentYM;
 
   let html = '';
 
@@ -11487,7 +11749,18 @@ function openAllocDrill(projKey, scId, yearMonth) {
       const _rollLabel = _loggedBalance > 0
         ? `Roll ${fmtQ(_loggedBalance)}h unspent budget → next month`
         : `Roll ${fmtQ(Math.abs(_loggedBalance))}h overspend → next month`;
-      html += `<div style="margin-top:8px;"><button class="btn" onclick="_rollRemainingForward('${projKey}','${scId || ''}','${yearMonth}')" style="font-size:11px;padding:4px 12px;width:100%;" title="Moves unspent (or overspent) logged hours to next month — does not consider planned work">${_rollLabel}</button></div>`;
+      const _rollHandler = matchAllSubs
+        ? `_rollProjectAllSubsForward('${projKey}','${yearMonth}')`
+        : `_rollRemainingForward('${projKey}','${scId || ''}','${yearMonth}')`;
+      const _rollHint = matchAllSubs
+        ? 'Rolls every sub-code\'s remaining (or overspent) hours to next month'
+        : 'Moves unspent (or overspent) logged hours to next month — does not consider planned work';
+      const _rollWarning = _isFutureRoll
+        ? `<div style="font-size:10px;color:var(--warn);margin-top:4px;">⚠ Rolling forward from a future month — actual logged hours may not be final yet.</div>`
+        : '';
+      html += `<div style="margin-top:8px;"><button class="btn" onclick="${_rollHandler}" style="font-size:11px;padding:4px 12px;width:100%;" title="${_rollHint}">${_rollLabel}</button>${_rollWarning}</div>`;
+    } else if (_allocated === 0 && _actual === 0) {
+      html += `<div style="margin-top:8px;font-size:10px;color:var(--text3);text-align:center;font-style:italic;">No allocation to roll forward.</div>`;
     }
     html += '</div>';
   }
