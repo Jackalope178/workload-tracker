@@ -11044,7 +11044,8 @@ function _buildAllocImportPlan(rows, jobCol, taskCol, monthCols) {
     importMonths: [...importMonthsSet].sort(),
     importMonthsSet,
     rows: [],
-    preservedActionsByCombo: {} // 'projKey|scId' → 'keep' | 'clear' (default keep)
+    preservedActionsByCombo: {}, // 'projKey|scId' → 'keep' | 'clear' | 'deactivate' (default keep)
+    preservedProjArchive: {}     // 'projKey' → true if user opted to archive whole project
   };
 
   let rowCounter = 0;
@@ -11349,9 +11350,19 @@ function _aipSetRowUseImportedScLabel(idx, checked) {
   _aipRenderPreviewBody();
 }
 
-function _aipTogglePreserved(combo, keep) {
+function _aipTogglePreserved(combo, action) {
   if (!_allocImportPlan) return;
-  _allocImportPlan.preservedActionsByCombo[combo] = keep ? 'keep' : 'clear';
+  // 'keep' (default), 'clear' (zero allocations), 'deactivate' (clear + sc.active=false)
+  if (!['keep', 'clear', 'deactivate'].includes(action)) action = 'keep';
+  _allocImportPlan.preservedActionsByCombo[combo] = action;
+  _aipRenderPreviewBody();
+}
+
+function _aipSetPreservedProjArchive(projKey, archive) {
+  if (!_allocImportPlan) return;
+  _allocImportPlan.preservedProjArchive = _allocImportPlan.preservedProjArchive || {};
+  if (archive) _allocImportPlan.preservedProjArchive[projKey] = true;
+  else delete _allocImportPlan.preservedProjArchive[projKey];
   _aipRenderPreviewBody();
 }
 
@@ -11384,6 +11395,8 @@ function _aipRenderPreviewBody() {
     });
   });
   const clearPresCount = preserved.filter(p => (plan.preservedActionsByCombo[p.combo] || 'keep') === 'clear').length;
+  const deactPresCount = preserved.filter(p => (plan.preservedActionsByCombo[p.combo] || 'keep') === 'deactivate').length;
+  const archProjCount = Object.keys(plan.preservedProjArchive || {}).filter(k => plan.preservedProjArchive[k]).length;
 
   const summaryParts = [
     `<strong>${plan.rows.length}</strong> rows`,
@@ -11395,7 +11408,13 @@ function _aipRenderPreviewBody() {
   if (renamedScCount) summaryParts.push(`<strong style="color:var(--warn);">${renamedScCount}</strong> sub-code rename${renamedScCount > 1 ? 's' : ''}`);
   if (overwriteCount) summaryParts.push(`<strong style="color:var(--warn);">${overwriteCount}</strong> overwrite${overwriteCount > 1 ? 's' : ''}`);
   if (clearedCount) summaryParts.push(`<strong style="color:var(--danger);">${clearedCount}</strong> zeroed`);
-  if (preserved.length) summaryParts.push(`<strong style="color:var(--text2);">${preserved.length}</strong> preserved${clearPresCount ? ` (${clearPresCount} will clear)` : ''}`);
+  if (preserved.length) {
+    const detail = [];
+    if (clearPresCount) detail.push(`${clearPresCount} clear`);
+    if (deactPresCount) detail.push(`${deactPresCount} deactivate`);
+    summaryParts.push(`<strong style="color:var(--text2);">${preserved.length}</strong> preserved${detail.length ? ` (${detail.join(', ')})` : ''}`);
+  }
+  if (archProjCount) summaryParts.push(`<strong style="color:var(--danger);">${archProjCount}</strong> project${archProjCount > 1 ? 's' : ''} to archive`);
 
   document.getElementById('aipSummary').innerHTML = summaryParts.join(' · ');
 
@@ -11414,12 +11433,69 @@ function _aipRenderPreviewBody() {
         Preserved — Not in Import (${preserved.length})
       </div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-style:italic;">
-        These sub-codes have allocations in imported months but aren't in the spreadsheet. Checked = keep. Uncheck to clear them.
+        These sub-codes have allocations in imported months but aren't in the spreadsheet. Pick an action per row, or archive the whole project if every sub-code is missing.
       </div>
     `;
+
+    // Group preserved combos by project so we can offer project-level archive
+    // when ALL of a project's previously-allocated sub-codes are missing.
+    const byProj = new Map();
     preserved.forEach(p => {
-      const action = plan.preservedActionsByCombo[p.combo] || 'keep';
-      html += _aipRenderPreserved(p, action);
+      if (!byProj.has(p.projKey)) byProj.set(p.projKey, []);
+      byProj.get(p.projKey).push(p);
+    });
+
+    byProj.forEach((combos, projKey) => {
+      const proj = PROJECTS[projKey];
+      // Existing active sub-codes that have any allocation in the imported months
+      const importMonthsSet = plan.importMonthsSet;
+      const totalActiveAllocatedScs = new Set();
+      Object.keys(allocations).forEach(key => {
+        const [pk, sc, ym] = key.split('|');
+        if (pk !== projKey || !sc) return;
+        if (!importMonthsSet.has(ym)) return;
+        if (allocations[key] <= 0) return;
+        totalActiveAllocatedScs.add(sc);
+      });
+      // Are ALL allocated sub-codes for this project showing up as preserved?
+      const preservedScSet = new Set(combos.map(c => c.scId));
+      const allMissing = totalActiveAllocatedScs.size > 0
+        && [...totalActiveAllocatedScs].every(sc => preservedScSet.has(sc));
+      const projAlreadyArchived = !!proj?.archivedAt;
+      const willArchive = !!(plan.preservedProjArchive || {})[projKey];
+
+      let header = '';
+      if (allMissing && !projAlreadyArchived) {
+        const id = `aip_arch_${projKey}`;
+        const archHint = willArchive
+          ? `<span style="color:var(--danger);font-weight:600;font-size:11px;">⚠ project will be archived after import</span>`
+          : `<span style="color:var(--text3);font-size:11px;">Every allocated sub-code is missing — close out the project?</span>`;
+        header = `
+          <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px;padding:6px 10px;background:${willArchive ? 'rgba(248,113,113,0.10)' : 'var(--bg2)'};border:1px solid var(--border);border-radius:4px;">
+            <strong style="color:var(--text);">${_aipEsc(proj?.label || projKey)}</strong>
+            ${proj?.billingCode ? `<span style="color:var(--text3);font-size:11px;">${_aipEsc(proj.billingCode)}</span>` : ''}
+            <span style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+              ${archHint}
+              <label for="${id}" style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--danger);cursor:pointer;font-weight:600;">
+                <input type="checkbox" id="${id}" ${willArchive ? 'checked' : ''} onchange="_aipSetPreservedProjArchive('${_aipEsc(projKey)}', this.checked)" style="cursor:pointer;">
+                Archive project
+              </label>
+            </span>
+          </div>`;
+      } else if (proj) {
+        header = `
+          <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:4px;">
+            <strong style="color:var(--text);">${_aipEsc(proj.label)}</strong>
+            ${proj.billingCode ? `<span style="color:var(--text3);font-size:11px;">${_aipEsc(proj.billingCode)}</span>` : ''}
+            ${projAlreadyArchived ? `<span style="margin-left:auto;color:var(--text3);font-size:11px;font-style:italic;">already archived</span>` : ''}
+          </div>`;
+      }
+      html += header;
+      combos.forEach(p => {
+        const action = plan.preservedActionsByCombo[p.combo] || 'keep';
+        // If the project will be archived, all its preserved sub-codes inherit that fate visually
+        html += _aipRenderPreserved(p, action, willArchive);
+      });
     });
   }
 
@@ -11577,24 +11653,47 @@ function _aipRenderRow(row, idx) {
   `;
 }
 
-function _aipRenderPreserved(p, action) {
+function _aipRenderPreserved(p, action, projWillArchive) {
   const monthsText = p.cells.map(c => {
     const ml = c.ym.slice(5) + '/' + c.ym.slice(2, 4);
     return `${ml}: ${c.val}h`;
   }).join(' · ');
-  const willKeep = action === 'keep';
-  const bg = willKeep ? 'var(--bg)' : 'rgba(248,113,113,0.08)';
-  const strikeTi = willKeep ? '' : 'text-decoration:line-through;color:var(--text3);';
-  const sideColor = willKeep ? 'var(--success)' : 'var(--danger)';
-  const actionColor = willKeep ? 'var(--success)' : 'var(--danger)';
+
+  // When the parent project is being archived, the per-row action is forced
+  // (allocations get cleared as part of archive, sub-codes ride along).
+  const effectiveAction = projWillArchive ? 'archive' : action;
+  const config = {
+    keep:       { side: 'var(--success)', bg: 'var(--bg)',                 strike: '' },
+    clear:      { side: 'var(--danger)',  bg: 'rgba(248,113,113,0.08)',     strike: 'text-decoration:line-through;color:var(--text3);' },
+    deactivate: { side: 'var(--warn)',    bg: 'rgba(234,179,8,0.08)',       strike: 'color:var(--text3);' },
+    archive:    { side: 'var(--danger)',  bg: 'rgba(248,113,113,0.06)',     strike: 'text-decoration:line-through;color:var(--text3);' }
+  }[effectiveAction];
+
+  const seg = (val, label, color) => {
+    const sel = action === val;
+    return `<button type="button" onclick="_aipTogglePreserved('${_aipEsc(p.combo)}','${val}')"
+      style="background:${sel ? color : 'var(--bg)'};color:${sel ? '#fff' : color};border:1px solid ${color};
+      padding:2px 8px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;cursor:pointer;
+      ${projWillArchive ? 'opacity:0.4;pointer-events:none;' : ''}">${label}</button>`;
+  };
+  const segGroup = `
+    <div style="display:inline-flex;border-radius:4px;overflow:hidden;">
+      ${seg('keep',       'Keep',       'var(--success)')}
+      ${seg('clear',      'Clear',      'var(--danger)')}
+      ${seg('deactivate', 'Deactivate', 'var(--warn)')}
+    </div>
+  `;
+
+  const summaryLabel = projWillArchive
+    ? `<span style="color:var(--danger);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">archive</span>`
+    : '';
+
   return `
-    <div style="border:1px solid var(--border);border-left:3px solid ${sideColor};border-radius:4px;padding:6px 10px;margin-bottom:4px;background:${bg};font-size:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-weight:600;min-width:80px;">
-        <input type="checkbox" ${willKeep ? 'checked' : ''} onchange="_aipTogglePreserved('${_aipEsc(p.combo)}', this.checked)" style="cursor:pointer;">
-        <span style="color:${actionColor};font-size:10px;text-transform:uppercase;letter-spacing:0.3px;">${willKeep ? 'Keep' : 'Clear'}</span>
-      </label>
-      <span style="${strikeTi}"><strong>${_aipEsc(p.projLabel)}</strong>${p.billingCode ? ` <span style="color:var(--text3);font-weight:400;">${_aipEsc(p.billingCode)}</span>` : ''} → ${_aipEsc(p.label)}</span>
-      <span style="color:var(--text3);font-size:11px;margin-left:auto;${strikeTi}">${monthsText}</span>
+    <div style="border:1px solid var(--border);border-left:3px solid ${config.side};border-radius:4px;padding:6px 10px;margin-bottom:4px;background:${config.bg};font-size:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      ${segGroup}
+      ${summaryLabel}
+      <span style="${config.strike}">${_aipEsc(p.label)}</span>
+      <span style="color:var(--text3);font-size:11px;margin-left:auto;${config.strike}">${monthsText}</span>
     </div>
   `;
 }
@@ -11621,14 +11720,31 @@ function _commitAllocImportPlan() {
   const prevProjKeys = new Set(Object.keys(PROJECTS));
   const prevScIds = new Set(Object.values(PROJECTS).flatMap(p => (p.subCodes || []).map(s => s.id)));
 
-  // Apply "clear" actions on preserved sub-codes (those the user toggled off)
+  // Apply per-row preserved actions, plus project-level archive choices.
+  // Project archive forces all of its preserved sub-codes to clear regardless
+  // of the per-row action — the parent project's archiving handles cleanup.
   const preserved = _aipComputePreserved(plan);
+  const projWillArchiveSet = new Set(
+    Object.entries(plan.preservedProjArchive || {})
+      .filter(([, v]) => v)
+      .map(([k]) => k)
+  );
+  const deactivatedSubCodes = []; // [{ projKey, scId, label }]
   preserved.forEach(p => {
-    const action = plan.preservedActionsByCombo[p.combo] || 'keep';
-    if (action === 'clear') {
+    const projArch = projWillArchiveSet.has(p.projKey);
+    const action = projArch ? 'clear' : (plan.preservedActionsByCombo[p.combo] || 'keep');
+    if (action === 'clear' || action === 'deactivate') {
       p.cells.forEach(c => {
         delete allocations[allocKey(p.projKey, p.scId, c.ym)];
       });
+    }
+    if (action === 'deactivate') {
+      const proj = PROJECTS[p.projKey];
+      const sc = proj ? (proj.subCodes || []).find(s => s.id === p.scId) : null;
+      if (sc && sc.active !== false) {
+        sc.active = false;
+        deactivatedSubCodes.push({ projKey: p.projKey, scId: p.scId, label: sc.label });
+      }
     }
   });
 
@@ -11718,12 +11834,26 @@ function _commitAllocImportPlan() {
   );
   save('wt_stale_subcodes', [..._staleSubCodes]);
 
+  // Apply project-level archive choices from the Preserved section. Future-dated open
+  // work defaults to 'keep' (archived projects' tasks stay in My Tasks but drop out of
+  // forward-looking views). Bypasses the modal because the user already opted in here.
+  const archivedProjects = []; // [{ key, label }]
+  projWillArchiveSet.forEach(projKey => {
+    const proj = PROJECTS[projKey];
+    if (proj && !proj.archivedAt) {
+      _commitArchive(projKey, 'keep');
+      archivedProjects.push({ key: projKey, label: proj.label });
+    }
+  });
+
   saveProjects();
   saveProjOrder();
   saveAllocations();
+  _invalidatePlannedCache();
   populateProjectSelects();
   renderAllocations();
   renderProjects();
+  renderCapacity();
   if (_supabase && _currentUser) syncToCloud();
 
   // Store snapshot for undo
@@ -11746,10 +11876,12 @@ function _commitAllocImportPlan() {
   if (newSubCodeNames.length) parts.push(`<strong>${newSubCodeNames.length}</strong> new sub-code${newSubCodeNames.length > 1 ? 's' : ''}`);
   if (renamedProjects.length) parts.push(`<strong style="color:var(--warn);">${renamedProjects.length}</strong> project rename${renamedProjects.length > 1 ? 's' : ''}`);
   if (renamedSubCodes.length) parts.push(`<strong style="color:var(--warn);">${renamedSubCodes.length}</strong> sub-code rename${renamedSubCodes.length > 1 ? 's' : ''}`);
+  if (deactivatedSubCodes.length) parts.push(`<strong style="color:var(--warn);">${deactivatedSubCodes.length}</strong> sub-code${deactivatedSubCodes.length > 1 ? 's' : ''} deactivated`);
+  if (archivedProjects.length) parts.push(`<strong style="color:var(--danger);">${archivedProjects.length}</strong> project${archivedProjects.length > 1 ? 's' : ''} archived`);
   if (staleNames.length) parts.push(`<strong style="color:var(--danger);">${staleNames.length}</strong> <span style="color:var(--danger);">zeroed by import</span>`);
   if (dupeProjects.length || dupeSubs.length) parts.push(`<strong style="color:var(--warn);">${dupeProjects.length + dupeSubs.length}</strong> <span style="color:var(--warn);">possible duplicates</span>`);
 
-  const hasDetails = newProjectNames.length || newSubCodeNames.length || renamedProjects.length || renamedSubCodes.length || staleNames.length || dupeProjects.length || dupeSubs.length;
+  const hasDetails = newProjectNames.length || newSubCodeNames.length || renamedProjects.length || renamedSubCodes.length || deactivatedSubCodes.length || archivedProjects.length || staleNames.length || dupeProjects.length || dupeSubs.length;
   let detailHtml = '';
   if (hasDetails) {
     detailHtml = `<div id="allocImportDetails" style="display:none;margin-top:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;max-height:300px;overflow-y:auto;">`;
@@ -11791,6 +11923,16 @@ function _commitAllocImportPlan() {
     if (renamedSubCodes.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--warn);">Renamed Sub-codes:</div>`;
       detailHtml += renamedSubCodes.map(r => `<div style="padding:1px 0;color:var(--text2);">✎ ${PROJECTS[r.projKey]?.label || r.projKey} → "${r.from}" → "${r.to}"</div>`).join('');
+    }
+    if (deactivatedSubCodes.length) {
+      detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--warn);">Deactivated Sub-codes:</div>`;
+      detailHtml += `<div style="padding:2px 0;color:var(--text3);font-style:italic;margin-bottom:4px;">Allocations cleared and sub-code marked inactive — toggle back via Manage Sub-Codes.</div>`;
+      detailHtml += deactivatedSubCodes.map(d => `<div style="padding:1px 0;color:var(--text2);">⊘ ${PROJECTS[d.projKey]?.label || d.projKey} → ${d.label}</div>`).join('');
+    }
+    if (archivedProjects.length) {
+      detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--danger);">Archived Projects:</div>`;
+      detailHtml += `<div style="padding:2px 0;color:var(--text3);font-style:italic;margin-bottom:4px;">Closed-out — historical data preserved, future planning views drop these. Revive from the Projects tab.</div>`;
+      detailHtml += archivedProjects.map(a => `<div style="padding:1px 0;color:var(--text2);">📦 ${a.label}</div>`).join('');
     }
     if (staleNames.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--danger);">Zeroed by Import:</div>`;
