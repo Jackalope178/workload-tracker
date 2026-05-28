@@ -9922,8 +9922,9 @@ function capToggleScheduler() {
 function capSchedMonthShift(delta) {
   const [y, m] = _capSchedMonth.split('-').map(Number);
   const d = new Date(y, m - 1 + delta, 1);
-  _capSchedMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  _capSchedSelected.clear();
+  const next = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  if (next < today().slice(0, 7)) return; // don't schedule into the past
+  _capSchedMonth = next;
   renderCapacity();
 }
 
@@ -10098,11 +10099,15 @@ function _renderCapScheduler(container) {
   const todayStr = today();
 
   const entries = allTsEntries().filter(e => e.date >= ms && e.date <= me);
-  const planned = plannedItems(ms, me);
-  const datedPlanned = planned.filter(p => !p._allocHold);
-  const holds = planned.filter(p => p._allocHold);
+  // Dated planned items belong to the focused month (they fill the left calendar).
+  const datedPlanned = plannedItems(ms, me).filter(p => !p._allocHold);
+  // Backlog holds span a forward horizon (current month → +24mo) so a hold parked
+  // in any month can be dropped onto whichever month the calendar is showing.
+  const horizonStart = today().slice(0, 7) + '-01';
+  const horizonEnd = localDateStr(new Date(parseInt(today().slice(0, 4), 10), parseInt(today().slice(5, 7), 10) - 1 + 25, 0));
+  const allHolds = plannedItems(horizonStart, horizonEnd).filter(p => p._allocHold);
 
-  // key → descriptor lookup, and prune stale selections
+  // key → descriptor lookup (assignable holds only), and prune stale selections
   _capSchedHoldsByKey = {};
   const holdKey = (h) => {
     if (h._src === 'session') return 'session|' + h._projId + '|' + h.id;
@@ -10110,9 +10115,19 @@ function _renderCapScheduler(container) {
     if (h._src === 'contact') return 'contact|' + h._contactId + '|' + h._stageId + '|' + h.id;
     return 'task|' + h.id;
   };
-  const assignable = holds.filter(h => !h._recur);
+  const assignable = allHolds.filter(h => !h._recur);
   assignable.forEach(h => { _capSchedHoldsByKey[holdKey(h)] = h; });
   [..._capSchedSelected].forEach(k => { if (!_capSchedHoldsByKey[k]) _capSchedSelected.delete(k); });
+
+  // Recurring holds repeat every month across the horizon — dedupe to one chip each.
+  const recurSeen = new Set();
+  const recurItems = [];
+  allHolds.filter(h => h._recur).forEach(h => {
+    const base = h._src + '|' + (h._projId || '') + '|' + (h._sessionId || '') + '|' + h.id.replace(/_\d{4}-\d{2}$/, '');
+    if (recurSeen.has(base)) return;
+    recurSeen.add(base);
+    recurItems.push(h);
+  });
 
   const selCount = _capSchedSelected.size;
   const selHours = [..._capSchedSelected].reduce((a, k) => a + (_capSchedHoldsByKey[k].hours || 0), 0);
@@ -10126,8 +10141,8 @@ function _renderCapScheduler(container) {
     <button class="btn" onclick="capSchedMonthShift(1)">›</button>
     <span class="cap-sched-hint${selCount ? ' active' : ''}">
       ${selCount
-        ? `${selCount} selected · ${fmtQ(selHours)}h — click a day to schedule <button class="btn" onclick="_capSchedSelected.clear();renderCapacity();" style="font-size:10px;padding:2px 6px;">clear</button>`
-        : `${assignable.length} hold${assignable.length !== 1 ? 's' : ''} to place · select one or more, then click a day`}
+        ? `${selCount} selected · ${fmtQ(selHours)}h — click a day in ${monthLabel} to schedule <button class="btn" onclick="_capSchedSelected.clear();renderCapacity();" style="font-size:10px;padding:2px 6px;">clear</button>`
+        : `${assignable.length} hold${assignable.length !== 1 ? 's' : ''} to place · pick holds, use ‹ › to choose the destination month, then click a day`}
     </span>`;
   container.appendChild(head);
 
@@ -10178,44 +10193,67 @@ function _renderCapScheduler(container) {
   }
   body.appendChild(cal);
 
-  // ── Right: backlog of holds ──
+  // ── Right: backlog of holds (all upcoming months) ──
   const backlog = document.createElement('div');
   backlog.className = 'cap-sched-backlog';
-  backlog.innerHTML = `<div class="cap-sched-colhdr">Unscheduled holds</div>`;
+  backlog.innerHTML = `<div class="cap-sched-colhdr">Unscheduled holds — all upcoming months</div>`;
 
-  if (!holds.length) {
+  const chipFor = (h) => {
+    const key = holdKey(h);
+    const selected = _capSchedSelected.has(key);
+    const proj = PROJECTS[h.project] || { color: '#888' };
+    const name = h.name.replace(/ \(hold\)$/, '');
+    const chip = document.createElement('div');
+    chip.className = 'cap-hold-chip' + (selected ? ' selected' : '');
+    chip.innerHTML = `
+      <span class="cap-hold-check">${selected ? '✓' : ''}</span>
+      <span class="cap-proj-color" style="background:${proj.color};"></span>
+      <span class="cap-hold-name">${escHtml(name)}</span>
+      <span class="cap-hold-hrs">${h.hours > 0 ? fmtQ(h.hours) + 'h' : '—'}</span>`;
+    chip.onclick = () => capSchedToggleHold(key);
+    return chip;
+  };
+
+  if (!assignable.length && !recurItems.length) {
     const empty = document.createElement('div');
     empty.className = 'cap-empty';
     empty.style.padding = '30px 14px';
-    empty.textContent = 'No holds parked in this month.';
+    empty.textContent = 'No holds parked in any upcoming month.';
     backlog.appendChild(empty);
   } else {
-    // group by project
-    const byProj = {};
-    holds.forEach(h => { (byProj[h.project || '_none'] = byProj[h.project || '_none'] || []).push(h); });
-    Object.keys(byProj).sort((a, b) => (projLabel(a) || a).localeCompare(projLabel(b) || b)).forEach(projKey => {
-      const proj = PROJECTS[projKey] || { label: projKey, color: '#888' };
+    // group assignable holds by the month they're currently parked in
+    const byMonth = {};
+    assignable.forEach(h => { const mo = h.date.slice(0, 7); (byMonth[mo] = byMonth[mo] || []).push(h); });
+    Object.keys(byMonth).sort().forEach(mo => {
+      const [yy, mm] = mo.split('-');
+      const isFocused = mo === ym;
       const grp = document.createElement('div');
       grp.className = 'cap-hold-group';
-      grp.innerHTML = `<span class="cap-proj-color" style="background:${proj.color};"></span>${escHtml(proj.label || projKey)}`;
+      grp.innerHTML = `${MONTH_NAMES[parseInt(mm, 10) - 1]} ${yy}${isFocused ? ' <span style="color:var(--accent);font-weight:700;">• showing</span>' : ''}`;
       backlog.appendChild(grp);
+      byMonth[mo].forEach(h => backlog.appendChild(chipFor(h)));
+    });
 
-      byProj[projKey].forEach(h => {
-        const isRecur = !!h._recur;
-        const key = holdKey(h);
-        const selected = _capSchedSelected.has(key);
+    // recurring holds (not assignable here — managed by editing the task)
+    if (recurItems.length) {
+      const grp = document.createElement('div');
+      grp.className = 'cap-hold-group';
+      grp.style.marginTop = '8px';
+      grp.innerHTML = `↻ Recurring <span style="font-weight:400;color:var(--text3);">— edit the task to reschedule</span>`;
+      backlog.appendChild(grp);
+      recurItems.forEach(h => {
         const name = h.name.replace(/ \(hold\)$/, '');
+        const proj = PROJECTS[h.project] || { color: '#888' };
         const chip = document.createElement('div');
-        chip.className = 'cap-hold-chip' + (isRecur ? ' recur' : '') + (selected ? ' selected' : '');
+        chip.className = 'cap-hold-chip recur';
         chip.innerHTML = `
-          <span class="cap-hold-check">${selected ? '✓' : ''}</span>
+          <span class="cap-hold-check"></span>
+          <span class="cap-proj-color" style="background:${proj.color};"></span>
           <span class="cap-hold-name">${escHtml(name)}</span>
-          ${isRecur ? '<span class="cap-hold-recur-tag">↻ recurring — edit to schedule</span>' : ''}
           <span class="cap-hold-hrs">${h.hours > 0 ? fmtQ(h.hours) + 'h' : '—'}</span>`;
-        if (!isRecur) chip.onclick = () => capSchedToggleHold(key);
         backlog.appendChild(chip);
       });
-    });
+    }
   }
   body.appendChild(backlog);
   container.appendChild(body);
