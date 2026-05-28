@@ -1422,6 +1422,63 @@
   }
   .cap-summary strong { color: var(--text); }
 
+  /* CAPACITY SCHEDULER (click-to-assign board) */
+  .cap-sched-head {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-bottom: 1px solid var(--border); background: var(--bg2); flex-wrap: wrap;
+  }
+  .cap-sched-head .cap-sched-month { font-size: 13px; font-weight: 700; color: var(--text); min-width: 130px; text-align: center; }
+  .cap-sched-hint {
+    margin-left: auto; font-size: 11px; color: var(--text3);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .cap-sched-hint.active { color: var(--accent); font-weight: 600; }
+  .cap-sched-body { display: flex; gap: 0; align-items: stretch; }
+  .cap-sched-cal { flex: 1 1 60%; min-width: 0; border-right: 1px solid var(--border); }
+  .cap-sched-backlog { flex: 0 0 38%; min-width: 240px; background: var(--bg2); }
+  .cap-sched-colhdr {
+    padding: 6px 14px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg); z-index: 1;
+  }
+  .cap-sched-backlog .cap-sched-colhdr { background: var(--bg2); }
+  .cap-day-row {
+    display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 10px;
+    padding: 7px 14px; border-bottom: 1px solid var(--border); font-size: 12px;
+  }
+  .cap-day-row.weekend { opacity: 0.5; }
+  .cap-day-row.today { box-shadow: inset 3px 0 0 var(--accent); }
+  .cap-day-row .cap-day-label { font-weight: 600; color: var(--text2); white-space: nowrap; }
+  .cap-day-row .cap-day-label .cap-day-num { color: var(--text); }
+  .cap-day-row .cap-day-hours { font-size: 11px; color: var(--text3); white-space: nowrap; font-weight: 700; }
+  .cap-day-items { font-size: 10px; color: var(--text3); }
+  .cap-day-items span { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* assign-mode affordances on day rows */
+  .cap-sched-body.assigning .cap-day-row { cursor: pointer; }
+  .cap-sched-body.assigning .cap-day-row:hover { background: var(--accent); }
+  .cap-sched-body.assigning .cap-day-row:hover * { color: #fff !important; }
+  .cap-sched-body.assigning .cap-day-row.weekend { opacity: 0.8; }
+  .cap-hold-group { padding: 6px 14px 2px; font-size: 10px; font-weight: 700; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+  .cap-hold-group .cap-proj-color { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .cap-hold-chip {
+    display: flex; align-items: center; gap: 8px; margin: 3px 14px; padding: 6px 9px;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--bg); cursor: pointer;
+    font-size: 12px; transition: border-color 0.12s, background 0.12s;
+  }
+  .cap-hold-chip:hover { border-color: var(--accent); }
+  .cap-hold-chip.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--bg)); }
+  .cap-hold-chip .cap-hold-check {
+    width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--border);
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff;
+  }
+  .cap-hold-chip.selected .cap-hold-check { background: var(--accent); border-color: var(--accent); }
+  .cap-hold-chip .cap-hold-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+  .cap-hold-chip .cap-hold-hrs { font-size: 10px; color: var(--text3); white-space: nowrap; }
+  .cap-hold-chip.recur { cursor: default; opacity: 0.6; }
+  .cap-hold-chip.recur:hover { border-color: var(--border); }
+  .cap-hold-chip.recur .cap-hold-check { visibility: hidden; }
+  .cap-hold-recur-tag { font-size: 9px; color: var(--warn); font-style: italic; white-space: nowrap; }
+
   /* INLINE DATE EDITOR */
   .date-input-inline {
     background: var(--bg4);
@@ -2972,11 +3029,12 @@ if (typeof XLSX === 'undefined') {
   <div class="panel" id="panel-capacity" role="tabpanel" aria-labelledby="tab-capacity">
     <div class="cap-toolbar">
       <span style="font-size:12px;font-weight:600;color:var(--text);">Capacity Planner</span>
-      <div style="display:flex;align-items:center;gap:4px;">
+      <div id="capYearNav" style="display:flex;align-items:center;gap:4px;">
         <button class="btn" onclick="capYearPrev()">‹</button>
         <span id="capYearLabel" style="font-size:12px;min-width:50px;text-align:center;color:var(--text2);font-weight:600;"></span>
         <button class="btn" onclick="capYearNext()">›</button>
       </div>
+      <button id="capSchedToggle" class="btn" onclick="capToggleScheduler()" style="font-size:11px;padding:4px 10px;" title="Click-to-assign board for scheduling held items onto days">◷ Schedule holds</button>
       <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);margin-left:auto;">
         <label>Capacity</label>
         <input type="number" id="capHoursInput" min="1" max="24" step="0.5" style="width:48px;font-size:11px;padding:3px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:4px;text-align:center;" onchange="saveTsCapacity(this.value)">
@@ -9845,8 +9903,73 @@ let _capYear = parseInt(today().split('-')[0], 10);
 let _capExpandedMonths = new Set();
 let _capExpandedProjects = new Set(); // keys: "YYYY-MM|projKey"
 
+// Scheduler (click-to-assign) state
+let _capSchedulerOpen = false;
+let _capSchedMonth = today().slice(0, 7); // YYYY-MM the board is focused on
+let _capSchedSelected = new Set(); // selected hold keys
+let _capSchedHoldsByKey = {};      // key → hold descriptor (rebuilt each render)
+
 function capYearPrev() { _capYear--; renderCapacity(); }
 function capYearNext() { _capYear++; renderCapacity(); }
+
+function capToggleScheduler() {
+  _capSchedulerOpen = !_capSchedulerOpen;
+  if (_capSchedulerOpen && _capSchedMonth < today().slice(0, 7)) _capSchedMonth = today().slice(0, 7);
+  _capSchedSelected.clear();
+  renderCapacity();
+}
+
+function capSchedMonthShift(delta) {
+  const [y, m] = _capSchedMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  _capSchedMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  _capSchedSelected.clear();
+  renderCapacity();
+}
+
+function capSchedToggleHold(key) {
+  if (_capSchedSelected.has(key)) _capSchedSelected.delete(key);
+  else _capSchedSelected.add(key);
+  renderCapacity();
+}
+
+// Assign every currently-selected hold onto a concrete date by writing the real
+// schedule field on its source record (the single source of truth that every
+// forward-looking view re-derives from). allocMonth follows the new date's month.
+function capAssignHolds(date) {
+  if (!_capSchedSelected.size) return;
+  const month = date.slice(0, 7);
+  let saveTasks = false, saveBig = false, saveContacts = false, n = 0;
+  _capSchedSelected.forEach(key => {
+    const h = _capSchedHoldsByKey[key];
+    if (!h) return;
+    if (h._src === 'task') {
+      const t = tasks.find(t => t.id === h.id);
+      if (t) { t.due = date; t.allocMonth = month; saveTasks = true; n++; }
+    } else if (h._src === 'session') {
+      const proj = bigProjs.find(p => p.id === h._projId);
+      const s = proj && proj.sessions.find(s => s.id === h.id);
+      if (s) { s.date = date; s.allocMonth = month; saveBig = true; n++; }
+    } else if (h._src === 'subtask') {
+      const proj = bigProjs.find(p => p.id === h._projId);
+      const s = proj && proj.sessions.find(s => s.id === h._sessionId);
+      const st = s && (s.subtasks || []).find(st => st.id === h.id);
+      if (st) { st.date = date; st.allocMonth = month; saveBig = true; n++; }
+    } else if (h._src === 'contact') {
+      const c = contacts.find(c => c.id === h._contactId);
+      const stage = c && c.stages[h._stageId];
+      const tid = h.id.slice(('_ct_' + h._contactId + '_' + h._stageId + '_').length);
+      const t = stage && stage.tasks.find(t => t.id === tid);
+      if (t) { t.due = date; t.allocMonth = month; saveContacts = true; n++; }
+    }
+  });
+  if (saveTasks) save('wt_tasks', tasks);
+  if (saveBig) save('wt_bigprojs', bigProjs);
+  if (saveContacts) save('wt_contacts', contacts);
+  _capSchedSelected.clear();
+  renderCapacity();
+  showSyncToast(`Scheduled ${n} item${n !== 1 ? 's' : ''} for ${fmtDate(date)}`, 'success');
+}
 
 // Jump from another tab (e.g. Timesheet's unscheduled-holds line) into the
 // Capacity tab with a given month (YYYY-MM) expanded and scrolled into view.
@@ -9870,6 +9993,17 @@ function renderCapacity() {
   document.getElementById('capYearLabel').textContent = _capYear;
   const capInput = document.getElementById('capHoursInput');
   if (capInput && capInput.value != tsCapacity) capInput.value = tsCapacity;
+
+  // Toolbar reflects which mode we're in
+  const yearNav = document.getElementById('capYearNav');
+  const schedBtn = document.getElementById('capSchedToggle');
+  if (yearNav) yearNav.style.display = _capSchedulerOpen ? 'none' : '';
+  if (schedBtn) {
+    schedBtn.textContent = _capSchedulerOpen ? '← Back to overview' : '◷ Schedule holds';
+    schedBtn.classList.toggle('primary', _capSchedulerOpen);
+  }
+
+  if (_capSchedulerOpen) { _renderCapScheduler(container); return; }
 
   const todayYM = today().slice(0, 7);
   const currentMonth = parseInt(todayYM.split('-')[1], 10); // 1-based
@@ -9948,6 +10082,143 @@ function renderCapacity() {
     <span style="color:${yearFree > 0 ? 'var(--success)' : 'var(--danger)'};font-weight:600;">${fmtQ(yearFree)}h free</span>
   `;
   container.insertBefore(summaryEl, container.firstChild);
+}
+
+// ── Capacity scheduler: click-to-assign board ──
+// Left = the month's days (drop targets). Right = unscheduled holds for the
+// month. Select holds, click a day → capAssignHolds writes the date onto the
+// source record; every view re-derives from that single write.
+function _renderCapScheduler(container) {
+  const ym = _capSchedMonth;
+  const [y, m] = ym.split('-').map(Number);
+  const ms = ym + '-01';
+  const me = localDateStr(new Date(y, m, 0));
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const monthLabel = MONTH_NAMES[m - 1] + ' ' + y;
+  const todayStr = today();
+
+  const entries = allTsEntries().filter(e => e.date >= ms && e.date <= me);
+  const planned = plannedItems(ms, me);
+  const datedPlanned = planned.filter(p => !p._allocHold);
+  const holds = planned.filter(p => p._allocHold);
+
+  // key → descriptor lookup, and prune stale selections
+  _capSchedHoldsByKey = {};
+  const holdKey = (h) => {
+    if (h._src === 'session') return 'session|' + h._projId + '|' + h.id;
+    if (h._src === 'subtask') return 'subtask|' + h._projId + '|' + h._sessionId + '|' + h.id;
+    if (h._src === 'contact') return 'contact|' + h._contactId + '|' + h._stageId + '|' + h.id;
+    return 'task|' + h.id;
+  };
+  const assignable = holds.filter(h => !h._recur);
+  assignable.forEach(h => { _capSchedHoldsByKey[holdKey(h)] = h; });
+  [..._capSchedSelected].forEach(k => { if (!_capSchedHoldsByKey[k]) _capSchedSelected.delete(k); });
+
+  const selCount = _capSchedSelected.size;
+  const selHours = [..._capSchedSelected].reduce((a, k) => a + (_capSchedHoldsByKey[k].hours || 0), 0);
+
+  // ── Header / month nav ──
+  const head = document.createElement('div');
+  head.className = 'cap-sched-head';
+  head.innerHTML = `
+    <button class="btn" onclick="capSchedMonthShift(-1)">‹</button>
+    <span class="cap-sched-month">${monthLabel}</span>
+    <button class="btn" onclick="capSchedMonthShift(1)">›</button>
+    <span class="cap-sched-hint${selCount ? ' active' : ''}">
+      ${selCount
+        ? `${selCount} selected · ${fmtQ(selHours)}h — click a day to schedule <button class="btn" onclick="_capSchedSelected.clear();renderCapacity();" style="font-size:10px;padding:2px 6px;">clear</button>`
+        : `${assignable.length} hold${assignable.length !== 1 ? 's' : ''} to place · select one or more, then click a day`}
+    </span>`;
+  container.appendChild(head);
+
+  const body = document.createElement('div');
+  body.className = 'cap-sched-body' + (selCount ? ' assigning' : '');
+
+  // ── Left: days of the month ──
+  const cal = document.createElement('div');
+  cal.className = 'cap-sched-cal';
+  cal.innerHTML = `<div class="cap-sched-colhdr">${monthLabel} — days</div>`;
+
+  const loggedByDay = {}, plannedByDay = {};
+  entries.forEach(e => { (loggedByDay[e.date] = loggedByDay[e.date] || []).push(e); });
+  datedPlanned.forEach(p => { (plannedByDay[p.date] = plannedByDay[p.date] || []).push(p); });
+
+  for (let dd = 1; dd <= daysInMonth; dd++) {
+    const dateStr = `${ym}-${String(dd).padStart(2, '0')}`;
+    const dObj = new Date(y, m - 1, dd);
+    const dow = dObj.getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const dayLogged = (loggedByDay[dateStr] || []).reduce((a, e) => a + (e.actualHours || 0), 0);
+    const dayPlanned = (plannedByDay[dateStr] || []).reduce((a, p) => a + (p.hours || 0), 0);
+    const committed = dayLogged + dayPlanned;
+    const dayCap = isWeekend ? 0 : tsCapacity;
+
+    // compact item preview
+    const labels = [];
+    (plannedByDay[dateStr] || []).forEach(p => labels.push(escHtml(p.name)));
+    (loggedByDay[dateStr] || []).forEach(e => labels.push(projBillingCode(e.project) || projLabel(e.project) || 'logged'));
+    let preview = '';
+    if (labels.length) {
+      preview = labels.slice(0, 2).join(', ') + (labels.length > 2 ? ` +${labels.length - 2} more` : '');
+    }
+
+    let hrsColor = 'var(--text3)';
+    if (dayCap > 0 && committed > dayCap) hrsColor = 'var(--danger)';
+    else if (dayCap > 0 && committed > dayCap * 0.8) hrsColor = 'var(--warn)';
+    else if (committed > 0) hrsColor = 'var(--text)';
+
+    const row = document.createElement('div');
+    row.className = 'cap-day-row' + (isWeekend ? ' weekend' : '') + (dateStr === todayStr ? ' today' : '');
+    if (selCount) row.onclick = () => capAssignHolds(dateStr);
+    row.innerHTML = `
+      <span class="cap-day-label">${DAY_NAMES[dow]} <span class="cap-day-num">${dd}</span></span>
+      <span class="cap-day-items">${preview}</span>
+      <span class="cap-day-hours" style="color:${hrsColor};">${committed > 0 ? fmtQ(committed) + 'h' : '—'}${dayCap > 0 ? ' / ' + dayCap + 'h' : ''}</span>`;
+    cal.appendChild(row);
+  }
+  body.appendChild(cal);
+
+  // ── Right: backlog of holds ──
+  const backlog = document.createElement('div');
+  backlog.className = 'cap-sched-backlog';
+  backlog.innerHTML = `<div class="cap-sched-colhdr">Unscheduled holds</div>`;
+
+  if (!holds.length) {
+    const empty = document.createElement('div');
+    empty.className = 'cap-empty';
+    empty.style.padding = '30px 14px';
+    empty.textContent = 'No holds parked in this month.';
+    backlog.appendChild(empty);
+  } else {
+    // group by project
+    const byProj = {};
+    holds.forEach(h => { (byProj[h.project || '_none'] = byProj[h.project || '_none'] || []).push(h); });
+    Object.keys(byProj).sort((a, b) => (projLabel(a) || a).localeCompare(projLabel(b) || b)).forEach(projKey => {
+      const proj = PROJECTS[projKey] || { label: projKey, color: '#888' };
+      const grp = document.createElement('div');
+      grp.className = 'cap-hold-group';
+      grp.innerHTML = `<span class="cap-proj-color" style="background:${proj.color};"></span>${escHtml(proj.label || projKey)}`;
+      backlog.appendChild(grp);
+
+      byProj[projKey].forEach(h => {
+        const isRecur = !!h._recur;
+        const key = holdKey(h);
+        const selected = _capSchedSelected.has(key);
+        const name = h.name.replace(/ \(hold\)$/, '');
+        const chip = document.createElement('div');
+        chip.className = 'cap-hold-chip' + (isRecur ? ' recur' : '') + (selected ? ' selected' : '');
+        chip.innerHTML = `
+          <span class="cap-hold-check">${selected ? '✓' : ''}</span>
+          <span class="cap-hold-name">${escHtml(name)}</span>
+          ${isRecur ? '<span class="cap-hold-recur-tag">↻ recurring — edit to schedule</span>' : ''}
+          <span class="cap-hold-hrs">${h.hours > 0 ? fmtQ(h.hours) + 'h' : '—'}</span>`;
+        if (!isRecur) chip.onclick = () => capSchedToggleHold(key);
+        backlog.appendChild(chip);
+      });
+    });
+  }
+  body.appendChild(backlog);
+  container.appendChild(body);
 }
 
 function _renderCapMonthDetail(container, ym, ms, me, entries, planned, cap) {
