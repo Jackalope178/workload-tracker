@@ -1311,6 +1311,8 @@
   }
   .ts-week-row:hover { background: var(--bg3); }
   .ts-week-row.expanded { background: var(--bg3); }
+  .ts-hold-row { border-left: 3px dashed var(--warn); background: var(--bg2); }
+  .ts-hold-row .ts-month-label { font-style: italic; color: var(--text2); }
   .ts-week-entries { background: var(--bg); }
 
   .ts-project-block { margin-bottom: 20px; }
@@ -9432,6 +9434,29 @@ function renderTimesheet() {
         const wrapEl = document.createElement('div');
         wrapEl.className = 'ts-week-detail';
 
+        // Hold items (Hold Month set, no real due date) have no day they belong to,
+        // so they are pulled out of the weekly bars and surfaced as one summary line.
+        // They still count toward the month total above. The weekly bars below show
+        // only scheduled (dated) work.
+        const mHolds = mPlanned.filter(p => p._allocHold);
+        const mDated = mPlanned.filter(p => !p._allocHold);
+        const mHoldsH = mHolds.reduce((a, p) => a + p.hours, 0);
+
+        if (mHoldsH > 0) {
+          const holdRow = document.createElement('div');
+          holdRow.className = 'ts-week-row ts-hold-row';
+          holdRow.onclick = (ev) => { ev.stopPropagation(); capOpenMonth(mKey); };
+          holdRow.innerHTML = `
+            <span class="ts-month-label">Unscheduled holds</span>
+            <div>
+              <span style="font-size:10px;color:var(--text3);">${mHolds.length} item${mHolds.length === 1 ? '' : 's'} with no date — counted in the month total, not in any week below. Click to schedule or move in Capacity →</span>
+            </div>
+            <span class="ts-month-hours" style="color:var(--text3);font-weight:700;">${fmtQ(mHoldsH)}h</span>
+            <span class="ts-month-chevron">›</span>
+          `;
+          wrapEl.appendChild(holdRow);
+        }
+
         let weekCursor = new Date(ms + 'T00:00:00');
         weekCursor.setDate(weekCursor.getDate() - weekCursor.getDay());
 
@@ -9441,7 +9466,7 @@ function renderTimesheet() {
           if (wStart > me) break;
 
           const wEntries = entries.filter(e => e.date >= wStart && e.date <= wEnd);
-          const wPlanned = mPlanned.filter(p => p.date >= wStart && p.date <= wEnd);
+          const wPlanned = mDated.filter(p => p.date >= wStart && p.date <= wEnd);
           const wUsed = wEntries.reduce((a, e) => a + e.actualHours, 0);
           const wPlannedH = wPlanned.reduce((a, p) => a + p.hours, 0);
           const wTotal = wUsed + wPlannedH;
@@ -9823,6 +9848,20 @@ let _capExpandedProjects = new Set(); // keys: "YYYY-MM|projKey"
 function capYearPrev() { _capYear--; renderCapacity(); }
 function capYearNext() { _capYear++; renderCapacity(); }
 
+// Jump from another tab (e.g. Timesheet's unscheduled-holds line) into the
+// Capacity tab with a given month (YYYY-MM) expanded and scrolled into view.
+function capOpenMonth(ym) {
+  _capYear = parseInt(ym.split('-')[0], 10);
+  _capExpandedMonths.add(ym);
+  const tabEl = document.querySelector('.tab[data-tab="capacity"]');
+  if (tabEl) _switchTab(tabEl);
+  else renderCapacity();
+  setTimeout(() => {
+    const row = document.querySelector(`#capContent .cap-month-row[data-ym="${ym}"]`);
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
+}
+
 function renderCapacity() {
   const container = document.getElementById('capContent');
   if (!container) return;
@@ -9863,6 +9902,7 @@ function renderCapacity() {
 
     const row = document.createElement('div');
     row.className = 'cap-month-row' + (isExpanded ? ' expanded' : '');
+    row.dataset.ym = ym;
     row.onclick = () => {
       if (_capExpandedMonths.has(ym)) _capExpandedMonths.delete(ym);
       else _capExpandedMonths.add(ym);
