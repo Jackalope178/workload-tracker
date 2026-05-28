@@ -883,6 +883,20 @@
   .proj-right-panel {
     flex: 1; overflow-y: auto; padding: 16px 20px;
   }
+  .proj-cap-panel {
+    flex: 0 0 38%; min-width: 280px; max-width: 460px;
+    overflow-y: auto; border-right: 1px solid var(--border);
+    background: var(--bg2); display: flex; flex-direction: column;
+  }
+  .proj-cap-head {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg2); z-index: 2;
+  }
+  .proj-cap-head .proj-cap-month { font-size: 12px; font-weight: 700; color: var(--text); min-width: 96px; text-align: center; }
+  .proj-cap-panel .cap-sched-cal { border-right: none; }
+  .proj-cap-panel .cap-sched-colhdr { display: none; }
+  .cap-day-row.has-proj { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .cap-day-row.has-proj .cap-day-num { color: var(--accent); }
   .proj-right-header {
     display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
   }
@@ -2949,6 +2963,8 @@ if (typeof XLSX === 'undefined') {
       </div>
       <!-- Collapse toggle strip -->
       <div id="projPanelToggle" class="proj-panel-toggle" style="display:none;" onclick="toggleProjPanel()" title="Expand project panel">▶</div>
+      <!-- Capacity split (toggleable, opens on the left of the project content) -->
+      <div id="projCapPanel" class="proj-cap-panel" style="display:none;"></div>
       <!-- Right Panel (sub-code tables) -->
       <div id="projRightPanel" class="proj-right-panel">
         <div id="projCodeContent">
@@ -7455,6 +7471,48 @@ function _bulkMoveToSubCode(projKey) {
   renderTasks();
 }
 
+// ── Projects-tab capacity split ──
+// A toggleable capacity calendar that opens on the left of the project content
+// so dates can be picked (via the existing inline pickers on the right) with
+// committed-vs-capacity headroom in view. Reuses _renderSchedCalendar.
+let _projCapOpen = false;
+let _projCapMonth = today().slice(0, 7);
+
+function toggleProjCap() {
+  _projCapOpen = !_projCapOpen;
+  if (_projCapOpen && _projCapMonth < today().slice(0, 7)) _projCapMonth = today().slice(0, 7);
+  if (selectedProjCode) renderProjCodeContent(selectedProjCode); // rebuilds header button + refreshes panel
+  else _renderProjCap();
+}
+
+function projCapMonthShift(d) {
+  const [y, m] = _projCapMonth.split('-').map(Number);
+  const nd = new Date(y, m - 1 + d, 1);
+  const next = `${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, '0')}`;
+  if (next < today().slice(0, 7)) return; // don't look at past months
+  _projCapMonth = next;
+  _renderProjCap();
+}
+
+function _renderProjCap() {
+  const panel = document.getElementById('projCapPanel');
+  if (!panel) return;
+  if (!_projCapOpen) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+  panel.style.display = 'flex';
+  panel.innerHTML = '';
+  const [yy, mm] = _projCapMonth.split('-');
+  const head = document.createElement('div');
+  head.className = 'proj-cap-head';
+  head.innerHTML = `
+    <button class="btn" onclick="projCapMonthShift(-1)" style="padding:2px 8px;">‹</button>
+    <span class="proj-cap-month">${MONTH_NAMES[parseInt(mm, 10) - 1]} ${yy}</span>
+    <button class="btn" onclick="projCapMonthShift(1)" style="padding:2px 8px;">›</button>
+    <span style="font-size:10px;color:var(--text3);margin-left:auto;">committed vs capacity</span>
+    <button class="btn" onclick="toggleProjCap()" style="padding:2px 8px;" title="Close capacity panel">×</button>`;
+  panel.appendChild(head);
+  panel.appendChild(_renderSchedCalendar(_projCapMonth, { highlightProj: selectedProjCode }));
+}
+
 function _dismissStale(projKey, scId) {
   _staleSubCodes.delete(projKey + '|' + scId);
   save('wt_stale_subcodes', [..._staleSubCodes]);
@@ -7570,6 +7628,7 @@ function renderProjCodeContent(projKey) {
         <button onclick="_setProjHorizon('all')" style="padding:3px 10px;border:none;cursor:pointer;font-size:10px;font-weight:600;${_projHorizon === 'all' ? 'background:var(--accent);color:#fff;' : 'background:var(--bg2);color:var(--text3);'}">All Tasks</button>
         <button onclick="_setProjHorizon('30d')" style="padding:3px 10px;border:none;border-left:1px solid var(--border);cursor:pointer;font-size:10px;font-weight:600;${_projHorizon === '30d' ? 'background:var(--accent);color:#fff;' : 'background:var(--bg2);color:var(--text3);'}">Next 30 Days</button>
       </div>
+      <button class="btn${_projCapOpen ? ' primary' : ''}" onclick="toggleProjCap()" style="font-size:11px;padding:3px 10px;" title="Show capacity alongside the project to pick dates with headroom in view">◷ Capacity</button>
       <button class="btn" onclick="openManagePersonsModal()" style="font-size:11px;padding:3px 10px;">Manage Persons</button>
       ${subCodes.length > 0 ? `<button class="btn" onclick="openScManager('${projKey}')" style="font-size:11px;padding:3px 10px;" title="Manage sub-codes">✎ Sub-Codes</button>` : ''}
       <button class="btn primary" onclick="openAddProjectModal()" style="font-size:11px;padding:3px 10px;">+ Add Project</button>
@@ -7709,6 +7768,9 @@ function renderProjCodeContent(projKey) {
   });
 
   container.innerHTML = html;
+
+  // Keep the capacity split (if open) in sync after any re-render / date edit.
+  if (_projCapOpen) _renderProjCap();
 }
 
 // ── Render a single item row (task, session, or subtask) ──
@@ -10122,12 +10184,11 @@ function renderCapacity() {
   container.insertBefore(summaryEl, container.firstChild);
 }
 
-// ── Capacity scheduler: click-to-assign board ──
-// Left = the month's days (drop targets). Right = unscheduled holds for the
-// month. Select holds, click a day → capAssignHolds writes the date onto the
-// source record; every view re-derives from that single write.
-function _renderCapScheduler(container) {
-  const ym = _capSchedMonth;
+// Shared capacity calendar: one month of days showing committed (logged +
+// dated planned, across ALL work) vs daily capacity. Used by both the holds
+// board and the project scheduler. opts: { selectionActive, onDayClick(date),
+// highlightProj } — when selectionActive, day rows become click targets.
+function _renderSchedCalendar(ym, opts = {}) {
   const [y, m] = ym.split('-').map(Number);
   const ms = ym + '-01';
   const me = localDateStr(new Date(y, m, 0));
@@ -10136,8 +10197,57 @@ function _renderCapScheduler(container) {
   const todayStr = today();
 
   const entries = allTsEntries().filter(e => e.date >= ms && e.date <= me);
-  // Dated planned items belong to the focused month (they fill the left calendar).
   const datedPlanned = plannedItems(ms, me).filter(p => !p._allocHold);
+
+  const cal = document.createElement('div');
+  cal.className = 'cap-sched-cal';
+  cal.innerHTML = `<div class="cap-sched-colhdr">${monthLabel} — capacity</div>`;
+
+  const loggedByDay = {}, plannedByDay = {};
+  entries.forEach(e => { (loggedByDay[e.date] = loggedByDay[e.date] || []).push(e); });
+  datedPlanned.forEach(p => { (plannedByDay[p.date] = plannedByDay[p.date] || []).push(p); });
+
+  for (let dd = 1; dd <= daysInMonth; dd++) {
+    const dateStr = `${ym}-${String(dd).padStart(2, '0')}`;
+    const dow = new Date(y, m - 1, dd).getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const dayLogged = (loggedByDay[dateStr] || []).reduce((a, e) => a + (e.actualHours || 0), 0);
+    const dayPlanned = (plannedByDay[dateStr] || []).reduce((a, p) => a + (p.hours || 0), 0);
+    const committed = dayLogged + dayPlanned;
+    const dayCap = isWeekend ? 0 : tsCapacity;
+
+    const labels = [];
+    (plannedByDay[dateStr] || []).forEach(p => labels.push(escHtml(p.name)));
+    (loggedByDay[dateStr] || []).forEach(e => labels.push(projBillingCode(e.project) || projLabel(e.project) || 'logged'));
+    const preview = labels.length ? labels.slice(0, 2).join(', ') + (labels.length > 2 ? ` +${labels.length - 2} more` : '') : '';
+
+    let hrsColor = 'var(--text3)';
+    if (dayCap > 0 && committed > dayCap) hrsColor = 'var(--danger)';
+    else if (dayCap > 0 && committed > dayCap * 0.8) hrsColor = 'var(--warn)';
+    else if (committed > 0) hrsColor = 'var(--text)';
+
+    const hasProj = opts.highlightProj && (plannedByDay[dateStr] || []).some(p => p.project === opts.highlightProj);
+    const row = document.createElement('div');
+    row.className = 'cap-day-row' + (isWeekend ? ' weekend' : '') + (dateStr === todayStr ? ' today' : '') + (hasProj ? ' has-proj' : '');
+    if (opts.selectionActive && opts.onDayClick) row.onclick = () => opts.onDayClick(dateStr);
+    row.innerHTML = `
+      <span class="cap-day-label">${DAY_NAMES[dow]} <span class="cap-day-num">${dd}</span></span>
+      <span class="cap-day-items">${preview}</span>
+      <span class="cap-day-hours" style="color:${hrsColor};">${committed > 0 ? fmtQ(committed) + 'h' : '—'}${dayCap > 0 ? ' / ' + dayCap + 'h' : ''}</span>`;
+    cal.appendChild(row);
+  }
+  return cal;
+}
+
+// ── Capacity scheduler: click-to-assign board ──
+// Left = the month's days (drop targets). Right = unscheduled holds for the
+// month. Select holds, click a day → capAssignHolds writes the date onto the
+// source record; every view re-derives from that single write.
+function _renderCapScheduler(container) {
+  const ym = _capSchedMonth;
+  const [y, m] = ym.split('-').map(Number);
+  const monthLabel = MONTH_NAMES[m - 1] + ' ' + y;
+
   // Backlog holds span a forward horizon (current month → +24mo) so a hold parked
   // in any month can be dropped onto whichever month the calendar is showing.
   const horizonStart = today().slice(0, 7) + '-01';
@@ -10188,49 +10298,8 @@ function _renderCapScheduler(container) {
   const body = document.createElement('div');
   body.className = 'cap-sched-body' + (selCount ? ' assigning' : '');
 
-  // ── Left: days of the month ──
-  const cal = document.createElement('div');
-  cal.className = 'cap-sched-cal';
-  cal.innerHTML = `<div class="cap-sched-colhdr">${monthLabel} — days</div>`;
-
-  const loggedByDay = {}, plannedByDay = {};
-  entries.forEach(e => { (loggedByDay[e.date] = loggedByDay[e.date] || []).push(e); });
-  datedPlanned.forEach(p => { (plannedByDay[p.date] = plannedByDay[p.date] || []).push(p); });
-
-  for (let dd = 1; dd <= daysInMonth; dd++) {
-    const dateStr = `${ym}-${String(dd).padStart(2, '0')}`;
-    const dObj = new Date(y, m - 1, dd);
-    const dow = dObj.getDay();
-    const isWeekend = dow === 0 || dow === 6;
-    const dayLogged = (loggedByDay[dateStr] || []).reduce((a, e) => a + (e.actualHours || 0), 0);
-    const dayPlanned = (plannedByDay[dateStr] || []).reduce((a, p) => a + (p.hours || 0), 0);
-    const committed = dayLogged + dayPlanned;
-    const dayCap = isWeekend ? 0 : tsCapacity;
-
-    // compact item preview
-    const labels = [];
-    (plannedByDay[dateStr] || []).forEach(p => labels.push(escHtml(p.name)));
-    (loggedByDay[dateStr] || []).forEach(e => labels.push(projBillingCode(e.project) || projLabel(e.project) || 'logged'));
-    let preview = '';
-    if (labels.length) {
-      preview = labels.slice(0, 2).join(', ') + (labels.length > 2 ? ` +${labels.length - 2} more` : '');
-    }
-
-    let hrsColor = 'var(--text3)';
-    if (dayCap > 0 && committed > dayCap) hrsColor = 'var(--danger)';
-    else if (dayCap > 0 && committed > dayCap * 0.8) hrsColor = 'var(--warn)';
-    else if (committed > 0) hrsColor = 'var(--text)';
-
-    const row = document.createElement('div');
-    row.className = 'cap-day-row' + (isWeekend ? ' weekend' : '') + (dateStr === todayStr ? ' today' : '');
-    if (selCount) row.onclick = () => capAssignHolds(dateStr);
-    row.innerHTML = `
-      <span class="cap-day-label">${DAY_NAMES[dow]} <span class="cap-day-num">${dd}</span></span>
-      <span class="cap-day-items">${preview}</span>
-      <span class="cap-day-hours" style="color:${hrsColor};">${committed > 0 ? fmtQ(committed) + 'h' : '—'}${dayCap > 0 ? ' / ' + dayCap + 'h' : ''}</span>`;
-    cal.appendChild(row);
-  }
-  body.appendChild(cal);
+  // ── Left: capacity calendar (shared) ──
+  body.appendChild(_renderSchedCalendar(ym, { selectionActive: selCount > 0, onDayClick: capAssignHolds }));
 
   // ── Right: backlog of holds (all upcoming months) ──
   const backlog = document.createElement('div');
