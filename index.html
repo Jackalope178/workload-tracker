@@ -2934,7 +2934,7 @@ if (typeof XLSX === 'undefined') {
     </div>
 
     <div id="tasksCapBar" style="margin-bottom:10px;display:none;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;cursor:pointer;" onclick="_toggleTasksCapLogged()" title="Show logged entries for this week">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;cursor:pointer;" onclick="_toggleTasksCapLogged()" title="Show logged entries for this pay period">
         <span style="font-size:11px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:6px;">
           <span id="tasksCapChevron" class="week-expand-chevron">›</span>
           <span id="tasksCapLabel"></span>
@@ -3008,7 +3008,7 @@ if (typeof XLSX === 'undefined') {
   <div class="panel" id="panel-timesheet" role="tabpanel" aria-labelledby="tab-timesheet">
     <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
       <div class="ts-view-toggle">
-        <button id="tsViewWeek"    class="ts-view-btn active" onclick="setTsView('week')">Week</button>
+        <button id="tsViewPeriod"  class="ts-view-btn active" onclick="setTsView('period')">Pay Period</button>
         <button id="tsViewMonth"   class="ts-view-btn"        onclick="setTsView('month')">Month</button>
       </div>
       <div id="tsPeriodNav" style="display:flex;align-items:center;gap:4px;">
@@ -3025,16 +3025,6 @@ if (typeof XLSX === 'undefined') {
         <input type="number" id="tsCapacityInput" min="1" max="168" step="1" style="width:46px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);color:var(--text);font-size:12px;" onchange="saveTsCapacity(this.value)">
         <span style="font-size:11px;color:var(--text3);">h/day</span>
       </div>
-      <select id="tsPlannedHorizon" class="filter-select" style="display:none;" onchange="renderTimesheet()">
-        <option value="4">Next 4 weeks</option>
-        <option value="8">Next 8 weeks</option>
-        <option value="13">Next 3 months</option>
-        <option value="26" selected>Next 6 months</option>
-        <option value="52">Next 12 months</option>
-        <option value="104">Next 2 years</option>
-        <option value="260">Next 5 years</option>
-      </select>
-      <button class="btn" onclick="exportTimesheetCSV()" style="font-size:11px;padding:4px 10px;" title="Export current view to CSV">⬇ CSV</button>
       <button class="btn primary" onclick="openAddTsEntryModal()" style="font-size:11px;padding:4px 10px;">+ Log time</button>
     </div>
     <div id="tsCapacityBar" style="padding:10px 14px;border-bottom:1px solid var(--border);display:none;"></div>
@@ -4087,7 +4077,7 @@ if (typeof XLSX === 'undefined') {
       <div class="welcome-tip"><span class="welcome-tip-icon">1</span><span><strong>My Tasks</strong> — your personal to-do list with timers, priorities, and recurring tasks.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — organize work into projects with sessions and subtasks.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">3</span><span><strong>Team Deliverables</strong> — track cross-team assignments and delegated work.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">4</span><span><strong>Timesheet</strong> — see actual vs estimated hours, export to CSV.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">4</span><span><strong>Timesheet</strong> — pay-period and monthly views of logged vs planned hours.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">5</span><span><strong>Allocations</strong> — monthly capacity planning by person and project.</span></div>
     </div>
 
@@ -5123,8 +5113,8 @@ function getFullCode(projKey, scId) {
   if (!proj) return '';
   if (!scId) return proj.billingCode || '';
   const sc = (proj.subCodes || []).find(s => s.id === scId);
-  if (!sc) return proj.billingCode || '';
-  return proj.billingCode || '';
+  if (!sc || !sc.code) return proj.billingCode || '';
+  return (proj.billingCode ? proj.billingCode + ' · ' : '') + sc.code;
 }
 
 function getSubCodeLabel(projKey, scId) {
@@ -5329,6 +5319,18 @@ let _dragItemData = null;
 let teamItems = load('wt_team',      null);
 let completed = load('wt_completed', null);
 
+// Customer Journey data — declared here in the data layer (not in the CT
+// section near the bottom) so the first-render path and plannedItems() can
+// never touch it uninitialized.
+let contactStages = load('wt_contact_stages', [
+  { id: 'interest', label: 'Interest', subCode: '', project: 'cwc', tasks: [] },
+  { id: 'ipp', label: 'IPP Training', subCode: '', project: 'cwc', tasks: [] },
+  { id: 'new-license', label: 'Curriculum License', subCode: '', project: 'cwc', tasks: [] },
+  { id: 'renewal', label: 'License Renewal', subCode: '', project: 'cwc', tasks: [] },
+  { id: 'cohort', label: 'Cohort Delivery', subCode: '', project: 'cwc', tasks: [] }
+]);
+let contacts = load('wt_contacts', []);
+
 if (!tasks)     { tasks = SEED_TASKS;     save('wt_tasks', tasks); }
 if (!bigProjs)  { bigProjs = SEED_PROJECTS; save('wt_bigprojs', bigProjs); }
 if (!teamItems) { teamItems = SEED_TEAM;  save('wt_team', teamItems); }
@@ -5368,9 +5370,29 @@ function _ensureTickerRunning() {
   }
 }
 
+// Billing accuracy: only one timer may run at a time. Starting a timer banks
+// elapsed time on every other running timer and pauses it, so the same
+// wall-clock minutes can never accrue on two items.
+function _pauseOtherTimers() {
+  const running = _allRunningTimers();
+  if (!running.length) return;
+  let touchedTasks = false, touchedBig = false;
+  const names = [];
+  running.forEach(r => {
+    r.target.timer = (r.target.timer || 0) + Math.floor((Date.now() - r.target.timerStart) / 1000);
+    r.target.timerStart = null;
+    names.push(r.target.name || r.target.desc || 'item');
+    if (r.type === 'task') touchedTasks = true; else touchedBig = true;
+  });
+  if (touchedTasks) save('wt_tasks', tasks);
+  if (touchedBig) save('wt_bigprojs', bigProjs);
+  showSyncToast(`Paused timer: ${names.join(', ')}`, 'warn');
+}
+
 function startTimer(taskId) {
   const task = tasks.find(t => t.id === taskId);
   if (!task || task.timerStart) return;
+  _pauseOtherTimers();
   task.timerStart = Date.now();
   if (!task.timer) task.timer = 0;
   save('wt_tasks', tasks);
@@ -5397,6 +5419,7 @@ function startSessionTimer(projId, sessionId) {
   if (!proj) return;
   const s = proj.sessions.find(s => s.id === sessionId);
   if (!s || s.timerStart) return;
+  _pauseOtherTimers();
   s.timerStart = Date.now();
   if (!s.timer) s.timer = 0;
   save('wt_bigprojs', bigProjs);
@@ -5427,6 +5450,7 @@ function startSubtaskTimer(projId, sessionId, subtaskId) {
   if (!s) return;
   const st = (s.subtasks || []).find(st => st.id === subtaskId);
   if (!st || st.timerStart) return;
+  _pauseOtherTimers();
   st.timerStart = Date.now();
   if (!st.timer) st.timer = 0;
   save('wt_bigprojs', bigProjs);
@@ -5492,6 +5516,19 @@ function roundToQuarter(h) {
 // Round to nearest 0.25 for display (billing in 15-min increments)
 function fmtQ(h) { const v = Math.round(h / 0.25) * 0.25; return v % 1 === 0 ? v.toFixed(1) : parseFloat(v.toFixed(2)).toString(); }
 
+function snapQuarter(h) { return Math.round(h / 0.25) * 0.25; }
+
+// Billing rule: every saved hours value must be a quarter-hour increment.
+// Snaps to the nearest 0.25 and toasts when the typed value was corrected.
+function enforceQuarter(h, label) {
+  if (h == null || isNaN(h)) return h;
+  const s = snapQuarter(h);
+  if (Math.abs(s - h) > 0.0001) {
+    showSyncToast(`Rounded ${label || 'hours'} to ${fmtQ(s)}h — quarter-hour increments`, 'warn');
+  }
+  return s;
+}
+
 function updateActiveStrip() {
   const strip = document.getElementById('activeStrip');
   const text = document.getElementById('activeStripText');
@@ -5540,6 +5577,28 @@ function startOfWeek() {
 
 function endOfWeek() {
   return addDays(startOfWeek(), 6);
+}
+
+// =============================================
+// PAY PERIODS (semi-monthly: 1st–15th, 16th–EOM)
+// =============================================
+// The billing lens of the app. Capacity target per period = weekdays × h/day,
+// so a 10-weekday period targets 80h and an 11-weekday one 88h. Weekend
+// overtime logs into the period it was worked but adds no capacity, so it
+// reads as running ahead of target (flex-time signal).
+
+function payPeriodOf(dateStr) {
+  const ym = dateStr.slice(0, 7);
+  const day = +dateStr.slice(8, 10);
+  if (day <= 15) return { start: ym + '-01', end: ym + '-15', half: 1 };
+  const [y, m] = ym.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return { start: ym + '-16', end: ym + '-' + String(last).padStart(2, '0'), half: 2 };
+}
+
+function payPeriodLabel(p) {
+  const [, m, d1] = p.start.split('-');
+  return `${MONTH_NAMES[+m - 1]} ${+d1}–${+p.end.slice(8)}`;
 }
 
 // =============================================
@@ -5822,15 +5881,14 @@ function _renderTasksCapLoggedList() {
   box.style.display = '';
 
   const fProj = document.getElementById('filterProject')?.value || 'all';
-  const wkStart = startOfWeek();
-  const wkEnd   = endOfWeek();
+  const pp = payPeriodOf(today());
   const entries = completed
-    .filter(c => c.dateCompleted && c.dateCompleted >= wkStart && c.dateCompleted <= wkEnd)
+    .filter(c => c.dateCompleted && c.dateCompleted >= pp.start && c.dateCompleted <= pp.end)
     .filter(c => fProj === 'all' || c.project === fProj)
     .sort((a, b) => (a.dateCompleted || '').localeCompare(b.dateCompleted || ''));
 
   if (!entries.length) {
-    box.innerHTML = '<div style="font-size:11px;color:var(--text3);text-align:center;padding:6px;">No logged entries this week.</div>';
+    box.innerHTML = '<div style="font-size:11px;color:var(--text3);text-align:center;padding:6px;">No logged entries this pay period.</div>';
     return;
   }
 
@@ -5850,7 +5908,7 @@ function _renderTasksCapLoggedList() {
   }).join('');
 
   const total = entries.reduce((s, e) => s + (e.actualHours || 0), 0);
-  box.innerHTML = rows + `<div style="display:flex;justify-content:flex-end;gap:6px;font-size:11px;font-weight:700;padding-top:6px;"><span style="color:var(--text3);">Week total:</span> <span>${fmtQ(total)}h</span></div>`;
+  box.innerHTML = rows + `<div style="display:flex;justify-content:flex-end;gap:6px;font-size:11px;font-weight:700;padding-top:6px;"><span style="color:var(--text3);">Period total:</span> <span>${fmtQ(total)}h</span></div>`;
 }
 
 function priorityBadge(p) {
@@ -6026,19 +6084,22 @@ function renderTasks() {
     currentWeekDays.push(d);
   }
 
-  // ── capacity bar for this week (uses ALL data, unfiltered by search/view) ──
-  const { planned: wkPlanned, done: wkDone } = computeWeekCapacity(wkStart, wkEnd);
+  // ── capacity bar for the current PAY PERIOD (uses ALL data, unfiltered by search/view) ──
+  // This is the billing lens: target = weekdays × h/day (80h or 88h depending on
+  // the period); weekend overtime counts as logged, so running over signals flex time.
+  const _pp = payPeriodOf(todayStr);
+  const { done: wkDone } = computeWeekCapacity(_pp.start, _pp.end);
 
-  const wkCap = workingDays(wkStart, wkEnd) * tsCapacity;
+  const wkCap = workingDays(_pp.start, _pp.end) * tsCapacity;
   const wkLoggedPct = Math.min(Math.round((wkDone / wkCap) * 100), 100);
   const wkBarColor = wkDone > wkCap ? '#3b82f6' : wkDone >= wkCap - 0.01 ? 'var(--success)' : 'var(--text3)';
   const wkLabelColor = wkDone > wkCap ? '#3b82f6' : wkDone >= wkCap - 0.01 ? 'var(--success)' : 'var(--text)';
-  const wkStatusText = wkDone > wkCap ? `+${fmtQ(wkDone - wkCap)}H OVER` : wkDone >= wkCap - 0.01 ? 'ON TARGET' : `${fmtQ(wkCap - wkDone)}H LEFT`;
+  const wkStatusText = wkDone > wkCap ? `+${fmtQ(wkDone - wkCap)}H OVER — FLEX AVAILABLE` : wkDone >= wkCap - 0.01 ? 'ON TARGET' : `${fmtQ(wkCap - wkDone)}H LEFT`;
   const capBar = document.getElementById('tasksCapBar');
   if (capBar) {
     capBar.style.display = '';
     document.getElementById('tasksCapLabel').textContent =
-      `This week — ${fmtQ(wkDone)}h logged / ${wkCap.toFixed(0)}h capacity`;
+      `Pay period ${payPeriodLabel(_pp)} — ${fmtQ(wkDone)}h logged / ${wkCap.toFixed(0)}h target`;
     document.getElementById('tasksCapDetail').textContent = wkStatusText;
     document.getElementById('tasksCapDetail').style.color = wkLabelColor;
     const fill = document.getElementById('tasksCapFill');
@@ -6065,10 +6126,9 @@ function renderTasks() {
     if (d === todayStr) { (dayBuckets[todayStr] || (dayBuckets[todayStr] = [])).push(item); return; }
     if (currentWeekDays.includes(d)) { dayBuckets[d].push(item); return; }
     if (d > wkEnd) {
-      // find Mon of that week
+      // find Sunday of that week (consistent with startOfWeek/timesheet weeks)
       const dt = new Date(d + 'T00:00:00');
-      const diff = (dt.getDay() + 6) % 7;   // days since Monday
-      dt.setDate(dt.getDate() - diff);
+      dt.setDate(dt.getDate() - dt.getDay());
       const wk = localDateStr(dt);
       if (!futureBuckets[wk]) futureBuckets[wk] = [];
       futureBuckets[wk].push(item);
@@ -6475,7 +6535,7 @@ function addTask() {
     subCode: document.getElementById('newTaskSubCode').value || '',
     priority: document.getElementById('newTaskPriority').value || 'med',
     due: document.getElementById('newTaskDue').value || '',
-    est: parseFloat(document.getElementById('newTaskEst').value) || 0,
+    est: enforceQuarter(parseFloat(document.getElementById('newTaskEst').value) || 0, 'estimate'),
     category: '',
     waiting: document.getElementById('newTaskWaiting').value.trim(),
     notes: document.getElementById('newTaskNotes').value.trim(),
@@ -6498,8 +6558,9 @@ function addTask() {
 function logTaskDirectly() {
   const name = document.getElementById('newTaskName').value.trim();
   if (!name) return _formError('newTaskName', 'Task name required.');
-  const hours = parseFloat(document.getElementById('newTaskEst').value);
+  let hours = parseFloat(document.getElementById('newTaskEst').value);
   if (!hours || hours <= 0) return _formError('newTaskEst', 'Hours required to log.');
+  hours = Math.max(0.25, enforceQuarter(hours, 'logged time'));
   const project = document.getElementById('newTaskProject').value || 'overhead';
   const subCode = document.getElementById('newTaskSubCode').value || '';
   const date = document.getElementById('newTaskDue').value || today();
@@ -6508,7 +6569,7 @@ function logTaskDirectly() {
     id: uid(),
     name, project, subCode,
     dateCompleted: date,
-    estHours: hours,
+    estHours: 0, // direct log has no real estimate — don't pollute accuracy stats
     actualHours: hours,
     category: ''
   });
@@ -6706,7 +6767,7 @@ function saveEditTask() {
   task.priority = document.getElementById('editPriority').value;
   task.due      = document.getElementById('editDue').value;
   task.allocMonth = document.getElementById('editAllocMonth').value || null;
-  task.est      = parseFloat(document.getElementById('editEst').value) || 0;
+  task.est      = enforceQuarter(parseFloat(document.getElementById('editEst').value) || 0, 'estimate');
   // category field preserved in data but removed from UI
   task.waiting  = document.getElementById('editWaiting').value.trim();
   task.notes    = document.getElementById('editNotes').value.trim();
@@ -6876,7 +6937,7 @@ function inlineEditEst(el, type, id1, id2, id3) {
   input.style.cssText = 'width:50px;font-size:12px;padding:2px 4px;border:1px solid var(--accent);border-radius:3px;background:var(--bg);color:var(--text);text-align:center;';
 
   function commit() {
-    const val = parseFloat(input.value) || 0;
+    const val = enforceQuarter(parseFloat(input.value) || 0, 'estimate');
     if (type === 'task') {
       const t = tasks.find(t => t.id === id1);
       if (t) { t.est = val; save('wt_tasks', tasks); }
@@ -7136,7 +7197,7 @@ function closeCompletionModal() {
 
 function confirmComplete() {
   const rawBillable = parseFloat(document.getElementById('compBillable')?.value);
-  const billable = isNaN(rawBillable) ? 0.25 : rawBillable;
+  const billable = isNaN(rawBillable) ? 0.25 : Math.max(0.25, enforceQuarter(rawBillable, 'billable hours'));
   const subCode = document.getElementById('compSubCode')?.value || '';
   const dateCompleted = document.getElementById('compDate')?.value || today();
 
@@ -8874,32 +8935,23 @@ function confirmAddTeam() {
 // TIMESHEET STATE
 // =============================================
 
-let tsView = 'week';
-let tsAnchor = today(); // week or month anchor date
+let tsView = 'period';
+let tsAnchor = today(); // pay-period (month) or month-view anchor date
 let tsCapacity = parseFloat(load('wt_ts_capacity', 8)) || 8;
-let tsExpandedWeeks = new Set();   // week-start strings that are expanded in week view
+let tsExpandedWeeks = new Set();   // pay-period start strings expanded in period view
 let tsExpandedMonths = new Set();  // 'YYYY-MM' strings expanded in month view
 let tsCollapsedDays = new Set();   // date strings of collapsed day sections
 let _tsAutoCollapsedInit = new Set(); // dates already considered for auto-collapse (so manual toggles are respected)
-let _tsCurrentWeekAutoExpanded = false; // track if we've auto-expanded current week
+let _tsCurrentWeekAutoExpanded = false; // track if we've auto-expanded the current pay period
 let tsMonthExpandedWeeks = new Set(); // week-start strings expanded inside month view
 
 function setTsView(v) {
-  if (v === 'planned') v = 'week'; // planned view removed
+  if (v === 'week' || v === 'planned') v = 'period'; // legacy views consolidated into Pay Period
   tsView = v;
-  ['week','month'].forEach(x => {
-    document.getElementById('tsView' + x.charAt(0).toUpperCase() + x.slice(1))?.classList.toggle('active', x === v);
-  });
+  document.getElementById('tsViewPeriod')?.classList.toggle('active', v === 'period');
+  document.getElementById('tsViewMonth')?.classList.toggle('active', v === 'month');
   document.getElementById('tsPeriodNav').style.display = 'flex';
-  const horizonEl = document.getElementById('tsPlannedHorizon');
-  if (horizonEl) horizonEl.style.display = 'none';
   renderTimesheet();
-}
-
-function tsWeekStart(anchor) {
-  const d = new Date(anchor + 'T00:00:00');
-  d.setDate(d.getDate() - d.getDay()); // Sunday
-  return localDateStr(d);
 }
 
 function tsMonthStart(anchor) {
@@ -8909,23 +8961,23 @@ function tsMonthStart(anchor) {
 
 function tsPeriodPrev() {
   const d = new Date(tsAnchor + 'T00:00:00');
-  if (tsView === 'week') d.setDate(d.getDate() - 7);
-  else d.setMonth(d.getMonth() - 1);
+  d.setDate(1); // avoid month-length skips (e.g. Jul 31 − 1mo)
+  d.setMonth(d.getMonth() - 1);
   tsAnchor = localDateStr(d);
   renderTimesheet();
 }
 
 function tsPeriodNext() {
   const d = new Date(tsAnchor + 'T00:00:00');
-  if (tsView === 'week') d.setDate(d.getDate() + 7);
-  else d.setMonth(d.getMonth() + 1);
+  d.setDate(1);
+  d.setMonth(d.getMonth() + 1);
   tsAnchor = localDateStr(d);
   renderTimesheet();
 }
 
 function tsPeriodToday() {
   tsAnchor = today();
-  // Re-expand current week so it's visible
+  // Re-expand the current pay period so it's visible
   _tsCurrentWeekAutoExpanded = false;
   renderTimesheet();
 }
@@ -9193,11 +9245,13 @@ function _tsColHdr() {
   </div>`;
 }
 
+// Renders the day-by-day entry list for any inclusive date range
+// (a Sun–Sat week in month view, or a 1–15 / 16–EOM pay period).
 function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) {
   const wEntries = allEntries.filter(e => e.date >= wStart && e.date <= wEnd);
 
   const byDay = {};
-  for (let i = 0; i < 7; i++) byDay[addDays(wStart, i)] = [];
+  for (let _d = wStart; _d <= wEnd; _d = addDays(_d, 1)) byDay[_d] = [];
   wEntries.forEach(e => { if (byDay[e.date]) byDay[e.date].push({ ...e, _isLogged: true }); });
   wPlanned.forEach(p => { if (byDay[p.date]) byDay[p.date].push({ ...p, _isPlanned: true }); });
 
@@ -9437,7 +9491,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
   if (!hasAny) {
     const empty = document.createElement('div');
     empty.style.cssText = 'padding:10px 32px;font-size:11px;color:var(--text3);';
-    empty.textContent = 'No entries this week. Complete a task or add a manual entry to start tracking time.';
+    empty.textContent = 'No entries in this period. Complete a task or add a manual entry to start tracking time.';
     wrap.appendChild(empty);
   }
   container.appendChild(wrap);
@@ -9454,8 +9508,9 @@ function renderTimesheet() {
 
   const entries = allTsEntries().filter(e => fProj === 'all' || e.project === fProj);
 
-  if (tsView === 'week') {
-    // Shows all weeks in the current month; clicking a week expands entries inline
+  if (tsView === 'period') {
+    // PAY PERIOD view — the billing lens. Shows the anchored month's two
+    // semi-monthly periods (1–15, 16–EOM); clicking one expands day entries.
     const ms = tsMonthStart(tsAnchor);
     const mDate = new Date(ms + 'T00:00:00');
     const monthLabel = `${MONTH_NAMES[mDate.getMonth()]} ${mDate.getFullYear()}`;
@@ -9466,10 +9521,10 @@ function renderTimesheet() {
     const monthPlanned = plannedItems(ms, me).filter(p => fProj === 'all' || p.project === fProj);
     const monthUsed = monthEntries.reduce((a, e) => a + e.actualHours, 0);
     const monthPlannedH = monthPlanned.reduce((a, p) => a + p.hours, 0);
-    renderTsCapacityBar(monthUsed, monthPlannedH, workingDays(ms, me) * tsCapacity, monthLabel);
+    renderTsCapacityBar(monthUsed, monthPlannedH, workingDays(ms, me) * tsCapacity, monthLabel + ' — whole month');
 
     // Month-level holds (no date): counted in the month total above, but pulled
-    // out of the weekly bars/buckets so they never appear on a specific day.
+    // out of the period bars/buckets so they never appear on a specific day.
     const monthHolds = monthPlanned.filter(p => p._allocHold);
     const monthHoldsH = monthHolds.reduce((a, p) => a + p.hours, 0);
     if (monthHoldsH > 0) {
@@ -9479,73 +9534,62 @@ function renderTimesheet() {
       holdRow.onclick = () => capOpenMonth(ms.slice(0, 7));
       holdRow.innerHTML = `
         <span class="ts-month-label">Unscheduled holds</span>
-        <div><span style="font-size:10px;color:var(--text3);">${monthHolds.length} item${monthHolds.length === 1 ? '' : 's'} with no date — counted in the month total, not in any week below. Click to schedule in Capacity →</span></div>
+        <div><span style="font-size:10px;color:var(--text3);">${monthHolds.length} item${monthHolds.length === 1 ? '' : 's'} with no date — counted in the month total, not in any period below. Click to schedule in Capacity →</span></div>
         <span class="ts-month-hours" style="color:var(--text3);font-weight:700;">${fmtQ(monthHoldsH)}h</span>
         <span class="ts-month-chevron">›</span>`;
       container.appendChild(holdRow);
     }
 
-    // Auto-expand the current week on first render
+    // Auto-expand the current pay period on first render
     if (!_tsCurrentWeekAutoExpanded) {
-      const curWeekStart = tsWeekStart(today());
-      tsExpandedWeeks.add(curWeekStart);
+      tsExpandedWeeks.add(payPeriodOf(today()).start);
       _tsCurrentWeekAutoExpanded = true;
     }
 
-    let weekCursor = new Date(ms + 'T00:00:00');
-    weekCursor.setDate(weekCursor.getDate() - weekCursor.getDay());
-    let hasAny = false;
+    const periods = [payPeriodOf(ms), payPeriodOf(ms.slice(0, 7) + '-16')];
+    const todayStr = today();
 
-    while (true) {
-      const wStart = localDateStr(weekCursor);
-      const wEnd = addDays(wStart, 6);
-      if (wStart > me) break;
-
-      const wEntries = entries.filter(e => e.date >= wStart && e.date <= wEnd);
-      // Holds (no date) are month-level — excluded from weekly bars/buckets and
-      // surfaced once at the month level below, matching the year view.
-      const wPlanned = monthPlanned.filter(p => !p._allocHold && p.date >= wStart && p.date <= wEnd);
-      const wUsed = wEntries.reduce((a, e) => a + e.actualHours, 0);
-      const wPlannedH = wPlanned.reduce((a, p) => a + p.hours, 0);
-      const wCap = workingDays(wStart, wEnd) * tsCapacity;
-      const wLoggedPct = Math.min(Math.round((wUsed / wCap) * 100), 100);
-      const wBarColor = wUsed > wCap ? '#3b82f6' : wUsed >= wCap - 0.01 ? 'var(--success)' : 'var(--text3)';
-      const wLabelColor = wUsed > wCap ? '#3b82f6' : wUsed >= wCap - 0.01 ? 'var(--success)' : 'var(--text)';
-      const wStatusText = wUsed > wCap ? `+${fmtQ(wUsed - wCap)}H OVER` : wUsed >= wCap - 0.01 ? 'ON TARGET' : `${fmtQ(wCap - wUsed)}H LEFT`;
-
-      const wsParts = wStart.split('-'), weParts = wEnd.split('-');
-      const wLabel = `${MONTH_NAMES[+wsParts[1]-1]} ${+wsParts[2]} – ${MONTH_NAMES[+weParts[1]-1]} ${+weParts[2]}`;
-      const isOpen = tsExpandedWeeks.has(wStart);
+    periods.forEach(p => {
+      const pEntries = entries.filter(e => e.date >= p.start && e.date <= p.end);
+      // Holds (no date) are month-level — excluded from period bars/buckets.
+      const pPlanned = monthPlanned.filter(x => !x._allocHold && x.date >= p.start && x.date <= p.end);
+      const pUsed = pEntries.reduce((a, e) => a + e.actualHours, 0);
+      const pPlannedH = pPlanned.reduce((a, x) => a + x.hours, 0);
+      // Target = weekdays × h/day → 80h or 88h depending on the period's calendar.
+      const pCap = workingDays(p.start, p.end) * tsCapacity;
+      const pLoggedPct = Math.min(Math.round((pUsed / pCap) * 100), 100);
+      const pBarColor = pUsed > pCap ? '#3b82f6' : pUsed >= pCap - 0.01 ? 'var(--success)' : 'var(--text3)';
+      const pLabelColor = pUsed > pCap ? '#3b82f6' : pUsed >= pCap - 0.01 ? 'var(--success)' : 'var(--text)';
+      const pStatusText = pUsed > pCap
+        ? `+${fmtQ(pUsed - pCap)}H OVER — FLEX AVAILABLE`
+        : pUsed >= pCap - 0.01 ? 'ON TARGET' : `${fmtQ(pCap - pUsed)}H LEFT`;
+      const isCurrent = todayStr >= p.start && todayStr <= p.end;
+      const isOpen = tsExpandedWeeks.has(p.start);
 
       const row = document.createElement('div');
       row.className = 'ts-week-row' + (isOpen ? ' expanded' : '');
       row.onclick = () => {
-        if (tsExpandedWeeks.has(wStart)) tsExpandedWeeks.delete(wStart);
-        else tsExpandedWeeks.add(wStart);
+        if (tsExpandedWeeks.has(p.start)) tsExpandedWeeks.delete(p.start);
+        else tsExpandedWeeks.add(p.start);
         renderTimesheet();
       };
       row.innerHTML = `
-        <span class="ts-month-label">${wLabel}</span>
+        <span class="ts-month-label">${payPeriodLabel(p)}${isCurrent ? ' <span style="color:var(--accent);font-size:9px;font-weight:700;">● CURRENT</span>' : ''}</span>
         <div style="display:flex;align-items:center;gap:6px;">
           <div class="ts-cap-bar-wrap" style="flex:1;margin-top:0;">
-            <div style="width:${wLoggedPct}%;height:100%;border-radius:3px;background:${wBarColor};" class="ts-cap-bar-fill"></div>
+            <div style="width:${pLoggedPct}%;height:100%;border-radius:3px;background:${pBarColor};" class="ts-cap-bar-fill"></div>
           </div>
-          <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${wLoggedPct}%</span>
+          <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${pLoggedPct}%</span>
         </div>
-        <span style="font-size:10px;color:var(--text3);">${fmtQ(wUsed)}h / ${wCap.toFixed(0)}h · <span style="color:${wLabelColor};font-weight:700;">${wStatusText}</span></span>
+        <span style="font-size:10px;color:var(--text3);">${fmtQ(pUsed)}h logged${pPlannedH > 0 ? ' + ' + fmtQ(pPlannedH) + 'h planned' : ''} / ${pCap.toFixed(0)}h target · <span style="color:${pLabelColor};font-weight:700;">${pStatusText}</span></span>
         <span class="ts-month-chevron${isOpen ? ' open' : ''}">›</span>
       `;
       container.appendChild(row);
-      hasAny = true;
 
       if (isOpen) {
-        renderWeekEntriesInline(container, wStart, wEnd, entries, wPlanned);
+        renderWeekEntriesInline(container, p.start, p.end, entries, pPlanned);
       }
-
-      weekCursor.setDate(weekCursor.getDate() + 7);
-    }
-
-    if (!hasAny) container.innerHTML = '<div class="empty-state">No data this month.</div>';
+    });
 
   } else if (tsView === 'month') {
     // Shows all months in the current year; clicking a month expands its weeks;
@@ -9555,12 +9599,11 @@ function renderTimesheet() {
     document.getElementById('tsPeriodLabel').textContent = String(year);
     document.getElementById('tsCapacityBar').style.display = 'none';
 
-    // Auto-expand current month and current week in month view
+    // Auto-expand current month in month view (and prime the current pay
+    // period so switching to Period view lands expanded)
     if (!_tsCurrentWeekAutoExpanded) {
-      const curMonth = today().slice(0, 7);
-      const curWeekStart = tsWeekStart(today());
-      tsExpandedMonths.add(curMonth);
-      tsExpandedWeeks.add(curWeekStart);
+      tsExpandedMonths.add(today().slice(0, 7));
+      tsExpandedWeeks.add(payPeriodOf(today()).start);
       _tsCurrentWeekAutoExpanded = true;
     }
 
@@ -9681,187 +9724,6 @@ function renderTimesheet() {
         container.appendChild(wrapEl);
       }
     }
-
-  } else if (tsView === 'planned') {
-    // PLANNED view — upcoming tasks (including all recurring occurrences) + project sessions grouped by week
-    document.getElementById('tsCapacityBar').style.display = 'none';
-
-    const todayStr = today();
-
-    // Horizon: N weeks forward from today
-    const horizonWeeks = parseInt(document.getElementById('tsPlannedHorizon')?.value || '13');
-    const futureDate = addDays(todayStr, horizonWeeks * 7);
-
-    // Use plannedItems() to expand all recurring tasks into individual occurrences
-    const plannedAll = plannedItems(todayStr, futureDate)
-      .filter(p => fProj === 'all' || p.project === fProj)
-      .map(p => {
-        const baseId = p.id.includes('_') ? p.id.split('_').slice(0, -1).join('_') : p.id;
-        const task = tasks.find(t => t.id === baseId || t.id === p.id);
-        if (task) return { ...p, type: 'task', _taskId: task.id };
-        for (const proj of bigProjs) {
-          const s = proj.sessions.find(s => s.id === baseId || s.id === p.id);
-          if (s) return { ...p, type: 'session', _projId: proj.id, _sessionId: s.id, _projName: proj.name };
-          for (const s2 of proj.sessions) {
-            const st = (s2.subtasks || []).find(st => st.id === baseId || st.id === p.id);
-            if (st) return { ...p, type: 'subtask', _projId: proj.id, _sessionId: s2.id, _subtaskId: st.id, _projName: proj.name };
-          }
-        }
-        return { ...p, type: 'task' };
-      });
-
-    if (!plannedAll.length) {
-      container.innerHTML = '<div class="empty-state"><span style="font-size:20px;">📅</span><br>No upcoming planned work.<br><span style="font-size:11px;color:var(--text3);">Add due dates and estimates to your tasks to see the forecast.</span></div>';
-    } else {
-      // Group by week (Sun–Sat)
-      const byWeek = {};
-      plannedAll.forEach(item => {
-        const d = new Date(item.date + 'T00:00:00');
-        d.setDate(d.getDate() - d.getDay());
-        const wk = localDateStr(d);
-        if (!byWeek[wk]) byWeek[wk] = [];
-        byWeek[wk].push(item);
-      });
-
-      // Summary
-      const totalH = plannedAll.reduce((a, i) => a + i.hours, 0);
-      const recurCount = plannedAll.filter(i => i._recur).length;
-      const summaryEl = document.createElement('div');
-      summaryEl.style.cssText = 'padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;gap:16px;';
-      summaryEl.innerHTML = `
-        <span>📋 <strong style="color:var(--text)">${plannedAll.length}</strong> items planned</span>
-        ${recurCount ? `<span>↻ <strong style="color:var(--text)">${recurCount}</strong> recurring occurrences</span>` : ''}
-        <span>⏱ <strong style="color:var(--text)">${fmtQ(totalH)}h</strong> total estimated</span>
-        <span>📅 <strong style="color:var(--text)">${Object.keys(byWeek).length}</strong> weeks</span>
-      `;
-      container.appendChild(summaryEl);
-
-      Object.keys(byWeek).sort().forEach(wStart => {
-        const items = byWeek[wStart];
-        const wEnd = addDays(wStart, 6);
-        const wHours = items.reduce((a, i) => a + i.hours, 0);
-        const wCap = workingDays(wStart, wEnd) * tsCapacity;
-        const pct = Math.min(Math.round((wHours / wCap) * 100), 100);
-        const cls = wHours > wCap ? 'over' : wHours > wCap * 0.8 ? 'warn' : 'ok';
-        const remaining = Math.max(wCap - wHours, 0);
-
-        const wsParts = wStart.split('-'), weParts = wEnd.split('-');
-        const wLabel = `${MONTH_NAMES[+wsParts[1]-1]} ${+wsParts[2]} – ${MONTH_NAMES[+weParts[1]-1]} ${+weParts[2]}`;
-
-        // Week header with capacity bar
-        const hdr = document.createElement('div');
-        hdr.style.cssText = 'padding:10px 14px;border-bottom:1px solid var(--border);border-top:1px solid var(--border);margin-top:4px;background:var(--bg3);';
-        hdr.innerHTML = `
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
-            <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;">${wLabel}</span>
-            <span style="font-size:11px;color:var(--text3);">
-              <strong style="color:${cls === 'over' ? 'var(--danger)' : cls === 'warn' ? 'var(--warn)' : 'var(--success)'}">${fmtQ(wHours)}h</strong> planned
-              / ${wCap.toFixed(0)}h capacity
-              · <span style="color:${remaining > 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:600;">${remaining > 0 ? fmtQ(remaining) + 'h free' : 'over capacity'}</span>
-            </span>
-          </div>
-          <div class="ts-cap-bar-wrap">
-            <div class="ts-cap-bar-fill ${cls}" style="width:${pct}%;"></div>
-          </div>
-        `;
-        container.appendChild(hdr);
-
-        // Items in this week, sorted by date
-        items.sort((a, b) => a.date.localeCompare(b.date)).forEach(item => {
-          const d = new Date(item.date + 'T00:00:00');
-          const dayLabel = `${DAY_NAMES[d.getDay()]} ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
-          const row = document.createElement('div');
-          row.className = 'ts-entry-row';
-          const editFn = item._taskId
-            ? `openEditModal('${item._taskId}')`
-            : item._subtaskId ? `openEditSubtaskModal('${item._projId}','${item._sessionId}','${item._subtaskId}')`
-            : item._sessionId ? `openEditSessionModal('${item._projId}','${item._sessionId}')` : '';
-          let doneFn = '';
-          if (item._taskId) doneFn = `openCompletionModal('${item._taskId}')`;
-          else if (item._sessionId) doneFn = `openSessionCompletionModal('${item._projId}','${item._sessionId}')`;
-          const pCode = projBillingCode(item.project) || projLabel(item.project);
-          const scLbl = item.subCode ? getSubCodeLabel(item.project, item.subCode) : '';
-          const recurBadge = item._recur ? `<span class="recur-badge">↻</span>` : '';
-          let recurActions = '';
-          if (item._recur && item._taskId) {
-            recurActions = `<span onclick="event.stopPropagation();skipRecurOccurrence('${item._taskId}','${item.date}')" title="Skip this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">⊘</span>
-              <span onclick="event.stopPropagation();openRescheduleModal('${item._taskId}','${item.date}')" title="Reschedule this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">📅</span>`;
-          }
-          row.innerHTML = `
-            <span class="ts-entry-code" title="${projLabel(item.project)}">${pCode}</span>
-            <span class="ts-entry-subcode">${scLbl || '—'}</span>
-            <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(item.name)}${recurBadge}</span>
-            ${recurActions ? `<span class="ts-entry-hours" style="color:var(--text3);display:flex;align-items:center;gap:3px;justify-content:flex-end;">${recurActions}<span>${item.hours}h</span></span>` : `<span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>`}
-            <div class="ts-entry-actions" style="opacity:1;">
-              ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
-              </div>
-          `;
-          container.appendChild(row);
-        });
-      });
-    }
-
-  } else {
-    // ALL view — project-grouped table with edit/delete
-    document.getElementById('tsCapacityBar').style.display = 'none';
-    document.getElementById('tsPeriodLabel').textContent = '';
-
-    const byProject = {};
-    entries.forEach(item => {
-      if (!byProject[item.project]) byProject[item.project] = [];
-      byProject[item.project].push(item);
-    });
-
-    let grandEst = 0, grandActual = 0;
-
-    Object.entries(byProject).forEach(([projKey, items]) => {
-      const block = document.createElement('div');
-      block.className = 'ts-project-block';
-      const projEst = items.reduce((a, i) => a + (i.estHours || 0), 0);
-      const projActual = items.reduce((a, i) => a + (i.actualHours || 0), 0);
-      grandEst += projEst; grandActual += projActual;
-      const projAcc = projEst ? Math.round((1 - Math.abs(projActual - projEst) / projEst) * 100) : null;
-      let accCls = projAcc === null ? 'good' : projAcc < 85 ? 'bad' : projAcc < 95 ? 'warn' : 'good';
-
-      block.innerHTML = `
-        <div class="ts-project-header">
-          <div class="project-dot" style="background:${projColor(projKey)};width:9px;height:9px;border-radius:50%;"></div>
-          <div class="ts-project-name">${projLabel(projKey)}</div>
-          <span style="font-size:11px;color:var(--text3);margin-right:8px;">${items.length} entries</span>
-          <span style="font-size:11px;font-weight:700;color:var(--text);margin-right:12px;">${fmtQ(projActual)}h logged</span>
-        </div>
-        <table class="ts-table">
-          <thead><tr><th>Code</th><th>Sub-code</th><th>Task</th><th>Date</th><th style="text-align:right;">Hours</th><th></th></tr></thead>
-          <tbody>
-            ${items.map(item => {
-              const code = projBillingCode(item.project) || projLabel(item.project);
-              const sc = item.subCode ? getSubCodeLabel(item.project, item.subCode) : '—';
-              return `<tr>
-                <td style="color:var(--text3);font-size:11px;font-family:monospace;">${code}</td>
-                <td style="color:var(--accent);font-size:11px;opacity:0.8;">${sc}</td>
-                <td style="cursor:pointer;color:var(--text);" onclick="openEditTsEntry('${item.id}')" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">${escHtml(item.name)}</td>
-                <td style="color:var(--text3)">${fmtDate(item.date)}</td>
-                <td style="font-weight:600;text-align:right;">${item.actualHours}h</td>
-                <td style="white-space:nowrap;">
-                  <button class="row-edit-btn" onclick="openEditTsEntry('${item.id}')" title="Edit">✏</button>
-                  <button class="row-edit-btn" onclick="deleteTsEntry('${item.id}')" title="Delete" style="color:var(--danger);">×</button>
-                </td>
-              </tr>`;
-            }).join('')}
-            <tr class="ts-summary-row">
-              <td colspan="4">Total</td>
-              <td style="text-align:right;">${fmtQ(projActual)}h</td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-      `;
-      container.appendChild(block);
-    });
-
-    if (!Object.keys(byProject).length) {
-      container.innerHTML = '<div class="empty-state"><span style="font-size:20px;">⏱</span><br>No logged time yet.<br><span style="font-size:11px;color:var(--text3);">Complete tasks or click <strong>+ Manual Entry</strong> to log time.</span></div>';
-    }
   }
 }
 
@@ -9925,11 +9787,12 @@ function saveTsEntry() {
   const project  = document.getElementById('tsEntryProject').value;
   const subCode  = document.getElementById('tsEntrySubCode')?.value || '';
   const date     = document.getElementById('tsEntryDate').value;
-  const estHours = parseFloat(document.getElementById('tsEntryEst').value) || 0;
-  const actual   = parseFloat(document.getElementById('tsEntryActual').value);
+  const estHours = snapQuarter(parseFloat(document.getElementById('tsEntryEst').value) || 0);
+  let actual     = parseFloat(document.getElementById('tsEntryActual').value);
   const category = '';
   if (!name) return _formError('tsEntryName', 'Description is required.');
   if (isNaN(actual) || actual < 0) return _formError('tsEntryActual', 'Actual hours required.');
+  actual = enforceQuarter(actual, 'logged hours');
 
   if (editingTsEntryId) {
     const entry = completed.find(c => c.id === editingTsEntryId);
@@ -9960,51 +9823,6 @@ function deleteTsEntry(entryId) {
     completed.push(snap);
     save('wt_completed', completed); renderTimesheet();
   });
-}
-
-// =============================================
-// TIMESHEET CSV EXPORT
-// =============================================
-
-function exportTimesheetCSV() {
-  const fProj = document.getElementById('tsFilterProject')?.value || 'all';
-  const entries = completed.filter(c => {
-    if (fProj !== 'all' && c.project !== fProj) return false;
-    return true;
-  }).sort((a, b) => (a.dateCompleted || '').localeCompare(b.dateCompleted || ''));
-
-  if (!entries.length) {
-    showSyncToast('No time entries to export.', 'warn');
-    return;
-  }
-
-  const escCSV = v => {
-    const s = String(v ?? '');
-    return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
-  };
-
-  const header = ['Date', 'Project', 'Billing Code', 'Sub-code', 'Description', 'Est Hours', 'Actual Hours'];
-  const rows = entries.map(e => [
-    e.dateCompleted || '',
-    projLabel(e.project),
-    projBillingCode(e.project) || '',
-    e.subCode ? getSubCodeLabel(e.project, e.subCode) : '',
-    e.name || '',
-    e.estHours || '',
-    e.actualHours || ''
-  ]);
-
-  const csv = [header, ...rows].map(r => r.map(escCSV).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'timesheet-' + today() + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showSyncToast(`Exported ${entries.length} entries to CSV.`, 'success');
 }
 
 // =============================================
@@ -10994,6 +10812,16 @@ function _normLabel(label) {
   return (label || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
 }
 
+// Normalize a BigTime Task label for matching: strip leading year ("2026 - ANSI")
+// and leading enumeration ("1. Project meetings", "2) Outreach") prefixes that
+// BigTime adds, so re-imports map onto existing sub-codes instead of duplicating.
+function _normTaskLabel(label) {
+  let s = String(label || '').trim();
+  s = s.replace(/^20\d{2}\s*[-–—:.]?\s*/, '');
+  s = s.replace(/^\d{1,2}\s*[.)\-–:]\s*/, '');
+  return _normLabel(s);
+}
+
 // Find project key by billing code, or create a new one
 function _findOrCreateProject(billingCode, jobLabel) {
   const normCode = _normBillingCode(billingCode);
@@ -11107,14 +10935,30 @@ function _matchSubCode(projKey, label) {
   if (!PROJECTS[projKey]) return { scId: null, matchType: 'new' };
   const scs = PROJECTS[projKey].subCodes || [];
   const normLbl = _normLabel(label);
+  const taskLbl = _normTaskLabel(label);
   let existing = scs.find(s => s.label.toLowerCase() === label.toLowerCase());
   if (existing) return { scId: existing.id, matchType: 'exact' };
   existing = scs.find(s => _normLabel(s.label) === normLbl);
   if (existing) return { scId: existing.id, matchType: 'normalized' };
-  if (normLbl.length >= 4) {
+  // Year/number prefixes stripped: "2026 - ANSI" ↔ "ANSI", "1. Project meetings" ↔ "Project meetings"
+  if (taskLbl) {
+    existing = scs.find(s => _normTaskLabel(s.label) === taskLbl);
+    if (existing) return { scId: existing.id, matchType: 'normalized' };
+  }
+  // "Task N: ..." rows match by their task number even when the wording was
+  // shortened locally (e.g. "Task 1: Project Management and Meetings" ↔ "Task 1: PM and Meetings")
+  const tn = taskLbl.match(/^task (\d+)\b/);
+  if (tn) {
     existing = scs.find(s => {
-      const sn = _normLabel(s.label);
-      return sn && (sn.includes(normLbl) || normLbl.includes(sn));
+      const m = _normTaskLabel(s.label).match(/^task (\d+)\b/);
+      return m && m[1] === tn[1];
+    });
+    if (existing) return { scId: existing.id, matchType: 'contains' };
+  }
+  if (taskLbl.length >= 4) {
+    existing = scs.find(s => {
+      const sn = _normTaskLabel(s.label);
+      return sn && (sn.includes(taskLbl) || taskLbl.includes(sn));
     });
     if (existing) return { scId: existing.id, matchType: 'contains' };
   }
@@ -13035,12 +12879,30 @@ function renderAllocations() {
 // HEADER META
 // =============================================
 
+// % of a month's capacity already committed (logged + planned vs weekdays × h/day)
+function _monthBookedPct(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const ms = ym + '-01';
+  const me = localDateStr(new Date(y, m, 0));
+  const logged = completed.reduce((a, c) =>
+    a + (((c.dateCompleted || '').slice(0, 7) === ym) ? (c.actualHours || 0) : 0), 0);
+  const plannedH = _getPlannedForMonth(ym).reduce((a, p) => a + (p.hours || 0), 0);
+  const cap = workingDays(ms, me) * tsCapacity;
+  return cap > 0 ? Math.round(((logged + plannedH) / cap) * 100) : 0;
+}
+
 function updateHeaderMeta() {
   const el = document.getElementById('headerMeta');
   const active = tasks.filter(t => !t.completed).length;
   const urgent = tasks.filter(t => !t.completed && t.priority === 'urgent').length;
-  const waiting = teamItems.filter(t => t.status !== 'complete').length;
-  el.textContent = `${active} tasks · ${urgent} urgent · ${waiting} delegated`;
+  // The "can you take on something new?" pulse: committed % this month and next
+  const curYM = today().slice(0, 7);
+  const nextYM = _nextAllocMonth(curYM, 1);
+  const curPct = _monthBookedPct(curYM);
+  const nextPct = _monthBookedPct(nextYM);
+  const mName = ym => MONTH_NAMES[+ym.slice(5) - 1];
+  el.textContent = `${active} tasks · ${urgent} urgent · booked: ${mName(curYM)} ${curPct}% / ${mName(nextYM)} ${nextPct}%`;
+  el.title = 'Booked = logged + planned hours vs capacity (weekdays × h/day). See the Capacity tab for the full picture.';
 }
 
 // =============================================
@@ -13268,9 +13130,9 @@ const _TAB_TIPS = {
     tips: [
       'Completed tasks auto-log here with actual hours from timers.',
       'Click <strong>+ Log time</strong> to add manual entries.',
-      'Switch between <strong>Week</strong> and <strong>Month</strong> views.',
-      'The <strong>capacity bar</strong> shows how full your week/month is.',
-      'Use <strong>⬇ CSV</strong> to export entries for reporting.',
+      '<strong>Pay Period</strong> view shows the 1st–15th and 16th–EOM billing windows; <strong>Month</strong> shows the year.',
+      'Each period\'s target is <strong>weekdays × your h/day</strong> (80h or 88h). Weekend overtime counts as logged — running over flags flex time.',
+      'All hours snap to <strong>quarter-hour increments</strong> automatically.',
       'Set your <strong>hours/day capacity</strong> in the toolbar.'
     ]
   },
@@ -13401,6 +13263,8 @@ function reloadStateFromLocalStorage() {
   _staleSubCodes = new Set(load('wt_stale_subcodes', []));
   _allocRollovers = load('wt_alloc_rollovers', {});
   _collapsedTaskSections = new Set(load('wt_collapsed_task_sections', []));
+  contactStages = load('wt_contact_stages', contactStages);
+  contacts = load('wt_contacts', []);
 }
 
 function initApp() {
@@ -14066,7 +13930,7 @@ function saveSession() {
   const desc        = document.getElementById('editSessionDesc').value.trim();
   const date        = document.getElementById('editSessionDate').value;
   const allocMonth  = document.getElementById('editSessionAllocMonth').value || null;
-  const hours       = parseFloat(document.getElementById('editSessionHours').value) || 1;
+  const hours       = enforceQuarter(parseFloat(document.getElementById('editSessionHours').value) || 1, 'hours');
   const subCode     = document.getElementById('editSessionSubCode')?.value || '';
   const priority    = document.getElementById('editSessionPriority')?.value || 'med';
   const waiting     = document.getElementById('editSessionWaiting').value.trim() || null;
@@ -14953,14 +14817,7 @@ const CT_ANCHOR_LABELS = {
   'renewal': 'Renewal Date', 'cohort': 'Cohort Start Date'
 };
 
-let contactStages = load('wt_contact_stages', [
-  { id: 'interest', label: 'Interest', subCode: '', project: 'cwc', tasks: [] },
-  { id: 'ipp', label: 'IPP Training', subCode: '', project: 'cwc', tasks: [] },
-  { id: 'new-license', label: 'Curriculum License', subCode: '', project: 'cwc', tasks: [] },
-  { id: 'renewal', label: 'License Renewal', subCode: '', project: 'cwc', tasks: [] },
-  { id: 'cohort', label: 'Cohort Delivery', subCode: '', project: 'cwc', tasks: [] }
-]);
-let contacts = load('wt_contacts', []);
+// contactStages / contacts are declared in the data layer (top of script)
 let _ctActiveStage = 'all';
 let _ctSelectedPartner = null;
 let _ctEditingPartnerId = null;
@@ -15953,7 +15810,7 @@ function ctInlineEditEst(el, cid, sid, tid) {
   function commit() {
     if (committed) return;
     committed = true;
-    t.est = parseFloat(input.value) || 0;
+    t.est = enforceQuarter(parseFloat(input.value) || 0, 'estimate');
     _ctSaveAndRender();
   }
   input.addEventListener('blur', commit);
@@ -16007,7 +15864,7 @@ function ctSaveEditTask() {
   t.priority = document.getElementById('ctEditPriority').value || 'med';
   t.due = document.getElementById('ctEditDue').value || null;
   t.allocMonth = document.getElementById('ctEditAllocMonth').value || null;
-  t.est = parseFloat(document.getElementById('ctEditEst').value) || 0;
+  t.est = enforceQuarter(parseFloat(document.getElementById('ctEditEst').value) || 0, 'estimate');
   t.waiting = document.getElementById('ctEditWaiting').value.trim();
   t.notes = document.getElementById('ctEditNotes').value.trim();
   // Read delegation
