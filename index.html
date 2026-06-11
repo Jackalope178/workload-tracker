@@ -1492,18 +1492,36 @@
   .cap-hold-chip.recur:hover { border-color: var(--border); }
   .cap-hold-chip.recur .cap-hold-check { visibility: hidden; }
   .cap-hold-recur-tag { font-size: 9px; color: var(--warn); font-style: italic; white-space: nowrap; }
+  .cap-hold-chip .cap-hold-date { font-size: 9px; color: var(--danger); font-weight: 700; white-space: nowrap; }
 
-  /* INLINE DATE EDITOR */
-  .date-input-inline {
-    background: var(--bg4);
-    border: 1px solid var(--accent);
-    color: var(--text);
-    font-family: 'Inter', sans-serif;
-    font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 3px;
-    outline: none;
+  /* CAPACITY-AWARE DATE PICKER */
+  .cap-pick-popover {
+    position: fixed; z-index: 10005;
+    width: 370px; max-width: 94vw;
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+    display: flex; flex-direction: column;
   }
+  .cap-pick-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .cap-pick-month { font-size: 12px; font-weight: 700; min-width: 86px; text-align: center; color: var(--text); }
+  .cap-pick-ctx { padding: 6px 12px; font-size: 11px; color: var(--text2); border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .cap-pick-fit {
+    background: rgba(52,211,153,0.14); border: 1px solid var(--success); color: var(--success);
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; cursor: pointer; white-space: nowrap;
+  }
+  .cap-pick-fit:hover { background: var(--success); color: var(--bg); }
+  .cap-pick-cal-wrap { overflow-y: auto; max-height: min(46vh, 420px); }
+  .cap-pick-popover .cap-sched-cal { border-right: none; }
+  .cap-pick-popover .cap-sched-colhdr { display: none; }
+  .cap-pick-popover .cap-day-row { cursor: pointer; }
+  .cap-pick-popover .cap-day-row:hover { background: rgba(79,156,249,0.14); }
+  .cap-pick-popover .cap-day-row.cap-pick-current { box-shadow: inset 0 0 0 1px var(--accent); }
+  .cap-period-divider {
+    padding: 3px 12px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text3); background: var(--bg3); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  .cap-pick-foot { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--border); }
+  .cap-pick-foot input[type="date"] { flex: 1; font-size: 11px; padding: 4px 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); min-width: 0; }
 
   /* SCROLLBAR */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -3040,7 +3058,7 @@ if (typeof XLSX === 'undefined') {
         <span id="capYearLabel" style="font-size:12px;min-width:50px;text-align:center;color:var(--text2);font-weight:600;"></span>
         <button class="btn" onclick="capYearNext()">›</button>
       </div>
-      <button id="capSchedToggle" class="btn" onclick="capToggleScheduler()" style="font-size:11px;padding:4px 10px;" title="Click-to-assign board for scheduling held items onto days">◷ Schedule holds</button>
+      <button id="capSchedToggle" class="btn" onclick="capToggleScheduler()" style="font-size:11px;padding:4px 10px;" title="Click-to-assign board: place overdue, held, and undated work onto days with room">◷ Schedule work</button>
       <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);margin-left:auto;">
         <label>Capacity</label>
         <input type="number" id="capHoursInput" min="1" max="24" step="0.5" style="width:48px;font-size:11px;padding:3px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:4px;text-align:center;" onchange="saveTsCapacity(this.value)">
@@ -3248,7 +3266,7 @@ if (typeof XLSX === 'undefined') {
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Due Date</label>
-        <input class="edit-input" type="date" id="ctEditDue">
+        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="ctEditDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'ctEditDue','ctEditEst','Due date')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
@@ -3286,7 +3304,7 @@ if (typeof XLSX === 'undefined') {
     <div class="modal-subtitle">All other occurrences stay on their original schedule.</div>
     <div class="modal-row" style="margin-top:12px;">
       <span class="modal-label">New date</span>
-      <input type="date" id="rescheduleInput" class="edit-input" style="width:auto;">
+      <span style="display:flex;gap:4px;align-items:center;"><input type="date" id="rescheduleInput" class="edit-input" style="width:auto;"><button type="button" class="btn" onclick="capPickForInput(this,'rescheduleInput',null,'Reschedule occurrence')" title="Pick a day with free capacity in view" style="padding:4px 8px;">◷</button></span>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeRescheduleModal()">Cancel</button>
@@ -3386,7 +3404,7 @@ if (typeof XLSX === 'undefined') {
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Due Date</label>
-        <input class="edit-input" type="date" id="editDue">
+        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editDue','editEst','Due date')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
@@ -3598,6 +3616,9 @@ if (typeof XLSX === 'undefined') {
 <!-- FLOATING DROPDOWN (shared for priority & status) -->
 <div id="dropdownMenu" class="dropdown-menu"></div>
 
+<!-- CAPACITY-AWARE DATE PICKER (shared by all date fields) -->
+<div id="capDatePicker" class="cap-pick-popover" style="display:none;"></div>
+
 <!-- SUBCODE ACTION POPUP -->
 <div id="scActionPopup" class="sc-popup" style="display:none;">
   <div class="sc-popup-title" id="scPopupTitle"></div>
@@ -3682,7 +3703,7 @@ if (typeof XLSX === 'undefined') {
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Date</label>
-        <input class="edit-input" type="date" id="editSessionDate">
+        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editSessionDate" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editSessionDate','editSessionHours','Work item date')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
@@ -3849,7 +3870,7 @@ if (typeof XLSX === 'undefined') {
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Due Date</label>
-        <input class="edit-input" type="date" id="editTeamDue">
+        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editTeamDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editTeamDue',null,'Deliverable due date')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
@@ -6269,7 +6290,7 @@ function renderTasks() {
     }, 0);
   }
 
-  function renderSection(label, items, headerCls, dayCap, sectionDates) {
+  function renderSection(label, items, headerCls, dayCap, sectionDates, extraHeaderHtml) {
     if (!items.length && !dayCap) return;
     hasAny = true;
     const section = document.createElement('div');
@@ -6321,7 +6342,7 @@ function renderTasks() {
 
     const isSectionCollapsed = _collapsedTaskSections.has(sectionId);
     const sectionChevron = `<span class="week-expand-chevron${isSectionCollapsed ? '' : ' open'}" style="cursor:pointer;margin-right:2px;">›</span>`;
-    section.innerHTML = `<div class="task-group-header${headerCls ? ' ' + headerCls : ''}" style="cursor:pointer;" onclick="_toggleTaskSection('${sectionId}')">${sectionChevron}${label} <span class="group-count">${items.length}</span></div>`;
+    section.innerHTML = `<div class="task-group-header${headerCls ? ' ' + headerCls : ''}" style="cursor:pointer;" onclick="_toggleTaskSection('${sectionId}')">${sectionChevron}${label} <span class="group-count">${items.length}</span>${extraHeaderHtml || ''}</div>`;
 
     if (isSectionCollapsed) {
       container.appendChild(section);
@@ -6339,8 +6360,9 @@ function renderTasks() {
   }
 
   // ── overdue (above today) ──
+  const _schedBoardLink = `<span onclick="event.stopPropagation();capOpenScheduler()" style="margin-left:auto;font-size:10px;color:var(--accent);cursor:pointer;font-weight:600;letter-spacing:normal;text-transform:none;" title="Open the capacity board to batch-reschedule these against days with room">◷ Schedule on calendar →</span>`;
   if (overdueBucket.length) {
-    renderSection('Overdue', overdueBucket, 'overdue-header');
+    renderSection('Overdue', overdueBucket, 'overdue-header', null, null, _schedBoardLink);
   }
 
   // ── current week: one section per day ──
@@ -6481,7 +6503,7 @@ function renderTasks() {
   });
 
   // ── unscheduled (no date set) — includes month-holds, which never pin to a day ──
-  renderSection('Unscheduled & holds (no date)', unscheduled, '');
+  renderSection('Unscheduled & holds (no date)', unscheduled, '', null, null, unscheduled.length ? _schedBoardLink : '');
 
   if (!hasAny) {
     const hasFilters = document.getElementById('taskSearch')?.value || document.getElementById('filterPriority')?.value || document.getElementById('filterProject')?.value !== 'all' || document.getElementById('filterWaiting')?.value;
@@ -6590,25 +6612,32 @@ function logTaskDirectly() {
 // DUE DATE INLINE PICKER
 // =============================================
 
-let dueDateTaskId = null;
+// All row-level date pickers open the capacity-aware popover so dates get
+// chosen with free hours in view. Picking a date for an item that carries an
+// allocMonth hold re-parks the hold in the picked month (mirrors capAssignHolds).
+function _afterDateChange() {
+  renderTasks(); renderProjects(); renderTeam(); renderTimesheet(); updateHeaderMeta();
+}
 
 function openDueDatePicker(el, taskId) {
-  dueDateTaskId = taskId;
   const task = tasks.find(t => t.id === taskId);
-  const input = document.createElement('input');
-  input.type = 'date';
-  input.className = 'date-input-inline';
-  input.value = task.due || '';
-  el.parentNode.insertBefore(input, el);
-  el.style.display = 'none';
-  input.focus();
-  input.addEventListener('change', () => {
-    task.due = input.value;
-    save('wt_tasks', tasks);
-    renderTasks(); renderTeam();
-  });
-  input.addEventListener('blur', () => {
-    renderTasks(); renderTeam();
+  if (!task) return;
+  openCapacityDatePicker(el, {
+    current: task.due || '',
+    itemHours: task.est || 0,
+    excludeId: task.id,
+    label: task.name,
+    onPick: d => {
+      task.due = d;
+      if (task.allocMonth && task.allocMonth !== d.slice(0, 7)) task.allocMonth = d.slice(0, 7);
+      save('wt_tasks', tasks);
+      _afterDateChange();
+    },
+    onClear: () => {
+      task.due = '';
+      save('wt_tasks', tasks);
+      _afterDateChange();
+    }
   });
 }
 
@@ -6616,19 +6645,23 @@ function openSessionDatePicker(el, projId, sessionId) {
   const proj = bigProjs.find(p => p.id === projId);
   const s = proj && proj.sessions.find(s => s.id === sessionId);
   if (!s) return;
-  const input = document.createElement('input');
-  input.type = 'date';
-  input.className = 'date-input-inline';
-  input.value = s.date || '';
-  el.parentNode.insertBefore(input, el);
-  el.style.display = 'none';
-  input.focus();
-  input.addEventListener('change', () => {
-    s.date = input.value;
-    save('wt_bigprojs', bigProjs);
-    renderProjects(); renderTasks(); renderTeam();
+  openCapacityDatePicker(el, {
+    current: s.date || '',
+    itemHours: s.hours || 0,
+    excludeId: s.id,
+    label: s.desc,
+    onPick: d => {
+      s.date = d;
+      if (s.allocMonth && s.allocMonth !== d.slice(0, 7)) s.allocMonth = d.slice(0, 7);
+      save('wt_bigprojs', bigProjs);
+      _afterDateChange();
+    },
+    onClear: () => {
+      s.date = '';
+      save('wt_bigprojs', bigProjs);
+      _afterDateChange();
+    }
   });
-  input.addEventListener('blur', () => { renderProjects(); renderTasks(); renderTeam(); });
 }
 
 function openSubtaskDatePicker(el, projId, sessionId, subtaskId) {
@@ -6636,37 +6669,43 @@ function openSubtaskDatePicker(el, projId, sessionId, subtaskId) {
   const s = proj && proj.sessions.find(s => s.id === sessionId);
   const st = s && (s.subtasks || []).find(st => st.id === subtaskId);
   if (!st) return;
-  const input = document.createElement('input');
-  input.type = 'date';
-  input.className = 'date-input-inline';
-  input.value = st.date || '';
-  el.parentNode.insertBefore(input, el);
-  el.style.display = 'none';
-  input.focus();
-  input.addEventListener('change', () => {
-    st.date = input.value;
-    save('wt_bigprojs', bigProjs);
-    renderProjects(); renderTasks(); renderTeam();
+  openCapacityDatePicker(el, {
+    current: st.date || '',
+    itemHours: st.hours || 0,
+    excludeId: st.id,
+    label: st.desc,
+    onPick: d => {
+      st.date = d;
+      if (st.allocMonth && st.allocMonth !== d.slice(0, 7)) st.allocMonth = d.slice(0, 7);
+      save('wt_bigprojs', bigProjs);
+      _afterDateChange();
+    },
+    onClear: () => {
+      st.date = '';
+      save('wt_bigprojs', bigProjs);
+      _afterDateChange();
+    }
   });
-  input.addEventListener('blur', () => { renderProjects(); renderTasks(); renderTeam(); });
 }
 
 function openTeamDueDatePicker(el, itemId) {
   const item = teamItems.find(t => t.id === itemId);
   if (!item) return;
-  const input = document.createElement('input');
-  input.type = 'date';
-  input.className = 'date-input-inline';
-  input.value = item.due || '';
-  el.parentNode.insertBefore(input, el);
-  el.style.display = 'none';
-  input.focus();
-  input.addEventListener('change', () => {
-    item.due = input.value;
-    save('wt_team', teamItems);
-    renderTeam();
+  openCapacityDatePicker(el, {
+    current: item.due || '',
+    itemHours: 0,
+    label: item.name,
+    onPick: d => {
+      item.due = d;
+      save('wt_team', teamItems);
+      renderTeam(); renderProjects();
+    },
+    onClear: () => {
+      item.due = '';
+      save('wt_team', teamItems);
+      renderTeam(); renderProjects();
+    }
   });
-  input.addEventListener('blur', () => { renderTeam(); });
 }
 
 // =============================================
@@ -6965,31 +7004,10 @@ function inlineEditEst(el, type, id1, id2, id3) {
   input.select();
 }
 
-// ── Inline edit date (click-to-edit in row) ──
+// ── Inline edit date (click-to-edit in Projects-tab rows) ──
 function inlineEditDate(el, type, id1) {
-  if (el.querySelector('input')) return;
-  const t = tasks.find(t => t.id === id1);
-  if (!t) return;
-  const input = document.createElement('input');
-  input.type = 'date';
-  input.value = t.due || '';
-  input.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid var(--accent);border-radius:3px;background:var(--bg);color:var(--text);';
-
-  function commit() {
-    t.due = input.value || '';
-    save('wt_tasks', tasks);
-    renderTasks();
-    renderProjects();
-    updateHeaderMeta();
-  }
-
-  input.addEventListener('blur', commit);
-  input.addEventListener('change', commit);
-  input.addEventListener('keydown', e => { if (e.key === 'Escape') { renderProjects(); } });
-
-  el.textContent = '';
-  el.appendChild(input);
-  input.focus();
+  // Same capacity-aware popover as My Tasks rows
+  openDueDatePicker(el, id1);
 }
 
 let _deleteRecurState = null;
@@ -9902,8 +9920,9 @@ function capAssignHolds(date) {
   showSyncToast(`Scheduled ${n} item${n !== 1 ? 's' : ''} for ${fmtDate(date)}`, 'success');
 }
 
-// Re-park selected holds into another month WITHOUT assigning a day: only
-// allocMonth moves, due/date stay empty so the item remains a hold.
+// Park selected items into a month WITHOUT assigning a day: allocMonth is set
+// and any concrete date is cleared, so the item becomes (or stays) a pure
+// month-hold. For overdue items this is the "I'll get to it that month" move.
 function capParkHolds(month) {
   if (!_capSchedSelected.size) return;
   let saveTasks = false, saveBig = false, saveContacts = false, n = 0;
@@ -9912,22 +9931,22 @@ function capParkHolds(month) {
     if (!h) return;
     if (h._src === 'task') {
       const t = tasks.find(t => t.id === h.id);
-      if (t) { t.allocMonth = month; saveTasks = true; n++; }
+      if (t) { t.allocMonth = month; t.due = ''; saveTasks = true; n++; }
     } else if (h._src === 'session') {
       const proj = bigProjs.find(p => p.id === h._projId);
       const s = proj && proj.sessions.find(s => s.id === h.id);
-      if (s) { s.allocMonth = month; saveBig = true; n++; }
+      if (s) { s.allocMonth = month; s.date = ''; saveBig = true; n++; }
     } else if (h._src === 'subtask') {
       const proj = bigProjs.find(p => p.id === h._projId);
       const s = proj && proj.sessions.find(s => s.id === h._sessionId);
       const st = s && (s.subtasks || []).find(st => st.id === h.id);
-      if (st) { st.allocMonth = month; saveBig = true; n++; }
+      if (st) { st.allocMonth = month; st.date = ''; saveBig = true; n++; }
     } else if (h._src === 'contact') {
       const c = contacts.find(c => c.id === h._contactId);
       const stage = c && c.stages[h._stageId];
       const tid = h.id.slice(('_ct_' + h._contactId + '_' + h._stageId + '_').length);
       const t = stage && stage.tasks.find(t => t.id === tid);
-      if (t) { t.allocMonth = month; saveContacts = true; n++; }
+      if (t) { t.allocMonth = month; t.due = null; saveContacts = true; n++; }
     }
   });
   if (saveTasks) save('wt_tasks', tasks);
@@ -9937,6 +9956,17 @@ function capParkHolds(month) {
   renderCapacity();
   const [yy, mm] = month.split('-');
   showSyncToast(`Moved ${n} hold${n !== 1 ? 's' : ''} to ${MONTH_NAMES[parseInt(mm, 10) - 1]} ${yy}`, 'success');
+}
+
+// Jump from another tab (e.g. My Tasks' Overdue/Unscheduled section links)
+// straight into the Capacity tab with the scheduler board open.
+function capOpenScheduler() {
+  _capSchedulerOpen = true;
+  if (_capSchedMonth < today().slice(0, 7)) _capSchedMonth = today().slice(0, 7);
+  _capSchedSelected.clear();
+  const tabEl = document.querySelector('.tab[data-tab="capacity"]');
+  if (tabEl) _switchTab(tabEl);
+  else renderCapacity();
 }
 
 // Jump from another tab (e.g. Timesheet's unscheduled-holds line) into the
@@ -9967,7 +9997,7 @@ function renderCapacity() {
   const schedBtn = document.getElementById('capSchedToggle');
   if (yearNav) yearNav.style.display = _capSchedulerOpen ? 'none' : '';
   if (schedBtn) {
-    schedBtn.textContent = _capSchedulerOpen ? '← Back to overview' : '◷ Schedule holds';
+    schedBtn.textContent = _capSchedulerOpen ? '← Back to overview' : '◷ Schedule work';
     schedBtn.classList.toggle('primary', _capSchedulerOpen);
   }
 
@@ -10053,9 +10083,14 @@ function renderCapacity() {
 }
 
 // Shared capacity calendar: one month of days showing committed (logged +
-// dated planned, across ALL work) vs daily capacity. Used by both the holds
-// board and the project scheduler. opts: { selectionActive, onDayClick(date),
-// highlightProj } — when selectionActive, day rows become click targets.
+// dated planned, across ALL work) vs daily capacity. Used by the holds board,
+// the project scheduler split, and the capacity-aware date picker.
+// opts: { selectionActive, onDayClick(date), highlightProj,
+//         showFree    — headline FREE hours instead of committed/cap,
+//         excludeId   — leave this item's own planned hours out of day totals
+//                       (so a task doesn't make its current day look full),
+//         periodDividers — label the 1–15 / 16–EOM pay-period boundaries,
+//         currentDate — outline the item's currently-set date }
 function _renderSchedCalendar(ym, opts = {}) {
   const [y, m] = ym.split('-').map(Number);
   const ms = ym + '-01';
@@ -10065,7 +10100,8 @@ function _renderSchedCalendar(ym, opts = {}) {
   const todayStr = today();
 
   const entries = allTsEntries().filter(e => e.date >= ms && e.date <= me);
-  const datedPlanned = plannedItems(ms, me).filter(p => !p._allocHold);
+  const datedPlanned = plannedItems(ms, me).filter(p => !p._allocHold)
+    .filter(p => !opts.excludeId || (p.id !== opts.excludeId && !(p.id || '').startsWith(opts.excludeId + '_')));
 
   const cal = document.createElement('div');
   cal.className = 'cap-sched-cal';
@@ -10077,6 +10113,14 @@ function _renderSchedCalendar(ym, opts = {}) {
 
   for (let dd = 1; dd <= daysInMonth; dd++) {
     const dateStr = `${ym}-${String(dd).padStart(2, '0')}`;
+    if (opts.periodDividers && (dd === 1 || dd === 16)) {
+      const div = document.createElement('div');
+      div.className = 'cap-period-divider';
+      div.textContent = dd === 1
+        ? `Pay period ${MONTH_NAMES[m - 1]} 1–15`
+        : `Pay period ${MONTH_NAMES[m - 1]} 16–${daysInMonth}`;
+      cal.appendChild(div);
+    }
     const dow = new Date(y, m - 1, dd).getDay();
     const isWeekend = dow === 0 || dow === 6;
     const dayLogged = (loggedByDay[dateStr] || []).reduce((a, e) => a + (e.actualHours || 0), 0);
@@ -10089,28 +10133,274 @@ function _renderSchedCalendar(ym, opts = {}) {
     (loggedByDay[dateStr] || []).forEach(e => labels.push(projBillingCode(e.project) || projLabel(e.project) || 'logged'));
     const preview = labels.length ? labels.slice(0, 2).join(', ') + (labels.length > 2 ? ` +${labels.length - 2} more` : '') : '';
 
-    let hrsColor = 'var(--text3)';
-    if (dayCap > 0 && committed > dayCap) hrsColor = 'var(--danger)';
-    else if (dayCap > 0 && committed > dayCap * 0.8) hrsColor = 'var(--warn)';
-    else if (committed > 0) hrsColor = 'var(--text)';
+    let hrsHtml;
+    if (opts.showFree) {
+      // Headline = room left on the day; committed detail goes in the tooltip
+      if (dayCap > 0) {
+        const free = dayCap - committed;
+        const col = free <= 0 ? 'var(--danger)' : free <= dayCap * 0.25 ? 'var(--warn)' : 'var(--success)';
+        hrsHtml = free > 0
+          ? `<span style="color:${col};">${fmtQ(free)}h free</span>`
+          : `<span style="color:var(--danger);">FULL${free < 0 ? ' +' + fmtQ(-free) + 'h' : ''}</span>`;
+      } else {
+        hrsHtml = `<span style="color:var(--text3);">${committed > 0 ? fmtQ(committed) + 'h · ' : ''}wknd OT</span>`;
+      }
+    } else {
+      let hrsColor = 'var(--text3)';
+      if (dayCap > 0 && committed > dayCap) hrsColor = 'var(--danger)';
+      else if (dayCap > 0 && committed > dayCap * 0.8) hrsColor = 'var(--warn)';
+      else if (committed > 0) hrsColor = 'var(--text)';
+      hrsHtml = `<span style="color:${hrsColor};">${committed > 0 ? fmtQ(committed) + 'h' : '—'}${dayCap > 0 ? ' / ' + dayCap + 'h' : ''}</span>`;
+    }
 
     const hasProj = opts.highlightProj && (plannedByDay[dateStr] || []).some(p => p.project === opts.highlightProj);
     const row = document.createElement('div');
-    row.className = 'cap-day-row' + (isWeekend ? ' weekend' : '') + (dateStr === todayStr ? ' today' : '') + (hasProj ? ' has-proj' : '');
+    row.className = 'cap-day-row' + (isWeekend ? ' weekend' : '') + (dateStr === todayStr ? ' today' : '')
+      + (hasProj ? ' has-proj' : '') + (opts.currentDate === dateStr ? ' cap-pick-current' : '');
+    row.title = `${fmtQ(committed)}h committed${dayCap > 0 ? ' / ' + dayCap + 'h capacity' : ' (weekend)'}`;
     if (opts.selectionActive && opts.onDayClick) row.onclick = () => opts.onDayClick(dateStr);
     row.innerHTML = `
       <span class="cap-day-label">${DAY_NAMES[dow]} <span class="cap-day-num">${dd}</span></span>
       <span class="cap-day-items">${preview}</span>
-      <span class="cap-day-hours" style="color:${hrsColor};">${committed > 0 ? fmtQ(committed) + 'h' : '—'}${dayCap > 0 ? ' / ' + dayCap + 'h' : ''}</span>`;
+      <span class="cap-day-hours">${hrsHtml}</span>`;
     cal.appendChild(row);
   }
   return cal;
+}
+
+// =============================================
+// CAPACITY-AWARE DATE PICKER
+// =============================================
+// One popover backs every date field on rows and modals: pick a day with its
+// free hours in view instead of a blank calendar. Reuses _renderSchedCalendar.
+// opts: { current, itemHours, excludeId, label, onPick(date), onClear }
+let _capPick = null;
+
+function openCapacityDatePicker(anchorEl, opts) {
+  closeCapacityDatePicker();
+  const curYM = today().slice(0, 7);
+  let month = (opts.current || today()).slice(0, 7);
+  if (month < curYM) month = curYM; // overdue items open at the current month
+  _capPick = { ...opts, month };
+  const rect = anchorEl.getBoundingClientRect();
+  _capPick.left = Math.max(8, Math.min(rect.left, window.innerWidth - 382));
+  _capPick.top = rect.bottom + 6;
+  _capPickRender();
+  setTimeout(() => document.addEventListener('click', _capPickOutside, true), 0);
+}
+
+function _capPickOutside(e) {
+  const pop = document.getElementById('capDatePicker');
+  if (pop && !pop.contains(e.target)) closeCapacityDatePicker();
+}
+
+function closeCapacityDatePicker() {
+  const pop = document.getElementById('capDatePicker');
+  if (pop) { pop.style.display = 'none'; pop.innerHTML = ''; }
+  document.removeEventListener('click', _capPickOutside, true);
+  _capPick = null;
+}
+
+function _capPickShift(d) {
+  if (!_capPick) return;
+  const [y, m] = _capPick.month.split('-').map(Number);
+  const nd = new Date(y, m - 1 + d, 1);
+  const next = `${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, '0')}`;
+  if (next < today().slice(0, 7)) return; // scheduling looks forward only
+  _capPick.month = next;
+  _capPickRender();
+}
+
+function _capPickChoose(dateStr) {
+  if (!_capPick) return;
+  const fn = _capPick.onPick;
+  closeCapacityDatePicker();
+  if (fn) fn(dateStr);
+}
+
+function _capPickClear() {
+  if (!_capPick) return;
+  const fn = _capPick.onClear;
+  closeCapacityDatePicker();
+  if (fn) fn();
+}
+
+function _capPickManualSet() {
+  const v = document.getElementById('capPickManual')?.value;
+  if (v) _capPickChoose(v);
+}
+
+// First weekday within ~10 weeks with enough free room for this item
+function _capPickNextFit() {
+  if (!_capPick) return null;
+  const need = Math.max(_capPick.itemHours || 0, 0.25);
+  const from = today();
+  const to = addDays(from, 70);
+  const planned = plannedItems(from, to).filter(p => !p._allocHold)
+    .filter(p => !_capPick.excludeId || (p.id !== _capPick.excludeId && !(p.id || '').startsWith(_capPick.excludeId + '_')));
+  const byDay = {};
+  planned.forEach(p => { byDay[p.date] = (byDay[p.date] || 0) + (p.hours || 0); });
+  completed.forEach(c => {
+    if (c.dateCompleted && c.dateCompleted >= from && c.dateCompleted <= to) {
+      byDay[c.dateCompleted] = (byDay[c.dateCompleted] || 0) + (c.actualHours || 0);
+    }
+  });
+  for (let d = from; d <= to; d = addDays(d, 1)) {
+    const dow = new Date(d + 'T00:00:00').getDay();
+    if (dow === 0 || dow === 6) continue;
+    if (tsCapacity - (byDay[d] || 0) >= need) return d;
+  }
+  return null;
+}
+
+function _capPickRender() {
+  if (!_capPick) return;
+  const pop = document.getElementById('capDatePicker');
+  if (!pop) return;
+  const [yy, mm] = _capPick.month.split('-');
+  pop.innerHTML = '';
+
+  const head = document.createElement('div');
+  head.className = 'cap-pick-head';
+  head.innerHTML = `
+    <button class="btn" onclick="_capPickShift(-1)" style="padding:2px 8px;">‹</button>
+    <span class="cap-pick-month">${MONTH_NAMES[+mm - 1]} ${yy}</span>
+    <button class="btn" onclick="_capPickShift(1)" style="padding:2px 8px;">›</button>
+    <span style="margin-left:auto;font-size:10px;color:var(--text3);">free hours / day</span>
+    <button class="btn" onclick="closeCapacityDatePicker()" style="padding:2px 8px;" title="Close">×</button>`;
+  pop.appendChild(head);
+
+  const ctx = document.createElement('div');
+  ctx.className = 'cap-pick-ctx';
+  const fit = _capPickNextFit();
+  let fitHtml = '';
+  if (fit) {
+    const fd = new Date(fit + 'T00:00:00');
+    fitHtml = `<span class="cap-pick-fit" onclick="_capPickChoose('${fit}')" title="First weekday with room for this item">⚡ Next fit: ${DAY_NAMES[fd.getDay()]} ${MONTH_NAMES[fd.getMonth()]} ${fd.getDate()}</span>`;
+  }
+  ctx.innerHTML = `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;font-weight:600;">${escHtml(_capPick.label || 'Pick a date')}</span>
+    ${_capPick.itemHours ? `<span style="color:var(--text3);">${fmtQ(_capPick.itemHours)}h est</span>` : ''}
+    ${fitHtml}`;
+  pop.appendChild(ctx);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'cap-pick-cal-wrap';
+  wrap.appendChild(_renderSchedCalendar(_capPick.month, {
+    selectionActive: true,
+    onDayClick: d => _capPickChoose(d),
+    showFree: true,
+    excludeId: _capPick.excludeId || null,
+    periodDividers: true,
+    currentDate: _capPick.current || ''
+  }));
+  pop.appendChild(wrap);
+
+  const foot = document.createElement('div');
+  foot.className = 'cap-pick-foot';
+  foot.innerHTML = `
+    ${_capPick.onClear ? `<button class="btn" onclick="_capPickClear()" style="font-size:10px;padding:3px 8px;color:var(--warn);border-color:var(--warn);flex-shrink:0;" title="Remove the date — item moves to Unscheduled">Clear date</button>` : ''}
+    <input type="date" id="capPickManual" value="${_capPick.current || ''}">
+    <button class="btn primary" onclick="_capPickManualSet()" style="font-size:10px;padding:3px 10px;flex-shrink:0;">Set</button>`;
+  pop.appendChild(foot);
+
+  pop.style.left = _capPick.left + 'px';
+  pop.style.top = _capPick.top + 'px';
+  pop.style.display = 'flex';
+  // Keep on screen vertically
+  const r = pop.getBoundingClientRect();
+  if (r.bottom > window.innerHeight - 8) {
+    pop.style.top = Math.max(8, window.innerHeight - r.height - 8) + 'px';
+  }
+}
+
+// Modal helper: ◷ button next to a date input — picker fills the input,
+// the modal's own Save commits it.
+function capPickForInput(btnEl, inputId, hoursInputId, label) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const hrs = hoursInputId ? (parseFloat(document.getElementById(hoursInputId)?.value) || 0) : 0;
+  openCapacityDatePicker(btnEl, {
+    current: input.value || '',
+    itemHours: hrs,
+    label: label || 'Pick a date',
+    onPick: d => { input.value = d; }
+  });
 }
 
 // ── Capacity scheduler: click-to-assign board ──
 // Left = the month's days (drop targets). Right = unscheduled holds for the
 // month. Select holds, click a day → capAssignHolds writes the date onto the
 // source record; every view re-derives from that single write.
+// Gather overdue and fully-undated work (no due date AND no hold month) for the
+// scheduler backlog. Non-recurring, mine, on active projects — the same rules
+// holds follow. Recurring overdue items are managed via skip/reschedule instead.
+function _capSchedGatherExtras() {
+  const todayStr = today();
+  const overdue = [], undated = [];
+  const push = (item) => (item._kind === 'overdue' ? overdue : undated).push(item);
+
+  tasks.forEach(t => {
+    if (t.completed || t.recurrence) return;
+    const del = normDelegated(t.delegatedTo);
+    if (del.length && !del.includes('Me')) return;
+    if (isProjArchived(t.project)) return;
+    if (t.due && t.due < todayStr) {
+      push({ _src: 'task', id: t.id, name: t.name, project: t.project, hours: t.est || 0, _date: t.due, _kind: 'overdue' });
+    } else if (!t.due && !t.allocMonth) {
+      push({ _src: 'task', id: t.id, name: t.name, project: t.project, hours: t.est || 0, _kind: 'undated' });
+    }
+  });
+
+  bigProjs.forEach(bp => {
+    if (isProjArchived(bp.project)) return;
+    (bp.sessions || []).forEach(s => {
+      if (!s.done && !s.recurrence) {
+        const del = normDelegated(s.delegatedTo);
+        if (!del.length || del.includes('Me')) {
+          if (s.date && s.date < todayStr) {
+            push({ _src: 'session', id: s.id, _projId: bp.id, name: s.desc, project: bp.project, hours: s.hours || 0, _date: s.date, _kind: 'overdue' });
+          } else if (!s.date && !s.allocMonth) {
+            push({ _src: 'session', id: s.id, _projId: bp.id, name: s.desc, project: bp.project, hours: s.hours || 0, _kind: 'undated' });
+          }
+        }
+      }
+      (s.subtasks || []).forEach(st => {
+        if (st.done || st.recurrence) return;
+        const del2 = normDelegated(st.delegatedTo);
+        if (del2.length && !del2.includes('Me')) return;
+        if (st.date && st.date < todayStr) {
+          push({ _src: 'subtask', id: st.id, _projId: bp.id, _sessionId: s.id, name: st.desc, project: bp.project, hours: st.hours || 0, _date: st.date, _kind: 'overdue' });
+        } else if (!st.date && !st.allocMonth) {
+          push({ _src: 'subtask', id: st.id, _projId: bp.id, _sessionId: s.id, name: st.desc, project: bp.project, hours: st.hours || 0, _kind: 'undated' });
+        }
+      });
+    });
+  });
+
+  contacts.forEach(c => {
+    for (const sid in c.stages) {
+      const st = c.stages[sid];
+      if (!st.active) continue;
+      st.tasks.forEach(t => {
+        if (t.completed) return;
+        const del = normDelegated(t.delegatedTo);
+        if (del.length && !del.includes('Me')) return;
+        const proj = t.project || ctGetStage(sid)?.project || 'cwc';
+        if (isProjArchived(proj)) return;
+        const compId = '_ct_' + c.id + '_' + sid + '_' + t.id;
+        if (t.due && t.due < todayStr) {
+          push({ _src: 'contact', id: compId, _contactId: c.id, _stageId: sid, name: c.name + ': ' + t.name, project: proj, hours: t.est || 0, _date: t.due, _kind: 'overdue' });
+        } else if (!t.due && !t.allocMonth) {
+          push({ _src: 'contact', id: compId, _contactId: c.id, _stageId: sid, name: c.name + ': ' + t.name, project: proj, hours: t.est || 0, _kind: 'undated' });
+        }
+      });
+    }
+  });
+
+  overdue.sort((a, b) => (a._date || '').localeCompare(b._date || ''));
+  return { overdue, undated };
+}
+
 function _renderCapScheduler(container) {
   const ym = _capSchedMonth;
   const [y, m] = ym.split('-').map(Number);
@@ -10122,7 +10412,10 @@ function _renderCapScheduler(container) {
   const horizonEnd = localDateStr(new Date(parseInt(today().slice(0, 4), 10), parseInt(today().slice(5, 7), 10) - 1 + 25, 0));
   const allHolds = plannedItems(horizonStart, horizonEnd).filter(p => p._allocHold);
 
-  // key → descriptor lookup (assignable holds only), and prune stale selections
+  // Overdue + undated work joins the backlog alongside holds
+  const { overdue: overdueItems, undated: undatedItems } = _capSchedGatherExtras();
+
+  // key → descriptor lookup (everything placeable), and prune stale selections
   _capSchedHoldsByKey = {};
   const holdKey = (h) => {
     if (h._src === 'session') return 'session|' + h._projId + '|' + h.id;
@@ -10131,7 +10424,8 @@ function _renderCapScheduler(container) {
     return 'task|' + h.id;
   };
   const assignable = allHolds.filter(h => !h._recur);
-  assignable.forEach(h => { _capSchedHoldsByKey[holdKey(h)] = h; });
+  const placeableCount = assignable.length + overdueItems.length + undatedItems.length;
+  [...overdueItems, ...assignable, ...undatedItems].forEach(h => { _capSchedHoldsByKey[holdKey(h)] = h; });
   [..._capSchedSelected].forEach(k => { if (!_capSchedHoldsByKey[k]) _capSchedSelected.delete(k); });
 
   // Recurring holds repeat every month across the horizon — dedupe to one chip each.
@@ -10159,7 +10453,7 @@ function _renderCapScheduler(container) {
         ? `${selCount} selected · ${fmtQ(selHours)}h — click a day in ${monthLabel} to set a date, or
            <button class="btn" onclick="capParkHolds('${ym}')" style="font-size:10px;padding:2px 6px;">Park in ${monthLabel} (no date)</button>
            <button class="btn" onclick="_capSchedSelected.clear();renderCapacity();" style="font-size:10px;padding:2px 6px;">clear</button>`
-        : `${assignable.length} hold${assignable.length !== 1 ? 's' : ''} to place · pick holds, use ‹ › to choose the destination month, then click a day (or use “Park” to keep it a hold)`}
+        : `${placeableCount} item${placeableCount !== 1 ? 's' : ''} to place (overdue · holds · no date) · pick items, use ‹ › to choose the destination month, then click a day (or use “Park” to hold a month without a date)`}
     </span>`;
   container.appendChild(head);
 
@@ -10169,35 +10463,46 @@ function _renderCapScheduler(container) {
   // ── Left: capacity calendar (shared) ──
   body.appendChild(_renderSchedCalendar(ym, { selectionActive: selCount > 0, onDayClick: capAssignHolds }));
 
-  // ── Right: backlog of holds (all upcoming months) ──
+  // ── Right: backlog — overdue, holds by month, undated ──
   const backlog = document.createElement('div');
   backlog.className = 'cap-sched-backlog';
-  backlog.innerHTML = `<div class="cap-sched-colhdr">Unscheduled holds — all upcoming months</div>`;
+  backlog.innerHTML = `<div class="cap-sched-colhdr">To place — overdue · holds · no date</div>`;
 
   const chipFor = (h) => {
     const key = holdKey(h);
     const selected = _capSchedSelected.has(key);
     const proj = PROJECTS[h.project] || { color: '#888' };
     const name = h.name.replace(/ \(hold\)$/, '');
+    const dateTag = h._kind === 'overdue' ? `<span class="cap-hold-date">${fmtDate(h._date)}</span>` : '';
     const chip = document.createElement('div');
     chip.className = 'cap-hold-chip' + (selected ? ' selected' : '');
     chip.innerHTML = `
       <span class="cap-hold-check">${selected ? '✓' : ''}</span>
       <span class="cap-proj-color" style="background:${proj.color};"></span>
       <span class="cap-hold-name">${escHtml(name)}</span>
+      ${dateTag}
       <span class="cap-hold-hrs">${h.hours > 0 ? fmtQ(h.hours) + 'h' : '—'}</span>`;
     chip.onclick = () => capSchedToggleHold(key);
     return chip;
   };
 
-  if (!assignable.length && !recurItems.length) {
+  if (!placeableCount && !recurItems.length) {
     const empty = document.createElement('div');
     empty.className = 'cap-empty';
     empty.style.padding = '30px 14px';
-    empty.textContent = 'No holds parked in any upcoming month.';
+    empty.textContent = 'Nothing to place — no overdue, held, or undated items. ✓';
     backlog.appendChild(empty);
   } else {
-    // group assignable holds by the month they're currently parked in
+    // 1. Overdue work first — these are the fires
+    if (overdueItems.length) {
+      const grp = document.createElement('div');
+      grp.className = 'cap-hold-group';
+      grp.innerHTML = `<span style="color:var(--danger);">⚠ Overdue (${overdueItems.length})</span> <span style="font-weight:400;color:var(--text3);">— pick a new day or park in a month</span>`;
+      backlog.appendChild(grp);
+      overdueItems.forEach(h => backlog.appendChild(chipFor(h)));
+    }
+
+    // 2. Holds grouped by the month they're currently parked in
     const byMonth = {};
     assignable.forEach(h => { const mo = h.date.slice(0, 7); (byMonth[mo] = byMonth[mo] || []).push(h); });
     Object.keys(byMonth).sort().forEach(mo => {
@@ -10205,10 +10510,20 @@ function _renderCapScheduler(container) {
       const isFocused = mo === ym;
       const grp = document.createElement('div');
       grp.className = 'cap-hold-group';
-      grp.innerHTML = `${MONTH_NAMES[parseInt(mm, 10) - 1]} ${yy}${isFocused ? ' <span style="color:var(--accent);font-weight:700;">• showing</span>' : ''}`;
+      grp.innerHTML = `${MONTH_NAMES[parseInt(mm, 10) - 1]} ${yy} holds${isFocused ? ' <span style="color:var(--accent);font-weight:700;">• showing</span>' : ''}`;
       backlog.appendChild(grp);
       byMonth[mo].forEach(h => backlog.appendChild(chipFor(h)));
     });
+
+    // 3. Work with no date and no hold month at all
+    if (undatedItems.length) {
+      const grp = document.createElement('div');
+      grp.className = 'cap-hold-group';
+      grp.style.marginTop = '8px';
+      grp.innerHTML = `No date or month (${undatedItems.length})`;
+      backlog.appendChild(grp);
+      undatedItems.forEach(h => backlog.appendChild(chipFor(h)));
+    }
 
     // recurring holds (not assignable here — managed by editing the task)
     if (recurItems.length) {
@@ -13100,7 +13415,7 @@ const _TAB_TIPS = {
     tips: [
       'Click <strong>+ Add Task</strong> or press <strong>N</strong> to create a task.',
       'Click the <strong>play ▶ button</strong> to start a timer. It persists across refreshes.',
-      'Click a <strong>due date</strong> to edit it inline. Click <strong>hours</strong> to edit estimates.',
+      'Click a <strong>due date</strong> to open the capacity picker — every day shows its free hours, and ⚡ Next fit jumps to the first day with room. Click <strong>hours</strong> to edit estimates.',
       'Set up <strong>recurring tasks</strong> (weekly, monthly) in the edit modal.',
       'Use the <strong>priority filter</strong> to focus on urgent work.',
       'Drag tasks to <strong>reorder</strong> within each section.'
@@ -13178,8 +13493,13 @@ document.addEventListener('keydown', e => {
   const tag = document.activeElement?.tagName;
   const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
-  // Escape: close any open modal
+  // Escape: close the capacity date picker first, then any open modal
   if (e.key === 'Escape') {
+    if (_capPick) {
+      closeCapacityDatePicker();
+      e.preventDefault();
+      return;
+    }
     const openModal = document.querySelector('.modal-overlay.open');
     if (openModal) {
       // Find the close/cancel button and click it
@@ -15771,28 +16091,25 @@ function ctOpenEditTaskModal(cid, sid, tid) {
   document.getElementById('ctEditTaskDlg').classList.add('open');
 }
 
-// Inline edit: due date
+// Inline edit: due date — capacity-aware popover
 function ctInlineEditDate(el, cid, sid, tid) {
-  if (el.querySelector('input')) return;
   const t = _ctTask(cid, sid, tid);
   if (!t) return;
-  const input = document.createElement('input');
-  input.type = 'date';
-  input.value = t.due || '';
-  input.style.cssText = 'width:100%;max-width:110px;font-size:11px;padding:2px 3px;border:1px solid var(--accent);border-radius:3px;background:var(--bg);color:var(--text);';
-  let committed = false;
-  function commit() {
-    if (committed) return;
-    committed = true;
-    t.due = input.value || null;
-    _ctSaveAndRender();
-  }
-  input.addEventListener('blur', commit);
-  input.addEventListener('change', commit);
-  input.addEventListener('keydown', e => { if (e.key === 'Escape') { committed = true; renderContacts(); } });
-  el.textContent = '';
-  el.appendChild(input);
-  input.focus();
+  openCapacityDatePicker(el, {
+    current: t.due || '',
+    itemHours: t.est || 0,
+    excludeId: '_ct_' + cid + '_' + sid + '_' + tid,
+    label: t.name,
+    onPick: d => {
+      t.due = d;
+      if (t.allocMonth && t.allocMonth !== d.slice(0, 7)) t.allocMonth = d.slice(0, 7);
+      _ctSaveAndRender();
+    },
+    onClear: () => {
+      t.due = null;
+      _ctSaveAndRender();
+    }
+  });
 }
 
 // Inline edit: estimated hours
