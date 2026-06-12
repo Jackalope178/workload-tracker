@@ -2263,153 +2263,6 @@
     border-radius: 2px; margin-right: 4px; vertical-align: middle;
   }
 
-  /* CUSTOMER JOURNEY TAB */
-  .ct-toolbar {
-    display: flex; align-items: center; gap: 8px; padding: 8px 14px;
-    border-bottom: 1px solid var(--border); flex-wrap: wrap;
-  }
-  .ct-stage-tabs { display: flex; gap: 2px; }
-  .ct-stage-tab {
-    padding: 4px 10px; font-size: 11px; font-weight: 500; border-radius: 6px;
-    background: none; border: 1px solid transparent; color: var(--text3); cursor: pointer;
-  }
-  .ct-stage-tab:hover { background: var(--bg3); color: var(--text2); }
-  .ct-stage-tab.active { background: var(--bg2); color: var(--text); border-color: var(--border); font-weight: 600; }
-
-  .ct-funnel-bar {
-    display: flex; align-items: center; gap: 0; padding: 0 14px;
-    border-bottom: 1px solid var(--border); background: var(--bg);
-    min-height: 0; overflow: hidden;
-  }
-  .ct-funnel-bar:empty { display: none; }
-  .ct-funnel-stage {
-    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
-    font-size: 11px; position: relative; flex: 1; justify-content: center;
-  }
-  .ct-funnel-stage::after {
-    content: '→'; position: absolute; right: -6px; color: var(--text3); font-size: 12px;
-  }
-  .ct-funnel-stage:last-child::after { content: ''; }
-  .ct-funnel-count {
-    font-size: 18px; font-weight: 800; line-height: 1;
-  }
-  .ct-funnel-label { font-size: 10px; color: var(--text3); line-height: 1.2; }
-  .ct-funnel-instances { font-size: 9px; color: var(--text3); opacity: 0.7; }
-
-  .ct-split-wrap { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 200px); }
-  .ct-left-panel {
-    width: 260px; min-width: 260px; max-width: 260px;
-    border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0;
-    background: var(--bg); display: flex; flex-direction: column;
-  }
-  .ct-left-header {
-    display: flex; align-items: center; gap: 6px; padding: 8px 10px;
-    border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 2;
-  }
-  .ct-right-panel { flex: 1; overflow-y: auto; padding: 0; }
-  .ct-empty-state {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 6px; height: 100%; color: var(--text3); text-align: center; padding: 40px;
-  }
-
-  .ct-partner-item {
-    display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer;
-    font-size: 12px; color: var(--text2); border-left: 3px solid transparent; transition: all 0.12s;
-  }
-  .ct-partner-item:hover { background: var(--bg3); }
-  .ct-partner-item.active { background: var(--bg2); border-left-color: var(--accent, #7c3aed); color: var(--text); font-weight: 600; }
-  .ct-partner-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ct-partner-meta { font-size: 10px; color: var(--text3); }
-  .ct-partner-stage-dots { display: flex; gap: 3px; }
-  .ct-partner-stage-dot { width: 7px; height: 7px; border-radius: 50%; }
-
-  .ct-profile { padding: 20px; }
-  .ct-profile-header {
-    display: flex; align-items: flex-start; gap: 16px; padding-bottom: 16px;
-    border-bottom: 1px solid var(--border); margin-bottom: 16px;
-  }
-  .ct-profile-avatar {
-    width: 48px; height: 48px; border-radius: 12px; background: var(--accent, #7c3aed);
-    display: flex; align-items: center; justify-content: center; color: #fff;
-    font-size: 18px; font-weight: 700; flex-shrink: 0;
-  }
-  .ct-profile-info { flex: 1; }
-  .ct-profile-name { font-size: 16px; font-weight: 700; color: var(--text); }
-  .ct-profile-contact { font-size: 11px; color: var(--text3); margin-top: 3px; }
-  .ct-profile-contact a { color: var(--accent); text-decoration: none; }
-
-  .ct-stage-section {
-    margin-bottom: 20px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
-  }
-  .ct-stage-header {
-    display: flex; align-items: center; gap: 8px; padding: 10px 14px;
-    background: var(--bg2); cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text);
-  }
-  .ct-stage-header:hover { background: var(--bg3); }
-  .ct-stage-badge {
-    padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;
-  }
-  .ct-stage-progress { font-size: 10px; color: var(--text3); margin-left: auto; }
-  .ct-stage-chevron { font-size: 14px; color: var(--text3); transition: transform 0.15s; }
-  .ct-stage-chevron.open { transform: rotate(90deg); }
-
-  .ct-task-row {
-    display: grid; grid-template-columns: 18px 24px 1fr auto 110px 55px 55px 24px 20px; gap: 8px;
-    align-items: center; padding: 7px 14px; font-size: 12px; border-top: 1px solid var(--border);
-  }
-  .ct-task-row:hover { background: var(--bg3); }
-  .ct-task-row:hover span[title="Delete task"] { opacity: 0.7 !important; }
-  .ct-edit-btn { background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 11px; padding: 2px 5px; color: var(--text3); line-height: 1; }
-  .ct-edit-btn:hover { background: var(--bg3); color: var(--text); border-color: var(--accent); }
-  .ct-task-done { opacity: 0.55; }
-  .ct-task-check {
-    width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--border2);
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-  }
-  .ct-task-check.done { background: var(--success); border-color: var(--success); color: #fff; font-size: 10px; }
-  .ct-task-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ct-task-name.done { text-decoration: line-through; opacity: 0.5; }
-  .ct-task-date { font-size: 10px; color: var(--text3); }
-  .ct-task-pri { font-size: 10px; }
-  .ct-task-hrs { font-size: 10px; color: var(--text3); text-align: right; }
-
-  .ct-all-grid { padding: 12px; }
-  .ct-all-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-  .ct-all-table th { background: var(--bg3); color: var(--text2); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
-  .ct-all-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-  .ct-all-table tr:hover { background: var(--bg3); }
-
-  .ct-contact-row {
-    display: grid; grid-template-columns: 1fr 1fr 100px auto auto; gap: 8px; align-items: center;
-    padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
-  }
-  .ct-contact-row input[type="text"], .ct-contact-row input[type="email"] {
-    width: 100%; min-width: 0; font-size: 12px; padding: 6px 8px;
-    border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text);
-  }
-  .ct-contact-row label { font-size: 10px; color: var(--text2); display: flex; align-items: center; gap: 3px; white-space: nowrap; cursor: pointer; }
-  .ct-instructor-badge { font-size: 9px; padding: 1px 6px; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 600; }
-
-  .ct-tpl-task {
-    display: grid; gap: 6px; align-items: center;
-    padding: 6px 0; border-bottom: 1px solid var(--border);
-  }
-  .ct-tpl-task.dragging { opacity: 0.4; }
-  .ct-tpl-task.drag-over { border-top: 2px solid var(--accent); }
-  .ct-tpl-drag { cursor: grab; color: var(--text3); font-size: 13px; text-align: center; user-select: none; }
-  .ct-tpl-drag:active { cursor: grabbing; }
-
-  input[type="color"].color-picker {
-    width: 34px;
-    height: 28px;
-    padding: 2px 3px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    background: var(--bg3);
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-
   /* PROJECT CARD ACTIONS */
   .proj-card-actions {
     display: flex;
@@ -2915,7 +2768,6 @@ if (typeof XLSX === 'undefined') {
   <div class="tab" data-tab="timesheet" role="tab" aria-selected="false" aria-controls="panel-timesheet" tabindex="-1">Timesheet</div>
   <div class="tab" data-tab="capacity" role="tab" aria-selected="false" aria-controls="panel-capacity" tabindex="-1">Capacity</div>
   <div class="tab" data-tab="allocations" role="tab" aria-selected="false" aria-controls="panel-allocations" tabindex="-1">Allocations</div>
-  <div class="tab" data-tab="contacts" role="tab" aria-selected="false" aria-controls="panel-contacts" tabindex="-1">Customer Journey</div>
 </div>
 
 <div class="main">
@@ -3168,205 +3020,6 @@ if (typeof XLSX === 'undefined') {
       <div id="allocGrid"></div>
     </div>
   </div>
-
-  <!-- CONTACTS -->
-  <div class="panel" id="panel-contacts" role="tabpanel" aria-labelledby="tab-contacts">
-    <div class="ct-toolbar">
-      <div class="ct-stage-tabs">
-        <button class="ct-stage-tab active" data-stage="all" onclick="ctSetStage('all')">Quickview</button>
-        <button class="ct-stage-tab" data-stage="interest" onclick="ctSetStage('interest')">Interest</button>
-        <button class="ct-stage-tab" data-stage="ipp" onclick="ctSetStage('ipp')">IPP</button>
-        <button class="ct-stage-tab" data-stage="new-license" onclick="ctSetStage('new-license')">License</button>
-        <button class="ct-stage-tab" data-stage="renewal" onclick="ctSetStage('renewal')">Renewal</button>
-        <button class="ct-stage-tab" data-stage="cohort" onclick="ctSetStage('cohort')">Cohort</button>
-      </div>
-      <div style="display:flex;gap:6px;margin-left:auto;align-items:center;">
-        <button class="btn" onclick="openCtTemplateModal()" title="Edit stage templates" style="font-size:10px;padding:4px 10px;">⚙ Templates</button>
-        <button class="btn primary" onclick="openCtAddPartnerModal()" style="font-size:10px;padding:4px 10px;">+ Add Organization</button>
-      </div>
-    </div>
-    <div id="ctFunnelBar" class="ct-funnel-bar"></div>
-    <div class="ct-split-wrap">
-      <div id="ctLeftPanel" class="ct-left-panel">
-        <div class="ct-left-header">
-          <input class="search-box" type="text" id="ctSearch" placeholder="Search organizations..." oninput="renderContacts()" style="flex:1;font-size:11px;padding:5px 8px;">
-          <select class="filter-select" id="ctSort" onchange="renderContacts()" style="font-size:10px;padding:3px 6px;">
-            <option value="name">Name</option>
-            <option value="next-due">Next Due</option>
-            <option value="added">Recently Added</option>
-          </select>
-        </div>
-        <div id="ctPartnerList"></div>
-      </div>
-      <div id="ctRightPanel" class="ct-right-panel">
-        <div id="ctRightContent">
-          <div class="ct-empty-state">
-            <span style="font-size:28px;">👥</span>
-            <span style="font-size:13px;font-weight:600;">Customer Journey</span>
-            <span style="font-size:11px;color:var(--text3);">Add an organization or select one from the list to see their journey.</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<!-- CUSTOMER JOURNEY: ADD/EDIT ORGANIZATION MODAL -->
-<div class="modal-overlay" id="ctPartnerModal" style="display:none;">
-  <div class="modal" style="max-width:640px;width:90vw;">
-    <div class="modal-header"><span id="ctPartnerModalTitle">Add Organization</span><button class="modal-close" onclick="closeCtPartnerModal()">×</button></div>
-    <div class="modal-body">
-      <label class="modal-label">Organization / School Name</label>
-      <input id="ctPartnerName" class="modal-input" style="font-size:13px;padding:8px 10px;" placeholder="e.g. Fletcher Community College">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;">
-        <label class="modal-label" style="margin:0;font-size:12px;">Contacts</label>
-        <button class="btn" onclick="ctAddContactRow()" style="font-size:10px;padding:3px 10px;">+ Add Contact</button>
-      </div>
-      <div id="ctPartnerContacts" style="margin-top:8px;display:flex;flex-direction:column;gap:8px;"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px;">
-        <div>
-          <label class="modal-label">Starting Stage</label>
-          <select id="ctPartnerStage" class="modal-input" style="width:100%;">
-            <option value="">— Select —</option>
-          </select>
-        </div>
-        <div>
-          <label class="modal-label">License Start Date</label>
-          <input id="ctPartnerLicenseDate" class="modal-input" type="date" style="width:100%;">
-        </div>
-        <div>
-          <label class="modal-label">Notes</label>
-          <textarea id="ctPartnerNotes" class="modal-input" rows="2" style="width:100%;" placeholder="Optional"></textarea>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeCtPartnerModal()">Cancel</button>
-      <button class="btn primary" onclick="saveCtPartner()">Save</button>
-    </div>
-  </div>
-</div>
-
-<!-- CUSTOMER JOURNEY: ADD STAGE TO ORGANIZATION MODAL -->
-<div class="modal-overlay" id="ctAddStageModal" style="display:none;">
-  <div class="modal" style="max-width:440px;">
-    <div class="modal-header"><span>Add Stage</span><button class="modal-close" onclick="document.getElementById('ctAddStageModal').style.display='none'">×</button></div>
-    <div class="modal-body">
-      <label class="modal-label">Stage</label>
-      <select id="ctAddStageSelect" class="modal-input"></select>
-      <label class="modal-label">Tag Contact <span style="font-weight:400;color:var(--text3);">(which contact is this for?)</span></label>
-      <select id="ctAddStageContact" class="modal-input">
-        <option value="">— General (no specific contact) —</option>
-      </select>
-      <label class="modal-label">Anchor Date <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
-      <input id="ctAddStageAnchor" class="modal-input" type="date">
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="document.getElementById('ctAddStageModal').style.display='none'">Cancel</button>
-      <button class="btn primary" onclick="ctConfirmAddStage()">Add Stage</button>
-    </div>
-  </div>
-</div>
-
-<!-- CUSTOMER JOURNEY: TEMPLATE EDITOR MODAL -->
-<div class="modal-overlay" id="ctTemplateModal" style="display:none;">
-  <div class="modal" style="max-width:860px;max-height:85vh;width:95vw;">
-    <div class="modal-header"><span>Edit Stage Templates</span><button class="modal-close" onclick="document.getElementById('ctTemplateModal').style.display='none'">×</button></div>
-    <div class="modal-body" style="overflow-y:auto;max-height:65vh;">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-        <div>
-          <label class="modal-label">Stage</label>
-          <select id="ctTplStage" class="modal-input" onchange="ctRenderTemplateEditor()" style="width:100%;"></select>
-        </div>
-        <div>
-          <label class="modal-label">Project</label>
-          <select id="ctTplProject" class="modal-input" onchange="populateSubCodeSelect('ctTplSubCode', this.value, ctGetStage(document.getElementById('ctTplStage').value)?.subCode || '')" style="width:100%;"></select>
-        </div>
-        <div>
-          <label class="modal-label">Sub-Code</label>
-          <select id="ctTplSubCode" class="modal-input" style="width:100%;"></select>
-        </div>
-      </div>
-      <div id="ctTplTaskList" style="margin-top:12px;"></div>
-      <button class="btn" onclick="ctAddTemplateTask()" style="margin-top:8px;font-size:11px;">+ Add Task</button>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="document.getElementById('ctTemplateModal').style.display='none'">Cancel</button>
-      <button class="btn primary" onclick="ctSaveTemplate()">Save Template</button>
-    </div>
-  </div>
-</div>
-
-<!-- CUSTOMER JOURNEY: EDIT TASK MODAL -->
-<div class="modal-overlay" id="ctEditTaskDlg">
-  <div class="modal">
-    <div class="modal-title">Edit Task</div>
-    <div class="modal-subtitle" id="ctEditTaskSub"></div>
-    <div class="edit-form-grid">
-      <div class="edit-form-group full">
-        <label class="edit-label">Task Name</label>
-        <input class="edit-input" id="ctEditName">
-      </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Project</label>
-        <select class="edit-input" id="ctEditProject" onchange="populateSubCodeSelect('ctEditSubCode', this.value)"></select>
-      </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Sub-Code</label>
-        <select class="edit-input" id="ctEditSubCode"></select>
-      </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Priority</label>
-        <select class="edit-input" id="ctEditPriority">
-          <option value="meeting">Meeting</option>
-          <option value="urgent">Urgent</option>
-          <option value="high">High</option>
-          <option value="med">Med</option>
-          <option value="low">Low</option>
-        </select>
-      </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Due Date</label>
-        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="ctEditDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'ctEditDue','ctEditEst','Due date','ctEditProject','ctEditSubCode')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
-      </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Work on <span style="font-weight:400;font-size:9px;color:var(--text3);">(optional)</span></label>
-        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="ctEditWorkDate" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'ctEditWorkDate','ctEditEst','Work date','ctEditProject','ctEditSubCode')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
-      </div>
-      <div class="edit-form-group full">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2);">
-          <input type="checkbox" id="ctEditWorkSpread"> Spread the estimated hours evenly across weekdays from work date through due date
-        </label>
-      </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
-        <input class="edit-input" type="month" id="ctEditAllocMonth">
-      </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Est. Hours</label>
-        <input class="edit-input" type="number" id="ctEditEst" step="0.25" min="0">
-      </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Waiting On</label>
-        <input class="edit-input" type="text" id="ctEditWaiting">
-      </div>
-      <div class="edit-form-group full">
-        <label class="edit-label">Notes</label>
-        <input class="edit-input" type="text" id="ctEditNotes">
-      </div>
-      <div class="edit-form-group full">
-        <label class="edit-label">Assign to</label>
-        <div id="ctEditDelegateWrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn danger" id="ctEditDeleteBtn" style="margin-right:auto;color:var(--danger);border-color:var(--danger);" onclick="ctDeleteTask()">Delete</button>
-      <button class="btn" onclick="ctCloseEditModal()">Cancel</button>
-      <button class="btn primary" onclick="ctSaveEditTask()">Save</button>
-    </div>
-  </div>
-</div>
 
 <!-- RESCHEDULE OCCURRENCE MODAL -->
 <div class="modal-overlay" id="rescheduleModal" style="display:none;">
@@ -4642,7 +4295,7 @@ const SYNC_KEYS = [
   'wt_dup_decisions', 'wt_stale_subcodes',
   'wt_onboarded', 'wt_xlsx_alloc_imported',
   'wt_alloc_rollovers', 'wt_collapsed_task_sections',
-  'wt_contacts', 'wt_contact_stages', 'wt_alloc_aliases'
+  'wt_alloc_aliases'
 ];
 
 async function cloudSave(key, data) {
@@ -5332,7 +4985,7 @@ function save(key, data) {
   }
   // Invalidate caches when underlying data changes
   try {
-    if (key === 'wt_tasks' || key === 'wt_bigprojs' || key === 'wt_contacts') _invalidatePlannedCache();
+    if (key === 'wt_tasks' || key === 'wt_bigprojs') _invalidatePlannedCache();
     if (key === 'wt_completed') _invalidateActualsCache();
   } catch(e) { /* caches not yet initialized during early bootstrap */ }
   // Fire-and-forget cloud sync (non-blocking) with failure notification
@@ -5438,17 +5091,6 @@ let _dragItemData = null;
 let teamItems = load('wt_team',      null);
 let completed = load('wt_completed', null);
 
-// Customer Journey data — declared here in the data layer (not in the CT
-// section near the bottom) so the first-render path and plannedItems() can
-// never touch it uninitialized.
-let contactStages = load('wt_contact_stages', [
-  { id: 'interest', label: 'Interest', subCode: '', project: 'cwc', tasks: [] },
-  { id: 'ipp', label: 'IPP Training', subCode: '', project: 'cwc', tasks: [] },
-  { id: 'new-license', label: 'Curriculum License', subCode: '', project: 'cwc', tasks: [] },
-  { id: 'renewal', label: 'License Renewal', subCode: '', project: 'cwc', tasks: [] },
-  { id: 'cohort', label: 'Cohort Delivery', subCode: '', project: 'cwc', tasks: [] }
-]);
-let contacts = load('wt_contacts', []);
 
 if (!tasks)     { tasks = SEED_TASKS;     save('wt_tasks', tasks); }
 if (!bigProjs)  { bigProjs = SEED_PROJECTS; save('wt_bigprojs', bigProjs); }
@@ -6057,7 +5699,7 @@ function computeWeekCapacity(wkStart, wkEnd) {
 // WEEK PLANNER — My Tasks calendar view
 // =============================================
 // Mon–Fri columns; every planned item (tasks, blocks, work items, subtasks,
-// journey tasks, spread slices, recurrences) drawn as a box whose height is
+// spread slices, recurrences) drawn as a box whose height is
 // its hours against the day's capacity. Click opens the item's edit modal;
 // drag moves its WORK day (deadlines survive, same as the row pickers).
 let taskViewMode = load('wt_task_view', 'list');
@@ -6075,7 +5717,7 @@ function wkToday() { _wkAnchor = today(); renderTasks(); }
 
 // Resolve a planned item (possibly a composite id: block, spread slice,
 // recurrence occurrence) back to its source record.
-function _wkResolve(id, src, projId, sessionId, contactId, stageId) {
+function _wkResolve(id, src, projId, sessionId) {
   if (src === 'task') {
     const t = tasks.find(t => t.id === id || id.startsWith(t.id + '_'));
     if (!t) return null;
@@ -6093,34 +5735,25 @@ function _wkResolve(id, src, projId, sessionId, contactId, stageId) {
     const st = ss && (ss.subtasks || []).find(x => x.id === id || id.startsWith(x.id + '_'));
     return st ? { src, bp, s: ss, st } : null;
   }
-  if (src === 'contact') {
-    const c = contacts.find(c => c.id === contactId);
-    const stage = c && c.stages[stageId];
-    if (!stage) return null;
-    const tid = id.slice(('_ct_' + contactId + '_' + stageId + '_').length).replace(/_\d{4}-\d{2}-\d{2}$/, '');
-    const t = stage.tasks.find(t => t.id === tid);
-    return t ? { src, c, t, contactId, stageId } : null;
-  }
   return null;
 }
 
-function _wkOpenItem(id, src, projId, sessionId, contactId, stageId) {
-  const r = _wkResolve(id, src, projId, sessionId, contactId, stageId);
+function _wkOpenItem(id, src, projId, sessionId) {
+  const r = _wkResolve(id, src, projId, sessionId);
   if (!r) return;
   if (r.src === 'task') openEditModal(r.t.id);
   else if (r.src === 'session') openEditSessionModal(r.bp.id, r.s.id);
   else if (r.src === 'subtask') openEditSubtaskModal(r.bp.id, r.s.id, r.st.id);
-  else if (r.src === 'contact') ctOpenEditTaskModal(r.contactId, r.stageId, r.t.id);
 }
 
-function _wkDragStart(e, id, src, projId, sessionId, contactId, stageId) {
-  _wkDrag = { id, src, projId, sessionId, contactId, stageId };
+function _wkDragStart(e, id, src, projId, sessionId) {
+  _wkDrag = { id, src, projId, sessionId };
   e.dataTransfer.effectAllowed = 'move';
 }
 
 function _wkDrop(day) {
   if (!_wkDrag) return;
-  const r = _wkResolve(_wkDrag.id, _wkDrag.src, _wkDrag.projId, _wkDrag.sessionId, _wkDrag.contactId, _wkDrag.stageId);
+  const r = _wkResolve(_wkDrag.id, _wkDrag.src, _wkDrag.projId, _wkDrag.sessionId);
   _wkDrag = null;
   if (!r) return;
   if (r.src === 'task') {
@@ -6142,17 +5775,6 @@ function _wkDrop(day) {
     if (r.st.recurrence) { showSyncToast('Recurring occurrence — reschedule it from the Projects view.', 'warn'); return; }
     _applyWorkPick(r.st, 'date', day);
     save('wt_bigprojs', bigProjs);
-  } else if (r.src === 'contact') {
-    const t = r.t;
-    if (!t.due) { t.due = day; t.workDate = null; }
-    else if (day === t.due) { t.workDate = null; }
-    else {
-      t.workDate = day;
-      if (day > t.due) showSyncToast('Heads up — work is now scheduled AFTER the deadline (⚑ flagged red).', 'warn');
-    }
-    const eff = t.workDate || t.due;
-    if (t.allocMonth && eff && t.allocMonth !== eff.slice(0, 7)) t.allocMonth = eff.slice(0, 7);
-    save('wt_contacts', contacts);
   }
   _afterDateChange();
   renderCapacity();
@@ -6216,12 +5838,12 @@ function renderWeekPlanner(container) {
       const small = h < 34;
       // Meetings are fixed points in the day — outline them fully so they
       // read as anchors the movable work flows around.
-      const src = _wkResolve(p.id, p._src, p._projId, p._sessionId, p._contactId, p._stageId);
-      const pri = src ? ((src.src === 'task' || src.src === 'contact') ? src.t.priority : src.src === 'session' ? src.s.priority : src.st.priority) : 'med';
+      const src = _wkResolve(p.id, p._src, p._projId, p._sessionId);
+      const pri = src ? (src.src === 'task' ? src.t.priority : src.src === 'session' ? src.s.priority : src.st.priority) : 'med';
       const isMeeting = pri === 'meeting';
       const draggable = !p._recur && !p._spread;
       const marker = p._recur ? '↻ ' : p._spread ? '⇶ ' : p._block ? '▣ ' : '';
-      const args = `'${p.id}','${p._src}','${p._projId || ''}','${p._sessionId || ''}','${p._contactId || ''}','${p._stageId || ''}'`;
+      const args = `'${p.id}','${p._src}','${p._projId || ''}','${p._sessionId || ''}'`;
       html += `<div class="wk-item${draggable ? '' : ' fixed'}${small ? ' wk-item-sm' : ''}${isMeeting ? ' wk-meeting' : ''}" draggable="${draggable}" style="height:${h}px;border-left-color:${col};background:${col}26;${isMeeting ? `border-color:${col};border-left-width:3px;` : ''}"
         ondragstart="_wkDragStart(event,${args})"
         onclick="_wkOpenItem(${args})"
@@ -6385,29 +6007,8 @@ function renderTasks() {
     });
   });
 
-  // Include contact tasks with due dates in My Tasks — hide those delegated
-  // to someone other than Me so only personal work appears here
-  if (typeof getContactTasks === 'function') {
-    getContactTasks().forEach(ct => {
-      if (ct.completed) return;
-      if (!ct.due && !ct.allocMonth) return; // not scheduled at all — don't list
-      const ctDel = normDelegated(ct.delegatedTo);
-      if (ctDel.length && !ctDel.includes('Me')) return;
-      if (fProj !== 'all' && ct.project !== fProj) return;
-      if (search
-        && !ct.name.toLowerCase().includes(search)
-        && !(ct._partnerName || '').toLowerCase().includes(search)
-        && !(ct._stageName || '').toLowerCase().includes(search)
-        && !(ct.waiting || '').toLowerCase().includes(search)
-        && !(ct.notes || '').toLowerCase().includes(search)
-      ) return;
-      allItems.push({ _type: 'contact', ct, _date: ct.workDate || ct.due || null,
-        _deadline: (ct.workDate && ct.due && ct.workDate !== ct.due) ? ct.due : null }); // hold (allocMonth, no due) → Unscheduled
-    });
-  }
-
   const priorityOrder = { meeting: -1, urgent: 0, high: 1, med: 2, low: 3 };
-  const itemPri = i => i._type === 'task' || i._type === 'block' ? (priorityOrder[i.task.priority] ?? 2) : i._type === 'contact' ? (priorityOrder[i.ct.priority] ?? 2) : i._type === 'session' ? (priorityOrder[i.s.priority] ?? 2) : (priorityOrder[i.st.priority] ?? 2);
+  const itemPri = i => i._type === 'task' || i._type === 'block' ? (priorityOrder[i.task.priority] ?? 2) : i._type === 'session' ? (priorityOrder[i.s.priority] ?? 2) : (priorityOrder[i.st.priority] ?? 2);
   allItems.sort((a, b) => (a._date || 'zzz').localeCompare(b._date || 'zzz') || itemPri(a) - itemPri(b));
 
   // ── date helpers ──
@@ -6565,23 +6166,6 @@ function renderTasks() {
         <div style="display:flex;align-items:center;gap:6px;">
           <div class="row-del-btn" onclick="event.stopPropagation();deleteTaskBlock('${bt.id}','${b.id}')" title="Delete block">×</div>
         </div>`;
-    } else if (item._type === 'contact') {
-      const ct = item.ct;
-      const dc = dueCls(ct.due);
-      const pColor = projColor(ct.project);
-      row.className = 'task-row';
-      row.style.cursor = 'pointer';
-      row.onclick = () => ctOpenEditTaskModal(ct._contactId, ct._stageId, ct._ctTaskId);
-      row.innerHTML = `
-        <div class="task-check${ct.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask('${ct._contactId}','${ct._stageId}','${ct._ctTaskId}',${!ct.completed})" style="cursor:pointer;"></div>
-        <div class="project-dot" style="background:${pColor};" title="${projLabel(ct.project)}"></div>
-        <div class="task-name">${escHtml(ct.name)} <span style="font-size:10px;color:var(--text3);font-style:italic;">${escHtml(ct._orgName || ct._partnerName)}</span>${delegateTagsHtml(ct.delegatedTo)}</div>
-        <div class="task-recur-actions"></div>
-        <span class="task-category" style="color:var(--text3);font-style:italic;">${escHtml(ct._stageName)}</span>
-        <div>${priorityBadge(ct.priority || 'med')}</div>
-        <div class="task-due ${dc}" style="cursor:pointer;" onclick="event.stopPropagation();ctInlineEditDate(this,'${ct._contactId}','${ct._stageId}','${ct._ctTaskId}')">${fmtDate(item._date || ct.due)}${deadlineChipHtml(item._deadline, ct.workDate, `ctOpenDeadlinePicker(this,'${ct._contactId}','${ct._stageId}','${ct._ctTaskId}')`)}</div>
-        <div class="task-est" style="cursor:pointer;" onclick="event.stopPropagation();ctInlineEditEst(this,'${ct._contactId}','${ct._stageId}','${ct._ctTaskId}')">${ct.est ? ct.est + 'h' : '—'}</div>
-        <div></div>`;
     }
     return row;
   }
@@ -6591,20 +6175,20 @@ function renderTasks() {
     sorted.sort((a, b) => {
       let va, vb;
       if (sortKey === 'priority') {
-        va = a._type === 'task' || a._type === 'block' ? (priorityOrder[a.task.priority] ?? 2) : a._type === 'contact' ? (priorityOrder[a.ct.priority] ?? 2) : a._type === 'session' ? (priorityOrder[a.s.priority] ?? 2) : (priorityOrder[a.st.priority] ?? 2);
-        vb = b._type === 'task' || b._type === 'block' ? (priorityOrder[b.task.priority] ?? 2) : b._type === 'contact' ? (priorityOrder[b.ct.priority] ?? 2) : b._type === 'session' ? (priorityOrder[b.s.priority] ?? 2) : (priorityOrder[b.st.priority] ?? 2);
+        va = a._type === 'task' || a._type === 'block' ? (priorityOrder[a.task.priority] ?? 2) : a._type === 'session' ? (priorityOrder[a.s.priority] ?? 2) : (priorityOrder[a.st.priority] ?? 2);
+        vb = b._type === 'task' || b._type === 'block' ? (priorityOrder[b.task.priority] ?? 2) : b._type === 'session' ? (priorityOrder[b.s.priority] ?? 2) : (priorityOrder[b.st.priority] ?? 2);
       } else if (sortKey === 'project') {
-        va = a._type === 'task' || a._type === 'block' ? (a.task.project || '') : a._type === 'contact' ? (a.ct.project || '') : (a.proj?.project || '');
-        vb = b._type === 'task' || b._type === 'block' ? (b.task.project || '') : b._type === 'contact' ? (b.ct.project || '') : (b.proj?.project || '');
+        va = a._type === 'task' || a._type === 'block' ? (a.task.project || '') : (a.proj?.project || '');
+        vb = b._type === 'task' || b._type === 'block' ? (b.task.project || '') : (b.proj?.project || '');
       } else if (sortKey === 'est') {
-        va = a._type === 'task' ? (a.task.est || 0) : a._type === 'block' ? (a.block.hours || 0) : a._type === 'contact' ? (a.ct.est || 0) : a._type === 'session' ? (a.s.hours || 0) : (a.st.hours || 0);
-        vb = b._type === 'task' ? (b.task.est || 0) : b._type === 'block' ? (b.block.hours || 0) : b._type === 'contact' ? (b.ct.est || 0) : b._type === 'session' ? (b.s.hours || 0) : (b.st.hours || 0);
+        va = a._type === 'task' ? (a.task.est || 0) : a._type === 'block' ? (a.block.hours || 0) : a._type === 'session' ? (a.s.hours || 0) : (a.st.hours || 0);
+        vb = b._type === 'task' ? (b.task.est || 0) : b._type === 'block' ? (b.block.hours || 0) : b._type === 'session' ? (b.s.hours || 0) : (b.st.hours || 0);
       } else if (sortKey === 'due') {
         va = a._date || 'zzz';
         vb = b._date || 'zzz';
       } else if (sortKey === 'name') {
-        va = (a._type === 'task' || a._type === 'block' ? a.task.name : a._type === 'contact' ? a.ct.name : a._type === 'session' ? a.s.desc : a.st.desc).toLowerCase();
-        vb = (b._type === 'task' || b._type === 'block' ? b.task.name : b._type === 'contact' ? b.ct.name : b._type === 'session' ? b.s.desc : b.st.desc).toLowerCase();
+        va = (a._type === 'task' || a._type === 'block' ? a.task.name : a._type === 'session' ? a.s.desc : a.st.desc).toLowerCase();
+        vb = (b._type === 'task' || b._type === 'block' ? b.task.name : b._type === 'session' ? b.s.desc : b.st.desc).toLowerCase();
       } else {
         return 0;
       }
@@ -6632,7 +6216,7 @@ function renderTasks() {
   function _itemEstFor(i) {
     if (i._type === 'block') return i.block.hours || 0;
     if (i._estShare != null) return i._estShare;
-    return i._type === 'task' ? (i.task.est || 0) : i._type === 'contact' ? (i.ct.est || 0) : i._type === 'session' ? (i.s.hours || 0) : (i.st.hours || 0);
+    return i._type === 'task' ? (i.task.est || 0) : i._type === 'session' ? (i.s.hours || 0) : (i.st.hours || 0);
   }
   function renderSection(label, items, headerCls, dayCap, sectionDates, extraHeaderHtml) {
     if (!items.length && !dayCap) return;
@@ -7815,38 +7399,6 @@ function confirmComplete() {
       return;
     }
 
-    // Contact task completion
-    if (ctx.type === 'contact') {
-      const c = contacts.find(c => c.id === ctx.contactId);
-      if (!c || !c.stages[ctx.stageId]) return;
-      const t = c.stages[ctx.stageId].tasks.find(t => t.id === ctx.taskId);
-      if (!t) return;
-      const stageDef = ctGetStage(ctx.stageId);
-      t.completed = true;
-      t.dateCompleted = dateCompleted;
-      t.actualHours = billable;
-      const entry = {
-        id: uid(),
-        name: c.name + ': ' + t.name,
-        project: stageDef?.project || 'cwc',
-        subCode: subCode,
-        dateCompleted: dateCompleted,
-        estHours: t.est || 0,
-        actualHours: billable,
-        category: ''
-      };
-      completed.unshift(entry);
-      save('wt_completed', completed);
-      save('wt_contacts', contacts);
-      closeCompletionModal();
-      renderContacts();
-      renderTasks();
-      renderProjects();
-      renderTimesheet();
-      renderCapacity();
-      return;
-    }
-
     // Session or subtask completion
     const proj = bigProjs.find(p => p.id === ctx.projId);
     if (!proj) return;
@@ -8324,16 +7876,6 @@ function renderProjCodeContent(projKey) {
         items.push({ _type: 'team', team: ti, _date: ti.due || null, _src: 'Team Deliverables' });
       }
     });
-    // Contact tasks tagged to this project
-    if (typeof getContactTasks === 'function') {
-      getContactTasks().forEach(ct => {
-        if (ct.project !== projKey || ct.completed) return;
-        const ctsc = ct.subCode || '';
-        if (ctsc === (scId || '')) {
-          items.push({ _type: 'contact', ct, _date: ct.due || (ct.allocMonth ? ct.allocMonth + '-01' : null), _src: ct._stageName || 'Contact' });
-        }
-      });
-    }
     // Filter by horizon if set to 30 days
     if (_projHorizon === '30d') {
       const horizon = addDays(today(), 30);
@@ -8341,7 +7883,7 @@ function renderProjCodeContent(projKey) {
       for (let i = items.length - 1; i >= 0; i--) {
         const it = items[i];
         const d = it._date;
-        const isDone = it._type === 'task' ? !!it.task.completed : it._type === 'contact' ? !!it.ct.completed : it._type === 'session' ? !!it.s.done : it._type === 'team' ? (it.team.status === 'complete') : !!it.st?.done;
+        const isDone = it._type === 'task' ? !!it.task.completed : it._type === 'session' ? !!it.s.done : it._type === 'team' ? (it.team.status === 'complete') : !!it.st?.done;
         if (isDone) { items.splice(i, 1); continue; }
         // Keep overdue, undated, and within 30 days
         if (d && d > horizon) items.splice(i, 1);
@@ -8349,8 +7891,8 @@ function renderProjCodeContent(projKey) {
     }
     // Sort: incomplete first, then by manual order if set, then date, then priority
     const po = { urgent: 0, high: 1, med: 2, low: 3 };
-    const pri = i => i._type === 'task' ? po[i.task.priority] : i._type === 'contact' ? (po[i.ct.priority] ?? 2) : i._type === 'session' ? (po[i.s.priority] ?? 2) : i._type === 'team' ? 2 : (po[i.st.priority] ?? 2);
-    const done = i => i._type === 'task' ? !!i.task.completed : i._type === 'contact' ? !!i.ct.completed : i._type === 'session' ? !!i.s.done : i._type === 'team' ? (i.team.status === 'complete') : !!i.st?.done;
+    const pri = i => i._type === 'task' ? po[i.task.priority] : i._type === 'session' ? (po[i.s.priority] ?? 2) : i._type === 'team' ? 2 : (po[i.st.priority] ?? 2);
+    const done = i => i._type === 'task' ? !!i.task.completed : i._type === 'session' ? !!i.s.done : i._type === 'team' ? (i.team.status === 'complete') : !!i.st?.done;
     const ord = i => {
       const obj = i._type === 'task' ? i.task : i._type === 'session' ? i.s : i._type === 'team' ? i.team : i.st;
       return obj?.projSortOrder ?? 999999;
@@ -8540,9 +8082,15 @@ function blocksBadgeHtml(t) {
   return `<span class="recur-badge" title="${fmtQ(planned)}h of ${fmtQ(t.est || 0)}h blocked into ${blocks.length} session${blocks.length > 1 ? 's' : ''} (${doneN} done)${rem > 0 ? ' · ' + fmtQ(rem) + 'h remainder on the due date' : ''}">▣ ${doneN}/${blocks.length}</span>`;
 }
 
+function fmtMonthLabel(ym) {
+  if (!ym) return '';
+  const [y, m] = ym.split('-');
+  return MONTH_NAMES[parseInt(m, 10) - 1] + ' ' + y;
+}
+
 function holdMonthPill(allocMonth) {
   if (!allocMonth) return '';
-  return `<span style="background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;white-space:nowrap;" title="Held for capacity in ${allocMonth}">${ctFmtMonth(allocMonth)}</span>`;
+  return `<span style="background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;white-space:nowrap;" title="Held for capacity in ${allocMonth}">${fmtMonthLabel(allocMonth)}</span>`;
 }
 
 function renderProjItemRow(item, projKey, scId) {
@@ -8679,26 +8227,6 @@ function renderProjItemRow(item, projKey, scId) {
     </div>`;
   }
 
-  if (item._type === 'contact') {
-    const ct = item.ct;
-    return `<div class="proj-item-row">
-      <div style="width:20px;"></div>
-      <div class="session-check${ct.completed ? ' done' : ''}" onclick="ctCompleteTask('${ct._contactId}','${ct._stageId}','${ct._ctTaskId}',${!ct.completed})" style="cursor:pointer;">
-        ${ct.completed ? '<span style="color:var(--check-fg);font-size:11px;">✓</span>' : ''}
-      </div>
-      <div class="session-desc" style="cursor:pointer;${ct.completed ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="ctOpenEditTaskModal('${ct._contactId}','${ct._stageId}','${ct._ctTaskId}')">
-        ${escHtml(ct.name)}
-        <span style="font-size:10px;color:var(--text3);font-style:italic;margin-left:4px;">${escHtml(ct._orgName || ct._partnerName)}</span>
-        ${delegateTagsHtml(ct.delegatedTo)}
-        ${ct.waiting ? `<span class="task-waiting">⏳ ${escHtml(ct.waiting)}</span>` : ''}
-      </div>
-      <div>${priorityBadge(ct.priority || 'med')}</div>
-      <div class="session-date" style="display:flex;align-items:center;gap:4px;cursor:pointer;" onclick="event.stopPropagation();ctInlineEditDate(this,'${ct._contactId}','${ct._stageId}','${ct._ctTaskId}')">${fmtDate(ct.due)} ${holdMonthPill(ct.allocMonth)}</div>
-      <div class="session-hours" style="cursor:pointer;" onclick="event.stopPropagation();ctInlineEditEst(this,'${ct._contactId}','${ct._stageId}','${ct._ctTaskId}')">${ct.est ? ct.est + 'h' : '—'}</div>
-      <div></div>
-      <div></div>
-    </div>`;
-  }
   return '';
 }
 
@@ -9239,24 +8767,7 @@ function renderTeam() {
     });
   });
 
-  // Collect delegated contact (Customer Journey) tasks
-  const delegatedContactTasks = [];
-  if (typeof getContactTasks === 'function') {
-    getContactTasks().forEach(ct => {
-      const people = normDelegated(ct.delegatedTo);
-      if (!people.length) return;
-      delegatedContactTasks.push({
-        id: ct.id + '_ctdel',
-        name: ct.name, owners: people, owner: people.join(', '), project: ct.project,
-        due: ct.due, status: ct.completed ? 'complete' : (ct.status || 'need-delegate'),
-        _contactDelegated: true,
-        _contactId: ct._contactId, _stageId: ct._stageId, _ctTaskId: ct._ctTaskId,
-        _partnerName: ct._partnerName || ct._orgName
-      });
-    });
-  }
-
-  let allItems = [...teamItems.map(t => ({ ...t, owners: [t.owner] })), ...delegatedItems, ...delegatedTasks, ...delegatedContactTasks];
+  let allItems = [...teamItems.map(t => ({ ...t, owners: [t.owner] })), ...delegatedItems, ...delegatedTasks];
 
   // Populate person filter from all unique people
   const personSelect = document.getElementById('teamFilterPerson');
@@ -9376,16 +8887,6 @@ function renderTeam() {
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
         <span class="team-due ${dc}" style="cursor:pointer;" onclick="openDueDatePicker(this,'${item._taskId}')">${fmtDate(item.due)}</span>
         <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showDelegatedTaskStatusDropdown(event,'${item._taskId}')" style="cursor:pointer;" title="${STATUS_LABELS[item.status]||item.status}">${STATUS_LABELS[item.status]||item.status}</span>
-        `;
-    } else if (item._contactDelegated) {
-      const partner = item._partnerName ? `<span style="font-size:10px;color:var(--text3);font-style:italic;margin-left:4px;">${escHtml(item._partnerName)}</span>` : '';
-      row.innerHTML = `
-        <div class="team-task-name" onclick="ctOpenEditTaskModal('${item._contactId}','${item._stageId}','${item._ctTaskId}')">${escHtml(item.name)}${partner} <span class="delegate-tag" style="background:var(--bg3);color:var(--text3);font-size:9px;">journey</span></div>
-        ${ownerHtml}
-        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
-        <div class="project-dot" style="background:${projColor(item.project)};"></div>
-        <span class="team-due ${dc}">${fmtDate(item.due)}</span>
-        <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showDelegatedContactStatusDropdown(event,'${item._contactId}','${item._stageId}','${item._ctTaskId}')" style="cursor:pointer;" title="${STATUS_LABELS[item.status]||item.status}">${STATUS_LABELS[item.status]||item.status}</span>
         `;
     } else {
       row.innerHTML = `
@@ -9923,10 +9424,6 @@ function plannedItems(fromDate, toDate) {
       });
     });
   });
-  // Include contact/partner tasks
-  if (typeof ctPlannedItems === 'function') {
-    items.push(...ctPlannedItems(fromDate, toDate));
-  }
   return items;
 }
 
@@ -10666,7 +10163,7 @@ function _capAssignOne(obj, deadlineField, date) {
 
 function capAssignHolds(date) {
   if (!_capSchedSelected.size) return;
-  let saveTasks = false, saveBig = false, saveContacts = false, n = 0;
+  let saveTasks = false, saveBig = false, n = 0;
   _capSchedSelected.forEach(key => {
     const h = _capSchedHoldsByKey[key];
     if (!h) return;
@@ -10682,17 +10179,10 @@ function capAssignHolds(date) {
       const s = proj && proj.sessions.find(s => s.id === h._sessionId);
       const st = s && (s.subtasks || []).find(st => st.id === h.id);
       if (st) { _capAssignOne(st, 'date', date); saveBig = true; n++; }
-    } else if (h._src === 'contact') {
-      const c = contacts.find(c => c.id === h._contactId);
-      const stage = c && c.stages[h._stageId];
-      const tid = h.id.slice(('_ct_' + h._contactId + '_' + h._stageId + '_').length);
-      const t = stage && stage.tasks.find(t => t.id === tid);
-      if (t) { _capAssignOne(t, 'due', date); saveContacts = true; n++; }
     }
   });
   if (saveTasks) save('wt_tasks', tasks);
   if (saveBig) save('wt_bigprojs', bigProjs);
-  if (saveContacts) save('wt_contacts', contacts);
   _capSchedSelected.clear();
   renderCapacity();
   showSyncToast(`Scheduled ${n} item${n !== 1 ? 's' : ''} for ${fmtDate(date)}`, 'success');
@@ -10703,7 +10193,7 @@ function capAssignHolds(date) {
 // month-hold. For overdue items this is the "I'll get to it that month" move.
 function capParkHolds(month) {
   if (!_capSchedSelected.size) return;
-  let saveTasks = false, saveBig = false, saveContacts = false, n = 0;
+  let saveTasks = false, saveBig = false, n = 0;
   _capSchedSelected.forEach(key => {
     const h = _capSchedHoldsByKey[key];
     if (!h) return;
@@ -10719,17 +10209,10 @@ function capParkHolds(month) {
       const s = proj && proj.sessions.find(s => s.id === h._sessionId);
       const st = s && (s.subtasks || []).find(st => st.id === h.id);
       if (st) { st.allocMonth = month; st.date = ''; st.workDate = null; saveBig = true; n++; }
-    } else if (h._src === 'contact') {
-      const c = contacts.find(c => c.id === h._contactId);
-      const stage = c && c.stages[h._stageId];
-      const tid = h.id.slice(('_ct_' + h._contactId + '_' + h._stageId + '_').length);
-      const t = stage && stage.tasks.find(t => t.id === tid);
-      if (t) { t.allocMonth = month; t.due = null; t.workDate = null; saveContacts = true; n++; }
     }
   });
   if (saveTasks) save('wt_tasks', tasks);
   if (saveBig) save('wt_bigprojs', bigProjs);
-  if (saveContacts) save('wt_contacts', contacts);
   _capSchedSelected.clear();
   renderCapacity();
   const [yy, mm] = month.split('-');
@@ -10767,13 +10250,6 @@ function capRebalanceDay(dateStr) {
       const st = sess && (sess.subtasks || []).find(st => st.id === p.id);
       if (st) cands.push(mk(st.desc, st.priority, p.hours, st.id, st.date,
         d => { _applyWorkPick(st, 'date', d); save('wt_bigprojs', bigProjs); }));
-    } else if (p._src === 'contact' && p._contactId) {
-      const c = contacts.find(c => c.id === p._contactId);
-      const stage = c && c.stages[p._stageId];
-      const tid = (p.id || '').slice(('_ct_' + p._contactId + '_' + p._stageId + '_').length);
-      const t = stage && stage.tasks.find(t => t.id === tid);
-      if (t) cands.push(mk(t.name, t.priority, p.hours, p.id, t.due,
-        d => { _applyWorkPick(t, 'due', d); save('wt_contacts', contacts); }));
     }
   });
 
@@ -11354,27 +10830,6 @@ function _capSchedGatherExtras() {
     });
   });
 
-  contacts.forEach(c => {
-    for (const sid in c.stages) {
-      const st = c.stages[sid];
-      if (!st.active) continue;
-      st.tasks.forEach(t => {
-        if (t.completed) return;
-        const del = normDelegated(t.delegatedTo);
-        if (del.length && !del.includes('Me')) return;
-        const proj = t.project || ctGetStage(sid)?.project || 'cwc';
-        if (isProjArchived(proj)) return;
-        const compId = '_ct_' + c.id + '_' + sid + '_' + t.id;
-        const ctEff = t.workDate || t.due;
-        if (ctEff && ctEff < todayStr) {
-          push({ _src: 'contact', id: compId, _contactId: c.id, _stageId: sid, name: c.name + ': ' + t.name, project: proj, hours: t.est || 0, _date: ctEff, _kind: 'overdue' });
-        } else if (!ctEff && !t.allocMonth) {
-          push({ _src: 'contact', id: compId, _contactId: c.id, _stageId: sid, name: c.name + ': ' + t.name, project: proj, hours: t.est || 0, _kind: 'undated' });
-        }
-      });
-    }
-  });
-
   overdue.sort((a, b) => (a._date || '').localeCompare(b._date || ''));
   return { overdue, undated };
 }
@@ -11398,7 +10853,6 @@ function _renderCapScheduler(container) {
   const holdKey = (h) => {
     if (h._src === 'session') return 'session|' + h._projId + '|' + h.id;
     if (h._src === 'subtask') return 'subtask|' + h._projId + '|' + h._sessionId + '|' + h.id;
-    if (h._src === 'contact') return 'contact|' + h._contactId + '|' + h._stageId + '|' + h.id;
     return 'task|' + h.id;
   };
   const assignable = allHolds.filter(h => !h._recur);
@@ -13779,7 +13233,7 @@ function openAllocDrill(projKey, scId, yearMonth) {
     const matched = !scId || isc === scId;
     const unassigned = scId && isc === '';
 
-    if (i._src === 'task' || i._src === 'contact') {
+    if (i._src === 'task') {
       const item = { name: i.name, est: i.hours, priority: '', subCode: isc, _recur: i._recur };
       if (matched) plannedTasks.push(item);
       else if (unassigned) unassignedTasks.push(item);
@@ -14272,7 +13726,6 @@ function _switchTab(tab) {
   else if (t === 'timesheet') renderTimesheet();
   else if (t === 'capacity') renderCapacity();
   else if (t === 'allocations') renderAllocations();
-  else if (t === 'contacts') renderContacts();
   updateHeaderMeta();
   // Update help panel context if open
   if (document.getElementById('helpPanel')?.classList.contains('open')) _updateHelpContext();
@@ -14615,8 +14068,6 @@ function reloadStateFromLocalStorage() {
   _allocRollovers = load('wt_alloc_rollovers', {});
   allocAliases = load('wt_alloc_aliases', {});
   _collapsedTaskSections = new Set(load('wt_collapsed_task_sections', []));
-  contactStages = load('wt_contact_stages', contactStages);
-  contacts = load('wt_contacts', []);
 }
 
 function initApp() {
@@ -14981,22 +14432,6 @@ function showDelegatedTaskStatusDropdown(e, taskId) {
     renderTasks();
     renderProjects();
     renderTimesheet();
-  });
-}
-
-function showDelegatedContactStatusDropdown(e, contactId, stageId, taskId) {
-  e.stopPropagation();
-  const ref = ctFindTask('_ct_' + contactId + '_' + stageId + '_' + taskId);
-  if (!ref) return;
-  const t = ref.task;
-  const curStatus = t.completed ? 'complete' : (t.status || 'need-delegate');
-  showDropdown(e.currentTarget, STATUS_OPTS, curStatus, val => {
-    t.status = val;
-    t.completed = (val === 'complete');
-    if (val === 'complete' && !t.dateCompleted) t.dateCompleted = today();
-    if (val !== 'complete') t.dateCompleted = null;
-    _ctSaveAndRender();
-    renderTeam();
   });
 }
 
@@ -16161,1344 +15596,6 @@ function confirmImport() {
     el.style.color = 'var(--success)';
     setTimeout(() => { el.style.color = ''; updateHeaderMeta(); }, 3000);
   }
-}
-
-// =============================================
-// CUSTOMER JOURNEY TAB
-// =============================================
-
-const CT_STAGE_COLORS = {
-  'interest': '#3b82f6', 'ipp': '#8b5cf6', 'new-license': '#06b6d4',
-  'renewal': '#f59e0b', 'cohort': '#10b981'
-};
-const CT_STAGE_LABELS = {
-  'interest': 'Interest', 'ipp': 'IPP Training', 'new-license': 'Curriculum License',
-  'renewal': 'License Renewal', 'cohort': 'Cohort Delivery'
-};
-const CT_ANCHOR_LABELS = {
-  'interest': 'Meeting Date', 'ipp': 'Training Start Date', 'new-license': 'License Date',
-  'renewal': 'Renewal Date', 'cohort': 'Cohort Start Date'
-};
-
-// contactStages / contacts are declared in the data layer (top of script)
-let _ctActiveStage = 'all';
-let _ctSelectedPartner = null;
-let _ctEditingPartnerId = null;
-let _ctCollapsedStages = new Set();
-const _ctBulkSelected = new Set(); // "contactId|stageId|taskId"
-
-function _ctToggleBulk(cid, sid, tid) {
-  const key = cid + '|' + sid + '|' + tid;
-  if (_ctBulkSelected.has(key)) _ctBulkSelected.delete(key);
-  else _ctBulkSelected.add(key);
-  renderContacts();
-}
-
-function _ctClearBulk() {
-  _ctBulkSelected.clear();
-  renderContacts();
-}
-
-function _ctBulkSetProject() {
-  const proj = document.getElementById('ctBulkProject')?.value;
-  const sc = document.getElementById('ctBulkSubCode')?.value || '';
-  if (!proj) return;
-  _ctBulkSelected.forEach(key => {
-    const [cid, sid, tid] = key.split('|');
-    const c = contacts.find(c => c.id === cid);
-    if (!c || !c.stages[sid]) return;
-    const t = c.stages[sid].tasks.find(t => t.id === tid);
-    if (t) { t.project = proj; t.subCode = sc; }
-  });
-  save('wt_contacts', contacts);
-  _ctBulkSelected.clear();
-  renderContacts();
-}
-
-function _ctBulkSetMonth() {
-  const month = document.getElementById('ctBulkMonth')?.value;
-  if (!month) return;
-  _ctBulkSelected.forEach(key => {
-    const [cid, sid, tid] = key.split('|');
-    const c = contacts.find(c => c.id === cid);
-    if (!c || !c.stages[sid]) return;
-    const t = c.stages[sid].tasks.find(t => t.id === tid);
-    if (t) t.allocMonth = month;
-  });
-  _ctBulkSelected.clear();
-  _ctSaveAndRender();
-}
-
-function ctGetStage(id) {
-  // Handle composite instance keys like 'ipp__2' — strip suffix to find template
-  const baseId = id.includes('__') ? id.split('__')[0] : id;
-  return contactStages.find(s => s.id === baseId);
-}
-
-// Get the base stage key from an instance key (or from the instance's stageKey property)
-function ctStageKey(partner, instanceKey) {
-  const st = partner.stages[instanceKey];
-  if (st && st.stageKey) return st.stageKey;
-  return instanceKey.includes('__') ? instanceKey.split('__')[0] : instanceKey;
-}
-
-function ctNextTask(partner) {
-  let earliest = null;
-  for (const sid in partner.stages) {
-    const st = partner.stages[sid];
-    if (!st.active) continue;
-    for (const t of st.tasks) {
-      if (t.completed) continue;
-      if (t.due && (!earliest || t.due < earliest.due)) earliest = t;
-    }
-  }
-  return earliest;
-}
-
-function ctPartnerHasStage(partner, stageId) {
-  // Check if partner has any active instance of this stage type
-  if (!partner.stages) return false;
-  return Object.keys(partner.stages).some(k => {
-    const baseKey = ctStageKey(partner, k);
-    return baseKey === stageId && partner.stages[k].active;
-  });
-}
-
-function ctStageProgress(partner, stageId) {
-  const st = partner.stages?.[stageId];
-  if (!st) return { done: 0, total: 0 };
-  const total = st.tasks.length;
-  const done = st.tasks.filter(t => t.completed).length;
-  return { done, total };
-}
-
-// License date helpers
-function ctCalcLicenseExpiration(startDate) {
-  const d = new Date(startDate + 'T00:00:00');
-  d.setFullYear(d.getFullYear() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
-function ctDaysUntil(dateStr) {
-  const target = new Date(dateStr + 'T00:00:00');
-  const now = new Date(today() + 'T00:00:00');
-  return Math.round((target - now) / 86400000);
-}
-
-function ctFmtMonth(ym) {
-  if (!ym) return '';
-  const [y, m] = ym.split('-');
-  return MONTH_NAMES[parseInt(m, 10) - 1] + ' ' + y;
-}
-
-function ctEditLicenseDate(partnerId) {
-  // Legacy prompt fallback removed — now handled by inline date input
-}
-
-function ctSaveLicenseDate(partnerId) {
-  const c = contacts.find(c => c.id === partnerId);
-  if (!c) return;
-  const input = document.getElementById('ctLicenseDateInput');
-  if (!input) return;
-  c.licenseStartDate = input.value || null;
-  save('wt_contacts', contacts);
-  renderContacts();
-}
-
-// Set active stage filter tab
-function ctSetStage(stage) {
-  _ctActiveStage = stage;
-  // Clear partner selection when switching to quickview
-  if (stage === 'all') _ctSelectedPartner = null;
-  document.querySelectorAll('.ct-stage-tab').forEach(b => b.classList.toggle('active', b.dataset.stage === stage));
-  renderContacts();
-}
-
-// Get all contact tasks as flat array (for My Tasks / Timesheet integration)
-function getContactTasks() {
-  const out = [];
-  contacts.forEach(c => {
-    for (const sid in c.stages) {
-      const st = c.stages[sid];
-      if (!st.active) continue;
-      const stageDef = ctGetStage(sid);
-      if (!stageDef) continue;
-      st.tasks.forEach(t => {
-        out.push({
-          id: '_ct_' + c.id + '_' + sid + '_' + t.id,
-          _contactId: c.id, _stageId: sid, _ctTaskId: t.id,
-          name: t.name, project: t.project || stageDef.project || 'cwc',
-          subCode: t.subCode || stageDef.subCode || '', priority: t.priority || 'med',
-          due: t.due || null, workDate: t.workDate || null, workSpread: !!t.workSpread,
-          allocMonth: t.allocMonth || null, est: t.est || 0, notes: t.notes || '',
-          waiting: t.waiting || '', delegatedTo: t.delegatedTo || null, status: t.status || null,
-          completed: t.completed || false, dateCompleted: t.dateCompleted || null,
-          actualHours: t.actualHours || 0, timer: 0, timerStart: null,
-          _partnerName: c.name, _orgName: c.name, _stageName: stageDef.label,
-          _isContactTask: true
-        });
-      });
-    }
-  });
-  return out;
-}
-
-// Find and update a contact task by composite ID
-function ctFindTask(compositeId) {
-  const m = compositeId.match(/^_ct_(.+?)_(.+?)_(.+)$/);
-  if (!m) return null;
-  const [, cId, sId, tId] = m;
-  const c = contacts.find(c => c.id === cId);
-  if (!c || !c.stages[sId]) return null;
-  const t = c.stages[sId].tasks.find(t => t.id === tId);
-  return t ? { contact: c, stageId: sId, task: t } : null;
-}
-
-function ctAssignTask(e, contactId, stageId, taskId) {
-  e.stopPropagation();
-  const c = contacts.find(c => c.id === contactId);
-  if (!c || !c.stages[stageId]) return;
-  const t = c.stages[stageId].tasks.find(t => t.id === taskId);
-  if (!t) return;
-  // Reuse existing assign dropdown by temporarily setting global refs
-  _assignTaskId = null; _assignProjId = null;
-  const menu = document.getElementById('assignDropdown');
-  const rect = e.currentTarget.getBoundingClientRect();
-  menu.style.top = (rect.bottom + 4) + 'px';
-  menu.style.left = rect.left + 'px';
-  // Build person list
-  const current = normDelegated(t.delegatedTo);
-  const pList = menu.querySelector('.assign-list') || menu;
-  let html = '';
-  (PERSONS || []).forEach(p => {
-    const isActive = current.includes(p);
-    html += `<div class="assign-item${isActive ? ' active' : ''}" onclick="event.stopPropagation();_ctToggleAssign('${contactId}','${stageId}','${taskId}','${escHtml(p)}')">${isActive ? '✓ ' : ''}${escHtml(p)}</div>`;
-  });
-  html += `<div class="assign-item${current.includes('Me') ? ' active' : ''}" onclick="event.stopPropagation();_ctToggleAssign('${contactId}','${stageId}','${taskId}','Me')">${current.includes('Me') ? '✓ ' : ''}Me</div>`;
-  pList.innerHTML = html;
-  menu.classList.add('open');
-  _clampPopupToViewport(menu);
-}
-
-function _ctToggleAssign(contactId, stageId, taskId, name) {
-  const c = contacts.find(c => c.id === contactId);
-  if (!c || !c.stages[stageId]) return;
-  const t = c.stages[stageId].tasks.find(t => t.id === taskId);
-  if (!t) return;
-  let current = normDelegated(t.delegatedTo);
-  if (current.includes(name)) current = current.filter(n => n !== name);
-  else current.push(name);
-  t.delegatedTo = current.length ? current : null;
-  document.getElementById('assignDropdown').classList.remove('open');
-  _ctSaveAndRender();
-}
-
-function ctCompleteTask(contactId, stageId, taskId, markCompleted) {
-  const c = contacts.find(c => c.id === contactId);
-  if (!c || !c.stages[stageId]) return;
-  const t = c.stages[stageId].tasks.find(t => t.id === taskId);
-  if (!t) return;
-  const stageDef = ctGetStage(stageId);
-
-  if (!markCompleted) {
-    // Un-completing: direct toggle + remove completed entry
-    t.completed = false;
-    t.dateCompleted = null;
-    const idx = completed.findIndex(e => e.name === c.name + ': ' + t.name && e.project === (stageDef?.project || 'cwc'));
-    if (idx !== -1) { completed.splice(idx, 1); save('wt_completed', completed); }
-    _ctSaveAndRender();
-    return;
-  }
-
-  // Open the standard completion modal
-  completingTaskId = null;
-  _completingCtx = { type: 'contact', contactId, stageId, taskId };
-  const billable = t.est ? roundToQuarter(t.est) : 0;
-
-  document.getElementById('compModalTitle').textContent = 'Complete Task';
-  document.getElementById('compModalSub').textContent = c.name + ': ' + t.name;
-  document.getElementById('compEst').textContent = t.est ? t.est + 'h' : '—';
-  document.getElementById('compTimer').textContent = 'No timer data';
-  document.getElementById('compBillable').value = billable;
-
-  const varEl = document.getElementById('compVariance');
-  varEl.textContent = '—';
-  varEl.className = 'modal-value';
-
-  populateSubCodeSelect('compSubCode', stageDef?.project || 'cwc', stageDef?.subCode || '');
-  document.getElementById('compDate').value = t.due || today();
-
-  document.getElementById('completionModal').classList.add('open');
-}
-
-
-// =============================================
-// CUSTOMER JOURNEY: RENDERING
-// =============================================
-
-function ctRenderFunnel() {
-  const bar = document.getElementById('ctFunnelBar');
-  if (!bar) return;
-  // Journey stages in order
-  const stageOrder = ['interest', 'ipp', 'new-license', 'renewal', 'cohort'];
-  const html = stageOrder.map(sid => {
-    // Count unique organizations with at least one active instance of this stage
-    let orgCount = 0;
-    let instanceCount = 0;
-    contacts.forEach(c => {
-      let hasStage = false;
-      for (const k in c.stages) {
-        const baseKey = ctStageKey(c, k);
-        if (baseKey === sid && c.stages[k].active) {
-          instanceCount++;
-          hasStage = true;
-        }
-      }
-      if (hasStage) orgCount++;
-    });
-    const color = CT_STAGE_COLORS[sid] || '#888';
-    const instanceNote = instanceCount > orgCount ? `<div class="ct-funnel-instances">${instanceCount} active</div>` : '';
-    return `<div class="ct-funnel-stage" onclick="ctSetStage('${sid}')" style="cursor:pointer;" title="${CT_STAGE_LABELS[sid]}">
-      <span class="ct-funnel-count" style="color:${color};">${orgCount}</span>
-      <div>
-        <div class="ct-funnel-label">${CT_STAGE_LABELS[sid]}</div>
-        ${instanceNote}
-      </div>
-    </div>`;
-  }).join('');
-  bar.innerHTML = html;
-}
-
-function renderContacts() {
-  ctRenderFunnel();
-  const search = (document.getElementById('ctSearch')?.value || '').toLowerCase();
-  const sort = document.getElementById('ctSort')?.value || 'name';
-  const list = document.getElementById('ctPartnerList');
-  if (!list) return;
-
-  // Filter partners
-  let visible = contacts.filter(c => {
-    if (search && !c.name.toLowerCase().includes(search) && !(c.contactName || '').toLowerCase().includes(search)) return false;
-    if (_ctActiveStage !== 'all' && !ctPartnerHasStage(c, _ctActiveStage)) return false;
-    return true;
-  });
-
-  // Sort
-  if (sort === 'name') visible.sort((a, b) => a.name.localeCompare(b.name));
-  else if (sort === 'next-due') {
-    visible.sort((a, b) => {
-      const aN = ctNextTask(a), bN = ctNextTask(b);
-      if (!aN && !bN) return a.name.localeCompare(b.name);
-      if (!aN) return 1; if (!bN) return -1;
-      return (aN.due || '9999') < (bN.due || '9999') ? -1 : 1;
-    });
-  } else if (sort === 'added') {
-    visible.sort((a, b) => (b._addedDate || '') > (a._addedDate || '') ? 1 : -1);
-  }
-
-  // Render left panel list
-  list.innerHTML = visible.length === 0
-    ? '<div style="padding:20px;text-align:center;font-size:11px;color:var(--text3);">No organizations found</div>'
-    : visible.map(c => {
-      const next = ctNextTask(c);
-      const stageDots = Object.keys(c.stages || {}).filter(s => c.stages[s].active).map(s => {
-        const bk = ctStageKey(c, s);
-        return `<span class="ct-partner-stage-dot" style="background:${CT_STAGE_COLORS[bk] || 'var(--text3)'}" title="${CT_STAGE_LABELS[bk] || bk}${c.stages[s].contactTag ? ' — ' + escHtml(c.stages[s].contactTag) : ''}"></span>`;
-      }).join('');
-      const nextLabel = next ? (next.due ? fmtDate(next.due) : 'No date') : 'All done';
-      return `<div class="ct-partner-item${_ctSelectedPartner === c.id ? ' active' : ''}" onclick="ctSelectPartner('${c.id}')">
-        <div style="flex:1;min-width:0;">
-          <div class="ct-partner-name">${escHtml(c.name)}</div>
-          <div class="ct-partner-meta">${nextLabel} · <span class="ct-partner-stage-dots">${stageDots}</span></div>
-        </div>
-      </div>`;
-    }).join('');
-
-  // Render right panel
-  ctRenderRightPanel();
-
-  // Bulk action bar
-  let bulkBar = document.getElementById('ctBulkBar');
-  if (!bulkBar) {
-    bulkBar = document.createElement('div');
-    bulkBar.id = 'ctBulkBar';
-    bulkBar.style.cssText = 'position:sticky;bottom:0;z-index:10;padding:8px 14px;background:var(--accent);color:#fff;display:flex;align-items:center;gap:10px;font-size:11px;flex-wrap:wrap;border-top:2px solid var(--accent);';
-    document.getElementById('ctRightPanel')?.appendChild(bulkBar);
-  }
-  if (_ctBulkSelected.size > 0) {
-    const projOpts = Object.keys(PROJECTS).map(k => `<option value="${k}">${PROJECTS[k]?.label || k}</option>`).join('');
-    bulkBar.style.display = 'flex';
-    bulkBar.innerHTML = `
-      <span style="font-weight:700;">${_ctBulkSelected.size} selected</span>
-      <select id="ctBulkProject" class="filter-select" onchange="populateSubCodeSelect('ctBulkSubCode',this.value)" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);font-size:11px;padding:3px 6px;">
-        <option value="">Project...</option>${projOpts}
-      </select>
-      <select id="ctBulkSubCode" class="filter-select" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);font-size:11px;padding:3px 6px;">
-        <option value="">Sub-code...</option>
-      </select>
-      <button class="btn" onclick="_ctBulkSetProject()" style="color:#fff;border-color:rgba(255,255,255,0.4);font-size:10px;padding:3px 8px;">Apply Code</button>
-      <span style="opacity:0.5;">|</span>
-      <input type="month" id="ctBulkMonth" style="font-size:11px;padding:2px 6px;border:1px solid rgba(255,255,255,0.3);border-radius:4px;background:rgba(255,255,255,0.15);color:#fff;">
-      <button class="btn" onclick="_ctBulkSetMonth()" style="color:#fff;border-color:rgba(255,255,255,0.4);font-size:10px;padding:3px 8px;">Apply Month</button>
-      <button class="btn" onclick="_ctClearBulk()" style="margin-left:auto;color:#fff;border-color:rgba(255,255,255,0.4);font-size:10px;padding:3px 8px;">Cancel</button>
-    `;
-  } else {
-    bulkBar.style.display = 'none';
-  }
-}
-
-function ctSelectPartner(id) {
-  _ctSelectedPartner = _ctSelectedPartner === id ? null : id;
-  renderContacts();
-}
-
-function ctRenderRightPanel() {
-  const panel = document.getElementById('ctRightContent');
-  if (!panel) return;
-
-  // If "All" stage is selected and no partner selected, show grid view
-  if (_ctActiveStage === 'all' && !_ctSelectedPartner) {
-    ctRenderAllGrid(panel);
-    return;
-  }
-
-  const partner = contacts.find(c => c.id === _ctSelectedPartner);
-  if (!partner) {
-    panel.innerHTML = `<div class="ct-empty-state">
-      <span style="font-size:28px;">👤</span>
-      <span style="font-size:11px;color:var(--text3);">Select an organization from the list</span>
-    </div>`;
-    return;
-  }
-
-  ctRenderProfile(panel, partner);
-}
-
-function ctRenderAllGrid(panel) {
-  // Quickview: all tasks due in the next 30 days across all organizations/stages
-  const todayStr = today();
-  const horizon = addDays(todayStr, 30);
-  const allTasks = [];
-  contacts.forEach(c => {
-    for (const sid in c.stages) {
-      const st = c.stages[sid];
-      if (!st.active) continue;
-      st.tasks.forEach(t => {
-        if (t.completed) return;
-        // Only include tasks with a due date within 30 days or overdue
-        if (!t.due || t.due > horizon) return;
-        allTasks.push({ partner: c.name, partnerId: c.id, org: c.name, stage: CT_STAGE_LABELS[sid] || sid, stageId: sid,
-          stageColor: CT_STAGE_COLORS[sid] || '#888', task: t, cid: c.id, sid, tid: t.id });
-      });
-    }
-  });
-  // Sort: overdue first, then by date, then no-date last
-  allTasks.sort((a, b) => {
-    const ad = a.task.due || '9998', bd = b.task.due || '9998';
-    return ad.localeCompare(bd);
-  });
-
-  if (!allTasks.length) {
-    panel.innerHTML = '<div class="ct-empty-state"><span style="font-size:20px;">✓</span><span>No tasks with dates due in the next 30 days</span><span style="font-size:11px;">Set due dates on organization tasks to see them here.</span></div>';
-    return;
-  }
-
-  const overdue = allTasks.filter(r => r.task.due && r.task.due < todayStr).length;
-  const thisWeek = allTasks.filter(r => r.task.due && r.task.due >= todayStr && r.task.due <= addDays(todayStr, 7)).length;
-
-  let html = `<div style="padding:14px 16px 8px;display:flex;gap:14px;align-items:center;font-size:11px;color:var(--text3);">
-    <span style="font-size:14px;font-weight:700;color:var(--text);">Next 30 Days</span>
-    <span>${allTasks.length} task${allTasks.length !== 1 ? 's' : ''}</span>
-    ${overdue ? `<span style="color:var(--danger);font-weight:600;">${overdue} overdue</span>` : ''}
-    ${thisWeek ? `<span style="color:var(--accent);font-weight:600;">${thisWeek} this week</span>` : ''}
-  </div>`;
-
-  html += '<div style="padding:0 8px 12px;">';
-  allTasks.forEach(r => {
-    const t = r.task;
-    const ids = `'${r.cid}','${r.sid}','${r.tid}'`;
-    const isOverdue = t.due && t.due < todayStr;
-    const delTags = delegateTagsHtml(t.delegatedTo);
-    const pri = t.priority ? priorityBadge(t.priority) : '';
-    html += `<div class="ct-task-row" style="grid-template-columns:18px 24px 1fr auto 110px 55px 55px 24px 20px;padding:8px 10px;border-radius:0;border-top:1px solid var(--border);">
-      <div class="bulk-select-check${_ctBulkSelected.has(r.cid+'|'+r.sid+'|'+r.tid) ? ' selected' : ''}" onclick="event.stopPropagation();_ctToggleBulk('${r.cid}','${r.sid}','${r.tid}')">${_ctBulkSelected.has(r.cid+'|'+r.sid+'|'+r.tid) ? '<span style="color:#fff;font-size:10px;">✓</span>' : ''}</div>
-      <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask(${ids},true)">${t.completed ? '✓' : ''}</div>
-      <div style="min-width:0;">
-        <div class="ct-task-name" style="cursor:default;">${escHtml(t.name)}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:1px;display:flex;gap:6px;align-items:center;">
-          <span style="font-weight:600;">${escHtml(r.partner)}</span>
-          <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r.stageColor};"></span>
-          <span>${escHtml(r.stage)}</span>
-        </div>
-      </div>
-      <span style="display:inline-flex;gap:2px;align-items:center;flex-shrink:0;">${delTags}<button onclick="event.stopPropagation();ctAssignTask(event,${ids})" title="Assign" style="opacity:0.6;font-size:12px;background:none;border:none;cursor:pointer;padding:1px 3px;color:var(--text3);">↗</button></span>
-      <span class="ct-task-date${isOverdue ? ' overdue' : ''}" onclick="event.stopPropagation();ctInlineEditDate(this,${ids})" style="cursor:pointer;white-space:nowrap;${isOverdue ? 'color:var(--danger);font-weight:600;' : ''}" title="Click to set date">${t.due ? fmtDate(t.due) : '<span style="opacity:0.4">No date</span>'}</span>
-      <span onclick="event.stopPropagation();ctShowPriority(event,${ids})" style="cursor:pointer;" title="Change priority">${pri}</span>
-      <span class="ct-task-hrs" style="cursor:pointer;" onclick="event.stopPropagation();ctInlineEditEst(this,${ids})" title="Click to edit hours">${t.est ? t.est + 'h' : '—'}</span>
-      <button class="ct-edit-btn" onclick="event.stopPropagation();ctOpenEditTaskModal(${ids})" title="Edit task">✎</button>
-      <span style="cursor:pointer;color:var(--danger);font-size:13px;opacity:0.3;text-align:center;" onclick="event.stopPropagation();ctQuickDeleteTask(${ids})" title="Delete">×</span>
-    </div>`;
-  });
-  html += '</div>';
-
-  panel.innerHTML = html;
-}
-
-
-function ctRenderProfile(panel, partner) {
-  const initials = partner.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  // Build contacts list from new multi-contact structure
-  const pContacts = partner.contacts || [];
-  // Legacy fallback
-  if (!pContacts.length && (partner.contactName || partner.email)) {
-    pContacts.push({ name: partner.contactName || '', email: partner.email || '', role: '', isInstructor: false });
-  }
-  const contactsHtml = pContacts.length ? pContacts.map(c => {
-    const parts = [];
-    if (c.name) parts.push(`<strong>${escHtml(c.name)}</strong>`);
-    if (c.role) parts.push(`<span style="color:var(--text3);">${escHtml(c.role)}</span>`);
-    if (c.isInstructor) parts.push(`<span class="ct-instructor-badge">Instructor</span>`);
-    if (c.email) parts.push(`<a href="mailto:${escHtml(c.email)}" style="color:var(--accent);text-decoration:none;">${escHtml(c.email)}</a>`);
-    return `<div style="font-size:11px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${parts.join('')}</div>`;
-  }).join('') : '<span style="font-size:11px;opacity:0.4;">No contacts added</span>';
-
-  let stagesHtml = '';
-  const stageIds = Object.keys(partner.stages || {}).filter(s => partner.stages[s].active);
-  stageIds.forEach(sid => {
-    const baseKey = ctStageKey(partner, sid);
-    const stageDef = ctGetStage(sid);
-    const st = partner.stages[sid];
-    const prog = ctStageProgress(partner, sid);
-    const isExpanded = !_ctCollapsedStages.has(sid);
-    const color = CT_STAGE_COLORS[baseKey] || '#888';
-    const contactLabel = st.contactTag ? `<span style="font-size:10px;font-weight:600;color:var(--text2);">— ${escHtml(st.contactTag)}</span>` : '<span style="font-size:10px;color:var(--text3);font-style:italic;">no contact</span>';
-    const anchorLabel = st.anchorDate ? `<span style="font-size:10px;color:var(--text3);">Anchor: ${fmtDate(st.anchorDate)}</span>` : '';
-
-    stagesHtml += `<div class="ct-stage-section">
-      <div class="ct-stage-header" onclick="_ctToggleStage('${sid}')">
-        <span class="ct-stage-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;cursor:pointer;" onclick="event.stopPropagation();ctEditStageContact('${partner.id}','${sid}')" title="Click to change contact">${CT_STAGE_LABELS[baseKey] || baseKey}</span>
-        <span style="cursor:pointer;font-size:10px;" onclick="event.stopPropagation();ctEditStageContact('${partner.id}','${sid}')" title="Click to change contact">${contactLabel}</span>
-        ${anchorLabel}
-        <span class="ct-stage-progress">${prog.done}/${prog.total} done</span>
-        <span class="ct-stage-chevron${isExpanded ? ' open' : ''}">›</span>
-        <button onclick="event.stopPropagation();ctCloseStage('${partner.id}','${sid}')" title="Close this stage (history preserved)" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px;color:var(--text3);">Close Stage</button>
-      </div>`;
-
-    if (isExpanded) {
-      // Sort: incomplete first, then completed
-      const sortedTasks = [...st.tasks].sort((a, b) => (a.completed ? 1 : 0) - (b.completed ? 1 : 0));
-      stagesHtml += sortedTasks.map(t => {
-        const pri = t.priority ? priorityBadge(t.priority) : '';
-        const delTags = delegateTagsHtml(t.delegatedTo);
-        const ids = `'${partner.id}','${sid}','${t.id}'`;
-        return `<div class="ct-task-row${t.completed ? ' ct-task-done' : ''}">
-          <div class="bulk-select-check${_ctBulkSelected.has(partner.id+'|'+sid+'|'+t.id) ? ' selected' : ''}" onclick="event.stopPropagation();_ctToggleBulk('${partner.id}','${sid}','${t.id}')">${_ctBulkSelected.has(partner.id+'|'+sid+'|'+t.id) ? '<span style="color:#fff;font-size:10px;">✓</span>' : ''}</div>
-          <div class="ct-task-check${t.completed ? ' done' : ''}" onclick="event.stopPropagation();ctCompleteTask(${ids},${!t.completed})">${t.completed ? '✓' : ''}</div>
-          <div class="ct-task-name${t.completed ? ' done' : ''} ct-clickable-task" data-ct-cid="${partner.id}" data-ct-sid="${sid}" data-ct-tid="${t.id}" style="cursor:pointer;" title="Click to edit">${escHtml(t.name)}${t.waiting ? `<span class="task-waiting" style="font-size:10px;margin-left:4px;">⏳ ${escHtml(t.waiting)}</span>` : ''}</div>
-          <span style="display:inline-flex;gap:2px;align-items:center;flex-shrink:0;">${delTags}<button onclick="event.stopPropagation();ctAssignTask(event,${ids})" title="Assign" style="opacity:0.6;font-size:12px;background:none;border:none;cursor:pointer;padding:1px 3px;color:var(--text3);">↗</button></span>
-          <span class="ct-task-date" onclick="event.stopPropagation();ctInlineEditDate(this,${ids})" style="cursor:pointer;white-space:nowrap;" title="Click to set date">${t.due ? fmtDate(t.due) : t.allocMonth ? `<span style="background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;" title="Held for capacity in ${t.allocMonth}">${ctFmtMonth(t.allocMonth)}</span>` : '<span style="opacity:0.4">No date</span>'}</span>
-          <span onclick="event.stopPropagation();ctShowPriority(event,${ids})" style="cursor:pointer;" title="Change priority">${pri}</span>
-          <span class="ct-task-hrs" style="cursor:pointer;" onclick="event.stopPropagation();ctInlineEditEst(this,${ids})" title="Click to edit hours">${t.est ? t.est + 'h' : '—'}</span>
-          <button class="ct-edit-btn" onclick="event.stopPropagation();ctOpenEditTaskModal(${ids})" title="Edit task">✎</button>
-          <span style="cursor:pointer;color:var(--danger);font-size:13px;opacity:0.4;text-align:center;" onclick="event.stopPropagation();ctQuickDeleteTask(${ids})" title="Delete task">×</span>
-        </div>`;
-      }).join('');
-      stagesHtml += `<div style="padding:6px 14px;border-top:1px solid var(--border);">
-        <button class="btn" onclick="ctAddTaskToStage('${partner.id}','${sid}')" style="font-size:10px;padding:2px 8px;">+ Add Task</button>
-      </div>`;
-    }
-    stagesHtml += '</div>';
-  });
-
-  // Closed stages section
-  const closedIds = Object.keys(partner.stages || {}).filter(s => !partner.stages[s].active);
-  if (closedIds.length) {
-    stagesHtml += `<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:10px;">
-      <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:8px;">Closed Stages</div>`;
-    closedIds.forEach(sid => {
-      const bk = ctStageKey(partner, sid);
-      const color = CT_STAGE_COLORS[bk] || '#888';
-      const st = partner.stages[sid];
-      const prog = ctStageProgress(partner, sid);
-      stagesHtml += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;opacity:0.6;">
-        <span class="ct-stage-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;">${CT_STAGE_LABELS[bk] || bk}${st.contactTag ? ' — ' + escHtml(st.contactTag) : ''}</span>
-        <span style="font-size:10px;color:var(--text3);">${prog.done}/${prog.total} completed</span>
-        <button onclick="ctReopenStage('${partner.id}','${sid}')" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px;color:var(--text3);" title="Reopen this stage">Reopen</button>
-      </div>`;
-    });
-    stagesHtml += '</div>';
-  }
-
-  // Available stages to add (exclude both active and closed)
-  const usedStages = [...stageIds, ...closedIds];
-  const availableStages = contactStages.filter(s => !usedStages.includes(s.id));
-
-  // License info
-  let licenseHtml = '';
-  const _fmtDateY = d => { if (!d) return '—'; const [y,m,day] = d.split('-'); const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${mo[parseInt(m)-1]} ${parseInt(day)}, ${y}`; };
-  if (partner.licenseStartDate) {
-    const lsd = partner.licenseStartDate;
-    const expDate = ctCalcLicenseExpiration(lsd);
-    const daysUntilExp = ctDaysUntil(expDate);
-    const isExpired = daysUntilExp < 0;
-    const isWarning = !isExpired && daysUntilExp <= 60;
-    const expColor = isExpired ? 'var(--danger)' : isWarning ? 'var(--warn, #f59e0b)' : 'var(--text2)';
-    const badges = isExpired ? '<span style="background:var(--danger);color:#fff;padding:1px 8px;border-radius:10px;font-size:9px;font-weight:700;">EXPIRED</span>'
-      : isWarning ? '<span style="background:var(--warn, #f59e0b);color:#000;padding:1px 8px;border-radius:10px;font-size:9px;font-weight:700;">60-DAY NOTICE</span>' : '';
-    licenseHtml = `<div class="ct-license-bar" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;font-size:11px;">
-      <span style="display:flex;align-items:center;gap:4px;"><span style="font-weight:600;color:var(--text3);">License Start</span> <input id="ctLicenseDateInput" type="date" value="${lsd}" onchange="ctSaveLicenseDate('${partner.id}')" style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);"></span>
-      <span style="color:${expColor};font-weight:700;">License Expiration: ${_fmtDateY(expDate)}</span>
-      ${badges}
-    </div>`;
-  } else {
-    licenseHtml = `<div class="ct-license-bar" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;font-size:11px;">
-      <span style="font-weight:600;color:var(--text3);">License Start</span>
-      <input id="ctLicenseDateInput" type="date" value="" onchange="ctSaveLicenseDate('${partner.id}')" style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);">
-    </div>`;
-  }
-
-  panel.innerHTML = `<div class="ct-profile">
-    <div class="ct-profile-header">
-      <div class="ct-profile-avatar">${initials}</div>
-      <div class="ct-profile-info">
-        <div class="ct-profile-name">${escHtml(partner.name)}</div>
-        <div class="ct-profile-contact" style="display:flex;flex-direction:column;gap:3px;margin-top:4px;">${contactsHtml}</div>
-        ${partner.notes ? `<div style="font-size:11px;color:var(--text3);margin-top:4px;">${escHtml(partner.notes)}</div>` : ''}
-      </div>
-      <div style="display:flex;gap:4px;">
-        <button class="btn" onclick="ctEditPartner('${partner.id}')" style="font-size:10px;padding:3px 8px;">✎ Edit</button>
-        <button class="btn" onclick="ctDeletePartner('${partner.id}')" style="font-size:10px;padding:3px 8px;color:var(--danger);border-color:var(--danger);">× Delete</button>
-      </div>
-    </div>
-    ${licenseHtml}
-    ${stagesHtml}
-    ${availableStages.length ? `<button class="btn" onclick="ctOpenAddStageModal('${partner.id}')" style="font-size:11px;padding:4px 12px;margin-top:8px;">+ Add Stage</button>` : ''}
-  </div>`;
-}
-
-function _ctToggleStage(sid) {
-  if (_ctCollapsedStages.has(sid)) _ctCollapsedStages.delete(sid);
-  else _ctCollapsedStages.add(sid);
-  renderContacts();
-}
-
-
-// =============================================
-// CUSTOMER JOURNEY: ORGANIZATION MANAGEMENT
-// =============================================
-
-function ctAddContactRow(data) {
-  const wrap = document.getElementById('ctPartnerContacts');
-  const row = document.createElement('div');
-  row.className = 'ct-contact-row';
-  const d = data || {};
-  row.innerHTML = `
-    <input type="text" placeholder="Name" class="ct-cr-name" value="${escHtml(d.name || '')}">
-    <input type="email" placeholder="Email" class="ct-cr-email" value="${escHtml(d.email || '')}">
-    <input type="text" placeholder="Role in org" class="ct-cr-role" value="${escHtml(d.role || '')}" style="max-width:120px;">
-    <label><input type="checkbox" class="ct-cr-instructor"${d.isInstructor ? ' checked' : ''}> Instructor</label>
-    <span style="cursor:pointer;color:var(--danger);font-size:14px;flex-shrink:0;padding:0 2px;" onclick="this.closest('.ct-contact-row').remove()" title="Remove">×</span>`;
-  wrap.appendChild(row);
-}
-
-function _ctReadContacts() {
-  return Array.from(document.querySelectorAll('#ctPartnerContacts .ct-contact-row')).map(row => ({
-    name: row.querySelector('.ct-cr-name').value.trim(),
-    email: row.querySelector('.ct-cr-email').value.trim(),
-    role: row.querySelector('.ct-cr-role').value.trim(),
-    isInstructor: row.querySelector('.ct-cr-instructor').checked
-  })).filter(c => c.name || c.email);
-}
-
-function openCtAddPartnerModal() {
-  _ctEditingPartnerId = null;
-  document.getElementById('ctPartnerModalTitle').textContent = 'Add Organization';
-  document.getElementById('ctPartnerName').value = '';
-  document.getElementById('ctPartnerContacts').innerHTML = '';
-  ctAddContactRow(); // Start with one empty contact row
-  document.getElementById('ctPartnerNotes').value = '';
-  const sel = document.getElementById('ctPartnerStage');
-  sel.innerHTML = '<option value="">— Select Stage —</option>' +
-    contactStages.map(s => `<option value="${s.id}">${escHtml(s.label)}</option>`).join('');
-  sel.value = '';
-  document.getElementById('ctPartnerLicenseDate').value = '';
-  document.getElementById('ctPartnerModal').style.display = 'flex';
-}
-
-function ctEditPartner(id) {
-  const c = contacts.find(c => c.id === id);
-  if (!c) return;
-  _ctEditingPartnerId = id;
-  document.getElementById('ctPartnerModalTitle').textContent = 'Edit Organization';
-  document.getElementById('ctPartnerName').value = c.name;
-  document.getElementById('ctPartnerContacts').innerHTML = '';
-  (c.contacts || []).forEach(ct => ctAddContactRow(ct));
-  if (!(c.contacts || []).length) {
-    // Migrate legacy single-contact fields
-    if (c.contactName || c.email) ctAddContactRow({ name: c.contactName || '', email: c.email || '', role: '', isInstructor: false });
-    else ctAddContactRow();
-  }
-  document.getElementById('ctPartnerNotes').value = c.notes || '';
-  document.getElementById('ctPartnerLicenseDate').value = c.licenseStartDate || '';
-  const sel = document.getElementById('ctPartnerStage');
-  sel.innerHTML = '<option value="">— No Change —</option>' +
-    contactStages.filter(s => !ctPartnerHasStage(c, s.id)).map(s => `<option value="${s.id}">${escHtml(s.label)}</option>`).join('');
-  sel.value = '';
-  document.getElementById('ctPartnerModal').style.display = 'flex';
-}
-
-function closeCtPartnerModal() {
-  document.getElementById('ctPartnerModal').style.display = 'none';
-  _ctEditingPartnerId = null;
-}
-
-function saveCtPartner() {
-  const name = document.getElementById('ctPartnerName').value.trim();
-  if (!name) return;
-  const pContacts = _ctReadContacts();
-  const notes = document.getElementById('ctPartnerNotes').value.trim();
-  const stageId = document.getElementById('ctPartnerStage').value;
-  const licenseDate = document.getElementById('ctPartnerLicenseDate').value || null;
-
-  if (_ctEditingPartnerId) {
-    const c = contacts.find(c => c.id === _ctEditingPartnerId);
-    if (c) {
-      c.name = name; c.contacts = pContacts; c.notes = notes;
-      c.licenseStartDate = licenseDate;
-      // Migrate: clear legacy fields
-      c.contactName = ''; c.email = ''; c.phone = '';
-      if (stageId) ctAddStageToPartner(c, stageId, null);
-    }
-  } else {
-    const c = { id: uid(), name, contacts: pContacts, notes, licenseStartDate: licenseDate, stages: {}, _addedDate: today() };
-    if (stageId) ctAddStageToPartner(c, stageId, null);
-    contacts.push(c);
-    _ctSelectedPartner = c.id;
-  }
-
-  save('wt_contacts', contacts);
-  closeCtPartnerModal();
-  renderContacts();
-}
-
-function ctAddStageToPartner(partner, stageId, anchorDate, contactTag) {
-  const stageDef = ctGetStage(stageId);
-  if (!stageDef) return;
-  // Generate a unique instance key — allows multiple of the same stage
-  let instanceKey = stageId;
-  let counter = 2;
-  while (partner.stages[instanceKey]) { instanceKey = stageId + '__' + counter; counter++; }
-  // Clone template tasks — each task gets its own project/subCode from stage defaults
-  const tasks = (stageDef.tasks || []).map(t => ({
-    id: uid(), name: t.name, est: t.est || 0, priority: t.priority || 'med',
-    project: stageDef.project || 'cwc', subCode: stageDef.subCode || '',
-    due: null, delegatedTo: t.delegatedTo || null, notes: t.notes || '',
-    waiting: t.waiting || '', completed: false, dateCompleted: null, actualHours: 0
-  }));
-  partner.stages[instanceKey] = { active: true, stageKey: stageId, contactTag: contactTag || '', anchorDate: anchorDate || null, addedDate: today(), tasks };
-}
-
-function ctDeletePartner(id) {
-  if (!confirm('Delete this organization and all their tasks?')) return;
-  contacts = contacts.filter(c => c.id !== id);
-  if (_ctSelectedPartner === id) _ctSelectedPartner = null;
-  save('wt_contacts', contacts);
-  renderContacts();
-}
-
-
-// =============================================
-// CUSTOMER JOURNEY: STAGE MANAGEMENT
-// =============================================
-
-function ctOpenAddStageModal(partnerId) {
-  _ctEditingPartnerId = partnerId;
-  const c = contacts.find(c => c.id === partnerId);
-  if (!c) return;
-  // All stages available (allow multiple instances)
-  const sel = document.getElementById('ctAddStageSelect');
-  sel.innerHTML = contactStages.map(s => `<option value="${s.id}">${escHtml(s.label)}</option>`).join('');
-  // Populate contact dropdown from organization's contacts
-  const contactSel = document.getElementById('ctAddStageContact');
-  const pContacts = c.contacts || [];
-  contactSel.innerHTML = '<option value="">— General (no specific contact) —</option>' +
-    pContacts.filter(ct => ct.name).map(ct => `<option value="${escHtml(ct.name)}">${escHtml(ct.name)}${ct.isInstructor ? ' (Instructor)' : ''}${ct.role ? ' — ' + escHtml(ct.role) : ''}</option>`).join('');
-  document.getElementById('ctAddStageAnchor').value = '';
-  document.getElementById('ctAddStageModal').style.display = 'flex';
-}
-
-function ctConfirmAddStage() {
-  const stageId = document.getElementById('ctAddStageSelect').value;
-  const contactTag = document.getElementById('ctAddStageContact').value || '';
-  const anchor = document.getElementById('ctAddStageAnchor').value || null;
-  const c = contacts.find(c => c.id === _ctEditingPartnerId);
-  if (!c || !stageId) return;
-  ctAddStageToPartner(c, stageId, anchor, contactTag);
-  save('wt_contacts', contacts);
-  document.getElementById('ctAddStageModal').style.display = 'none';
-  renderContacts();
-}
-
-let _ctStageContactMenu = null;
-function ctEditStageContact(partnerId, stageId) {
-  const c = contacts.find(c => c.id === partnerId);
-  if (!c || !c.stages[stageId]) return;
-  const st = c.stages[stageId];
-  const pContacts = (c.contacts || []).filter(ct => ct.name);
-
-  // Remove existing menu if open
-  if (_ctStageContactMenu) { _ctStageContactMenu.remove(); _ctStageContactMenu = null; }
-
-  const menu = document.createElement('div');
-  menu.style.cssText = 'position:fixed;z-index:9999;background:var(--bg);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.18);padding:4px 0;min-width:180px;font-size:12px;';
-
-  // Position near the clicked badge
-  const badge = event.target.closest('.ct-stage-badge') || event.target;
-  const rect = badge.getBoundingClientRect();
-  menu.style.top = (rect.bottom + 4) + 'px';
-  menu.style.left = rect.left + 'px';
-
-  // "None" option
-  const noneItem = document.createElement('div');
-  noneItem.style.cssText = 'padding:6px 14px;cursor:pointer;color:var(--text3);';
-  noneItem.textContent = '— No contact —';
-  noneItem.onmouseover = () => noneItem.style.background = 'var(--bg3)';
-  noneItem.onmouseout = () => noneItem.style.background = '';
-  if (!st.contactTag) noneItem.style.fontWeight = '700';
-  noneItem.onclick = () => { st.contactTag = ''; save('wt_contacts', contacts); menu.remove(); _ctStageContactMenu = null; renderContacts(); };
-  menu.appendChild(noneItem);
-
-  // Contact options
-  pContacts.forEach(ct => {
-    const item = document.createElement('div');
-    item.style.cssText = 'padding:6px 14px;cursor:pointer;color:var(--text);';
-    const label = ct.name + (ct.isInstructor ? ' (Instructor)' : '') + (ct.role ? ' — ' + ct.role : '');
-    item.textContent = label;
-    if (st.contactTag === ct.name) item.style.fontWeight = '700';
-    item.onmouseover = () => item.style.background = 'var(--bg3)';
-    item.onmouseout = () => item.style.background = '';
-    item.onclick = () => { st.contactTag = ct.name; save('wt_contacts', contacts); menu.remove(); _ctStageContactMenu = null; renderContacts(); };
-    menu.appendChild(item);
-  });
-
-  if (!pContacts.length) {
-    const empty = document.createElement('div');
-    empty.style.cssText = 'padding:6px 14px;color:var(--text3);font-style:italic;font-size:11px;';
-    empty.textContent = 'No contacts on this org — add via Edit';
-    menu.appendChild(empty);
-  }
-
-  document.body.appendChild(menu);
-  _ctStageContactMenu = menu;
-
-  // Close on outside click
-  setTimeout(() => {
-    const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); _ctStageContactMenu = null; document.removeEventListener('click', close); } };
-    document.addEventListener('click', close);
-  }, 0);
-}
-
-function ctCloseStage(partnerId, stageId) {
-  const c = contacts.find(c => c.id === partnerId);
-  if (!c || !c.stages[stageId]) return;
-  const label = CT_STAGE_LABELS[stageId] || stageId;
-  if (!confirm(`Close "${label}" stage? Tasks and logged time will be preserved but the stage will be hidden.`)) return;
-  c.stages[stageId].active = false;
-  save('wt_contacts', contacts);
-  renderContacts();
-}
-
-function ctReopenStage(partnerId, stageId) {
-  const c = contacts.find(c => c.id === partnerId);
-  if (!c || !c.stages[stageId]) return;
-  c.stages[stageId].active = true;
-  save('wt_contacts', contacts);
-  renderContacts();
-}
-
-function ctSetAnchorDate(partnerId, stageId) {
-  const c = contacts.find(c => c.id === partnerId);
-  if (!c || !c.stages[stageId]) return;
-  const current = c.stages[stageId].anchorDate || '';
-  const label = CT_ANCHOR_LABELS[stageId] || 'Anchor Date';
-  const val = prompt(`${label} (YYYY-MM-DD):`, current);
-  if (val === null) return;
-  c.stages[stageId].anchorDate = val || null;
-  save('wt_contacts', contacts);
-  renderContacts();
-}
-
-function ctAddTaskToStage(partnerId, stageId) {
-  const c = contacts.find(c => c.id === partnerId);
-  if (!c || !c.stages[stageId]) return;
-  const stageDef = ctGetStage(stageId);
-  const newTask = {
-    id: uid(), name: '', est: 0, priority: 'med', due: null,
-    project: stageDef?.project || 'cwc', subCode: stageDef?.subCode || '',
-    delegatedTo: null, notes: '', waiting: '', completed: false,
-    dateCompleted: null, actualHours: 0, allocMonth: null
-  };
-  c.stages[stageId].tasks.push(newTask);
-  save('wt_contacts', contacts);
-  renderContacts();
-  // Open edit modal for the new task so user can fill in details
-  ctOpenEditTaskModal(partnerId, stageId, newTask.id);
-  // Focus the name field
-  setTimeout(() => document.getElementById('ctEditName')?.focus(), 50);
-}
-
-// Helper to get a contact task by IDs
-function _ctTask(cid, sid, tid) {
-  const c = contacts.find(c => c.id === cid);
-  return c?.stages?.[sid]?.tasks?.find(t => t.id === tid) || null;
-}
-
-function _ctSaveAndRender() {
-  save('wt_contacts', contacts);
-  // Contact tasks surface into My Tasks, Projects, Team Deliverables, Capacity,
-  // and Timesheet — re-render those too so edits (delegation, due date,
-  // priority, etc.) from any tab propagate live. Wrap each render in its own
-  // try/catch so a throw in one view can't abort the rest of the chain and
-  // leave the visible tab stale.
-  const _render = (name, fn) => {
-    try { if (typeof fn === 'function') fn(); }
-    catch (e) { console.error('[_ctSaveAndRender] ' + name + ' threw:', e); }
-  };
-  _render('renderContacts', typeof renderContacts === 'function' ? renderContacts : null);
-  _render('renderTasks', typeof renderTasks === 'function' ? renderTasks : null);
-  _render('renderProjects', typeof renderProjects === 'function' ? renderProjects : null);
-  _render('renderTeam', typeof renderTeam === 'function' ? renderTeam : null);
-  _render('renderCapacity', typeof renderCapacity === 'function' ? renderCapacity : null);
-  _render('renderTimesheet', typeof renderTimesheet === 'function' ? renderTimesheet : null);
-}
-
-// Inline edit: task name
-// Open full edit modal (same as clicking task name)
-let _ctEditRef = null;
-function ctInlineEditName(el, cid, sid, tid) {
-  ctOpenEditTaskModal(cid, sid, tid);
-}
-function ctOpenEditTaskModal(cid, sid, tid) {
-  const t = _ctTask(cid, sid, tid);
-  if (!t) return;
-  const c = contacts.find(c => c.id === cid);
-  const stageDef = ctGetStage(sid);
-  _ctEditRef = { cid, sid, tid };
-
-  document.getElementById('ctEditTaskSub').textContent = (c ? c.name : '') + ' — ' + (stageDef ? stageDef.label : sid);
-  document.getElementById('ctEditName').value = t.name;
-  document.getElementById('ctEditDue').value = t.due || '';
-  document.getElementById('ctEditWorkDate').value = t.workDate || '';
-  document.getElementById('ctEditWorkSpread').checked = !!t.workSpread;
-  document.getElementById('ctEditAllocMonth').value = t.allocMonth || '';
-  document.getElementById('ctEditEst').value = t.est || '';
-  document.getElementById('ctEditPriority').value = t.priority || 'med';
-  document.getElementById('ctEditWaiting').value = t.waiting || '';
-  document.getElementById('ctEditNotes').value = t.notes || '';
-
-  // Populate project dropdown
-  const projSel = document.getElementById('ctEditProject');
-  projSel.innerHTML = '';
-  Object.keys(PROJECTS).forEach(k => {
-    const p = PROJECTS[k];
-    if (!p || !p.label) return;
-    const opt = document.createElement('option');
-    opt.value = k;
-    opt.textContent = p.label + ' (' + (p.billingCode || '') + ')';
-    projSel.appendChild(opt);
-  });
-  projSel.value = t.project || (stageDef ? stageDef.project : 'cwc') || 'cwc';
-  populateSubCodeSelect('ctEditSubCode', projSel.value, t.subCode || (stageDef ? stageDef.subCode : '') || '');
-
-  // Delegation checkboxes
-  const wrap = document.getElementById('ctEditDelegateWrap');
-  const current = normDelegated(t.delegatedTo);
-  const allPersons = ['Me'].concat(PERSONS || []);
-  wrap.innerHTML = allPersons.map(function(p) {
-    const active = current.includes(p);
-    const pc = personColor(p);
-    return '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:500;border:1px solid ' + (active ? pc.border : 'var(--border)') + ';background:' + (active ? pc.bg : 'transparent') + ';color:' + (active ? pc.text : 'var(--text3)') + ';"><input type="checkbox" value="' + escHtml(p) + '" ' + (active ? 'checked' : '') + ' style="display:none;">' + escHtml(p) + '</label>';
-  }).join('');
-  // Don't manually toggle cb.checked in a label onclick — the browser already
-  // fires an implicit click on the nested checkbox from the label, which would
-  // cancel out a manual flip. Instead, listen to the checkbox's change event
-  // and restyle the parent label from there.
-  wrap.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
-    cb.onchange = function() {
-      const l = cb.closest('label');
-      if (!l) return;
-      const a = cb.checked;
-      const pc = personColor(cb.value);
-      l.style.border = '1px solid ' + (a ? pc.border : 'var(--border)');
-      l.style.background = a ? pc.bg : 'transparent';
-      l.style.color = a ? pc.text : 'var(--text3)';
-    };
-  });
-
-  document.getElementById('ctEditTaskDlg').classList.add('open');
-}
-
-// Inline edit: work/due date — capacity-aware popover with work-date semantics
-function ctInlineEditDate(el, cid, sid, tid) {
-  const t = _ctTask(cid, sid, tid);
-  if (!t) return;
-  openCapacityDatePicker(el, {
-    current: t.workDate || t.due || '',
-    itemHours: t.est || 0,
-    excludeId: '_ct_' + cid + '_' + sid + '_' + tid,
-    label: (t.due ? 'Work date — ' : '') + t.name,
-    project: t.project || ctGetStage(sid)?.project || 'cwc',
-    subCode: t.subCode || ctGetStage(sid)?.subCode || '',
-    fitBy: t.due || null,
-    onPick: d => {
-      if (!t.due) { t.due = d; t.workDate = null; }
-      else if (d === t.due) { t.workDate = null; }
-      else {
-        t.workDate = d;
-        if (d > t.due) showSyncToast('Heads up — work is now scheduled AFTER the deadline (⚑ flagged red).', 'warn');
-      }
-      const eff = t.workDate || t.due;
-      if (t.allocMonth && eff && t.allocMonth !== eff.slice(0, 7)) t.allocMonth = eff.slice(0, 7);
-      _ctSaveAndRender();
-    },
-    onClear: () => {
-      if (t.workDate) t.workDate = null;
-      else t.due = null;
-      _ctSaveAndRender();
-    }
-  });
-}
-
-function ctOpenDeadlinePicker(el, cid, sid, tid) {
-  const t = _ctTask(cid, sid, tid);
-  if (!t) return;
-  openCapacityDatePicker(el, {
-    current: t.due || '',
-    itemHours: 0,
-    label: 'Deadline — ' + t.name,
-    project: t.project || ctGetStage(sid)?.project || 'cwc',
-    subCode: t.subCode || ctGetStage(sid)?.subCode || '',
-    onPick: d => {
-      t.due = d;
-      if (t.workDate && t.workDate > d) showSyncToast('Work date is after the new deadline — ⚑ flagged red.', 'warn');
-      _ctSaveAndRender();
-    },
-    onClear: () => { t.due = null; _ctSaveAndRender(); }
-  });
-}
-
-// Inline edit: estimated hours
-function ctInlineEditEst(el, cid, sid, tid) {
-  if (el.querySelector('input')) return;
-  const t = _ctTask(cid, sid, tid);
-  if (!t) return;
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.min = '0';
-  input.step = '0.25';
-  input.value = t.est || '';
-  input.style.cssText = 'width:50px;font-size:12px;padding:2px 4px;border:1px solid var(--accent);border-radius:3px;background:var(--bg);color:var(--text);text-align:center;';
-  let committed = false;
-  function commit() {
-    if (committed) return;
-    committed = true;
-    t.est = enforceQuarter(parseFloat(input.value) || 0, 'estimate');
-    _ctSaveAndRender();
-  }
-  input.addEventListener('blur', commit);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { committed = true; renderContacts(); } });
-  el.textContent = '';
-  el.appendChild(input);
-  input.focus();
-  input.select();
-}
-
-// Priority dropdown
-function ctShowPriority(e, cid, sid, tid) {
-  e.stopPropagation();
-  const t = _ctTask(cid, sid, tid);
-  if (!t) return;
-  showDropdown(e.currentTarget, PRIORITY_OPTS, t.priority || 'med', val => {
-    t.priority = val;
-    _ctSaveAndRender();
-  });
-}
-
-// Full edit modal (replaces the old prompt-based edit)
-function ctEditTaskModal(cid, sid, tid) {
-  ctOpenEditTaskModal(cid, sid, tid);
-}
-
-function ctCloseEditModal() {
-  // If closing with an empty-name task (user cancelled an add), remove it
-  if (_ctEditRef) {
-    const t = _ctTask(_ctEditRef.cid, _ctEditRef.sid, _ctEditRef.tid);
-    if (t && !t.name) {
-      const c = contacts.find(c => c.id === _ctEditRef.cid);
-      if (c && c.stages[_ctEditRef.sid]) {
-        c.stages[_ctEditRef.sid].tasks = c.stages[_ctEditRef.sid].tasks.filter(t => t.id !== _ctEditRef.tid);
-        save('wt_contacts', contacts);
-      }
-    }
-  }
-  document.getElementById('ctEditTaskDlg').classList.remove('open');
-  _ctEditRef = null;
-  renderContacts();
-}
-
-function ctSaveEditTask() {
-  if (!_ctEditRef) return;
-  const t = _ctTask(_ctEditRef.cid, _ctEditRef.sid, _ctEditRef.tid);
-  if (!t) return;
-  t.name = document.getElementById('ctEditName').value.trim() || t.name;
-  t.project = document.getElementById('ctEditProject').value || 'cwc';
-  t.subCode = document.getElementById('ctEditSubCode').value || '';
-  t.priority = document.getElementById('ctEditPriority').value || 'med';
-  t.due = document.getElementById('ctEditDue').value || null;
-  t.workDate = document.getElementById('ctEditWorkDate').value || null;
-  t.workSpread = !!document.getElementById('ctEditWorkSpread').checked;
-  if (t.workDate && t.due && t.workDate > t.due) {
-    showSyncToast('Work date is after the due date — ⚑ flagged red.', 'warn');
-  }
-  t.allocMonth = document.getElementById('ctEditAllocMonth').value || null;
-  t.est = enforceQuarter(parseFloat(document.getElementById('ctEditEst').value) || 0, 'estimate');
-  t.waiting = document.getElementById('ctEditWaiting').value.trim();
-  t.notes = document.getElementById('ctEditNotes').value.trim();
-  // Read delegation
-  const checks = document.querySelectorAll('#ctEditDelegateWrap input[type="checkbox"]:checked');
-  const del = Array.from(checks).map(cb => cb.value);
-  t.delegatedTo = del.length ? del : null;
-  _ctSaveAndRender();
-  ctCloseEditModal();
-}
-
-function ctDeleteTask() {
-  if (!_ctEditRef) return;
-  const c = contacts.find(c => c.id === _ctEditRef.cid);
-  if (!c || !c.stages[_ctEditRef.sid]) return;
-  c.stages[_ctEditRef.sid].tasks = c.stages[_ctEditRef.sid].tasks.filter(t => t.id !== _ctEditRef.tid);
-  _ctSaveAndRender();
-  ctCloseEditModal();
-}
-
-function ctQuickDeleteTask(cid, sid, tid) {
-  const c = contacts.find(c => c.id === cid);
-  if (!c || !c.stages[sid]) return;
-  const t = c.stages[sid].tasks.find(t => t.id === tid);
-  if (!t) return;
-  if (!confirm(`Delete "${t.name}"?`)) return;
-  c.stages[sid].tasks = c.stages[sid].tasks.filter(t => t.id !== tid);
-  _ctSaveAndRender();
-}
-
-
-// =============================================
-// CONTACTS: TEMPLATE EDITOR
-// =============================================
-
-function openCtTemplateModal() {
-  const sel = document.getElementById('ctTplStage');
-  sel.innerHTML = contactStages.map(s => `<option value="${s.id}">${escHtml(s.label)}</option>`).join('');
-  // Populate project dropdown
-  const projSel = document.getElementById('ctTplProject');
-  projSel.innerHTML = '';
-  Object.keys(PROJECTS).forEach(k => {
-    const p = PROJECTS[k];
-    if (p.hidden) return;
-    const opt = document.createElement('option');
-    opt.value = k;
-    opt.textContent = `${p.label} (${p.billingCode})`;
-    projSel.appendChild(opt);
-  });
-  ctRenderTemplateEditor();
-  document.getElementById('ctTemplateModal').style.display = 'flex';
-}
-
-function ctRenderTemplateEditor() {
-  const sid = document.getElementById('ctTplStage').value;
-  const stage = ctGetStage(sid);
-  if (!stage) return;
-  // Set project dropdown to stage's project key (default cwc)
-  document.getElementById('ctTplProject').value = stage.project || 'cwc';
-  // Populate subcode dropdown for selected project
-  populateSubCodeSelect('ctTplSubCode', stage.project || 'cwc', stage.subCode || '');
-  const list = document.getElementById('ctTplTaskList');
-  // Header matching My Tasks form style
-  const cols = '20px 2fr 65px 85px 1fr 24px';
-  list.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:4px 0;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.03em;">` +
-    '<span></span><span>Task Name</span><span>Est (h)</span><span>Priority</span><span>Waiting On</span><span></span></div>';
-  (stage.tasks || []).forEach((t, i) => {
-    list.innerHTML += `<div class="ct-tpl-task" data-idx="${i}" style="grid-template-columns:${cols};"
-      ondragover="event.preventDefault();this.classList.add('drag-over');"
-      ondragleave="this.classList.remove('drag-over');"
-      ondrop="event.preventDefault();this.classList.remove('drag-over');_ctTplDrop(${i});">
-      <span class="ct-tpl-drag" draggable="true" title="Drag to reorder"
-        ondragstart="event.stopPropagation();_ctTplDragIdx=${i};this.closest('.ct-tpl-task').classList.add('dragging');"
-        ondragend="this.closest('.ct-tpl-task').classList.remove('dragging');_ctTplDragIdx=null;">⠿</span>
-      <input class="form-input" value="${escHtml(t.name)}" data-field="name" placeholder="Task name" style="font-size:11px;padding:4px 8px;">
-      <input class="form-input" type="number" value="${t.est || ''}" data-field="est" placeholder="0" style="font-size:11px;padding:4px 6px;" step="0.25" min="0">
-      <select class="form-input filter-select" data-field="priority" style="font-size:11px;padding:4px 4px;">
-        <option value="meeting"${t.priority === 'meeting' ? ' selected' : ''}>Meeting</option>
-        <option value="urgent"${t.priority === 'urgent' ? ' selected' : ''}>Urgent</option>
-        <option value="high"${t.priority === 'high' ? ' selected' : ''}>High</option>
-        <option value="med"${t.priority === 'med' || !t.priority ? ' selected' : ''}>Med</option>
-        <option value="low"${t.priority === 'low' ? ' selected' : ''}>Low</option>
-      </select>
-      <input class="form-input" type="text" value="${escHtml(t.waiting || '')}" data-field="waiting" placeholder="Optional" style="font-size:11px;padding:4px 6px;">
-      <span style="cursor:pointer;color:var(--danger);font-size:14px;text-align:center;" onclick="ctRemoveTemplateTask(${i})" title="Remove">×</span>
-    </div>`;
-  });
-}
-
-// Read current DOM values back into the stage's tasks array (preserves unsaved edits)
-function _ctSyncTemplateFieldsToData() {
-  const sid = document.getElementById('ctTplStage').value;
-  const stage = ctGetStage(sid);
-  if (!stage) return;
-  const rows = document.querySelectorAll('#ctTplTaskList .ct-tpl-task');
-  rows.forEach(row => {
-    const idx = +row.dataset.idx;
-    const t = stage.tasks[idx];
-    if (!t) return;
-    const nameEl = row.querySelector('[data-field="name"]');
-    const estEl = row.querySelector('[data-field="est"]');
-    const priEl = row.querySelector('[data-field="priority"]');
-    const waitEl = row.querySelector('[data-field="waiting"]');
-    if (nameEl) t.name = nameEl.value.trim() || t.name;
-    if (estEl) t.est = parseFloat(estEl.value) || 0;
-    if (priEl) t.priority = priEl.value || 'med';
-    if (waitEl) t.waiting = waitEl.value.trim();
-  });
-}
-
-function ctAddTemplateTask() {
-  _ctSyncTemplateFieldsToData();
-  const sid = document.getElementById('ctTplStage').value;
-  const stage = ctGetStage(sid);
-  if (!stage) return;
-  if (!stage.tasks) stage.tasks = [];
-  stage.tasks.push({ id: uid(), name: '', est: 0, priority: 'med', waiting: '', delegatedTo: null, notes: '' });
-  ctRenderTemplateEditor();
-  // Focus the new task's name field
-  const rows = document.querySelectorAll('#ctTplTaskList .ct-tpl-task');
-  const lastRow = rows[rows.length - 1];
-  if (lastRow) lastRow.querySelector('[data-field="name"]')?.focus();
-}
-
-function ctRemoveTemplateTask(idx) {
-  _ctSyncTemplateFieldsToData();
-  const sid = document.getElementById('ctTplStage').value;
-  const stage = ctGetStage(sid);
-  if (!stage || !stage.tasks) return;
-  stage.tasks.splice(idx, 1);
-  ctRenderTemplateEditor();
-}
-
-let _ctTplDragIdx = null;
-function _ctTplDrop(targetIdx) {
-  if (_ctTplDragIdx === null || _ctTplDragIdx === targetIdx) return;
-  _ctSyncTemplateFieldsToData();
-  const sid = document.getElementById('ctTplStage').value;
-  const stage = ctGetStage(sid);
-  if (!stage || !stage.tasks) return;
-  const item = stage.tasks.splice(_ctTplDragIdx, 1)[0];
-  stage.tasks.splice(targetIdx, 0, item);
-  _ctTplDragIdx = null;
-  ctRenderTemplateEditor();
-}
-
-function ctSaveTemplate() {
-  const sid = document.getElementById('ctTplStage').value;
-  const stage = ctGetStage(sid);
-  if (!stage) return;
-  stage.project = document.getElementById('ctTplProject').value || 'cwc';
-  stage.subCode = document.getElementById('ctTplSubCode').value || '';
-  // Read task rows
-  const rows = document.querySelectorAll('#ctTplTaskList .ct-tpl-task');
-  const tasks = [];
-  rows.forEach(row => {
-    const name = row.querySelector('[data-field="name"]').value.trim();
-    if (!name) return;
-    const est = parseFloat(row.querySelector('[data-field="est"]').value) || 0;
-    const priority = row.querySelector('[data-field="priority"]').value || 'med';
-    const waiting = row.querySelector('[data-field="waiting"]')?.value?.trim() || '';
-    const oldTask = stage.tasks[+row.dataset.idx] || {};
-    tasks.push({ id: oldTask.id || uid(), name, est, priority, waiting, delegatedTo: oldTask.delegatedTo || null, notes: oldTask.notes || '' });
-  });
-  stage.tasks = tasks;
-  save('wt_contact_stages', contactStages);
-
-  // Backfill: update existing org tasks in this stage that have empty project/subCode
-  let backfilled = 0;
-  contacts.forEach(c => {
-    for (const k in c.stages) {
-      const baseKey = ctStageKey(c, k);
-      if (baseKey !== sid) continue;
-      const st = c.stages[k];
-      st.tasks.forEach(t => {
-        if (!t.subCode && stage.subCode) { t.subCode = stage.subCode; backfilled++; }
-        if (!t.project || t.project === 'cwc') { t.project = stage.project; }
-      });
-    }
-  });
-  if (backfilled > 0) save('wt_contacts', contacts);
-
-  document.getElementById('ctTemplateModal').style.display = 'none';
-  renderContacts();
-}
-
-
-// =============================================
-// CONTACTS: EVENT DELEGATION FOR TASK NAME CLICKS
-// Using delegation because inline onclick in dynamically generated HTML can be unreliable
-document.addEventListener('click', function(e) {
-  const el = e.target.closest('.ct-clickable-task');
-  if (!el) return;
-  e.stopPropagation();
-  const cid = el.dataset.ctCid;
-  const sid = el.dataset.ctSid;
-  const tid = el.dataset.ctTid;
-  if (cid && sid && tid) ctOpenEditTaskModal(cid, sid, tid);
-});
-
-// CONTACTS: INTEGRATION WITH MY TASKS + TIMESHEET
-// =============================================
-
-// Called from plannedItems() to include contact tasks in timesheet
-function ctPlannedItems(fromDate, toDate) {
-  const items = [];
-  const fromYM = fromDate.slice(0, 7);
-  const toYM = toDate.slice(0, 7);
-  contacts.forEach(c => {
-    for (const sid in c.stages) {
-      const st = c.stages[sid];
-      if (!st.active) continue;
-      const stageDef = ctGetStage(sid);
-      if (!stageDef) continue;
-      st.tasks.forEach(t => {
-        if (t.completed) return;
-        const ctDel = normDelegated(t.delegatedTo);
-        if (ctDel.length && !ctDel.includes('Me')) return;
-        const proj = t.project || stageDef.project || 'cwc';
-        const sc = t.subCode || stageDef.subCode || '';
-        // Dated tasks: place on work date (or spread to the deadline)
-        const ctPlaced = _expandPlanned(items,
-          { id: '_ct_' + c.id + '_' + sid + '_' + t.id, name: c.name + ': ' + t.name, project: proj, subCode: sc, _planned: true, _src: 'contact', _contactId: c.id, _stageId: sid },
-          t.est || 0, t.due || null, t.workDate || null, !!t.workSpread, fromDate, toDate);
-        // Tasks with allocMonth but no dates at all — place on the 15th of that month for capacity
-        if (!ctPlaced && t.allocMonth && t.allocMonth >= fromYM && t.allocMonth <= toYM) {
-          items.push({
-            id: '_ct_' + c.id + '_' + sid + '_' + t.id,
-            name: c.name + ': ' + t.name + ' (hold)',
-            project: proj, date: t.allocMonth + '-15', hours: t.est || 0, subCode: sc,
-            _planned: true, _src: 'contact', _contactId: c.id, _stageId: sid,
-            _allocHold: true
-          });
-        }
-      });
-    }
-  });
-  return items;
 }
 
 </script>
