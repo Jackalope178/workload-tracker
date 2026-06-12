@@ -1523,6 +1523,28 @@
   .cap-pick-popover .cap-day-row.past { cursor: default; }
   .cap-pick-popover .cap-day-row.past:hover { background: none; }
   .cap-pick-popover .cap-day-row.cap-pick-current { box-shadow: inset 0 0 0 1px var(--accent); }
+  /* WEEK PLANNER (My Tasks calendar view) */
+  .wk-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .wk-range { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); }
+  .wk-cap-note { margin-left: auto; font-size: 10px; color: var(--text3); }
+  .wk-board { display: flex; gap: 8px; align-items: flex-start; }
+  .wk-col { flex: 1; min-width: 0; }
+  .wk-col.past { opacity: 0.55; }
+  .wk-col-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px 6px; font-size: 11px; color: var(--text2); }
+  .wk-col.today .wk-col-day { color: var(--accent); font-weight: 700; }
+  .wk-col-load { font-size: 10px; font-weight: 700; }
+  .wk-track { display: flex; flex-direction: column; gap: 3px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 4px; }
+  .wk-col.today .wk-track { border-color: var(--accent); }
+  .wk-track.drag-over-day { border-color: var(--accent); background: rgba(79,156,249,0.08); }
+  .wk-item { border-left: 3px solid var(--accent); border-radius: 5px; padding: 3px 6px; font-size: 10px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; box-sizing: border-box; }
+  .wk-item:hover { filter: brightness(1.25); }
+  .wk-item.fixed { cursor: pointer; opacity: 0.8; }
+  .wk-item-name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .wk-item-hrs { color: var(--text3); font-size: 9px; }
+  .wk-item.wk-logged { background: var(--border); border-left-color: var(--success); color: var(--text3); cursor: default; justify-content: center; font-size: 9px; }
+  .wk-free { border: 1px dashed var(--border2); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--text3); flex-shrink: 0; }
+  .wk-over-line { font-size: 9px; color: var(--danger); font-weight: 700; text-align: center; flex-shrink: 0; }
+  .wk-wknd { margin-top: 8px; font-size: 10px; color: var(--text3); }
   .dl-chip {
     display: inline-block; margin-left: 4px; padding: 0 5px; font-size: 9px; font-weight: 700;
     border: 1px solid var(--border2); border-radius: 8px; color: var(--text3);
@@ -2619,6 +2641,10 @@
     .add-form { padding: 8px; }
     .form-input { font-size: 12px; padding: 6px 8px; }
 
+    /* Week planner: side-scroll the day columns */
+    .wk-board { overflow-x: auto; padding-bottom: 6px; }
+    .wk-col { flex: 0 0 150px; min-width: 150px; }
+
     /* Modals: full screen on phone */
     .modal { width: 100vw; max-width: 100vw; max-height: 92dvh; border-radius: 8px 8px 0 0; padding: 14px; }
     .modal-wide, .modal-xl { width: 100vw; max-width: 100vw; padding: 12px; }
@@ -2920,6 +2946,7 @@ if (typeof XLSX === 'undefined') {
       </select>
       <!-- Brain Dump disabled — re-enable by removing display:none -->
       <button class="btn" onclick="openBrainDumpModal()" style="display:none;border-color:#7c3aed;color:#a78bfa;" title="AI-powered task import from free text">⚡ Brain Dump</button>
+      <button class="btn" id="taskViewToggle" onclick="toggleTaskView()" title="Switch between the task list and the week planner">📅 Week</button>
       <button class="btn primary" onclick="toggleAddForm()">+ Add Task</button>
       <button class="btn" id="clearFiltersBtn" onclick="_clearAllTaskFilters()" style="display:none;font-size:10px;padding:4px 10px;color:var(--text3);">✕ Clear filters</button>
     </div>
@@ -6023,7 +6050,201 @@ function computeWeekCapacity(wkStart, wkEnd) {
   return { planned, done };
 }
 
+// =============================================
+// WEEK PLANNER — My Tasks calendar view
+// =============================================
+// Mon–Fri columns; every planned item (tasks, blocks, work items, subtasks,
+// journey tasks, spread slices, recurrences) drawn as a box whose height is
+// its hours against the day's capacity. Click opens the item's edit modal;
+// drag moves its WORK day (deadlines survive, same as the row pickers).
+let taskViewMode = load('wt_task_view', 'list');
+let _wkAnchor = today();
+let _wkDrag = null;
+
+function toggleTaskView() {
+  taskViewMode = taskViewMode === 'week' ? 'list' : 'week';
+  save('wt_task_view', taskViewMode);
+  renderTasks();
+}
+
+function wkShift(n) { _wkAnchor = addDays(_wkAnchor, n * 7); renderTasks(); }
+function wkToday() { _wkAnchor = today(); renderTasks(); }
+
+// Resolve a planned item (possibly a composite id: block, spread slice,
+// recurrence occurrence) back to its source record.
+function _wkResolve(id, src, projId, sessionId, contactId, stageId) {
+  if (src === 'task') {
+    const t = tasks.find(t => t.id === id || id.startsWith(t.id + '_'));
+    if (!t) return null;
+    const b = (t.blocks || []).find(b => id === t.id + '_' + b.id) || null;
+    return { src, t, b };
+  }
+  if (src === 'session') {
+    const bp = bigProjs.find(p => p.id === projId);
+    const ss = bp && bp.sessions.find(x => x.id === id || id.startsWith(x.id + '_'));
+    return ss ? { src, bp, s: ss } : null;
+  }
+  if (src === 'subtask') {
+    const bp = bigProjs.find(p => p.id === projId);
+    const ss = bp && bp.sessions.find(x => x.id === sessionId);
+    const st = ss && (ss.subtasks || []).find(x => x.id === id || id.startsWith(x.id + '_'));
+    return st ? { src, bp, s: ss, st } : null;
+  }
+  if (src === 'contact') {
+    const c = contacts.find(c => c.id === contactId);
+    const stage = c && c.stages[stageId];
+    if (!stage) return null;
+    const tid = id.slice(('_ct_' + contactId + '_' + stageId + '_').length).replace(/_\d{4}-\d{2}-\d{2}$/, '');
+    const t = stage.tasks.find(t => t.id === tid);
+    return t ? { src, c, t, contactId, stageId } : null;
+  }
+  return null;
+}
+
+function _wkOpenItem(id, src, projId, sessionId, contactId, stageId) {
+  const r = _wkResolve(id, src, projId, sessionId, contactId, stageId);
+  if (!r) return;
+  if (r.src === 'task') openEditModal(r.t.id);
+  else if (r.src === 'session') openEditSessionModal(r.bp.id, r.s.id);
+  else if (r.src === 'subtask') openEditSubtaskModal(r.bp.id, r.s.id, r.st.id);
+  else if (r.src === 'contact') ctOpenEditTaskModal(r.contactId, r.stageId, r.t.id);
+}
+
+function _wkDragStart(e, id, src, projId, sessionId, contactId, stageId) {
+  _wkDrag = { id, src, projId, sessionId, contactId, stageId };
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function _wkDrop(day) {
+  if (!_wkDrag) return;
+  const r = _wkResolve(_wkDrag.id, _wkDrag.src, _wkDrag.projId, _wkDrag.sessionId, _wkDrag.contactId, _wkDrag.stageId);
+  _wkDrag = null;
+  if (!r) return;
+  if (r.src === 'task') {
+    if (r.b) {
+      r.b.date = day;
+      if (r.t.due && day > r.t.due) showSyncToast('Block scheduled after the deadline — ⚑ flagged red.', 'warn');
+    } else if (r.t.recurrence) {
+      showSyncToast('Recurring occurrence — use ⏭ skip or 📅 reschedule on its list row.', 'warn');
+      return;
+    } else {
+      _applyWorkPick(r.t, 'due', day);
+    }
+    save('wt_tasks', tasks);
+  } else if (r.src === 'session') {
+    if (r.s.recurrence) { showSyncToast('Recurring occurrence — reschedule it from the Projects view.', 'warn'); return; }
+    _applyWorkPick(r.s, 'date', day);
+    save('wt_bigprojs', bigProjs);
+  } else if (r.src === 'subtask') {
+    if (r.st.recurrence) { showSyncToast('Recurring occurrence — reschedule it from the Projects view.', 'warn'); return; }
+    _applyWorkPick(r.st, 'date', day);
+    save('wt_bigprojs', bigProjs);
+  } else if (r.src === 'contact') {
+    const t = r.t;
+    if (!t.due) { t.due = day; t.workDate = null; }
+    else if (day === t.due) { t.workDate = null; }
+    else {
+      t.workDate = day;
+      if (day > t.due) showSyncToast('Heads up — work is now scheduled AFTER the deadline (⚑ flagged red).', 'warn');
+    }
+    const eff = t.workDate || t.due;
+    if (t.allocMonth && eff && t.allocMonth !== eff.slice(0, 7)) t.allocMonth = eff.slice(0, 7);
+    save('wt_contacts', contacts);
+  }
+  _afterDateChange();
+  renderCapacity();
+}
+
+function renderWeekPlanner(container) {
+  if (!container) return;
+  const a = new Date(_wkAnchor + 'T00:00:00');
+  const monday = addDays(_wkAnchor, -((a.getDay() + 6) % 7));
+  const days = [0, 1, 2, 3, 4].map(i => addDays(monday, i));
+  const sunday = addDays(monday, 6);
+  const todayStr = today();
+  const PXH = 44; // pixels per planned hour
+
+  const items = plannedItems(monday, sunday).filter(p => !p._allocHold);
+  const byDay = {};
+  items.forEach(p => { (byDay[p.date] = byDay[p.date] || []).push(p); });
+  const loggedByDay = {};
+  completed.forEach(c => {
+    if (c.dateCompleted && c.dateCompleted >= monday && c.dateCompleted <= sunday) {
+      loggedByDay[c.dateCompleted] = (loggedByDay[c.dateCompleted] || 0) + (c.actualHours || 0);
+    }
+  });
+
+  const fri = days[4];
+  const m1 = new Date(monday + 'T00:00:00'), m2 = new Date(fri + 'T00:00:00');
+  const rangeLbl = `${MONTH_NAMES[m1.getMonth()]} ${m1.getDate()} – ${m1.getMonth() !== m2.getMonth() ? MONTH_NAMES[m2.getMonth()] + ' ' : ''}${m2.getDate()}`;
+
+  let html = `<div class="wk-nav">
+    <button class="btn" onclick="wkShift(-1)" style="padding:3px 10px;">‹</button>
+    <span class="wk-range">${rangeLbl}</span>
+    <button class="btn" onclick="wkShift(1)" style="padding:3px 10px;">›</button>
+    ${monday <= todayStr && todayStr <= sunday ? '' : `<button class="btn" onclick="wkToday()" style="padding:3px 10px;font-size:10px;">Today</button>`}
+    <span class="wk-cap-note">box height = planned hours · ${fmtQ(tsCapacity)}h day · drag to move work · click to edit</span>
+  </div><div class="wk-board">`;
+
+  days.forEach(d => {
+    const list = byDay[d] || [];
+    const planned = list.reduce((sum, p) => sum + (p.hours || 0), 0);
+    const logged = loggedByDay[d] || 0;
+    const total = planned + logged;
+    const free = tsCapacity - total;
+    const dt = new Date(d + 'T00:00:00');
+    const loadCol = total > tsCapacity ? 'var(--danger)' : total > tsCapacity * 0.8 ? 'var(--warn)' : 'var(--success)';
+    html += `<div class="wk-col${d === todayStr ? ' today' : ''}${d < todayStr ? ' past' : ''}">
+      <div class="wk-col-head">
+        <span class="wk-col-day">${DAY_NAMES[dt.getDay()]} <b>${dt.getDate()}</b></span>
+        <span class="wk-col-load" style="color:${loadCol};">${fmtQ(total)} / ${fmtQ(tsCapacity)}h</span>
+      </div>
+      <div class="wk-track" style="min-height:${tsCapacity * PXH}px;"
+        ondragover="event.preventDefault();this.classList.add('drag-over-day');"
+        ondragleave="this.classList.remove('drag-over-day');"
+        ondrop="event.preventDefault();this.classList.remove('drag-over-day');_wkDrop('${d}')">`;
+    if (logged > 0) {
+      html += `<div class="wk-item wk-logged" style="height:${Math.max(16, logged * PXH - 3)}px;" title="${fmtQ(logged)}h already logged on this day">✓ logged · ${fmtQ(logged)}h</div>`;
+    }
+    list.forEach(p => {
+      const col = projColor(p.project);
+      const h = Math.max(18, (p.hours || 0.25) * PXH - 3);
+      const draggable = !p._recur && !p._spread;
+      const marker = p._recur ? '↻ ' : p._spread ? '⇶ ' : p._block ? '▣ ' : '';
+      const args = `'${p.id}','${p._src}','${p._projId || ''}','${p._sessionId || ''}','${p._contactId || ''}','${p._stageId || ''}'`;
+      html += `<div class="wk-item${draggable ? '' : ' fixed'}" draggable="${draggable}" style="height:${h}px;border-left-color:${col};background:${col}26;"
+        ondragstart="_wkDragStart(event,${args})"
+        onclick="_wkOpenItem(${args})"
+        title="${escHtml(p.name)} — ${fmtQ(p.hours || 0)}h · ${escHtml(projLabel(p.project))}${p._recur ? ' · recurring (drag from list view)' : ''}${p._spread ? ' · spread slice (edit the plan instead)' : ''}${p._block ? ' · work block' : ''}. Click to edit.">
+        <span class="wk-item-name">${marker}${escHtml(p.name)}</span>
+        <span class="wk-item-hrs">${fmtQ(p.hours || 0)}h</span>
+      </div>`;
+    });
+    if (free >= 0.25) {
+      html += `<div class="wk-free" style="height:${free * PXH - 3}px;">${fmtQ(free)}h free</div>`;
+    } else if (free < 0) {
+      html += `<div class="wk-over-line">${fmtQ(-free)}h over</div>`;
+    }
+    html += `</div></div>`;
+  });
+  html += '</div>';
+
+  const wknd = [...(byDay[addDays(monday, 5)] || []), ...(byDay[sunday] || [])];
+  if (wknd.length) {
+    html += `<div class="wk-wknd">Weekend: ${wknd.map(p => `${escHtml(p.name)} (${fmtQ(p.hours || 0)}h)`).join(' · ')}</div>`;
+  }
+  container.innerHTML = html;
+}
+
 function renderTasks() {
+  const viewBtn = document.getElementById('taskViewToggle');
+  if (viewBtn) viewBtn.textContent = taskViewMode === 'week' ? '☰ List' : '📅 Week';
+  if (taskViewMode === 'week') {
+    const capBar = document.getElementById('tasksCapBar');
+    if (capBar) capBar.style.display = 'none';
+    renderWeekPlanner(document.getElementById('taskList'));
+    return;
+  }
   const search = document.getElementById('taskSearch')?.value?.toLowerCase() || '';
   const fDate  = document.getElementById('filterDate')?.value || 'all';
   const fPri   = document.getElementById('filterPriority')?.value || 'all';
