@@ -1519,6 +1519,9 @@
   .cap-pick-popover .cap-sched-colhdr { display: none; }
   .cap-pick-popover .cap-day-row { cursor: pointer; }
   .cap-pick-popover .cap-day-row:hover { background: rgba(79,156,249,0.14); }
+  .cap-day-row.past { opacity: 0.35; }
+  .cap-pick-popover .cap-day-row.past { cursor: default; }
+  .cap-pick-popover .cap-day-row.past:hover { background: none; }
   .cap-pick-popover .cap-day-row.cap-pick-current { box-shadow: inset 0 0 0 1px var(--accent); }
   .dl-chip {
     display: inline-block; margin-left: 4px; padding: 0 5px; font-size: 9px; font-weight: 700;
@@ -7975,7 +7978,8 @@ function _renderProjCap() {
   panel.appendChild(head);
   panel.appendChild(_renderSchedCalendar(_projCapMonth, {
     highlightProj: selectedProjCode,
-    onDayDrop: _projCapDropAssign
+    onDayDrop: _projCapDropAssign,
+    dimPast: true
   }));
 }
 
@@ -10734,6 +10738,7 @@ function _renderSchedCalendar(ym, opts = {}) {
     }
     const dow = new Date(y, m - 1, dd).getDay();
     const isWeekend = dow === 0 || dow === 6;
+    const isPast = !!opts.dimPast && dateStr < todayStr;
     const dayLogged = (loggedByDay[dateStr] || []).reduce((a, e) => a + (e.actualHours || 0), 0);
     const dayPlanned = (plannedByDay[dateStr] || []).reduce((a, p) => a + (p.hours || 0), 0);
     const committed = dayLogged + dayPlanned;
@@ -10745,7 +10750,9 @@ function _renderSchedCalendar(ym, opts = {}) {
     const preview = labels.length ? labels.slice(0, 2).join(', ') + (labels.length > 2 ? ` +${labels.length - 2} more` : '') : '';
 
     let hrsHtml;
-    if (opts.showFree) {
+    if (isPast) {
+      hrsHtml = `<span style="color:var(--text3);">past</span>`;
+    } else if (opts.showFree) {
       // Headline = room left on the day; committed detail goes in the tooltip
       if (dayCap > 0) {
         const free = dayCap - committed;
@@ -10772,10 +10779,12 @@ function _renderSchedCalendar(ym, opts = {}) {
     const hasProj = opts.highlightProj && (plannedByDay[dateStr] || []).some(p => p.project === opts.highlightProj);
     const row = document.createElement('div');
     row.className = 'cap-day-row' + (isWeekend ? ' weekend' : '') + (dateStr === todayStr ? ' today' : '')
-      + (hasProj ? ' has-proj' : '') + (opts.currentDate === dateStr ? ' cap-pick-current' : '');
-    row.title = `${fmtQ(committed)}h committed${dayCap > 0 ? ' / ' + dayCap + 'h capacity' : ' (weekend)'}`;
-    if (opts.selectionActive && opts.onDayClick) row.onclick = () => opts.onDayClick(dateStr);
-    if (opts.onDayDrop) {
+      + (hasProj ? ' has-proj' : '') + (opts.currentDate === dateStr ? ' cap-pick-current' : '') + (isPast ? ' past' : '');
+    row.title = isPast
+      ? 'Already passed — scheduling looks forward'
+      : `${fmtQ(committed)}h committed${dayCap > 0 ? ' / ' + dayCap + 'h capacity' : ' (weekend)'}`;
+    if (opts.selectionActive && opts.onDayClick && !isPast) row.onclick = () => opts.onDayClick(dateStr);
+    if (opts.onDayDrop && !isPast) {
       row.ondragover = e => { e.preventDefault(); row.classList.add('drag-over-day'); };
       row.ondragleave = () => row.classList.remove('drag-over-day');
       row.ondrop = e => { e.preventDefault(); row.classList.remove('drag-over-day'); opts.onDayDrop(dateStr); };
@@ -11006,6 +11015,7 @@ function _capPickRender() {
     showFree: true,
     excludeId: _capPick.excludeId || null,
     periodDividers: true,
+    dimPast: true,
     currentDate: _capPick.current || ''
   }));
   pop.appendChild(wrap);
@@ -11022,6 +11032,9 @@ function _capPickRender() {
   pop.style.top = _capPick.top + 'px';
   pop.style.display = 'flex';
   _clampPopupToViewport(pop);
+  // Start the list at the relevant day, not at a wall of past dates
+  const target = pop.querySelector('.cap-pick-current') || pop.querySelector('.cap-day-row.today');
+  if (target && target.scrollIntoView) target.scrollIntoView({ block: 'start' });
 }
 
 // Modal helper: ◷ button next to a date input — picker fills the input,
@@ -11199,6 +11212,7 @@ function _renderCapScheduler(container) {
     selectionActive: selCount > 0,
     onDayClick: capAssignHolds,
     rebalanceActive: true,
+    dimPast: true,
     onDayDrop: d => {
       if (!_capDragKey) return;
       _capSchedSelected.clear();
