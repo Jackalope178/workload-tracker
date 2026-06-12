@@ -1501,6 +1501,7 @@
   .cap-pick-popover {
     position: fixed; z-index: 10005;
     width: 370px; max-width: 94vw;
+    max-height: calc(100dvh - 16px);
     background: var(--bg2); border: 1px solid var(--border2);
     border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,0.45);
     display: flex; flex-direction: column;
@@ -1513,7 +1514,7 @@
     font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; cursor: pointer; white-space: nowrap;
   }
   .cap-pick-fit:hover { background: var(--success); color: var(--bg); }
-  .cap-pick-cal-wrap { overflow-y: auto; max-height: min(46vh, 420px); }
+  .cap-pick-cal-wrap { overflow-y: auto; max-height: min(46vh, 420px); flex: 1 1 auto; min-height: 0; }
   .cap-pick-popover .cap-sched-cal { border-right: none; }
   .cap-pick-popover .cap-sched-colhdr { display: none; }
   .cap-pick-popover .cap-day-row { cursor: pointer; }
@@ -10809,6 +10810,27 @@ function openCapacityDatePicker(anchorEl, opts) {
   setTimeout(() => document.addEventListener('click', _capPickOutside, true), 0);
 }
 
+// Keep any fixed-position popup fully on screen: cap its height to the
+// viewport (scrolling internally if needed) and shift it up/left when it
+// would hang past an edge.
+function _clampPopupToViewport(el) {
+  if (!el) return;
+  const pad = 8;
+  const maxH = window.innerHeight - pad * 2;
+  let r = el.getBoundingClientRect();
+  if (r.height > maxH) {
+    el.style.maxHeight = maxH + 'px';
+    el.style.overflowY = 'auto';
+    r = el.getBoundingClientRect();
+  }
+  if (r.bottom > window.innerHeight - pad) {
+    el.style.top = Math.max(pad, window.innerHeight - r.height - pad) + 'px';
+  }
+  if (r.right > window.innerWidth - pad) {
+    el.style.left = Math.max(pad, window.innerWidth - r.width - pad) + 'px';
+  }
+}
+
 function _capPickOutside(e) {
   const pop = document.getElementById('capDatePicker');
   if (pop && !pop.contains(e.target)) closeCapacityDatePicker();
@@ -10999,11 +11021,7 @@ function _capPickRender() {
   pop.style.left = _capPick.left + 'px';
   pop.style.top = _capPick.top + 'px';
   pop.style.display = 'flex';
-  // Keep on screen vertically
-  const r = pop.getBoundingClientRect();
-  if (r.bottom > window.innerHeight - 8) {
-    pop.style.top = Math.max(8, window.innerHeight - r.height - 8) + 'px';
-  }
+  _clampPopupToViewport(pop);
 }
 
 // Modal helper: ◷ button next to a date input — picker fills the input,
@@ -12235,6 +12253,7 @@ function _openScPopup(event, projKey, scId) {
   popup.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
   popup.style.top = (rect.bottom + 4) + 'px';
   popup.style.display = '';
+  _clampPopupToViewport(popup);
 
   // Close on outside click
   setTimeout(() => {
@@ -14415,12 +14434,13 @@ function showDropdown(anchorEl, items, currentVal, callback) {
   menu.style.top = top + 'px';
   menu.classList.add('open');
   _ddCallback = callback;
-  // If menu goes below viewport, reposition above
+  // If menu goes below viewport, reposition above (clamped on screen either way)
   requestAnimationFrame(() => {
     const mRect = menu.getBoundingClientRect();
     if (mRect.bottom > window.innerHeight - 8) {
       menu.style.top = (rect.top - mRect.height - 4) + 'px';
     }
+    _clampPopupToViewport(menu);
   });
 }
 
@@ -14457,6 +14477,7 @@ function showAssignDropdown(e, projId, sessionId, subtaskId) {
   menu.style.left = rect.left + 'px';
   _renderAssignDropdownItems();
   menu.classList.add('open');
+  _clampPopupToViewport(menu);
 }
 
 function _renderAssignDropdownItems() {
@@ -14521,6 +14542,7 @@ function showTaskAssignDropdown(e, taskId) {
   menu.style.left = rect.left + 'px';
   _renderAssignDropdownItems();
   menu.classList.add('open');
+  _clampPopupToViewport(menu);
 }
 
 function toggleTaskPersonAssignment(name) {
@@ -16076,6 +16098,7 @@ function ctAssignTask(e, contactId, stageId, taskId) {
   html += `<div class="assign-item${current.includes('Me') ? ' active' : ''}" onclick="event.stopPropagation();_ctToggleAssign('${contactId}','${stageId}','${taskId}','Me')">${current.includes('Me') ? '✓ ' : ''}Me</div>`;
   pList.innerHTML = html;
   menu.classList.add('open');
+  _clampPopupToViewport(menu);
 }
 
 function _ctToggleAssign(contactId, stageId, taskId, name) {
