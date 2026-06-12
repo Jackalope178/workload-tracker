@@ -4642,7 +4642,7 @@ const SYNC_KEYS = [
   'wt_dup_decisions', 'wt_stale_subcodes',
   'wt_onboarded', 'wt_xlsx_alloc_imported',
   'wt_alloc_rollovers', 'wt_collapsed_task_sections',
-  'wt_contacts', 'wt_contact_stages'
+  'wt_contacts', 'wt_contact_stages', 'wt_alloc_aliases'
 ];
 
 async function cloudSave(key, data) {
@@ -12116,9 +12116,10 @@ function _normBillingCode(code) {
   return (code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-// Normalize a label for fuzzy comparison
+// Normalize a label for fuzzy comparison. '&' and '+' read as 'and' so
+// "Outreach & Engagement" matches "Outreach and Engagement".
 function _normLabel(label) {
-  return (label || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+  return (label || '').toLowerCase().replace(/[&+]/g, ' and ').replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
 }
 
 // Normalize a BigTime Task label for matching: strip leading year ("2026 - ANSI")
@@ -12129,6 +12130,33 @@ function _normTaskLabel(label) {
   s = s.replace(/^20\d{2}\s*[-–—:.]?\s*/, '');
   s = s.replace(/^\d{1,2}\s*[.)\-–:]\s*/, '');
   return _normLabel(s);
+}
+
+// Token-set key: prefix-stripped words minus connector stop-words, sorted —
+// so "Community Engagement – Outreach" === "Outreach: Community Engagement"
+// and "Outreach and Engagement" === "Outreach & Engagement".
+const _STOPWORDS = new Set(['and', 'the', 'of', 'for', 'to', 'a', 'an', 'in', 'on', 'with']);
+function _tokenKey(label) {
+  return _normTaskLabel(label).split(' ').filter(w => w && !_STOPWORDS.has(w)).sort().join(' ');
+}
+
+// ── Import alias memory ──
+// Every manual remap in the import preview is remembered per project:
+// normalized imported Task name → existing sub-code id. The matcher consults
+// aliases first, so a correction made once holds for every future import.
+let allocAliases = load('wt_alloc_aliases', {});
+
+function _aliasKey(label) {
+  return _normTaskLabel(label);
+}
+
+function _recordAllocAlias(projKey, importedLabel, scId) {
+  const key = _aliasKey(importedLabel);
+  if (!projKey || !key || !scId) return;
+  if (!allocAliases[projKey]) allocAliases[projKey] = {};
+  if (allocAliases[projKey][key] === scId) return;
+  allocAliases[projKey][key] = scId;
+  save('wt_alloc_aliases', allocAliases);
 }
 
 // Find project key by billing code, or create a new one
@@ -12181,41 +12209,6 @@ function _findOrCreateProject(billingCode, jobLabel) {
   return newKey;
 }
 
-// Ensure a sub-code exists on a project, return its id
-function _ensureSubCode(projKey, code, label) {
-  if (!PROJECTS[projKey].subCodes) PROJECTS[projKey].subCodes = [];
-  const scs = PROJECTS[projKey].subCodes;
-  const normLbl = _normLabel(label);
-
-  // 1. Exact label match (case-insensitive)
-  let existing = scs.find(s => s.label.toLowerCase() === label.toLowerCase());
-  if (existing) return existing.id;
-
-  // 2. Normalized label match (strips punctuation)
-  existing = scs.find(s => _normLabel(s.label) === normLbl);
-  if (existing) return existing.id;
-
-  // 3. Contains match (one contains the other, min 4 chars)
-  if (normLbl.length >= 4) {
-    existing = scs.find(s => {
-      const sn = _normLabel(s.label);
-      return sn && (sn.includes(normLbl) || normLbl.includes(sn));
-    });
-    if (existing) return existing.id;
-  }
-
-  // 4. Code match
-  if (code) {
-    existing = scs.find(s => s.code && s.code === code);
-    if (existing) return existing.id;
-  }
-
-  const newId = uid();
-  const num = scs.length + 1;
-  scs.push({ id: newId, code: String(num), label: label });
-  return newId;
-}
-
 // Pure match: find project key without creating, returns null if no match
 function _matchProject(billingCode, jobLabel) {
   const normCode = _normBillingCode(billingCode);
@@ -12243,6 +12236,9 @@ function _matchProject(billingCode, jobLabel) {
 function _matchSubCode(projKey, label) {
   if (!PROJECTS[projKey]) return { scId: null, matchType: 'new' };
   const scs = PROJECTS[projKey].subCodes || [];
+  // 0. Alias memory: a remap the user made in a previous import wins outright
+  const aliasSc = (allocAliases[projKey] || {})[_aliasKey(label)];
+  if (aliasSc && scs.some(s => s.id === aliasSc)) return { scId: aliasSc, matchType: 'alias' };
   const normLbl = _normLabel(label);
   const taskLbl = _normTaskLabel(label);
   let existing = scs.find(s => s.label.toLowerCase() === label.toLowerCase());
@@ -12252,6 +12248,13 @@ function _matchSubCode(projKey, label) {
   // Year/number prefixes stripped: "2026 - ANSI" ↔ "ANSI", "1. Project meetings" ↔ "Project meetings"
   if (taskLbl) {
     existing = scs.find(s => _normTaskLabel(s.label) === taskLbl);
+    if (existing) return { scId: existing.id, matchType: 'normalized' };
+  }
+  // Same words, any order, connectors ignored: "Outreach – Community Engagement"
+  // ↔ "Community Engagement Outreach"
+  const tk = _tokenKey(label);
+  if (tk) {
+    existing = scs.find(s => _tokenKey(s.label) === tk);
     if (existing) return { scId: existing.id, matchType: 'normalized' };
   }
   // "Task N: ..." rows match by their task number even when the wording was
@@ -12265,11 +12268,16 @@ function _matchSubCode(projKey, label) {
     if (existing) return { scId: existing.id, matchType: 'contains' };
   }
   if (taskLbl.length >= 4) {
-    existing = scs.find(s => {
-      const sn = _normTaskLabel(s.label);
-      return sn && (sn.includes(taskLbl) || taskLbl.includes(sn));
+    // Among containment candidates prefer the most specific (closest length),
+    // so "Meetings & travel" beats "Meetings" for "Meetings and travel costs"
+    let best = null, bestScore = 0;
+    scs.forEach(sc => {
+      const sn = _normTaskLabel(sc.label);
+      if (!sn || !(sn.includes(taskLbl) || taskLbl.includes(sn))) return;
+      const score = Math.min(sn.length, taskLbl.length) / Math.max(sn.length, taskLbl.length);
+      if (score > bestScore) { best = sc; bestScore = score; }
     });
-    if (existing) return { scId: existing.id, matchType: 'contains' };
+    if (best) return { scId: best.id, matchType: 'contains' };
   }
   return { scId: null, matchType: 'new' };
 }
@@ -13189,6 +13197,8 @@ function _aipRenderRow(row, idx) {
     badge = '✎ overridden'; badgeColor = 'var(--warn)';
   } else if (resolved.isNew) {
     badge = '+ new sub-code'; badgeColor = 'var(--accent)';
+  } else if (resolved.matchType === 'alias') {
+    badge = '✓ remembered'; badgeColor = 'var(--success)';
   } else if (resolved.matchType === 'exact' || resolved.matchType === 'normalized') {
     badge = '✓ match'; badgeColor = 'var(--success)';
   } else if (resolved.matchType === 'contains') {
@@ -13232,6 +13242,17 @@ function _aipRenderRow(row, idx) {
       : `<span style="color:var(--text3);font-style:italic;">(no sub-code)</span>`;
   } else {
     const availableSubCodes = (PROJECTS[proj.projKey]?.subCodes || []).map(s => ({ id: s.id, label: s.label }));
+    // Most similar to the imported name first, so the right remap target is on top
+    if (row.taskName) {
+      const want = new Set(_tokenKey(row.taskName).split(' ').filter(Boolean));
+      const sim = lbl => {
+        const have = _tokenKey(lbl).split(' ').filter(Boolean);
+        if (!want.size || !have.length) return 0;
+        const overlap = have.filter(w => want.has(w)).length;
+        return overlap / Math.max(want.size, have.length);
+      };
+      availableSubCodes.sort((a, b) => sim(b.label) - sim(a.label) || a.label.localeCompare(b.label));
+    }
     if (!row.taskName && availableSubCodes.length === 0) {
       scControl = `<span style="color:var(--text3);font-style:italic;">(project-level, no sub-code)</span>`;
     } else {
@@ -13447,6 +13468,13 @@ function _commitAllocImportPlan() {
     let scId = '';
     if (resolved.scId) {
       scId = resolved.scId;
+      // Remember the user's manual remap so future imports of this Task name
+      // auto-match (badge: ✓ remembered). Fuzzy auto-matches the user accepted
+      // unchanged are also pinned — silence is approval, and pinning makes the
+      // next import deterministic even if labels drift further.
+      if (r.taskName && (resolved.matchType === 'override' || resolved.matchType === 'contains')) {
+        _recordAllocAlias(projKey, r.taskName, scId);
+      }
       // Honor "use imported name" by renaming the matched sub-code
       if (r.useImportedScLabel && r.taskName && PROJECTS[projKey]) {
         const sc = (PROJECTS[projKey].subCodes || []).find(s => s.id === scId);
@@ -13457,6 +13485,11 @@ function _commitAllocImportPlan() {
       }
     } else if (r.taskName && resolved.isNew) {
       scId = _createSubCode(projKey, r.taskName);
+      // Explicit "create new" overrules a remembered remap of this name
+      if (r.userOverride === 'create-new' && allocAliases[projKey]?.[_aliasKey(r.taskName)]) {
+        delete allocAliases[projKey][_aliasKey(r.taskName)];
+        save('wt_alloc_aliases', allocAliases);
+      }
     }
 
     importedScs.add(projKey + '|' + scId);
@@ -14580,6 +14613,7 @@ function reloadStateFromLocalStorage() {
   _dupDecisions = load('wt_dup_decisions', {});
   _staleSubCodes = new Set(load('wt_stale_subcodes', []));
   _allocRollovers = load('wt_alloc_rollovers', {});
+  allocAliases = load('wt_alloc_aliases', {});
   _collapsedTaskSections = new Set(load('wt_collapsed_task_sections', []));
   contactStages = load('wt_contact_stages', contactStages);
   contacts = load('wt_contacts', []);
