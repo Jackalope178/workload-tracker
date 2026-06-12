@@ -1540,7 +1540,9 @@
   .wk-item:hover { filter: brightness(1.25); }
   .wk-item.fixed { cursor: pointer; opacity: 0.8; }
   .wk-item-name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .wk-item-hrs { color: var(--text3); font-size: 9px; }
+  .wk-item-hrs { color: var(--text3); font-size: 9px; flex-shrink: 0; }
+  .wk-item.wk-item-sm { flex-direction: row; align-items: center; gap: 4px; padding: 0 6px; }
+  .wk-item.wk-item-sm .wk-item-name { display: block; -webkit-line-clamp: 1; white-space: nowrap; flex: 1; min-width: 0; font-size: 9px; line-height: 1; }
   .wk-item.wk-logged { background: var(--border); border-left-color: var(--success); color: var(--text3); cursor: default; justify-content: center; font-size: 9px; }
   .wk-free { border: 1px dashed var(--border2); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--text3); flex-shrink: 0; }
   .wk-over-line { font-size: 9px; color: var(--danger); font-weight: 700; text-align: center; flex-shrink: 0; }
@@ -6209,10 +6211,12 @@ function renderWeekPlanner(container) {
     list.forEach(p => {
       const col = projColor(p.project);
       const h = Math.max(18, (p.hours || 0.25) * PXH - 3);
+      // Short boxes can't fit two lines — go single-row: icon + title + hours
+      const small = h < 34;
       const draggable = !p._recur && !p._spread;
       const marker = p._recur ? '↻ ' : p._spread ? '⇶ ' : p._block ? '▣ ' : '';
       const args = `'${p.id}','${p._src}','${p._projId || ''}','${p._sessionId || ''}','${p._contactId || ''}','${p._stageId || ''}'`;
-      html += `<div class="wk-item${draggable ? '' : ' fixed'}" draggable="${draggable}" style="height:${h}px;border-left-color:${col};background:${col}26;"
+      html += `<div class="wk-item${draggable ? '' : ' fixed'}${small ? ' wk-item-sm' : ''}" draggable="${draggable}" style="height:${h}px;border-left-color:${col};background:${col}26;"
         ondragstart="_wkDragStart(event,${args})"
         onclick="_wkOpenItem(${args})"
         title="${escHtml(p.name)} — ${fmtQ(p.hours || 0)}h · ${escHtml(projLabel(p.project))}${p._recur ? ' · recurring (drag from list view)' : ''}${p._spread ? ' · spread slice (edit the plan instead)' : ''}${p._block ? ' · work block' : ''}. Click to edit.">
