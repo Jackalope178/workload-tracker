@@ -3449,6 +3449,15 @@ if (typeof XLSX === 'undefined') {
           <input type="checkbox" id="editWorkSpread"> Spread the estimated hours evenly across weekdays from work date through due date
         </label>
       </div>
+      <div class="edit-form-group full">
+        <label class="edit-label">Work blocks <span style="font-weight:400;font-size:9px;color:var(--text3);">(bite-sized sessions under this deadline — each lands on capacity on its own day; the remainder rides the due date)</span></label>
+        <div id="editBlocksList"></div>
+        <div style="display:flex;gap:6px;margin-top:4px;align-items:center;flex-wrap:wrap;">
+          <button type="button" class="btn" onclick="blkAddRow()" style="font-size:10px;padding:3px 8px;">+ Block</button>
+          <button type="button" class="btn" onclick="blkAutoFill()" style="font-size:10px;padding:3px 8px;" title="Pack the un-blocked remainder into days with free capacity before the due date">⚡ Auto-fill remainder</button>
+          <span id="editBlocksSummary" style="font-size:10px;color:var(--text3);"></span>
+        </div>
+      </div>
       <div class="edit-form-group">
         <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
         <input class="edit-input" type="month" id="editAllocMonth">
@@ -6068,7 +6077,7 @@ function renderTasks() {
       const eff = obj.workDate || baseDate || null;
       allItems.push({ _type: type, ...refs, _date: eff, _occurrenceDate: baseDate || null,
         _deadline: (obj.workDate && baseDate && obj.workDate !== baseDate) ? baseDate : null,
-        _estShare: _spreadShare(obj, baseDate) });
+        _estShare: _spreadShare(obj, baseDate) ?? ((obj.subtasks || obj.blocks)?.length ? _ownPlannedHours(obj) : null) });
     }
   }
   // Per-day share for spread items (null = not spreading)
@@ -6076,7 +6085,7 @@ function renderTasks() {
     if (!obj.workSpread || !obj.workDate || !deadline || obj.workDate >= deadline) return null;
     const n = workingDays(obj.workDate, deadline);
     if (n <= 1) return null;
-    return (obj.est ?? obj.hours ?? 0) / n;
+    return _ownPlannedHours(obj) / n;
   }
   visible.forEach(t => {
     try {
@@ -6098,7 +6107,12 @@ function renderTasks() {
         const eff = t.workDate || t.due || null;
         allItems.push({ _type: 'task', task: t, _date: eff, _occurrenceDate: t.due,
           _deadline: (t.workDate && t.due && t.workDate !== t.due) ? t.due : null,
-          _estShare: _spreadShare(t, t.due) });
+          _estShare: _spreadShare(t, t.due) ?? ((t.blocks || []).length ? _ownPlannedHours(t) : null) });
+        (t.blocks || []).forEach(b => {
+          if (b.done) return;
+          allItems.push({ _type: 'block', task: t, block: b, _date: b.date || null, _occurrenceDate: b.date || null,
+            _deadline: (t.due && b.date && t.due !== b.date) ? t.due : null });
+        });
       }
     } catch(e) {
       // Fallback: show task as single item if occurrence generation fails.
@@ -6155,7 +6169,7 @@ function renderTasks() {
   }
 
   const priorityOrder = { meeting: -1, urgent: 0, high: 1, med: 2, low: 3 };
-  const itemPri = i => i._type === 'task' ? priorityOrder[i.task.priority] : i._type === 'contact' ? (priorityOrder[i.ct.priority] ?? 2) : i._type === 'session' ? (priorityOrder[i.s.priority] ?? 2) : (priorityOrder[i.st.priority] ?? 2);
+  const itemPri = i => i._type === 'task' || i._type === 'block' ? (priorityOrder[i.task.priority] ?? 2) : i._type === 'contact' ? (priorityOrder[i.ct.priority] ?? 2) : i._type === 'session' ? (priorityOrder[i.s.priority] ?? 2) : (priorityOrder[i.st.priority] ?? 2);
   allItems.sort((a, b) => (a._date || 'zzz').localeCompare(b._date || 'zzz') || itemPri(a) - itemPri(b));
 
   // ── date helpers ──
@@ -6240,7 +6254,7 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${projColor(task.project)};" title="${projLabel(task.project)}"></div>
-        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${delegateTagsHtml(task.delegatedTo)}${task.waiting ? `<span class="task-waiting">⏳ ${escHtml(task.waiting)}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}${spreadBadgeHtml(task, task.due)}</div>
+        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${delegateTagsHtml(task.delegatedTo)}${task.waiting ? `<span class="task-waiting">⏳ ${escHtml(task.waiting)}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}${spreadBadgeHtml(task, task.due)}${blocksBadgeHtml(task)}</div>
         <div class="task-recur-actions"><button class="row-edit-btn" onclick="event.stopPropagation();showTaskAssignDropdown(event,'${task.id}')" title="Assign" style="font-size:11px;padding:2px 4px;">↗</button>${task.recurrence ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>` : ''}</div>
         <span class="task-category">${projLabel(task.project)}</span>
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
@@ -6295,6 +6309,24 @@ function renderTasks() {
           <div class="timer-btn${stRunning ? ' running' : ''}" onclick="${stRunning ? `stopSubtaskTimer('${proj.id}','${s.id}','${st.id}')` : `startSubtaskTimer('${proj.id}','${s.id}','${st.id}')`}" title="${stRunning ? 'Stop' : 'Start'} timer">${stRunning ? '⏹' : '▶'}</div>
           <div class="row-del-btn" onclick="event.stopPropagation();deleteSubtask('${proj.id}','${s.id}','${st.id}')" title="Delete subtask">×</div>
         </div>`;
+    } else if (item._type === 'block') {
+      const bt = item.task, b = item.block;
+      const dc = dueCls(item._date);
+      row.className = 'task-row';
+      row.style.paddingLeft = '20px';
+      row.style.borderLeft = '2px solid var(--border)';
+      row.innerHTML = `
+        <div class="task-check" onclick="openBlockCompletionModal('${bt.id}','${b.id}')" title="Log this block as done"></div>
+        <div class="project-dot" style="background:${projColor(bt.project)};" title="${projLabel(bt.project)}"></div>
+        <div class="task-name" onclick="openEditModal('${bt.id}')" style="font-size:11px;">╰ ${escHtml(bt.name)}${b.desc ? ` <span style="color:var(--text3);">· ${escHtml(b.desc)}</span>` : ''} <span class="recur-badge" title="Work block — part of ${fmtQ(bt.est || 0)}h total">▣ block</span></div>
+        <div class="task-recur-actions"></div>
+        <span class="task-category">${projLabel(bt.project)}</span>
+        <div>${priorityBadge(bt.priority)}</div>
+        <div class="task-due ${dc}" style="font-size:11px;cursor:pointer;" onclick="openBlockDatePicker(this,'${bt.id}','${b.id}')">${fmtDate(b.date)}${deadlineChipHtml(item._deadline, b.date, `openTaskDeadlinePicker(this,'${bt.id}')`)}</div>
+        <div class="task-est" style="font-size:11px;">${b.hours ? fmtQ(b.hours) + 'h' : '—'}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="row-del-btn" onclick="event.stopPropagation();deleteTaskBlock('${bt.id}','${b.id}')" title="Delete block">×</div>
+        </div>`;
     } else if (item._type === 'contact') {
       const ct = item.ct;
       const dc = dueCls(ct.due);
@@ -6321,20 +6353,20 @@ function renderTasks() {
     sorted.sort((a, b) => {
       let va, vb;
       if (sortKey === 'priority') {
-        va = a._type === 'task' ? priorityOrder[a.task.priority] : a._type === 'contact' ? (priorityOrder[a.ct.priority] ?? 2) : a._type === 'session' ? (priorityOrder[a.s.priority] ?? 2) : (priorityOrder[a.st.priority] ?? 2);
-        vb = b._type === 'task' ? priorityOrder[b.task.priority] : b._type === 'contact' ? (priorityOrder[b.ct.priority] ?? 2) : b._type === 'session' ? (priorityOrder[b.s.priority] ?? 2) : (priorityOrder[b.st.priority] ?? 2);
+        va = a._type === 'task' || a._type === 'block' ? (priorityOrder[a.task.priority] ?? 2) : a._type === 'contact' ? (priorityOrder[a.ct.priority] ?? 2) : a._type === 'session' ? (priorityOrder[a.s.priority] ?? 2) : (priorityOrder[a.st.priority] ?? 2);
+        vb = b._type === 'task' || b._type === 'block' ? (priorityOrder[b.task.priority] ?? 2) : b._type === 'contact' ? (priorityOrder[b.ct.priority] ?? 2) : b._type === 'session' ? (priorityOrder[b.s.priority] ?? 2) : (priorityOrder[b.st.priority] ?? 2);
       } else if (sortKey === 'project') {
-        va = a._type === 'task' ? (a.task.project || '') : a._type === 'contact' ? (a.ct.project || '') : (a.proj?.project || '');
-        vb = b._type === 'task' ? (b.task.project || '') : b._type === 'contact' ? (b.ct.project || '') : (b.proj?.project || '');
+        va = a._type === 'task' || a._type === 'block' ? (a.task.project || '') : a._type === 'contact' ? (a.ct.project || '') : (a.proj?.project || '');
+        vb = b._type === 'task' || b._type === 'block' ? (b.task.project || '') : b._type === 'contact' ? (b.ct.project || '') : (b.proj?.project || '');
       } else if (sortKey === 'est') {
-        va = a._type === 'task' ? (a.task.est || 0) : a._type === 'contact' ? (a.ct.est || 0) : a._type === 'session' ? (a.s.hours || 0) : (a.st.hours || 0);
-        vb = b._type === 'task' ? (b.task.est || 0) : b._type === 'contact' ? (b.ct.est || 0) : b._type === 'session' ? (b.s.hours || 0) : (b.st.hours || 0);
+        va = a._type === 'task' ? (a.task.est || 0) : a._type === 'block' ? (a.block.hours || 0) : a._type === 'contact' ? (a.ct.est || 0) : a._type === 'session' ? (a.s.hours || 0) : (a.st.hours || 0);
+        vb = b._type === 'task' ? (b.task.est || 0) : b._type === 'block' ? (b.block.hours || 0) : b._type === 'contact' ? (b.ct.est || 0) : b._type === 'session' ? (b.s.hours || 0) : (b.st.hours || 0);
       } else if (sortKey === 'due') {
         va = a._date || 'zzz';
         vb = b._date || 'zzz';
       } else if (sortKey === 'name') {
-        va = (a._type === 'task' ? a.task.name : a._type === 'contact' ? a.ct.name : a._type === 'session' ? a.s.desc : a.st.desc).toLowerCase();
-        vb = (b._type === 'task' ? b.task.name : b._type === 'contact' ? b.ct.name : b._type === 'session' ? b.s.desc : b.st.desc).toLowerCase();
+        va = (a._type === 'task' || a._type === 'block' ? a.task.name : a._type === 'contact' ? a.ct.name : a._type === 'session' ? a.s.desc : a.st.desc).toLowerCase();
+        vb = (b._type === 'task' || b._type === 'block' ? b.task.name : b._type === 'contact' ? b.ct.name : b._type === 'session' ? b.s.desc : b.st.desc).toLowerCase();
       } else {
         return 0;
       }
@@ -6360,6 +6392,7 @@ function renderTasks() {
   // Estimated hours an item contributes to ITS bucket's capacity bar — spread
   // items contribute only their per-day share, not the whole estimate.
   function _itemEstFor(i) {
+    if (i._type === 'block') return i.block.hours || 0;
     if (i._estShare != null) return i._estShare;
     return i._type === 'task' ? (i.task.est || 0) : i._type === 'contact' ? (i.ct.est || 0) : i._type === 'session' ? (i.s.hours || 0) : (i.st.hours || 0);
   }
@@ -6865,6 +6898,8 @@ function openEditModal(taskId) {
   document.getElementById('editDue').value = _nextUpcomingRecurrence(task);
   document.getElementById('editWorkDate').value = task.workDate || '';
   document.getElementById('editWorkSpread').checked = !!task.workSpread;
+  _blockDraft = (task.blocks || []).map(b => ({ ...b }));
+  _renderBlockEditor();
   document.getElementById('editAllocMonth').value = task.allocMonth || '';
   document.getElementById('editEst').value = task.est || '';
   // category removed from UI
@@ -6917,6 +6952,66 @@ function clearEditingTaskTimer() {
   updateActiveStrip();
 }
 
+// ── Work-block editor (task modal) ──
+// Edits happen on a draft; nothing persists until Save. Done blocks are
+// shown locked — their time entries already exist.
+let _blockDraft = [];
+
+function _renderBlockEditor() {
+  const list = document.getElementById('editBlocksList');
+  if (!list) return;
+  list.innerHTML = _blockDraft.map((b, i) => `
+    <div style="display:flex;gap:4px;margin-bottom:3px;align-items:center;${b.done ? 'opacity:0.55;' : ''}">
+      <input class="edit-input" type="date" value="${b.date || ''}" onchange="_blkUpd(${i},'date',this.value)" style="flex:0 0 132px;" ${b.done ? 'disabled' : ''}>
+      <input class="edit-input" type="number" step="0.25" min="0.25" value="${b.hours ?? ''}" onchange="_blkUpd(${i},'hours',this.value)" placeholder="h" style="flex:0 0 64px;" ${b.done ? 'disabled' : ''}>
+      <input class="edit-input" type="text" value="${escHtml(b.desc || '')}" onchange="_blkUpd(${i},'desc',this.value)" placeholder="label (optional)" style="flex:1;min-width:0;" ${b.done ? 'disabled' : ''}>
+      ${b.done ? '<span style="font-size:9px;color:var(--success,#4ade80);white-space:nowrap;">✓ logged</span>' : `<button type="button" class="btn" onclick="_blkDel(${i})" style="padding:2px 8px;flex-shrink:0;">×</button>`}
+    </div>`).join('');
+  const sum = document.getElementById('editBlocksSummary');
+  if (sum) {
+    const est = parseFloat(document.getElementById('editEst')?.value) || 0;
+    const blocked = _blockDraft.reduce((a, b) => a + (parseFloat(b.hours) || 0), 0);
+    sum.textContent = _blockDraft.length
+      ? `${fmtQ(blocked)}h of ${fmtQ(est)}h in blocks · ${fmtQ(Math.max(0, est - blocked))}h remainder`
+      : '';
+  }
+}
+
+function _blkUpd(i, field, val) {
+  if (!_blockDraft[i]) return;
+  _blockDraft[i][field] = field === 'hours' ? (parseFloat(val) || 0) : val;
+  _renderBlockEditor();
+}
+
+function _blkDel(i) {
+  _blockDraft.splice(i, 1);
+  _renderBlockEditor();
+}
+
+function blkAddRow() {
+  _blockDraft.push({ id: uid(), date: '', hours: 1, desc: '', done: false });
+  _renderBlockEditor();
+}
+
+function blkAutoFill() {
+  const est = parseFloat(document.getElementById('editEst')?.value) || 0;
+  const blocked = _blockDraft.reduce((a, b) => a + (parseFloat(b.hours) || 0), 0);
+  const rem = Math.max(0, est - blocked);
+  if (rem < 0.25) { showSyncToast('Nothing left to plan — blocks already cover the estimate.', 'warn'); return; }
+  const due = document.getElementById('editDue')?.value || null;
+  const excludeId = editingTaskId && editingTaskId !== '__new__' ? editingTaskId : null;
+  const packed = packIntoFreeDays(rem, { before: due, excludeId });
+  if (!packed.length) { showSyncToast('No free capacity found' + (due ? ' before the due date' : ' in the next 10 weeks') + '.', 'warn'); return; }
+  packed.forEach(pb => _blockDraft.push({ id: uid(), date: pb.date, hours: pb.hours, desc: '', done: false }));
+  _renderBlockEditor();
+  const placedH = packed.reduce((a, b) => a + b.hours, 0);
+  if (placedH < rem - 0.001) {
+    showSyncToast(`Only ${fmtQ(placedH)}h of ${fmtQ(rem)}h fit${due ? ' before the deadline' : ''} — the rest stays as remainder.`, 'warn');
+  } else {
+    showSyncToast(`Planned ${fmtQ(placedH)}h into ${packed.length} block${packed.length > 1 ? 's' : ''}.`, 'success');
+  }
+}
+
 function closeEditModal() {
   document.getElementById('editTaskModal').classList.remove('open');
   editingTaskId = null;
@@ -6949,6 +7044,16 @@ function saveEditTask() {
   task.workDate = task.recurrence || document.getElementById('editRecurType').value
     ? null : (document.getElementById('editWorkDate').value || null);
   task.workSpread = !!document.getElementById('editWorkSpread').checked;
+  {
+    const recurPicked = !!document.getElementById('editRecurType').value;
+    const kept = recurPicked ? [] : _blockDraft.filter(b => b.done || (b.date && (parseFloat(b.hours) || 0) >= 0.25));
+    const dropped = (recurPicked ? _blockDraft.length : _blockDraft.length - kept.length);
+    task.blocks = kept.map(b => ({ ...b, hours: roundToQuarter(parseFloat(b.hours) || 0) }));
+    if (!task.blocks.length) delete task.blocks;
+    if (dropped > 0) showSyncToast(recurPicked
+      ? 'Recurring tasks can\'t have work blocks — blocks removed.'
+      : `${dropped} block${dropped > 1 ? 's' : ''} without a date/hours dropped.`, 'warn');
+  }
   if (task.workDate && task.due && task.workDate > task.due) {
     showSyncToast('Work date is after the due date — ⚑ flagged red.', 'warn');
   }
@@ -7215,6 +7320,82 @@ let completingTaskId = null;
 // Context for session/subtask completion: { type: 'session'|'subtask', projId, sessionId, subtaskId? }
 let _completingCtx = null;
 
+// Log a single work block: writes a time entry on the block's day and marks
+// the block done — the parent task stays open until its own checkbox is hit.
+function openBlockCompletionModal(taskId, blockId) {
+  const task = tasks.find(t => t.id === taskId);
+  const b = task && (task.blocks || []).find(b => b.id === blockId);
+  if (!b) return;
+  if (b.done) { b.done = false; save('wt_tasks', tasks); renderTasks(); return; }
+  completingTaskId = null;
+  _completingCtx = { type: 'block', taskId, blockId };
+  document.getElementById('compModalTitle').textContent = 'Log Work Block';
+  document.getElementById('compModalSub').textContent = task.name + (b.desc ? ' — ' + b.desc : '') + ` (block of ${fmtQ(task.est || 0)}h total)`;
+  document.getElementById('compEst').textContent = b.hours ? fmtQ(b.hours) + 'h' : '—';
+  document.getElementById('compTimer').textContent = 'No timer data';
+  document.getElementById('compBillable').value = b.hours || 0.25;
+  const varEl = document.getElementById('compVariance');
+  varEl.textContent = '—'; varEl.className = 'modal-value';
+  populateSubCodeSelect('compSubCode', task.project, task.subCode || '');
+  document.getElementById('compDate').value = b.date || today();
+  document.getElementById('completionModal').classList.add('open');
+}
+
+function openBlockDatePicker(el, taskId, blockId) {
+  const task = tasks.find(t => t.id === taskId);
+  const b = task && (task.blocks || []).find(b => b.id === blockId);
+  if (!b) return;
+  openCapacityDatePicker(el, {
+    current: b.date || '',
+    itemHours: b.hours || 0,
+    excludeId: task.id + '_' + b.id,
+    label: 'Block — ' + task.name,
+    project: task.project,
+    subCode: task.subCode || '',
+    fitBy: task.due || null,
+    onPick: d => {
+      b.date = d;
+      if (task.due && d > task.due) showSyncToast('Block scheduled after the deadline — ⚑ flagged red.', 'warn');
+      save('wt_tasks', tasks); _afterDateChange();
+    },
+    onClear: () => { b.date = ''; save('wt_tasks', tasks); _afterDateChange(); }
+  });
+}
+
+// Break a work item's un-planned remainder into dated subtasks packed onto
+// days with free capacity before its deadline.
+function autoPlanSessionRemainder(projId, sessionId) {
+  const bp = bigProjs.find(p => p.id === projId);
+  const sess = bp && bp.sessions.find(x => x.id === sessionId);
+  if (!sess) return;
+  if (sess.recurrence) { showSyncToast('Recurring work items can\'t be auto-planned.', 'warn'); return; }
+  const rem = _ownPlannedHours(sess);
+  if (rem < 0.25) { showSyncToast('Nothing left to plan — subtasks already cover the hours.', 'warn'); return; }
+  const packed = packIntoFreeDays(rem, { before: sess.date || null, excludeId: sess.id });
+  if (!packed.length) { showSyncToast('No free capacity found' + (sess.date ? ' before the deadline' : ' in the next 10 weeks') + '.', 'warn'); return; }
+  sess.subtasks = sess.subtasks || [];
+  let n = sess.subtasks.length;
+  packed.forEach(pb => {
+    n += 1;
+    sess.subtasks.push({ id: uid(), desc: 'Work block ' + n, date: pb.date, hours: pb.hours, done: false, subCode: sess.subCode || '', priority: sess.priority || 'med' });
+  });
+  save('wt_bigprojs', bigProjs);
+  const placedH = packed.reduce((a, b) => a + b.hours, 0);
+  showSyncToast(placedH < rem - 0.001
+    ? `Planned ${fmtQ(placedH)}h of ${fmtQ(rem)}h — no room for the rest before the deadline.`
+    : `Planned ${fmtQ(placedH)}h into ${packed.length} subtask${packed.length > 1 ? 's' : ''}.`,
+    placedH < rem - 0.001 ? 'warn' : 'success');
+  renderProjects(); renderTasks(); renderTimesheet(); renderCapacity();
+}
+
+function deleteTaskBlock(taskId, blockId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+  task.blocks = (task.blocks || []).filter(b => b.id !== blockId);
+  save('wt_tasks', tasks);
+  renderTasks(); renderProjects(); renderTimesheet(); renderCapacity();
+}
+
 function openCompletionModal(taskId) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
@@ -7224,7 +7405,8 @@ function openCompletionModal(taskId) {
   _completingCtx = null;
   const secs = task.timer;
   const rawHours = secsToHours(secs);
-  const billable = rawHours > 0 ? roundToQuarter(rawHours) : (task.est ? roundToQuarter(task.est) : 0);
+  const billable = rawHours > 0 ? roundToQuarter(rawHours)
+    : roundToQuarter((task.blocks || []).length ? _ownPlannedHours(task) : (task.est || 0));
 
   if (task.recurrence) {
     const nextDate = nextRecurrenceAfter(task, task.due || today());
@@ -7369,6 +7551,32 @@ function confirmComplete() {
   if (_completingCtx) {
     const ctx = _completingCtx;
 
+    // Work block: log time, mark the block done, leave the parent task open
+    if (ctx.type === 'block') {
+      const task = tasks.find(t => t.id === ctx.taskId);
+      const b = task && (task.blocks || []).find(b => b.id === ctx.blockId);
+      if (!b) return;
+      completed.unshift({
+        id: uid(),
+        name: task.name + (b.desc ? ' — ' + b.desc : ' — work block'),
+        project: task.project,
+        subCode: subCode,
+        dateCompleted: dateCompleted,
+        estHours: b.hours || 0,
+        actualHours: billable,
+        category: task.category || ''
+      });
+      b.done = true;
+      save('wt_completed', completed);
+      save('wt_tasks', tasks);
+      closeCompletionModal();
+      if ((task.blocks || []).every(x => x.done) && _ownPlannedHours(task) <= 0) {
+        showSyncToast('All blocks logged — tick the task itself to close it out.', 'success');
+      }
+      renderTasks(); renderProjects(); renderTimesheet(); renderCapacity();
+      return;
+    }
+
     // Contact task completion
     if (ctx.type === 'contact') {
       const c = contacts.find(c => c.id === ctx.contactId);
@@ -7481,7 +7689,9 @@ function confirmComplete() {
       project: task.project,
       subCode: subCode,
       dateCompleted: dateCompleted,
-      estHours: task.est,
+      // Blocked-out hours were logged with their own entries; the final entry
+      // carries only the remainder so est totals don't double-count.
+      estHours: (task.blocks || []).length ? _ownPlannedHours(task) : task.est,
       actualHours: billable,
       category: task.category
     };
@@ -8082,6 +8292,15 @@ function spreadBadgeHtml(obj, deadline) {
   return `<span class="recur-badge" title="${fmtQ(hrs)}h spread across ${n} weekdays (≈${fmtQ(hrs / n)}h/day) from ${obj.workDate} through ${deadline}">⇶ spread</span>`;
 }
 
+function blocksBadgeHtml(t) {
+  const blocks = t.blocks || [];
+  if (!blocks.length) return '';
+  const doneN = blocks.filter(b => b.done).length;
+  const planned = _childPlannedHours(t);
+  const rem = _ownPlannedHours(t);
+  return `<span class="recur-badge" title="${fmtQ(planned)}h of ${fmtQ(t.est || 0)}h blocked into ${blocks.length} session${blocks.length > 1 ? 's' : ''} (${doneN} done)${rem > 0 ? ' · ' + fmtQ(rem) + 'h remainder on the due date' : ''}">▣ ${doneN}/${blocks.length}</span>`;
+}
+
 function holdMonthPill(allocMonth) {
   if (!allocMonth) return '';
   return `<span style="background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;white-space:nowrap;" title="Held for capacity in ${allocMonth}">${ctFmtMonth(allocMonth)}</span>`;
@@ -8107,6 +8326,7 @@ function renderProjItemRow(item, projKey, scId) {
         ${t.waiting ? `<span class="task-waiting">⏳ ${escHtml(t.waiting)}</span>` : ''}
         ${t.notes ? '<span class="notes-icon" title="Has notes">📝</span>' : ''}
         ${t.recurrence ? `<span class="recur-badge">${recurLabel(t)}</span>` : ''}
+        ${blocksBadgeHtml(t)}
       </div>
       <div onclick="event.stopPropagation();showPriorityDropdown(event,'${t.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(t.priority || 'med')}</div>
       <div class="session-date" onclick="event.stopPropagation();inlineEditDate(this,'task','${t.id}')" style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Click to edit">${fmtDate(t.workDate || t.due)}${deadlineChipHtml((t.workDate && t.due && t.workDate !== t.due) ? t.due : null, t.workDate, `openTaskDeadlinePicker(this,'${t.id}')`)} ${holdMonthPill(t.allocMonth)}</div>
@@ -8154,6 +8374,7 @@ function renderProjItemRow(item, projKey, scId) {
       <div class="session-row-actions" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
         <button class="row-edit-btn" onclick="deleteSession('${bp.id}','${s.id}')" title="Delete" style="color:var(--danger);">×</button>
         <button class="row-edit-btn" onclick="openAddSubtaskModal('${bp.id}','${s.id}')" title="Add subtask" style="color:var(--accent);font-size:14px;font-weight:700;">+</button>
+        ${!s.recurrence && _ownPlannedHours(s) >= 0.25 ? `<button class="row-edit-btn" onclick="autoPlanSessionRemainder('${bp.id}','${s.id}')" title="Auto-plan the ${fmtQ(_ownPlannedHours(s))}h remainder into dated subtasks on days with free capacity${s.date ? ' before ' + fmtDate(s.date) : ''}" style="font-size:12px;">⚡</button>` : ''}
       </div>
     </div>`;
   }
@@ -8589,6 +8810,8 @@ function openAddTaskForProject(projKey, scId) {
   document.getElementById('editDue').value = '';
   document.getElementById('editWorkDate').value = '';
   document.getElementById('editWorkSpread').checked = false;
+  _blockDraft = [];
+  _renderBlockEditor();
   document.getElementById('editEst').value = '';
   document.getElementById('editWaiting').value = '';
   document.getElementById('editNotes').value = '';
@@ -9238,6 +9461,54 @@ function _nextAllocMonth(ym, n) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
+// ── Parent/child hour rollup ──
+// A parent (task with blocks, or work item with subtasks) owns the TOTAL
+// estimate; its children are the bite-sized increments. Capacity counts each
+// child on its own day, and the parent contributes only the un-planned
+// remainder (total − Σ child hours) on its deadline/work date. Fully blocked
+// work therefore counts exactly once — never parent + children together.
+function _childPlannedHours(obj) {
+  return (obj.blocks || obj.subtasks || []).reduce((a, k) => a + (k.hours || 0), 0);
+}
+
+function _ownPlannedHours(obj) {
+  const kids = obj.blocks || obj.subtasks;
+  const total = obj.est ?? obj.hours ?? 0;
+  if (!kids || !kids.length) return total;
+  return Math.max(0, total - _childPlannedHours(obj));
+}
+
+// Greedy packer: distribute totalHours into weekdays with free capacity
+// between opts.from (default today) and opts.before (deadline). Returns
+// [{date, hours}] in quarter-hour chunks; may place less than asked when
+// the window is full — callers surface the leftover.
+function packIntoFreeDays(totalHours, opts = {}) {
+  let remaining = roundToQuarter(Math.max(totalHours || 0, 0));
+  const from = opts.from && opts.from > today() ? opts.from : today();
+  const to = opts.before && opts.before < addDays(from, 180) ? opts.before : addDays(from, 70);
+  const out = [];
+  if (remaining < 0.25 || to < from) return out;
+  const planned = plannedItems(from, to).filter(p => !p._allocHold)
+    .filter(p => !opts.excludeId || (p.id !== opts.excludeId && !(p.id || '').startsWith(opts.excludeId + '_')));
+  const byDay = {};
+  planned.forEach(p => { byDay[p.date] = (byDay[p.date] || 0) + (p.hours || 0); });
+  completed.forEach(c => {
+    if (c.dateCompleted && c.dateCompleted >= from && c.dateCompleted <= to) {
+      byDay[c.dateCompleted] = (byDay[c.dateCompleted] || 0) + (c.actualHours || 0);
+    }
+  });
+  for (let d = from; d <= to && remaining >= 0.25; d = addDays(d, 1)) {
+    const dow = new Date(d + 'T00:00:00').getDay();
+    if (dow === 0 || dow === 6) continue;
+    const free = Math.floor((tsCapacity - (byDay[d] || 0)) * 4) / 4;
+    if (free < 0.25) continue;
+    const chunk = Math.min(free, remaining);
+    out.push({ date: d, hours: chunk });
+    remaining = Math.round((remaining - chunk) * 4) / 4;
+  }
+  return out;
+}
+
 // ── Work-date placement ──
 // Items carry two dates: the DEADLINE (due / session date) and an optional
 // WORK DATE (when you'll actually do it). Capacity, allocations, and the
@@ -9280,12 +9551,21 @@ function plannedItems(fromDate, toDate) {
     // option "Keep") but stop counting toward Capacity / Allocations planning.
     if (isProjArchived(t.project)) return;
     if (!t.recurrence) {
-      const placed = _expandPlanned(items,
+      const hasBlocks = (t.blocks || []).length > 0;
+      const rem = _ownPlannedHours(t);
+      // Parent carries only the un-blocked remainder; skip it entirely once
+      // blocks cover the whole estimate (a zero-hour row is just noise).
+      const placed = (hasBlocks && rem <= 0) ? true : _expandPlanned(items,
         { id: t.id, name: t.name, project: t.project, subCode: t.subCode || '', _planned: true, _src: 'task' },
-        t.est || 0, t.due || null, t.workDate || null, !!t.workSpread, fromDate, toDate);
+        rem, t.due || null, t.workDate || null, !!t.workSpread, fromDate, toDate);
       if (!placed && t.allocMonth && t.allocMonth >= fromYM && t.allocMonth <= toYM && !t.completed) {
-        items.push({ id: t.id, name: t.name + ' (hold)', project: t.project, date: t.allocMonth + '-15', hours: t.est || 0, subCode: t.subCode || '', _planned: true, _src: 'task', _allocHold: true });
+        items.push({ id: t.id, name: t.name + ' (hold)', project: t.project, date: t.allocMonth + '-15', hours: rem, subCode: t.subCode || '', _planned: true, _src: 'task', _allocHold: true });
       }
+      // Each block lands on its own day
+      (t.blocks || []).forEach(b => {
+        if (b.done || !b.date || b.date < fromDate || b.date > toDate) return;
+        items.push({ id: t.id + '_' + b.id, name: t.name + (b.desc ? ' — ' + b.desc : ''), project: t.project, date: b.date, hours: b.hours || 0, subCode: t.subCode || '', _planned: true, _src: 'task', _block: true });
+      });
     } else {
       // Expand recurring task
       if (t.due) {
@@ -9326,11 +9606,15 @@ function plannedItems(fromDate, toDate) {
       const isMyWork = !sDel.length || sDel.includes('Me');
       if (s.done || !isMyWork) return;
       if (!s.recurrence) {
-        const sPlaced = _expandPlanned(items,
+        const sHasKids = (s.subtasks || []).length > 0;
+        const sRem = _ownPlannedHours(s);
+        // Subtasks are the work item's blocks: they count on their own days
+        // (pushed below); the parent carries only the un-planned remainder.
+        const sPlaced = (sHasKids && sRem <= 0) ? true : _expandPlanned(items,
           { id: s.id, name: s.desc, project: proj.project, subCode: s.subCode || '', _planned: true, _src: 'session', _projId: proj.id },
-          s.hours || 0, s.date || null, s.workDate || null, !!s.workSpread, fromDate, toDate);
+          sRem, s.date || null, s.workDate || null, !!s.workSpread, fromDate, toDate);
         if (!sPlaced && s.allocMonth && s.allocMonth >= fromYM && s.allocMonth <= toYM) {
-          items.push({ id: s.id, name: s.desc + ' (hold)', project: proj.project, date: s.allocMonth + '-15', hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _src: 'session', _projId: proj.id, _allocHold: true });
+          items.push({ id: s.id, name: s.desc + ' (hold)', project: proj.project, date: s.allocMonth + '-15', hours: sRem, subCode: s.subCode || '', _planned: true, _src: 'session', _projId: proj.id, _allocHold: true });
         }
       } else {
         if (s.date) {
@@ -9737,7 +10021,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
       row.innerHTML = `
         <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
         <span class="ts-entry-subcode">${scLabel || '—'}</span>
-        <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(item.name)}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}${item._spread ? ' <span class="recur-badge" title="Part of a spread plan — hours split across weekdays until the deadline">⇶</span>' : ''}</span>
+        <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(item.name)}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}${item._spread ? ' <span class="recur-badge" title="Part of a spread plan — hours split across weekdays until the deadline">⇶</span>' : ''}${item._block ? ' <span class="recur-badge" title="Work block — bite-sized session under the parent\'s deadline">▣</span>' : ''}</span>
         ${recurActions ? `<span class="ts-entry-hours" style="color:var(--text3);display:flex;align-items:center;gap:3px;justify-content:flex-end;">${recurActions}<span>${item.hours}h</span></span>` : `<span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>`}
         <div class="ts-entry-actions" style="opacity:1;">
           ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
@@ -10222,7 +10506,7 @@ function capRebalanceDay(dateStr) {
   const [ry, rm] = dateStr.slice(0, 7).split('-').map(Number);
   const me = localDateStr(new Date(ry, rm, 0));
   // Spread parts are never auto-moved — the spread plan owns their placement
-  const onDay = plannedItems(ms, me).filter(p => !p._allocHold && !p._recur && !p._spread && p.date === dateStr);
+  const onDay = plannedItems(ms, me).filter(p => !p._allocHold && !p._recur && !p._spread && !p._block && p.date === dateStr);
 
   // Resolve each planned item back to its source record for priority, deadline,
   // and a mover. Moving sets the WORK date — the deadline (due/date) survives.
@@ -10771,9 +11055,9 @@ function _capSchedGatherExtras() {
     if (isProjArchived(t.project)) return;
     const eff = t.workDate || t.due;
     if (eff && eff < todayStr) {
-      push({ _src: 'task', id: t.id, name: t.name, project: t.project, hours: t.est || 0, _date: eff, _kind: 'overdue' });
+      push({ _src: 'task', id: t.id, name: t.name, project: t.project, hours: _ownPlannedHours(t), _date: eff, _kind: 'overdue' });
     } else if (!eff && !t.allocMonth) {
-      push({ _src: 'task', id: t.id, name: t.name, project: t.project, hours: t.est || 0, _kind: 'undated' });
+      push({ _src: 'task', id: t.id, name: t.name, project: t.project, hours: _ownPlannedHours(t), _kind: 'undated' });
     }
   });
 
@@ -10785,9 +11069,9 @@ function _capSchedGatherExtras() {
         if (!del.length || del.includes('Me')) {
           const sEff = s.workDate || s.date;
           if (sEff && sEff < todayStr) {
-            push({ _src: 'session', id: s.id, _projId: bp.id, name: s.desc, project: bp.project, hours: s.hours || 0, _date: sEff, _kind: 'overdue' });
+            push({ _src: 'session', id: s.id, _projId: bp.id, name: s.desc, project: bp.project, hours: _ownPlannedHours(s), _date: sEff, _kind: 'overdue' });
           } else if (!sEff && !s.allocMonth) {
-            push({ _src: 'session', id: s.id, _projId: bp.id, name: s.desc, project: bp.project, hours: s.hours || 0, _kind: 'undated' });
+            push({ _src: 'session', id: s.id, _projId: bp.id, name: s.desc, project: bp.project, hours: _ownPlannedHours(s), _kind: 'undated' });
           }
         }
       }
@@ -11191,7 +11475,7 @@ function _renderCapItemList(container, projKey, ym, data) {
       row.className = 'cap-item-row';
       const displayName = item._allocHold ? item.name.replace(/ \(hold\)$/, '') : item.name;
       row.innerHTML = `
-        <span style="font-size:10px;color:var(--accent);">${item._recur ? '↻' : item._allocHold ? '◇' : item._spread ? '⇶' : '○'}</span>
+        <span style="font-size:10px;color:var(--accent);">${item._recur ? '↻' : item._allocHold ? '◇' : item._spread ? '⇶' : item._block ? '▣' : '○'}</span>
         <span style="font-size:10px;color:var(--text3);">${item._allocHold ? '<span style="color:var(--warn);font-style:italic;">Hold</span>' : fmtDate(item.date)}</span>
         <span class="cap-item-name${item._recur ? ' recur' : ''}" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(displayName)}${item._allocHold ? ' <span style="color:var(--warn);font-size:9px;font-weight:600;">⟡ month hold</span>' : ''}</span>
         <span class="cap-item-hours" style="color:var(--text3);">${item.hours > 0 ? fmtQ(item.hours) + 'h' : '—'}</span>
@@ -13862,6 +14146,7 @@ const _TAB_TIPS = {
       'Click a <strong>date</strong> to open the capacity picker — every day shows its free hours, and ⚡ Next fit jumps to the first day with room before the deadline.',
       '<strong>Work date vs deadline:</strong> pick a day other than the due date and it becomes your work date — the ⚑ chip keeps the deadline (red = at risk). Capacity and allocations follow the work date.',
       '<strong>⇶ Spread</strong> (in the edit modal) splits a big task\'s hours evenly across weekdays from work date to deadline.',
+      '<strong>▣ Work blocks</strong> (edit modal) break a big task into dated sessions under one deadline — ⚡ Auto-fill packs the remaining hours into days with free capacity. Tick a block to log its time; the parent counts only the un-blocked remainder.',
       'Set up <strong>recurring tasks</strong> (weekly, monthly) in the edit modal.',
       'Use the <strong>priority filter</strong> to focus on urgent work.',
       'Drag tasks to <strong>reorder</strong> within each section.'
