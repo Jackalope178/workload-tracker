@@ -1520,6 +1520,24 @@
     padding: 3px 12px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
     color: var(--text3); background: var(--bg3); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
   }
+  .cap-pick-budget {
+    padding: 5px 12px; font-size: 10px; border-bottom: 1px solid var(--border);
+    display: flex; gap: 5px; align-items: center; flex-wrap: wrap; background: var(--bg3);
+  }
+  .cap-pick-fitrow {
+    padding: 6px 12px; font-size: 10px; border-bottom: 1px solid var(--border);
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .cap-pick-fitrow label { display: flex; align-items: center; gap: 4px; color: var(--text3); cursor: pointer; white-space: nowrap; }
+  .cap-pick-fitrow input[type="date"] { font-size: 10px; padding: 2px 4px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); width: 118px; }
+  .cap-pick-nofit { color: var(--danger); font-size: 10px; font-weight: 700; white-space: nowrap; }
+  .cap-rebal-btn {
+    display: inline-block; margin-left: 6px; padding: 0 5px; font-size: 11px; line-height: 16px;
+    background: rgba(248,113,113,0.12); border: 1px solid var(--danger); color: var(--danger);
+    border-radius: 4px; cursor: pointer; vertical-align: middle;
+  }
+  .cap-rebal-btn:hover { background: var(--danger); color: #fff; }
+  .cap-day-row.drag-over-day { background: rgba(79,156,249,0.18); box-shadow: inset 0 0 0 1px var(--accent); }
   .cap-pick-foot { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--border); }
   .cap-pick-foot input[type="date"] { flex: 1; font-size: 11px; padding: 4px 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); min-width: 0; }
 
@@ -3266,7 +3284,7 @@ if (typeof XLSX === 'undefined') {
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Due Date</label>
-        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="ctEditDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'ctEditDue','ctEditEst','Due date')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
+        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="ctEditDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'ctEditDue','ctEditEst','Due date','ctEditProject','ctEditSubCode')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
@@ -3404,7 +3422,7 @@ if (typeof XLSX === 'undefined') {
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Due Date</label>
-        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editDue','editEst','Due date')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
+        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editDue','editEst','Due date','editProject','editSubCode')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
@@ -3703,7 +3721,7 @@ if (typeof XLSX === 'undefined') {
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Date</label>
-        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editSessionDate" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editSessionDate','editSessionHours','Work item date')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
+        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editSessionDate" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForSessionDate(this)" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
@@ -3870,7 +3888,7 @@ if (typeof XLSX === 'undefined') {
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Due Date</label>
-        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editTeamDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editTeamDue',null,'Deliverable due date')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
+        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editTeamDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editTeamDue',null,'Deliverable due date','editTeamProject','editTeamSubCode')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
       </div>
       <div class="edit-form-group">
         <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
@@ -6627,6 +6645,8 @@ function openDueDatePicker(el, taskId) {
     itemHours: task.est || 0,
     excludeId: task.id,
     label: task.name,
+    project: task.project,
+    subCode: task.subCode || '',
     onPick: d => {
       task.due = d;
       if (task.allocMonth && task.allocMonth !== d.slice(0, 7)) task.allocMonth = d.slice(0, 7);
@@ -6650,6 +6670,8 @@ function openSessionDatePicker(el, projId, sessionId) {
     itemHours: s.hours || 0,
     excludeId: s.id,
     label: s.desc,
+    project: proj.project,
+    subCode: s.subCode || proj.defaultSubCode || '',
     onPick: d => {
       s.date = d;
       if (s.allocMonth && s.allocMonth !== d.slice(0, 7)) s.allocMonth = d.slice(0, 7);
@@ -6674,6 +6696,8 @@ function openSubtaskDatePicker(el, projId, sessionId, subtaskId) {
     itemHours: st.hours || 0,
     excludeId: st.id,
     label: st.desc,
+    project: proj.project,
+    subCode: st.subCode || s.subCode || proj.defaultSubCode || '',
     onPick: d => {
       st.date = d;
       if (st.allocMonth && st.allocMonth !== d.slice(0, 7)) st.allocMonth = d.slice(0, 7);
@@ -6695,6 +6719,8 @@ function openTeamDueDatePicker(el, itemId) {
     current: item.due || '',
     itemHours: 0,
     label: item.name,
+    project: item.project,
+    subCode: item.subCode || '',
     onPick: d => {
       item.due = d;
       save('wt_team', teamItems);
@@ -7609,10 +7635,53 @@ function _renderProjCap() {
     <button class="btn" onclick="projCapMonthShift(-1)" style="padding:2px 8px;">‹</button>
     <span class="proj-cap-month">${MONTH_NAMES[parseInt(mm, 10) - 1]} ${yy}</span>
     <button class="btn" onclick="projCapMonthShift(1)" style="padding:2px 8px;">›</button>
-    <span style="font-size:10px;color:var(--text3);margin-left:auto;">committed vs capacity</span>
+    <span style="font-size:10px;color:var(--text3);margin-left:auto;" title="Drag any task row from the right onto a day to schedule it">drag rows onto days</span>
     <button class="btn" onclick="toggleProjCap()" style="padding:2px 8px;" title="Close capacity panel">×</button>`;
   panel.appendChild(head);
-  panel.appendChild(_renderSchedCalendar(_projCapMonth, { highlightProj: selectedProjCode }));
+  panel.appendChild(_renderSchedCalendar(_projCapMonth, {
+    highlightProj: selectedProjCode,
+    onDayDrop: _projCapDropAssign
+  }));
+}
+
+// Drop handler for the Projects-tab capacity split: a task/session/subtask row
+// dragged from the sub-code tables onto a day gets scheduled on that day.
+// Reuses _dragItemData, which the rows already set for drag-reordering.
+function _projCapDropAssign(dateStr) {
+  const d = _dragItemData;
+  if (!d) return;
+  _dragItemData = null;
+  let name = '';
+  if (d.type === 'task') {
+    const t = tasks.find(t => t.id === d.id);
+    if (!t) return;
+    t.due = dateStr;
+    if (t.allocMonth && t.allocMonth !== dateStr.slice(0, 7)) t.allocMonth = dateStr.slice(0, 7);
+    save('wt_tasks', tasks);
+    name = t.name;
+  } else if (d.type === 'session') {
+    const bp = bigProjs.find(p => p.id === d.projId);
+    const s = bp && bp.sessions.find(s => s.id === d.id);
+    if (!s) return;
+    s.date = dateStr;
+    if (s.allocMonth && s.allocMonth !== dateStr.slice(0, 7)) s.allocMonth = dateStr.slice(0, 7);
+    save('wt_bigprojs', bigProjs);
+    name = s.desc;
+  } else if (d.type === 'subtask') {
+    const bp = bigProjs.find(p => p.id === d.projId);
+    const s = bp && bp.sessions.find(s => s.id === d.sessionId);
+    const st = s && (s.subtasks || []).find(st => st.id === d.id);
+    if (!st) return;
+    st.date = dateStr;
+    if (st.allocMonth && st.allocMonth !== dateStr.slice(0, 7)) st.allocMonth = dateStr.slice(0, 7);
+    save('wt_bigprojs', bigProjs);
+    name = st.desc;
+  } else {
+    return;
+  }
+  renderProjects();
+  renderTasks();
+  showSyncToast(`Scheduled “${name}” for ${fmtDate(dateStr)}`, 'success');
 }
 
 function _dismissStale(projKey, scId) {
@@ -9856,6 +9925,7 @@ let _capSchedulerOpen = false;
 let _capSchedMonth = today().slice(0, 7); // YYYY-MM the board is focused on
 let _capSchedSelected = new Set(); // selected hold keys
 let _capSchedHoldsByKey = {};      // key → hold descriptor (rebuilt each render)
+let _capDragKey = null;            // backlog chip currently being dragged
 
 function capYearPrev() { _capYear--; renderCapacity(); }
 function capYearNext() { _capYear++; renderCapacity(); }
@@ -9956,6 +10026,74 @@ function capParkHolds(month) {
   renderCapacity();
   const [yy, mm] = month.split('-');
   showSyncToast(`Moved ${n} hold${n !== 1 ? 's' : ''} to ${MONTH_NAMES[parseInt(mm, 10) - 1]} ${yy}`, 'success');
+}
+
+// One-click rebalance: move the lowest-priority movable item off an over-booked
+// day to the next day with room. Guardrails: urgent and meeting items never
+// auto-move, recurring occurrences never auto-move (use skip/reschedule), and
+// nothing moves without a toast naming what went where.
+function capRebalanceDay(dateStr) {
+  const ms = dateStr.slice(0, 7) + '-01';
+  const [ry, rm] = dateStr.slice(0, 7).split('-').map(Number);
+  const me = localDateStr(new Date(ry, rm, 0));
+  const onDay = plannedItems(ms, me).filter(p => !p._allocHold && !p._recur && p.date === dateStr);
+
+  // Resolve each planned item back to its source record for priority + a setter
+  const cands = [];
+  onDay.forEach(p => {
+    if (p._src === 'task') {
+      const t = tasks.find(t => t.id === p.id);
+      if (t) cands.push({
+        name: t.name, pri: t.priority || 'med', hours: p.hours || 0, ex: t.id,
+        move: d => { t.due = d; if (t.allocMonth && t.allocMonth !== d.slice(0, 7)) t.allocMonth = d.slice(0, 7); save('wt_tasks', tasks); }
+      });
+    } else if (p._src === 'session' && p._projId) {
+      const bp = bigProjs.find(b => b.id === p._projId);
+      const s = bp && bp.sessions.find(s => s.id === p.id);
+      if (s) cands.push({
+        name: s.desc, pri: s.priority || 'med', hours: p.hours || 0, ex: s.id,
+        move: d => { s.date = d; if (s.allocMonth && s.allocMonth !== d.slice(0, 7)) s.allocMonth = d.slice(0, 7); save('wt_bigprojs', bigProjs); }
+      });
+    } else if (p._src === 'subtask' && p._projId) {
+      const bp = bigProjs.find(b => b.id === p._projId);
+      const s = bp && bp.sessions.find(s => s.id === p._sessionId);
+      const st = s && (s.subtasks || []).find(st => st.id === p.id);
+      if (st) cands.push({
+        name: st.desc, pri: st.priority || 'med', hours: p.hours || 0, ex: st.id,
+        move: d => { st.date = d; if (st.allocMonth && st.allocMonth !== d.slice(0, 7)) st.allocMonth = d.slice(0, 7); save('wt_bigprojs', bigProjs); }
+      });
+    } else if (p._src === 'contact' && p._contactId) {
+      const c = contacts.find(c => c.id === p._contactId);
+      const stage = c && c.stages[p._stageId];
+      const tid = (p.id || '').slice(('_ct_' + p._contactId + '_' + p._stageId + '_').length);
+      const t = stage && stage.tasks.find(t => t.id === tid);
+      if (t) cands.push({
+        name: t.name, pri: t.priority || 'med', hours: p.hours || 0, ex: p.id,
+        move: d => { t.due = d; if (t.allocMonth && t.allocMonth !== d.slice(0, 7)) t.allocMonth = d.slice(0, 7); save('wt_contacts', contacts); }
+      });
+    }
+  });
+
+  const movable = cands.filter(c => c.pri !== 'urgent' && c.pri !== 'meeting');
+  if (!movable.length) {
+    showSyncToast('Nothing safely movable on this day — urgent, meeting, and recurring items stay put.', 'warn');
+    return;
+  }
+
+  // Lowest priority first; among equals move the smallest item (least disruption)
+  const order = { low: 0, med: 1, high: 2 };
+  movable.sort((a, b) => (order[a.pri] ?? 1) - (order[b.pri] ?? 1) || (a.hours - b.hours));
+  const pick = movable[0];
+
+  const searchFrom = addDays(dateStr > today() ? dateStr : today(), 1);
+  const fit = findNextFitDay(pick.hours, { from: searchFrom, excludeId: pick.ex });
+  if (!fit) {
+    showSyncToast(`No day with ${fmtQ(Math.max(pick.hours, 0.25))}h free found in the next 10 weeks.`, 'warn');
+    return;
+  }
+  pick.move(fit);
+  renderCapacity();
+  showSyncToast(`Moved “${pick.name}” → ${fmtDate(fit)}`, 'success');
 }
 
 // Jump from another tab (e.g. My Tasks' Overdue/Unscheduled section links)
@@ -10090,7 +10228,9 @@ function renderCapacity() {
 //         excludeId   — leave this item's own planned hours out of day totals
 //                       (so a task doesn't make its current day look full),
 //         periodDividers — label the 1–15 / 16–EOM pay-period boundaries,
-//         currentDate — outline the item's currently-set date }
+//         currentDate — outline the item's currently-set date,
+//         onDayDrop(date) — accept drag-and-drop onto day rows,
+//         rebalanceActive — ⚖ button on over-booked days (scheduler board) }
 function _renderSchedCalendar(ym, opts = {}) {
   const [y, m] = ym.split('-').map(Number);
   const ms = ym + '-01';
@@ -10153,12 +10293,22 @@ function _renderSchedCalendar(ym, opts = {}) {
       hrsHtml = `<span style="color:${hrsColor};">${committed > 0 ? fmtQ(committed) + 'h' : '—'}${dayCap > 0 ? ' / ' + dayCap + 'h' : ''}</span>`;
     }
 
+    // One-click rebalance on over-booked weekdays (board only)
+    if (opts.rebalanceActive && dayCap > 0 && committed > dayCap) {
+      hrsHtml += `<span class="cap-rebal-btn" onclick="event.stopPropagation();capRebalanceDay('${dateStr}')" title="Over capacity — move the lowest-priority movable item on this day to the next day with room">⚖</span>`;
+    }
+
     const hasProj = opts.highlightProj && (plannedByDay[dateStr] || []).some(p => p.project === opts.highlightProj);
     const row = document.createElement('div');
     row.className = 'cap-day-row' + (isWeekend ? ' weekend' : '') + (dateStr === todayStr ? ' today' : '')
       + (hasProj ? ' has-proj' : '') + (opts.currentDate === dateStr ? ' cap-pick-current' : '');
     row.title = `${fmtQ(committed)}h committed${dayCap > 0 ? ' / ' + dayCap + 'h capacity' : ' (weekend)'}`;
     if (opts.selectionActive && opts.onDayClick) row.onclick = () => opts.onDayClick(dateStr);
+    if (opts.onDayDrop) {
+      row.ondragover = e => { e.preventDefault(); row.classList.add('drag-over-day'); };
+      row.ondragleave = () => row.classList.remove('drag-over-day');
+      row.ondrop = e => { e.preventDefault(); row.classList.remove('drag-over-day'); opts.onDayDrop(dateStr); };
+    }
     row.innerHTML = `
       <span class="cap-day-label">${DAY_NAMES[dow]} <span class="cap-day-num">${dd}</span></span>
       <span class="cap-day-items">${preview}</span>
@@ -10230,14 +10380,17 @@ function _capPickManualSet() {
   if (v) _capPickChoose(v);
 }
 
-// First weekday within ~10 weeks with enough free room for this item
-function _capPickNextFit() {
-  if (!_capPick) return null;
-  const need = Math.max(_capPick.itemHours || 0, 0.25);
-  const from = today();
-  const to = addDays(from, 70);
+// Generalized next-fit search: first day with enough free room for an item.
+// opts: { from, before (inclusive deadline), excludeId, allowWeekends }
+// Weekends carry no capacity, so when allowed they "fit" if the overtime load
+// (committed + need) would stay within one normal day's hours.
+function findNextFitDay(needHours, opts = {}) {
+  const need = Math.max(needHours || 0, 0.25);
+  const from = opts.from && opts.from > today() ? opts.from : today();
+  const to = opts.before && opts.before < addDays(from, 180) ? opts.before : addDays(from, 70);
+  if (to < from) return null;
   const planned = plannedItems(from, to).filter(p => !p._allocHold)
-    .filter(p => !_capPick.excludeId || (p.id !== _capPick.excludeId && !(p.id || '').startsWith(_capPick.excludeId + '_')));
+    .filter(p => !opts.excludeId || (p.id !== opts.excludeId && !(p.id || '').startsWith(opts.excludeId + '_')));
   const byDay = {};
   planned.forEach(p => { byDay[p.date] = (byDay[p.date] || 0) + (p.hours || 0); });
   completed.forEach(c => {
@@ -10247,10 +10400,48 @@ function _capPickNextFit() {
   });
   for (let d = from; d <= to; d = addDays(d, 1)) {
     const dow = new Date(d + 'T00:00:00').getDay();
-    if (dow === 0 || dow === 6) continue;
+    const isWknd = dow === 0 || dow === 6;
+    if (isWknd && !opts.allowWeekends) continue;
     if (tsCapacity - (byDay[d] || 0) >= need) return d;
   }
   return null;
+}
+
+function _capPickNextFit() {
+  if (!_capPick) return null;
+  return findNextFitDay(_capPick.itemHours || 0, {
+    before: _capPick.fitBy || null,
+    excludeId: _capPick.excludeId || null,
+    allowWeekends: !!_capPick.allowWknd
+  });
+}
+
+function _capPickSetFitBy(val) {
+  if (!_capPick) return;
+  _capPick.fitBy = val || null;
+  _capPickRender();
+}
+
+function _capPickToggleWknd(checked) {
+  if (!_capPick) return;
+  _capPick.allowWknd = !!checked;
+  _capPickRender();
+}
+
+// Sub-code budget pulse for the picker's displayed month: how many allocated
+// hours remain on this item's billing bucket, excluding the item itself.
+// Returns null when the item has no project context.
+function _capPickBudget(projKey, scId, ym, excludeId, itemHours) {
+  if (!projKey || !PROJECTS[projKey]) return null;
+  const allocated = allocations[allocKey(projKey, scId || '', ym)] || 0;
+  const logged = allocGetActuals(projKey, scId || '', ym);
+  const plannedH = _getPlannedForMonth(ym).reduce((sum, i) => {
+    if (i.project !== projKey || (i.subCode || '') !== (scId || '')) return sum;
+    if (excludeId && (i.id === excludeId || (i.id || '').startsWith(excludeId + '_'))) return sum;
+    return sum + (i.hours || 0);
+  }, 0);
+  const remaining = allocated - logged - plannedH;
+  return { allocated, logged, plannedH, remaining, after: remaining - (itemHours || 0) };
 }
 
 function _capPickRender() {
@@ -10272,16 +10463,48 @@ function _capPickRender() {
 
   const ctx = document.createElement('div');
   ctx.className = 'cap-pick-ctx';
+  ctx.innerHTML = `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px;font-weight:600;">${escHtml(_capPick.label || 'Pick a date')}</span>
+    ${_capPick.itemHours ? `<span style="color:var(--text3);">${fmtQ(_capPick.itemHours)}h est</span>` : ''}`;
+  pop.appendChild(ctx);
+
+  // Budget pulse: remaining allocation for this item's billing code in the shown month
+  const budget = _capPickBudget(_capPick.project, _capPick.subCode, _capPick.month, _capPick.excludeId, _capPick.itemHours);
+  if (budget) {
+    const codeLbl = (projBillingCode(_capPick.project) || projLabel(_capPick.project))
+      + (_capPick.subCode ? ' · ' + (getSubCodeLabel(_capPick.project, _capPick.subCode) || '') : '');
+    const bd = document.createElement('div');
+    bd.className = 'cap-pick-budget';
+    if (budget.allocated > 0) {
+      const remColor = budget.remaining > 0 ? 'var(--success)' : 'var(--danger)';
+      const afterColor = budget.after >= 0 ? 'var(--text3)' : 'var(--danger)';
+      const afterTxt = _capPick.itemHours
+        ? ` · <span style="color:${afterColor};">${budget.after >= 0 ? fmtQ(budget.after) + 'h after this' : fmtQ(-budget.after) + 'h over after this'}</span>`
+        : '';
+      bd.innerHTML = `<span style="color:var(--text3);">${escHtml(codeLbl)} — ${MONTH_NAMES[+mm - 1]} budget:</span>
+        <span style="color:${remColor};font-weight:700;">${budget.remaining >= 0 ? fmtQ(budget.remaining) + 'h left' : fmtQ(-budget.remaining) + 'h over'}</span>${afterTxt}`;
+    } else {
+      bd.innerHTML = `<span style="color:var(--text3);">${escHtml(codeLbl)} — no ${MONTH_NAMES[+mm - 1]} allocation${budget.logged + budget.plannedH > 0 ? ' (' + fmtQ(budget.logged + budget.plannedH) + 'h committed)' : ''}</span>`;
+    }
+    pop.appendChild(bd);
+  }
+
+  // Fit finder: next day with room, optional deadline + weekend OT
+  const fitRow = document.createElement('div');
+  fitRow.className = 'cap-pick-fitrow';
   const fit = _capPickNextFit();
-  let fitHtml = '';
+  let fitHtml;
   if (fit) {
     const fd = new Date(fit + 'T00:00:00');
-    fitHtml = `<span class="cap-pick-fit" onclick="_capPickChoose('${fit}')" title="First weekday with room for this item">⚡ Next fit: ${DAY_NAMES[fd.getDay()]} ${MONTH_NAMES[fd.getMonth()]} ${fd.getDate()}</span>`;
+    fitHtml = `<span class="cap-pick-fit" onclick="_capPickChoose('${fit}')" title="First day with room for this item${_capPick.fitBy ? ' on or before ' + _capPick.fitBy : ''}">⚡ Next fit: ${DAY_NAMES[fd.getDay()]} ${MONTH_NAMES[fd.getMonth()]} ${fd.getDate()}</span>`;
+  } else if (_capPick.fitBy) {
+    fitHtml = `<span class="cap-pick-nofit" title="Every eligible day through ${_capPick.fitBy} is full — free a day or extend the deadline">✗ no room by ${fmtDate(_capPick.fitBy)}</span>`;
+  } else {
+    fitHtml = `<span class="cap-pick-nofit">✗ no open day found</span>`;
   }
-  ctx.innerHTML = `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;font-weight:600;">${escHtml(_capPick.label || 'Pick a date')}</span>
-    ${_capPick.itemHours ? `<span style="color:var(--text3);">${fmtQ(_capPick.itemHours)}h est</span>` : ''}
-    ${fitHtml}`;
-  pop.appendChild(ctx);
+  fitRow.innerHTML = `${fitHtml}
+    <label title="Only consider days on or before this date">by <input type="date" value="${_capPick.fitBy || ''}" onchange="_capPickSetFitBy(this.value)"></label>
+    <label title="Let Next fit propose weekend overtime days"><input type="checkbox" ${_capPick.allowWknd ? 'checked' : ''} onchange="_capPickToggleWknd(this.checked)"> wknd OT</label>`;
+  pop.appendChild(fitRow);
 
   const wrap = document.createElement('div');
   wrap.className = 'cap-pick-cal-wrap';
@@ -10314,8 +10537,9 @@ function _capPickRender() {
 }
 
 // Modal helper: ◷ button next to a date input — picker fills the input,
-// the modal's own Save commits it.
-function capPickForInput(btnEl, inputId, hoursInputId, label) {
+// the modal's own Save commits it. projSelId/scSelId (optional) read the
+// modal's project/sub-code selects so the budget line can show.
+function capPickForInput(btnEl, inputId, hoursInputId, label, projSelId, scSelId) {
   const input = document.getElementById(inputId);
   if (!input) return;
   const hrs = hoursInputId ? (parseFloat(document.getElementById(hoursInputId)?.value) || 0) : 0;
@@ -10323,6 +10547,24 @@ function capPickForInput(btnEl, inputId, hoursInputId, label) {
     current: input.value || '',
     itemHours: hrs,
     label: label || 'Pick a date',
+    project: projSelId ? (document.getElementById(projSelId)?.value || null) : null,
+    subCode: scSelId ? (document.getElementById(scSelId)?.value || '') : '',
+    onPick: d => { input.value = d; }
+  });
+}
+
+// Session/subtask modal variant: the project comes from the big-project being
+// edited (there's no project select in that modal).
+function capPickForSessionDate(btnEl) {
+  const bp = bigProjs.find(p => p.id === editingSessionProjId);
+  const input = document.getElementById('editSessionDate');
+  if (!input) return;
+  openCapacityDatePicker(btnEl, {
+    current: input.value || '',
+    itemHours: parseFloat(document.getElementById('editSessionHours')?.value) || 0,
+    label: document.getElementById('editSessionDesc')?.value || 'Work item date',
+    project: bp ? bp.project : null,
+    subCode: document.getElementById('editSessionSubCode')?.value || '',
     onPick: d => { input.value = d; }
   });
 }
@@ -10460,8 +10702,19 @@ function _renderCapScheduler(container) {
   const body = document.createElement('div');
   body.className = 'cap-sched-body' + (selCount ? ' assigning' : '');
 
-  // ── Left: capacity calendar (shared) ──
-  body.appendChild(_renderSchedCalendar(ym, { selectionActive: selCount > 0, onDayClick: capAssignHolds }));
+  // ── Left: capacity calendar (shared) — click-assign, drag-drop, rebalance ──
+  body.appendChild(_renderSchedCalendar(ym, {
+    selectionActive: selCount > 0,
+    onDayClick: capAssignHolds,
+    rebalanceActive: true,
+    onDayDrop: d => {
+      if (!_capDragKey) return;
+      _capSchedSelected.clear();
+      _capSchedSelected.add(_capDragKey);
+      _capDragKey = null;
+      capAssignHolds(d);
+    }
+  }));
 
   // ── Right: backlog — overdue, holds by month, undated ──
   const backlog = document.createElement('div');
@@ -10483,6 +10736,10 @@ function _renderCapScheduler(container) {
       ${dateTag}
       <span class="cap-hold-hrs">${h.hours > 0 ? fmtQ(h.hours) + 'h' : '—'}</span>`;
     chip.onclick = () => capSchedToggleHold(key);
+    // Drag a single chip straight onto a calendar day (alternative to select+click)
+    chip.draggable = true;
+    chip.ondragstart = e => { _capDragKey = key; e.dataTransfer.effectAllowed = 'move'; chip.style.opacity = '0.4'; };
+    chip.ondragend = () => { _capDragKey = null; chip.style.opacity = ''; };
     return chip;
   };
 
@@ -16100,6 +16357,8 @@ function ctInlineEditDate(el, cid, sid, tid) {
     itemHours: t.est || 0,
     excludeId: '_ct_' + cid + '_' + sid + '_' + tid,
     label: t.name,
+    project: t.project || ctGetStage(sid)?.project || 'cwc',
+    subCode: t.subCode || ctGetStage(sid)?.subCode || '',
     onPick: d => {
       t.due = d;
       if (t.allocMonth && t.allocMonth !== d.slice(0, 7)) t.allocMonth = d.slice(0, 7);
