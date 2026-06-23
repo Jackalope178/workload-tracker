@@ -1163,8 +1163,10 @@
   .team-board-card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: space-between; }
   .team-board-card-owners { display: inline-flex; gap: 3px; flex-wrap: wrap; }
   .team-board-card-wait { font-size: 10px; color: var(--text3); margin-top: 4px; }
-  .team-board-card-foot { margin-top: 6px; }
+  .team-board-card-foot { margin-top: 6px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
   .team-board-card .delegate-tag { font-size: 9px; margin-left: 4px; }
+  .team-board-reassign { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); border-radius: 6px; font-size: 11px; line-height: 1; padding: 3px 7px; cursor: pointer; flex-shrink: 0; }
+  .team-board-reassign:hover { border-color: var(--accent); color: var(--accent); }
   .team-view-btn-active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
 
   .team-table-header {
@@ -2949,7 +2951,7 @@ if (typeof XLSX === 'undefined') {
       </select>
       <button class="btn" onclick="openManagePersonsModal()">+ Add Team Member</button>
       <button class="btn primary" onclick="openAddTeamModal()">+ Add Deliverable</button>
-      <select class="filter-select" id="teamBoardPerson" onchange="renderTeam()" style="display:none;margin-left:auto;"></select>
+      <select class="filter-select" id="teamBoardPerson" onchange="_setTeamBoardPerson(this.value)" style="display:none;margin-left:auto;"></select>
       <div style="display:flex;gap:4px;align-items:center;margin-left:auto;" id="teamViewBtns">
         <button class="btn" id="teamListBtn" onclick="setTeamView('list')" style="font-size:10px;padding:3px 10px;" title="Flat list">☰ List</button>
         <button class="btn" id="teamGroupBtn" onclick="setTeamView('person')" style="font-size:10px;padding:3px 10px;" title="Group by person">👤 By Person</button>
@@ -8730,11 +8732,17 @@ let _teamSortKey = 'person';
 let _teamSortDir = 'asc';
 // View mode: 'list' (flat) | 'person' (grouped) | 'board' (kanban). Migrate legacy group flag.
 let _teamViewMode = load('wt_team_view', null) || (load('wt_team_group_person', false) ? 'person' : 'list');
+let _teamBoardPerson = load('wt_team_board_person', null); // null → default to first team member
 const _collapsedTeamPersons = new Set();
 
 function setTeamView(mode) {
   _teamViewMode = mode;
   save('wt_team_view', mode);
+  renderTeam();
+}
+function _setTeamBoardPerson(v) {
+  _teamBoardPerson = v;
+  save('wt_team_board_person', v);
   renderTeam();
 }
 // Back-compat shim for any lingering callers
@@ -8887,10 +8895,14 @@ function renderTeam() {
   if (boardSelect) {
     boardSelect.style.display = _teamViewMode === 'board' ? '' : 'none';
     const boardPeople = [...new Set(allItems.flatMap(t => t.owners || [t.owner]).filter(Boolean))].sort();
-    const curBoard = boardSelect.value || 'all';
     boardSelect.innerHTML = '<option value="all">👥 Everyone</option>';
     boardPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; boardSelect.appendChild(o); });
-    boardSelect.value = boardPeople.includes(curBoard) || curBoard === 'all' ? curBoard : 'all';
+    // Default to a team member's board (not Everyone) unless the user explicitly picked one.
+    let chosen;
+    if (_teamBoardPerson && (_teamBoardPerson === 'all' || boardPeople.includes(_teamBoardPerson))) chosen = _teamBoardPerson;
+    else chosen = boardPeople[0] || 'all';
+    boardSelect.value = chosen;
+    _teamBoardPerson = chosen;
   }
 
   let visible = allItems;
@@ -9169,11 +9181,16 @@ function teamBoardCard(item, forPerson) {
   const editFn = item._delegated
     ? (item._isSubtask ? `openEditSubtaskModal('${item._projId}','${item._sessionId}','${item._subtaskId}')` : `openEditSessionModal('${item._projId}','${item._sessionId}')`)
     : item._taskDelegated ? `openEditModal('${item._taskId}')` : `openEditTeamModal('${item.id}')`;
+  const rowKey = _teamRowKey(item);
   let statusFn;
-  if (forPerson) statusFn = `showPersonStatusDropdown(event,'${_teamRowKey(item)}','${forPerson.replace(/'/g, "\\'")}')`;
+  if (forPerson) statusFn = `showPersonStatusDropdown(event,'${rowKey}','${forPerson.replace(/'/g, "\\'")}')`;
   else if (item._delegated) statusFn = item._isSubtask ? `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}','${item._subtaskId}')` : `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')`;
   else if (item._taskDelegated) statusFn = `showDelegatedTaskStatusDropdown(event,'${item._taskId}')`;
   else statusFn = `showStatusDropdown(event,'${item.id}')`;
+
+  // Reassign swaps a single assignee. On a person board it moves that person's slice;
+  // on Everyone it moves the primary owner (co-owners preserved).
+  const fromPerson = forPerson || owners[0] || '';
 
   return `<div class="team-board-card" onclick="${editFn}">
     <div class="team-board-card-name">${escHtml(item.name)}${srcBadge}</div>
@@ -9184,8 +9201,46 @@ function teamBoardCard(item, forPerson) {
     ${item.waiting ? `<div class="team-board-card-wait">⏳ ${escHtml(item.waiting)}</div>` : ''}
     <div class="team-board-card-foot">
       <span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="event.stopPropagation();${statusFn}" style="cursor:pointer;" title="Change status">${STATUS_LABELS[pStatus] || pStatus}</span>
+      <button class="team-board-reassign" onclick="event.stopPropagation();showReassignDropdown(event,'${rowKey}','${fromPerson.replace(/'/g, "\\'")}')" title="Reassign / delegate to another team member">⇄</button>
     </div>
   </div>`;
+}
+
+// ── Reassign / delegate from a board card ──
+function showReassignDropdown(e, key, fromPerson) {
+  e.stopPropagation();
+  const opts = (typeof PERSONS !== 'undefined' ? PERSONS : []).filter(p => p && p !== fromPerson).map(p => ({ value: p, label: '→ ' + p }));
+  if (!opts.length) { if (typeof showSyncToast === 'function') showSyncToast('Add team members first', 'error'); return; }
+  showDropdown(e.currentTarget, opts, '', val => reassignTeamItem(key, fromPerson, val));
+}
+
+function reassignTeamItem(key, fromPerson, toPerson) {
+  const ref = _teamObjFromKey(key);
+  if (!ref || !toPerson) return;
+  const obj = ref.obj;
+  // Carry the person's per-person status to the new assignee, then drop the old key.
+  if (obj.ownerStatus && fromPerson) {
+    if (obj.ownerStatus[fromPerson] != null && obj.ownerStatus[toPerson] == null) obj.ownerStatus[toPerson] = obj.ownerStatus[fromPerson];
+    delete obj.ownerStatus[fromPerson];
+  }
+  if (key.startsWith('team:')) {
+    let owners = (obj.owners && obj.owners.length ? obj.owners : [obj.owner]).filter(Boolean);
+    owners = fromPerson ? owners.map(o => o === fromPerson ? toPerson : o) : [toPerson];
+    owners = [...new Set(owners)].filter(Boolean);
+    obj.owners = owners;
+    obj.owner = owners[0] || '';
+  } else {
+    let del = normDelegated(obj.delegatedTo);
+    del = fromPerson ? del.map(o => o === fromPerson ? toPerson : o) : [toPerson];
+    del = [...new Set(del)].filter(Boolean);
+    obj.delegatedTo = del.length ? del : null;
+  }
+  ref.save();
+  renderTeam();
+  if (typeof renderTasks === 'function') renderTasks();
+  if (typeof renderProjects === 'function') renderProjects();
+  if (typeof renderTimesheet === 'function') renderTimesheet();
+  if (typeof showSyncToast === 'function') showSyncToast(`Reassigned ${fromPerson ? fromPerson + ' → ' : 'to '}${toPerson}`, 'success');
 }
 
 function _toggleTeamPersonCollapse(person) {
@@ -14272,6 +14327,7 @@ function reloadStateFromLocalStorage() {
   teamItems = load('wt_team', null) || SEED_TEAM;
   completed = load('wt_completed', null) || SEED_COMPLETED;
   _teamViewMode = load('wt_team_view', null) || (load('wt_team_group_person', false) ? 'person' : 'list');
+  _teamBoardPerson = load('wt_team_board_person', null);
   tsCapacity = load('wt_ts_capacity', 8);
   _dupDecisions = load('wt_dup_decisions', {});
   _staleSubCodes = new Set(load('wt_stale_subcodes', []));
