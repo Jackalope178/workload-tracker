@@ -1148,6 +1148,25 @@
   .ts-entry-name:not(.ts-entry-planned):hover { color: var(--accent); }
   .team-owner { font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+  /* ── Team kanban board ── */
+  .team-board { display: flex; gap: 12px; overflow-x: auto; padding: 8px 2px 16px; align-items: flex-start; }
+  .team-board-col { flex: 0 0 250px; min-width: 250px; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; max-height: 72vh; }
+  .team-board-col-head { padding: 8px 10px; font-size: 11px; font-weight: 700; border-bottom: 1px solid var(--border); border-radius: 10px 10px 0 0; display: flex; align-items: center; gap: 6px; }
+  .team-board-count { margin-left: auto; font-size: 10px; opacity: 0.8; background: var(--bg4); border-radius: 8px; padding: 0 7px; line-height: 16px; }
+  .team-board-col-body { padding: 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .team-board-empty { font-size: 11px; color: var(--text3); text-align: center; padding: 12px 0; }
+  .team-board-projhdr { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text3); display: flex; align-items: center; gap: 5px; margin-top: 6px; }
+  .team-board-projhdr:first-child { margin-top: 0; }
+  .team-board-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 9px; cursor: pointer; transition: border-color 0.12s; }
+  .team-board-card:hover { border-color: var(--accent); }
+  .team-board-card-name { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 5px; line-height: 1.3; }
+  .team-board-card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: space-between; }
+  .team-board-card-owners { display: inline-flex; gap: 3px; flex-wrap: wrap; }
+  .team-board-card-wait { font-size: 10px; color: var(--text3); margin-top: 4px; }
+  .team-board-card-foot { margin-top: 6px; }
+  .team-board-card .delegate-tag { font-size: 9px; margin-left: 4px; }
+  .team-view-btn-active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+
   .team-table-header {
     display: grid;
     grid-template-columns: 1fr 90px 90px 8px 75px 120px 30px;
@@ -2930,7 +2949,12 @@ if (typeof XLSX === 'undefined') {
       </select>
       <button class="btn" onclick="openManagePersonsModal()">+ Add Team Member</button>
       <button class="btn primary" onclick="openAddTeamModal()">+ Add Deliverable</button>
-      <button class="btn" id="teamGroupBtn" onclick="toggleTeamGroupByPerson()" style="margin-left:auto;font-size:10px;padding:3px 10px;">👤 Group by Person</button>
+      <select class="filter-select" id="teamBoardPerson" onchange="renderTeam()" style="display:none;margin-left:auto;"></select>
+      <div style="display:flex;gap:4px;align-items:center;margin-left:auto;" id="teamViewBtns">
+        <button class="btn" id="teamListBtn" onclick="setTeamView('list')" style="font-size:10px;padding:3px 10px;" title="Flat list">☰ List</button>
+        <button class="btn" id="teamGroupBtn" onclick="setTeamView('person')" style="font-size:10px;padding:3px 10px;" title="Group by person">👤 By Person</button>
+        <button class="btn" id="teamBoardBtn" onclick="setTeamView('board')" style="font-size:10px;padding:3px 10px;" title="Kanban board">▤ Board</button>
+      </div>
       <button class="btn" id="clearTeamFiltersBtn" onclick="_clearAllTeamFilters()" style="display:none;font-size:10px;padding:4px 10px;color:var(--text3);">✕ Clear filters</button>
     </div>
     <div id="teamList"></div>
@@ -8701,16 +8725,89 @@ const STATUS_CLS = {
 };
 
 
-// Team sort & group state
+// Team sort & view state
 let _teamSortKey = 'person';
 let _teamSortDir = 'asc';
-let _teamGroupByPerson = load('wt_team_group_person', false);
+// View mode: 'list' (flat) | 'person' (grouped) | 'board' (kanban). Migrate legacy group flag.
+let _teamViewMode = load('wt_team_view', null) || (load('wt_team_group_person', false) ? 'person' : 'list');
 const _collapsedTeamPersons = new Set();
 
-function toggleTeamGroupByPerson() {
-  _teamGroupByPerson = !_teamGroupByPerson;
-  save('wt_team_group_person', _teamGroupByPerson);
+function setTeamView(mode) {
+  _teamViewMode = mode;
+  save('wt_team_view', mode);
   renderTeam();
+}
+// Back-compat shim for any lingering callers
+function toggleTeamGroupByPerson() {
+  setTeamView(_teamViewMode === 'person' ? 'list' : 'person');
+}
+
+// ── Per-person status overlay ──
+// Composite team rows carry an optional `ownerStatus` map { person: status }.
+// This lets a co-owned/delegated item be "complete for Jordan" without closing it
+// for everyone. The underlying status/done/completed flag only flips when ALL
+// owners are complete (so capacity/projects rollups stay correct).
+function teamPersonStatus(item, person) {
+  const m = item.ownerStatus;
+  if (m && m[person]) return m[person];
+  return item.status;
+}
+function _teamRowKey(item) {
+  if (item._delegated) return 'del:' + item._projId + ':' + item._sessionId + ':' + (item._subtaskId || '');
+  if (item._taskDelegated) return 'taskdel:' + item._taskId;
+  return 'team:' + item.id;
+}
+// Resolve the real source object behind a composite row key, with owners + rollup logic.
+function _teamObjFromKey(key) {
+  if (key.startsWith('del:')) {
+    const parts = key.split(':');
+    const projId = parts[1], sessionId = parts[2], subtaskId = parts[3];
+    const proj = bigProjs.find(p => p.id === projId);
+    const s = proj?.sessions.find(x => x.id === sessionId);
+    const obj = subtaskId ? (s?.subtasks || []).find(st => st.id === subtaskId) : s;
+    if (!obj) return null;
+    return {
+      obj, owners: normDelegated(obj.delegatedTo), save: () => save('wt_bigprojs', bigProjs),
+      overall: () => obj.done ? 'complete' : (obj.status || (subtaskId ? 'not-started' : 'need-delegate')),
+      applyOverall: (allDone) => { obj.done = allDone; obj.status = allDone ? 'complete' : (obj.status === 'complete' ? 'in-progress' : obj.status); }
+    };
+  }
+  if (key.startsWith('taskdel:')) {
+    const taskId = key.slice('taskdel:'.length);
+    const obj = tasks.find(t => t.id === taskId);
+    if (!obj) return null;
+    return {
+      obj, owners: normDelegated(obj.delegatedTo), save: () => save('wt_tasks', tasks),
+      overall: () => obj.completed ? 'complete' : (obj.status || 'need-delegate'),
+      applyOverall: (allDone) => { obj.completed = allDone; obj.status = allDone ? 'complete' : (obj.status === 'complete' ? 'in-progress' : obj.status); }
+    };
+  }
+  const id = key.slice('team:'.length);
+  const obj = teamItems.find(t => t.id === id);
+  if (!obj) return null;
+  return {
+    obj, owners: (obj.owners && obj.owners.length ? obj.owners : [obj.owner]).filter(Boolean), save: () => save('wt_team', teamItems),
+    overall: () => obj.status,
+    applyOverall: (allDone) => { obj.status = allDone ? 'complete' : (obj.status === 'complete' ? 'in-progress' : obj.status); }
+  };
+}
+function showPersonStatusDropdown(e, key, person) {
+  e.stopPropagation();
+  const ref = _teamObjFromKey(key);
+  if (!ref) return;
+  const cur = (ref.obj.ownerStatus && ref.obj.ownerStatus[person]) || ref.overall();
+  showDropdown(e.currentTarget, STATUS_OPTS, cur, val => {
+    if (!ref.obj.ownerStatus) ref.obj.ownerStatus = {};
+    ref.obj.ownerStatus[person] = val;
+    const resolved = o => ref.obj.ownerStatus[o] || ref.overall();
+    const allDone = ref.owners.length > 0 && ref.owners.every(o => resolved(o) === 'complete');
+    ref.applyOverall(allDone);
+    ref.save();
+    renderTeam();
+    if (typeof renderTasks === 'function') renderTasks();
+    if (typeof renderProjects === 'function') renderProjects();
+    if (typeof renderTimesheet === 'function') renderTimesheet();
+  });
 }
 function _toggleTeamSort(key) {
   if (_teamSortKey === key) { _teamSortDir = _teamSortDir === 'asc' ? 'desc' : 'asc'; }
@@ -8737,7 +8834,7 @@ function renderTeam() {
       delegatedItems.push({
         id: s.id + '_delegated',
         name: s.desc, owners: people, owner: people.join(', '), project: proj.project,
-        due: s.date, status: s.status || (s.done ? 'complete' : 'need-delegate'),
+        due: s.date, status: s.status || (s.done ? 'complete' : 'need-delegate'), ownerStatus: s.ownerStatus,
         _delegated: true, _projId: proj.id, _sessionId: s.id
       });
       // Also include subtasks with delegation
@@ -8747,7 +8844,7 @@ function renderTeam() {
         delegatedItems.push({
           id: st.id + '_delegated',
           name: st.desc, owners: stPeople, owner: stPeople.join(', '), project: proj.project,
-          due: st.date, status: st.done ? 'complete' : 'not-started',
+          due: st.date, status: st.done ? 'complete' : (st.status || 'not-started'), ownerStatus: st.ownerStatus,
           _delegated: true, _projId: proj.id, _sessionId: s.id, _subtaskId: st.id, _isSubtask: true
         });
       });
@@ -8762,12 +8859,12 @@ function renderTeam() {
     delegatedTasks.push({
       id: t.id + '_taskdel',
       name: t.name, owners: people, owner: people.join(', '), project: t.project,
-      due: t.due, status: t.completed ? 'complete' : (t.status || 'need-delegate'),
+      due: t.due, status: t.completed ? 'complete' : (t.status || 'need-delegate'), ownerStatus: t.ownerStatus,
       _taskDelegated: true, _taskId: t.id
     });
   });
 
-  let allItems = [...teamItems.map(t => ({ ...t, owners: [t.owner] })), ...delegatedItems, ...delegatedTasks];
+  let allItems = [...teamItems.map(t => ({ ...t, owners: (t.owners && t.owners.length ? t.owners : [t.owner]).filter(Boolean) })), ...delegatedItems, ...delegatedTasks];
 
   // Populate person filter from all unique people
   const personSelect = document.getElementById('teamFilterPerson');
@@ -8779,11 +8876,21 @@ function renderTeam() {
     personSelect.value = curVal;
   }
 
-  // Update group button style
-  const groupBtn = document.getElementById('teamGroupBtn');
-  if (groupBtn) {
-    if (_teamGroupByPerson) groupBtn.classList.add('team-group-btn-active');
-    else groupBtn.classList.remove('team-group-btn-active');
+  // Update view-mode button styles
+  [['teamListBtn', 'list'], ['teamGroupBtn', 'person'], ['teamBoardBtn', 'board']].forEach(([id, mode]) => {
+    const b = document.getElementById(id);
+    if (b) b.classList.toggle('team-view-btn-active', _teamViewMode === mode);
+  });
+
+  // Board personnel selector — populated from all people, only visible in board mode
+  const boardSelect = document.getElementById('teamBoardPerson');
+  if (boardSelect) {
+    boardSelect.style.display = _teamViewMode === 'board' ? '' : 'none';
+    const boardPeople = [...new Set(allItems.flatMap(t => t.owners || [t.owner]).filter(Boolean))].sort();
+    const curBoard = boardSelect.value || 'all';
+    boardSelect.innerHTML = '<option value="all">👥 Everyone</option>';
+    boardPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; boardSelect.appendChild(o); });
+    boardSelect.value = boardPeople.includes(curBoard) || curBoard === 'all' ? curBoard : 'all';
   }
 
   let visible = allItems;
@@ -8850,6 +8957,15 @@ function renderTeam() {
     const dc = dueCls(item.due);
     const owners = item.owners || [item.owner];
 
+    // Status badge — person-aware when rendered inside a person group/board
+    const pStatus = forPerson ? teamPersonStatus(item, forPerson) : item.status;
+    let _statusFn;
+    if (forPerson) _statusFn = `showPersonStatusDropdown(event,'${_teamRowKey(item)}','${(forPerson || '').replace(/'/g, "\\'")}')`;
+    else if (item._delegated) _statusFn = item._isSubtask ? `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}','${item._subtaskId}')` : `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')`;
+    else if (item._taskDelegated) _statusFn = `showDelegatedTaskStatusDropdown(event,'${item._taskId}')`;
+    else _statusFn = `showStatusDropdown(event,'${item.id}')`;
+    const statusBadge = `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="${_statusFn}" style="cursor:pointer;" title="${STATUS_LABELS[pStatus] || pStatus}">${STATUS_LABELS[pStatus] || pStatus}</span>`;
+
     // In grouped mode, show co-assignee tags instead of owner column
     const ownerHtml = forPerson
       ? `<div class="team-owner" style="display:flex;flex-wrap:wrap;gap:3px;">${coAssigneeTags(owners, forPerson) || '<span style="font-size:10px;color:var(--text3);">Solo</span>'}</div>`
@@ -8877,7 +8993,7 @@ function renderTeam() {
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
         <span class="team-due ${dc}" style="cursor:pointer;" onclick="${dateFn}">${fmtDate(item.due)}</span>
-        <span class="status-badge ${STATUS_CLS[item.status]}" onclick="${statusDropFn}" style="cursor:pointer;" title="${STATUS_LABELS[item.status]||item.status}">${STATUS_LABELS[item.status]||item.status}</span>
+        ${statusBadge}
         `;
     } else if (item._taskDelegated) {
       row.innerHTML = `
@@ -8886,7 +9002,7 @@ function renderTeam() {
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
         <span class="team-due ${dc}" style="cursor:pointer;" onclick="openDueDatePicker(this,'${item._taskId}')">${fmtDate(item.due)}</span>
-        <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showDelegatedTaskStatusDropdown(event,'${item._taskId}')" style="cursor:pointer;" title="${STATUS_LABELS[item.status]||item.status}">${STATUS_LABELS[item.status]||item.status}</span>
+        ${statusBadge}
         `;
     } else {
       row.innerHTML = `
@@ -8895,14 +9011,21 @@ function renderTeam() {
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
         <span class="team-due ${dc}" style="cursor:pointer;" onclick="openTeamDueDatePicker(this,'${item.id}')">${fmtDate(item.due)}</span>
-        <span class="status-badge ${STATUS_CLS[item.status]}" onclick="showStatusDropdown(event,'${item.id}')" style="cursor:pointer;" title="${STATUS_LABELS[item.status]}">${STATUS_LABELS[item.status]}</span>
+        ${statusBadge}
         `;
     }
     return row;
   }
 
+  // ── Board (kanban) view ──
+  if (_teamViewMode === 'board') {
+    const boardPerson = document.getElementById('teamBoardPerson')?.value || 'all';
+    renderTeamBoard(visible, boardPerson, container);
+    return;
+  }
+
   // ── Grouped by Person view ──
-  if (_teamGroupByPerson) {
+  if (_teamViewMode === 'person') {
     // Expand items so each person gets their own copy
     const personMap = {};
     visible.forEach(item => {
@@ -8917,8 +9040,8 @@ function renderTeam() {
     const sortedPersons = Object.keys(personMap).sort();
     sortedPersons.forEach(person => {
       const items = personMap[person];
-      const activeItems = items.filter(i => i.status !== 'complete');
-      const completedItems = items.filter(i => i.status === 'complete');
+      const activeItems = items.filter(i => teamPersonStatus(i, person) !== 'complete');
+      const completedItems = items.filter(i => teamPersonStatus(i, person) === 'complete');
       const isCollapsed = _collapsedTeamPersons.has(person);
       const pc = personColor(person);
 
@@ -8976,6 +9099,93 @@ function renderTeam() {
     container.appendChild(divider);
     completed_items.forEach(item => container.appendChild(buildTeamRow(item, true, null)));
   }
+}
+
+// ── Kanban board renderer ──
+// One column per workflow status; cards grouped by project within each column.
+// When a single person is selected, columns reflect that person's per-person status
+// so completing a card moves it on their board without touching anyone else's.
+function renderTeamBoard(visible, boardPerson, container) {
+  const perPerson = boardPerson && boardPerson !== 'all';
+  let items, statusOf;
+  if (perPerson) {
+    items = visible.filter(i => (i.owners || [i.owner]).includes(boardPerson));
+    statusOf = i => teamPersonStatus(i, boardPerson);
+  } else {
+    items = visible;
+    statusOf = i => i.status;
+  }
+
+  const buckets = {};
+  STATUS_CYCLE.forEach(c => { buckets[c] = []; });
+  items.forEach(i => {
+    let s = statusOf(i) || 'need-delegate';
+    if (!buckets[s]) s = (s === 'not-started' || s === 'pending') ? (s === 'pending' ? 'in-progress' : 'need-delegate') : 'need-delegate';
+    buckets[s].push(i);
+  });
+
+  let html = `<div class="team-board">`;
+  STATUS_CYCLE.forEach(c => {
+    const list = buckets[c] || [];
+    list.sort((a, b) => {
+      const pa = projLabel(a.project), pb = projLabel(b.project);
+      if (pa < pb) return -1;
+      if (pa > pb) return 1;
+      return (a.due || '9999').localeCompare(b.due || '9999');
+    });
+    html += `<div class="team-board-col">
+      <div class="team-board-col-head"><span class="status-badge ${STATUS_CLS[c] || ''}" style="font-size:9px;">${STATUS_LABELS[c] || c}</span><span class="team-board-count">${list.length}</span></div>
+      <div class="team-board-col-body">`;
+    if (!list.length) {
+      html += '<div class="team-board-empty">—</div>';
+    } else {
+      let lastProj = null;
+      list.forEach(item => {
+        const pl = projLabel(item.project);
+        if (pl !== lastProj) {
+          html += `<div class="team-board-projhdr"><span class="project-dot" style="background:${projColor(item.project)};"></span>${escHtml(pl)}</div>`;
+          lastProj = pl;
+        }
+        html += teamBoardCard(item, perPerson ? boardPerson : null);
+      });
+    }
+    html += `</div></div>`;
+  });
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function teamBoardCard(item, forPerson) {
+  const owners = item.owners || [item.owner];
+  const dc = dueCls(item.due);
+  const pStatus = forPerson ? teamPersonStatus(item, forPerson) : item.status;
+  const tagOwners = forPerson ? owners.filter(o => o !== forPerson) : owners;
+  const ownerTags = tagOwners.map(o => {
+    const pc = personColor(o || '—');
+    return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 6px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">${forPerson ? '+' : ''}${escHtml(o || '—')}</span>`;
+  }).join('');
+
+  const srcBadge = item._delegated ? '<span class="delegate-tag">↗ session</span>' : item._taskDelegated ? '<span class="delegate-tag">task</span>' : '';
+  const editFn = item._delegated
+    ? (item._isSubtask ? `openEditSubtaskModal('${item._projId}','${item._sessionId}','${item._subtaskId}')` : `openEditSessionModal('${item._projId}','${item._sessionId}')`)
+    : item._taskDelegated ? `openEditModal('${item._taskId}')` : `openEditTeamModal('${item.id}')`;
+  let statusFn;
+  if (forPerson) statusFn = `showPersonStatusDropdown(event,'${_teamRowKey(item)}','${forPerson.replace(/'/g, "\\'")}')`;
+  else if (item._delegated) statusFn = item._isSubtask ? `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}','${item._subtaskId}')` : `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')`;
+  else if (item._taskDelegated) statusFn = `showDelegatedTaskStatusDropdown(event,'${item._taskId}')`;
+  else statusFn = `showStatusDropdown(event,'${item.id}')`;
+
+  return `<div class="team-board-card" onclick="${editFn}">
+    <div class="team-board-card-name">${escHtml(item.name)}${srcBadge}</div>
+    <div class="team-board-card-meta">
+      <span class="team-board-card-owners">${ownerTags || '<span style="font-size:9px;color:var(--text3);">Solo</span>'}</span>
+      <span class="team-due ${dc}">${item.due ? fmtDate(item.due) : '—'}</span>
+    </div>
+    ${item.waiting ? `<div class="team-board-card-wait">⏳ ${escHtml(item.waiting)}</div>` : ''}
+    <div class="team-board-card-foot">
+      <span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="event.stopPropagation();${statusFn}" style="cursor:pointer;" title="Change status">${STATUS_LABELS[pStatus] || pStatus}</span>
+    </div>
+  </div>`;
 }
 
 function _toggleTeamPersonCollapse(person) {
@@ -14061,7 +14271,7 @@ function reloadStateFromLocalStorage() {
   projPanelCollapsed = load('wt_proj_panel_collapsed', false);
   teamItems = load('wt_team', null) || SEED_TEAM;
   completed = load('wt_completed', null) || SEED_COMPLETED;
-  _teamGroupByPerson = load('wt_team_group_person', false);
+  _teamViewMode = load('wt_team_view', null) || (load('wt_team_group_person', false) ? 'person' : 'list');
   tsCapacity = load('wt_ts_capacity', 8);
   _dupDecisions = load('wt_dup_decisions', {});
   _staleSubCodes = new Set(load('wt_stale_subcodes', []));
