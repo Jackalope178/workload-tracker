@@ -1168,6 +1168,43 @@
   .team-board-reassign { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); border-radius: 6px; font-size: 11px; line-height: 1; padding: 3px 7px; cursor: pointer; flex-shrink: 0; }
   .team-board-reassign:hover { border-color: var(--accent); color: var(--accent); }
   .team-view-btn-active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+  .team-board-card.overdue { border-left: 3px solid var(--danger); }
+  .team-board-card-est { font-size: 10px; font-weight: 700; color: var(--text2); background: var(--bg3); border-radius: 6px; padding: 1px 6px; }
+  .prio-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; flex-shrink: 0; }
+  .prio-urgent { background: #f87171; }
+  .prio-high { background: #fbbf24; }
+  .prio-med { background: #60a5fa; }
+  .prio-low { background: #4ade80; }
+
+  /* ── Intern-management cockpit ── */
+  .team-cockpit { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin: 6px 0 14px; }
+  .team-cockpit-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .team-cockpit-person { display: flex; align-items: center; gap: 8px; }
+  .team-cockpit-name { font-size: 16px; font-weight: 700; color: var(--text); }
+  .team-cockpit-cap { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 6px; }
+  .team-cockpit-cap label { font-weight: 600; }
+  .team-cockpit-cap input { width: 56px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 3px 6px; font-size: 12px; text-align: right; }
+  .team-gauge-wrap { margin: 12px 0 8px; }
+  .team-gauge { height: 12px; background: var(--bg4); border-radius: 8px; overflow: hidden; }
+  .team-gauge-fill { height: 100%; border-radius: 8px; transition: width 0.25s; }
+  .team-gauge-fill.cap-ok { background: var(--success); }
+  .team-gauge-fill.cap-warn { background: var(--warn); }
+  .team-gauge-fill.cap-over { background: var(--danger); }
+  .team-gauge-label { font-size: 12px; color: var(--text2); margin-top: 5px; }
+  .team-gauge-msg { font-weight: 700; margin-left: 4px; }
+  .team-gauge-msg.cap-ok { color: var(--success); }
+  .team-gauge-msg.cap-warn { color: var(--warn); }
+  .team-gauge-msg.cap-over { color: var(--danger); }
+  .team-cockpit-sub { font-size: 11px; color: var(--text2); margin-bottom: 12px; }
+  .team-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .team-chip { font-size: 11px; padding: 5px 11px; border-radius: 16px; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); cursor: pointer; transition: all 0.12s; }
+  .team-chip strong { color: var(--text); }
+  .team-chip:hover { border-color: var(--accent); }
+  .team-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .team-chip.active strong { color: #fff; }
+  .team-chip.chip-danger.active { background: var(--danger); border-color: var(--danger); }
+  .team-chip.chip-warn.active { background: var(--warn); border-color: var(--warn); color: #1a1d26; }
+  .team-chip.chip-warn.active strong { color: #1a1d26; }
 
   .team-table-header {
     display: grid;
@@ -3310,6 +3347,19 @@ if (typeof XLSX === 'undefined') {
           <option value="complete">Complete</option>
         </select>
       </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Priority</label>
+        <select class="edit-input" id="teamAddPriority">
+          <option value="urgent">Urgent</option>
+          <option value="high">High</option>
+          <option value="med" selected>Med</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Est. Hours <span style="font-weight:400;color:var(--text3);">(for capacity)</span></label>
+        <input class="edit-input" type="number" min="0" step="0.5" id="teamAddEst" placeholder="e.g. 4">
+      </div>
       <div class="edit-form-group full">
         <label class="edit-label">Waiting On <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
         <input class="edit-input" id="teamAddWaiting" placeholder="Who or what is blocking this?">
@@ -3663,6 +3713,19 @@ if (typeof XLSX === 'undefined') {
           <option value="blocked">Blocked</option>
           <option value="complete">Complete</option>
         </select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Priority</label>
+        <select class="edit-input" id="editTeamPriority">
+          <option value="urgent">Urgent</option>
+          <option value="high">High</option>
+          <option value="med">Med</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Est. Hours <span style="font-weight:400;color:var(--text3);">(for capacity)</span></label>
+        <input class="edit-input" type="number" min="0" step="0.5" id="editTeamEst" placeholder="e.g. 4">
       </div>
       <div class="edit-form-group full">
         <label class="edit-label">Waiting On <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
@@ -8733,7 +8796,21 @@ let _teamSortDir = 'asc';
 // View mode: 'list' (flat) | 'person' (grouped) | 'board' (kanban). Migrate legacy group flag.
 let _teamViewMode = load('wt_team_view', null) || (load('wt_team_group_person', false) ? 'person' : 'list');
 let _teamBoardPerson = load('wt_team_board_person', null); // null → default to first team member
+let _teamBoardFilter = 'all'; // 'all' | 'overdue' | 'soon' | 'blocked' | 'waiting'
+let _personCapacity = load('wt_person_capacity', {}); // { personName: weeklyHours }
 const _collapsedTeamPersons = new Set();
+
+const PRIORITY_RANK = { urgent: 0, high: 1, med: 2, low: 3 };
+function personWeeklyCap(p) { const v = _personCapacity[p]; return (v == null || v === '') ? 40 : Number(v); }
+function setPersonWeeklyCap(p, h) {
+  const n = Math.max(0, Number(h) || 0);
+  _personCapacity[p] = n;
+  save('wt_person_capacity', _personCapacity);
+  renderTeam();
+}
+function _setTeamBoardFilter(f) { _teamBoardFilter = (_teamBoardFilter === f ? 'all' : f); renderTeam(); }
+function _teamItemOverdue(i) { return !!(i.due && i.due < today()); }
+function _teamItemSoon(i) { const t = today(); const d = new Date(t + 'T00:00:00'); d.setDate(d.getDate() + 7); const wk = localDateStr(d); return !!(i.due && i.due >= t && i.due <= wk); }
 
 function setTeamView(mode) {
   _teamViewMode = mode;
@@ -8843,6 +8920,7 @@ function renderTeam() {
         id: s.id + '_delegated',
         name: s.desc, owners: people, owner: people.join(', '), project: proj.project,
         due: s.date, status: s.status || (s.done ? 'complete' : 'need-delegate'), ownerStatus: s.ownerStatus,
+        priority: s.priority || 'med', est: s.hours || 0,
         _delegated: true, _projId: proj.id, _sessionId: s.id
       });
       // Also include subtasks with delegation
@@ -8853,6 +8931,7 @@ function renderTeam() {
           id: st.id + '_delegated',
           name: st.desc, owners: stPeople, owner: stPeople.join(', '), project: proj.project,
           due: st.date, status: st.done ? 'complete' : (st.status || 'not-started'), ownerStatus: st.ownerStatus,
+          priority: st.priority || 'med', est: st.hours || 0,
           _delegated: true, _projId: proj.id, _sessionId: s.id, _subtaskId: st.id, _isSubtask: true
         });
       });
@@ -8868,6 +8947,7 @@ function renderTeam() {
       id: t.id + '_taskdel',
       name: t.name, owners: people, owner: people.join(', '), project: t.project,
       due: t.due, status: t.completed ? 'complete' : (t.status || 'need-delegate'), ownerStatus: t.ownerStatus,
+      priority: t.priority || 'med', est: t.est || 0,
       _taskDelegated: true, _taskId: t.id
     });
   });
@@ -9128,6 +9208,66 @@ function renderTeamBoard(visible, boardPerson, container) {
     statusOf = i => i.status;
   }
 
+  // ── Cockpit panel: capacity gauge + scorecard + filter chips (per-person only) ──
+  let panel = '';
+  if (perPerson) {
+    const active = items.filter(i => statusOf(i) !== 'complete');
+    const overdue = active.filter(_teamItemOverdue);
+    const soon = active.filter(i => _teamItemSoon(i));
+    const blocked = active.filter(i => statusOf(i) === 'blocked');
+    const waiting = active.filter(i => i.waiting && i.waiting.trim());
+    const doneCount = items.length - active.length;
+
+    // Near-term load = estimated hours for active work due this week or already overdue.
+    const weekLoad = active.filter(i => _teamItemOverdue(i) || _teamItemSoon(i)).reduce((s, i) => s + (Number(i.est) || 0), 0);
+    const backlog = active.reduce((s, i) => s + (Number(i.est) || 0), 0);
+    const noEst = active.filter(i => !(Number(i.est) > 0)).length;
+    const cap = personWeeklyCap(boardPerson);
+    const pct = cap > 0 ? Math.round((weekLoad / cap) * 100) : 0;
+    const gaugeCls = pct >= 100 ? 'cap-over' : pct >= 80 ? 'cap-warn' : 'cap-ok';
+    const gaugeMsg = pct >= 100 ? '⚠️ Over capacity' : pct >= 80 ? 'Nearly full' : '✅ Has room';
+    const pc = personColor(boardPerson);
+
+    const chip = (key, label, n, cls) => `<button class="team-chip ${cls}${_teamBoardFilter === key ? ' active' : ''}" onclick="_setTeamBoardFilter('${key}')">${label} <strong>${n}</strong></button>`;
+
+    panel = `<div class="team-cockpit">
+      <div class="team-cockpit-top">
+        <div class="team-cockpit-person">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${pc.bg};border:1px solid ${pc.border};"></span>
+          <span class="team-cockpit-name">${escHtml(boardPerson)}</span>
+        </div>
+        <div class="team-cockpit-cap">
+          <label>Weekly capacity</label>
+          <input type="number" min="0" step="1" value="${cap}" onchange="setPersonWeeklyCap('${boardPerson.replace(/'/g, "\\'")}', this.value)" title="Hours per week this person can take on"> h
+        </div>
+      </div>
+      <div class="team-gauge-wrap">
+        <div class="team-gauge"><div class="team-gauge-fill ${gaugeCls}" style="width:${Math.min(100, pct)}%;"></div></div>
+        <div class="team-gauge-label"><strong>${weekLoad}h</strong> / ${cap}h this week · ${pct}% <span class="team-gauge-msg ${gaugeCls}">${gaugeMsg}</span></div>
+      </div>
+      <div class="team-cockpit-sub">Backlog: <strong>${backlog}h</strong> across ${active.length} active item${active.length === 1 ? '' : 's'}${noEst ? ` · <span style="color:var(--text3);">${noEst} without estimate</span>` : ''}${doneCount ? ` · ${doneCount} done` : ''}</div>
+      <div class="team-chips">
+        ${chip('all', 'All active', active.length, '')}
+        ${chip('overdue', '⚠️ Overdue', overdue.length, 'chip-danger')}
+        ${chip('soon', '📅 Due ≤7d', soon.length, 'chip-warn')}
+        ${chip('blocked', '🚫 Blocked', blocked.length, 'chip-blocked')}
+        ${chip('waiting', '⏳ Waiting', waiting.length, 'chip-wait')}
+      </div>
+    </div>`;
+
+    // Apply the active filter chip to the cards shown on the board.
+    if (_teamBoardFilter !== 'all') {
+      items = items.filter(i => {
+        if (statusOf(i) === 'complete') return false;
+        if (_teamBoardFilter === 'overdue') return _teamItemOverdue(i);
+        if (_teamBoardFilter === 'soon') return _teamItemSoon(i);
+        if (_teamBoardFilter === 'blocked') return statusOf(i) === 'blocked';
+        if (_teamBoardFilter === 'waiting') return i.waiting && i.waiting.trim();
+        return true;
+      });
+    }
+  }
+
   const buckets = {};
   STATUS_CYCLE.forEach(c => { buckets[c] = []; });
   items.forEach(i => {
@@ -9136,13 +9276,18 @@ function renderTeamBoard(visible, boardPerson, container) {
     buckets[s].push(i);
   });
 
-  let html = `<div class="team-board">`;
+  let html = panel + `<div class="team-board">`;
   STATUS_CYCLE.forEach(c => {
     const list = buckets[c] || [];
+    // Keep project grouping, but float overdue + higher-priority work to the top within each project.
     list.sort((a, b) => {
       const pa = projLabel(a.project), pb = projLabel(b.project);
       if (pa < pb) return -1;
       if (pa > pb) return 1;
+      const ao = _teamItemOverdue(a) ? 0 : 1, bo = _teamItemOverdue(b) ? 0 : 1;
+      if (ao !== bo) return ao - bo;
+      const pr = (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2);
+      if (pr) return pr;
       return (a.due || '9999').localeCompare(b.due || '9999');
     });
     html += `<div class="team-board-col">
@@ -9192,11 +9337,17 @@ function teamBoardCard(item, forPerson) {
   // on Everyone it moves the primary owner (co-owners preserved).
   const fromPerson = forPerson || owners[0] || '';
 
-  return `<div class="team-board-card" onclick="${editFn}">
-    <div class="team-board-card-name">${escHtml(item.name)}${srcBadge}</div>
+  const overdue = pStatus !== 'complete' && _teamItemOverdue(item);
+  const prio = item.priority || 'med';
+  const prioDot = `<span class="prio-dot prio-${prio}" title="Priority: ${prio}"></span>`;
+  const estHtml = (Number(item.est) > 0) ? `<span class="team-board-card-est">${item.est}h</span>` : '';
+  const dueHtml = `<span class="team-due ${dc}">${overdue ? '⚠️ ' : ''}${item.due ? fmtDate(item.due) : '—'}</span>`;
+
+  return `<div class="team-board-card${overdue ? ' overdue' : ''}" onclick="${editFn}">
+    <div class="team-board-card-name">${prioDot}${escHtml(item.name)}${srcBadge}</div>
     <div class="team-board-card-meta">
       <span class="team-board-card-owners">${ownerTags || '<span style="font-size:9px;color:var(--text3);">Solo</span>'}</span>
-      <span class="team-due ${dc}">${item.due ? fmtDate(item.due) : '—'}</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;">${estHtml}${dueHtml}</span>
     </div>
     ${item.waiting ? `<div class="team-board-card-wait">⏳ ${escHtml(item.waiting)}</div>` : ''}
     <div class="team-board-card-foot">
@@ -9349,6 +9500,8 @@ function openAddTeamModal() {
   populateTeamOwnerPills('teamAddOwnerPills', []);
   populateSubCodeSelect('teamAddSubCode', document.getElementById('teamAddProject')?.value || '');
   document.getElementById('teamAddDue').value = '';
+  document.getElementById('teamAddPriority').value = 'med';
+  document.getElementById('teamAddEst').value = '';
   document.getElementById('teamAddWaiting').value = '';
   document.getElementById('teamAddNotes').value = '';
   document.getElementById('addTeamModal').classList.add('open');
@@ -9372,6 +9525,8 @@ function confirmAddTeam() {
     subCode: document.getElementById('teamAddSubCode').value || '',
     due: document.getElementById('teamAddDue').value || '',
     status: document.getElementById('teamAddStatus').value || 'need-delegate',
+    priority: document.getElementById('teamAddPriority').value || 'med',
+    est: parseFloat(document.getElementById('teamAddEst').value) || 0,
     waiting: document.getElementById('teamAddWaiting').value.trim(),
     notes: document.getElementById('teamAddNotes').value.trim()
   };
@@ -14328,6 +14483,7 @@ function reloadStateFromLocalStorage() {
   completed = load('wt_completed', null) || SEED_COMPLETED;
   _teamViewMode = load('wt_team_view', null) || (load('wt_team_group_person', false) ? 'person' : 'list');
   _teamBoardPerson = load('wt_team_board_person', null);
+  _personCapacity = load('wt_person_capacity', {});
   tsCapacity = load('wt_ts_capacity', 8);
   _dupDecisions = load('wt_dup_decisions', {});
   _staleSubCodes = new Set(load('wt_stale_subcodes', []));
@@ -15105,6 +15261,8 @@ function openEditTeamModal(itemId) {
   document.getElementById('editTeamDue').value     = item.due || '';
   document.getElementById('editTeamAllocMonth').value = item.allocMonth || '';
   document.getElementById('editTeamStatus').value  = item.status || 'need-delegate';
+  document.getElementById('editTeamPriority').value = item.priority || 'med';
+  document.getElementById('editTeamEst').value = item.est || '';
   document.getElementById('editTeamWaiting').value = item.waiting || '';
   document.getElementById('editTeamNotes').value   = item.notes || '';
   document.getElementById('editTeamModal').classList.add('open');
@@ -15127,6 +15285,8 @@ function saveEditTeamItem() {
   item.due     = document.getElementById('editTeamDue').value;
   item.allocMonth = document.getElementById('editTeamAllocMonth').value || null;
   item.status  = document.getElementById('editTeamStatus').value;
+  item.priority = document.getElementById('editTeamPriority').value || 'med';
+  item.est     = parseFloat(document.getElementById('editTeamEst').value) || 0;
   item.waiting = document.getElementById('editTeamWaiting').value.trim();
   item.notes   = document.getElementById('editTeamNotes').value.trim();
   save('wt_team', teamItems);
