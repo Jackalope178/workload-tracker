@@ -1177,6 +1177,8 @@
   .prio-low { background: #4ade80; }
   .team-baton { font-size: 10px; font-weight: 700; color: var(--text2); margin: 4px 0 2px; }
   .team-baton.mine { color: var(--success); }
+  .team-baton-inline { font-size: 10px; font-weight: 700; color: var(--text2); margin-left: 8px; white-space: nowrap; }
+  .team-baton-inline.mine { color: var(--success); }
 
   /* ── Intern-management cockpit ── */
   .team-cockpit { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin: 6px 0 14px; }
@@ -3731,6 +3733,10 @@ if (typeof XLSX === 'undefined') {
       <div class="edit-form-group">
         <label class="edit-label">Est. Hours <span style="font-weight:400;color:var(--text3);">(for capacity)</span></label>
         <input class="edit-input" type="number" min="0" step="0.5" id="editTeamEst" placeholder="e.g. 4">
+      </div>
+      <div class="edit-form-group full">
+        <label class="edit-label">Ball in court <span style="font-weight:400;color:var(--text3);">(pass the baton — whose turn now; everyone stays an owner)</span></label>
+        <select class="edit-input" id="editTeamBaton"></select>
       </div>
       <div class="edit-form-group full">
         <label class="edit-label">Waiting On <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
@@ -9103,7 +9109,7 @@ function renderTeam() {
         `;
     } else {
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${escHtml(item.name)}${item.waiting ? `<span class="task-waiting">⏳ ${escHtml(item.waiting)}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
+        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${escHtml(item.name)}${(!isCompleted && item.activeOwner) ? `<span class="team-baton-inline${item.activeOwner === 'Me' ? ' mine' : ''}" title="Ball in court — open to pass the baton">${item.activeOwner === 'Me' ? '🟢 Your turn' : '◖ ' + escHtml(item.activeOwner)}</span>` : ''}${item.waiting ? `<span class="task-waiting">⏳ ${escHtml(item.waiting)}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
@@ -15358,6 +15364,13 @@ function openEditTeamModal(itemId) {
   document.getElementById('editTeamStatus').value  = item.status || 'need-delegate';
   document.getElementById('editTeamPriority').value = item.priority || 'med';
   document.getElementById('editTeamEst').value = item.est || '';
+  // Baton — list candidates (Me + everyone involved + the team), select the current holder.
+  const _ownersList = (item.owners && item.owners.length ? item.owners : [item.owner]).filter(Boolean);
+  const _holder = item.activeOwner || _ownersList[0] || 'Me';
+  const _cand = [...new Set(['Me', ..._ownersList, ...((typeof PERSONS !== 'undefined') ? PERSONS : [])])].filter(Boolean);
+  if (!_cand.includes(_holder)) _cand.unshift(_holder);
+  document.getElementById('editTeamBaton').innerHTML = _cand.map(p =>
+    `<option value="${escHtml(p)}"${p === _holder ? ' selected' : ''}>${p === 'Me' ? 'Me (your turn)' : escHtml(p)}</option>`).join('');
   document.getElementById('editTeamWaiting').value = item.waiting || '';
   document.getElementById('editTeamNotes').value   = item.notes || '';
   document.getElementById('editTeamModal').classList.add('open');
@@ -15384,10 +15397,22 @@ function saveEditTeamItem() {
   item.est     = parseFloat(document.getElementById('editTeamEst').value) || 0;
   item.waiting = document.getElementById('editTeamWaiting').value.trim();
   item.notes   = document.getElementById('editTeamNotes').value.trim();
+  // Hand-off / baton — if the chosen holder changed, move the ball (additive, logged, mirror-synced).
+  const newHolder = document.getElementById('editTeamBaton').value;
+  const prevHolder = item.activeOwner || (item.owners && item.owners[0]) || '';
+  if (newHolder && newHolder !== prevHolder) {
+    let ow = (item.owners && item.owners.length ? item.owners : [item.owner]).filter(Boolean);
+    if (!ow.includes(newHolder)) { ow = [...ow, newHolder]; item.owners = ow; item.owner = ow[0] || ''; }
+    item.handoffLog = item.handoffLog || [];
+    item.handoffLog.push({ from: prevHolder, to: newHolder, at: today() });
+    item.activeOwner = newHolder;
+    _syncBatonMirror(item, prevHolder, newHolder);
+  }
   save('wt_team', teamItems);
   closeEditTeamModal();
   renderTeam();
   renderProjects();
+  if (typeof renderTasks === 'function') renderTasks();
 }
 
 function deleteTeamItem() {
