@@ -3001,6 +3001,7 @@ if (typeof XLSX === 'undefined') {
         <button class="btn" id="teamGroupBtn" onclick="setTeamView('person')" style="font-size:10px;padding:3px 10px;" title="Group by person">👤 By Person</button>
         <button class="btn" id="teamBoardBtn" onclick="setTeamView('board')" style="font-size:10px;padding:3px 10px;" title="Kanban board">▤ Board</button>
       </div>
+      <button class="btn" id="teamHideTasksBtn" onclick="_toggleTeamHideTasks()" style="font-size:10px;padding:3px 10px;" title="Show or hide delegated personal 'task' cards">task</button>
       <button class="btn" id="clearTeamFiltersBtn" onclick="_clearAllTeamFilters()" style="display:none;font-size:10px;padding:4px 10px;color:var(--text3);">✕ Clear filters</button>
     </div>
     <div id="teamList"></div>
@@ -7017,6 +7018,7 @@ function saveEditTask() {
   closeEditModal();
   renderTasks();
   renderProjects();
+  renderTeam();
   renderTimesheet();
   renderCapacity();
   updateHeaderMeta();
@@ -8809,6 +8811,7 @@ let _teamViewMode = load('wt_team_view', null) || (load('wt_team_group_person', 
 let _teamBoardPerson = load('wt_team_board_person', null); // null → default to first team member
 let _teamBoardFilter = 'all'; // 'all' | 'overdue' | 'soon' | 'blocked' | 'waiting'
 let _personCapacity = load('wt_person_capacity', {}); // { personName: weeklyHours }
+let _teamHideDelegatedTasks = load('wt_team_hide_tasks', false); // hide delegated personal 'task' cards on the board
 const _collapsedTeamPersons = new Set();
 
 const PRIORITY_RANK = { urgent: 0, high: 1, med: 2, low: 3 };
@@ -8820,6 +8823,7 @@ function setPersonWeeklyCap(p, h) {
   renderTeam();
 }
 function _setTeamBoardFilter(f) { _teamBoardFilter = (_teamBoardFilter === f ? 'all' : f); renderTeam(); }
+function _toggleTeamHideTasks() { _teamHideDelegatedTasks = !_teamHideDelegatedTasks; save('wt_team_hide_tasks', _teamHideDelegatedTasks); renderTeam(); }
 function _teamItemOverdue(i) { return !!(i.due && i.due < today()); }
 function _teamItemSoon(i) { const t = today(); const d = new Date(t + 'T00:00:00'); d.setDate(d.getDate() + 7); const wk = localDateStr(d); return !!(i.due && i.due >= t && i.due <= wk); }
 
@@ -8980,6 +8984,12 @@ function renderTeam() {
     const b = document.getElementById(id);
     if (b) b.classList.toggle('team-view-btn-active', _teamViewMode === mode);
   });
+  const htBtn = document.getElementById('teamHideTasksBtn');
+  if (htBtn) {
+    htBtn.classList.toggle('team-view-btn-active', !_teamHideDelegatedTasks);
+    htBtn.textContent = _teamHideDelegatedTasks ? '◻ task' : '◼ task';
+    htBtn.title = _teamHideDelegatedTasks ? "Delegated 'task' cards hidden — click to show" : "Delegated 'task' cards shown — click to hide";
+  }
 
   // Board personnel selector — populated from all people, only visible in board mode
   const boardSelect = document.getElementById('teamBoardPerson');
@@ -8997,6 +9007,7 @@ function renderTeam() {
   }
 
   let visible = allItems;
+  if (_teamHideDelegatedTasks) visible = visible.filter(t => !t._taskDelegated);
   if (search) visible = visible.filter(t => t.name.toLowerCase().includes(search) || (t.owners||[]).some(o => o.toLowerCase().includes(search)));
   if (fPerson !== 'all') visible = visible.filter(t => (t.owners||[]).includes(fPerson));
   if (fProj !== 'all') visible = visible.filter(t => t.project === fProj);
@@ -14584,6 +14595,7 @@ function reloadStateFromLocalStorage() {
   _teamViewMode = load('wt_team_view', null) || (load('wt_team_group_person', false) ? 'person' : 'list');
   _teamBoardPerson = load('wt_team_board_person', null);
   _personCapacity = load('wt_person_capacity', {});
+  _teamHideDelegatedTasks = load('wt_team_hide_tasks', false);
   tsCapacity = load('wt_ts_capacity', 8);
   _dupDecisions = load('wt_dup_decisions', {});
   _staleSubCodes = new Set(load('wt_stale_subcodes', []));
