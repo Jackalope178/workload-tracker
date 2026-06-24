@@ -1175,6 +1175,8 @@
   .prio-high { background: #fbbf24; }
   .prio-med { background: #60a5fa; }
   .prio-low { background: #4ade80; }
+  .team-baton { font-size: 10px; font-weight: 700; color: var(--text2); margin: 4px 0 2px; }
+  .team-baton.mine { color: var(--success); }
 
   /* ── Intern-management cockpit ── */
   .team-cockpit { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin: 6px 0 14px; }
@@ -1205,6 +1207,9 @@
   .team-chip.chip-danger.active { background: var(--danger); border-color: var(--danger); }
   .team-chip.chip-warn.active { background: var(--warn); border-color: var(--warn); color: #1a1d26; }
   .team-chip.chip-warn.active strong { color: #1a1d26; }
+  .team-chip.chip-mine.active { background: var(--success); border-color: var(--success); color: #0c1a12; }
+  .team-chip.chip-mine.active strong { color: #0c1a12; }
+  .from-team-badge { font-size: 9px; font-weight: 700; color: var(--accent); background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 1px 6px; margin-left: 6px; white-space: nowrap; }
 
   .team-table-header {
     display: grid;
@@ -6182,7 +6187,7 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${projColor(task.project)};" title="${projLabel(task.project)}"></div>
-        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${delegateTagsHtml(task.delegatedTo)}${task.waiting ? `<span class="task-waiting">⏳ ${escHtml(task.waiting)}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}${spreadBadgeHtml(task, task.due)}${blocksBadgeHtml(task)}</div>
+        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${task._deliverableId ? '<span class="from-team-badge" title="Your turn on a team deliverable — handed to you via the board">↩ team</span>' : ''}${delegateTagsHtml(task.delegatedTo)}${task.waiting ? `<span class="task-waiting">⏳ ${escHtml(task.waiting)}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}${spreadBadgeHtml(task, task.due)}${blocksBadgeHtml(task)}</div>
         <div class="task-recur-actions"><button class="row-edit-btn" onclick="event.stopPropagation();showTaskAssignDropdown(event,'${task.id}')" title="Assign" style="font-size:11px;padding:2px 4px;">↗</button>${task.recurrence ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>` : ''}</div>
         <span class="task-category">${projLabel(task.project)}</span>
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
@@ -9216,6 +9221,7 @@ function renderTeamBoard(visible, boardPerson, container) {
     const soon = active.filter(i => _teamItemSoon(i));
     const blocked = active.filter(i => statusOf(i) === 'blocked');
     const waiting = active.filter(i => i.waiting && i.waiting.trim());
+    const onMe = active.filter(i => !i._delegated && !i._taskDelegated && _batonOwner(i) === 'Me');
     const doneCount = items.length - active.length;
 
     // Near-term load = estimated hours for active work due this week or already overdue.
@@ -9252,6 +9258,7 @@ function renderTeamBoard(visible, boardPerson, container) {
         ${chip('soon', '📅 Due ≤7d', soon.length, 'chip-warn')}
         ${chip('blocked', '🚫 Blocked', blocked.length, 'chip-blocked')}
         ${chip('waiting', '⏳ Waiting', waiting.length, 'chip-wait')}
+        ${chip('mine', '🟢 Your turn', onMe.length, 'chip-mine')}
       </div>
     </div>`;
 
@@ -9263,6 +9270,7 @@ function renderTeamBoard(visible, boardPerson, container) {
         if (_teamBoardFilter === 'soon') return _teamItemSoon(i);
         if (_teamBoardFilter === 'blocked') return statusOf(i) === 'blocked';
         if (_teamBoardFilter === 'waiting') return i.waiting && i.waiting.trim();
+        if (_teamBoardFilter === 'mine') return !i._delegated && !i._taskDelegated && _batonOwner(i) === 'Me';
         return true;
       });
     }
@@ -9343,16 +9351,27 @@ function teamBoardCard(item, forPerson) {
   const estHtml = (Number(item.est) > 0) ? `<span class="team-board-card-est">${item.est}h</span>` : '';
   const dueHtml = `<span class="team-due ${dc}">${overdue ? '⚠️ ' : ''}${item.due ? fmtDate(item.due) : '—'}</span>`;
 
+  // Baton / hand-off relay — native deliverables only (sessions/tasks keep their own home).
+  const isNative = !item._delegated && !item._taskDelegated;
+  let batonHtml = '', handoffBtn = '';
+  if (isNative && pStatus !== 'complete') {
+    const holder = _batonOwner(item);
+    const mine = holder === 'Me';
+    batonHtml = `<div class="team-baton${mine ? ' mine' : ''}" title="Ball in court — whose turn it is now">${mine ? '🟢 Your turn' : '◖ ' + escHtml(holder) + "'s turn"}</div>`;
+    handoffBtn = `<button class="team-board-reassign" onclick="event.stopPropagation();showHandoffDropdown(event,'${item.id}')" title="Hand off — move the ball to the next person (keeps everyone involved)">⇢</button>`;
+  }
+
   return `<div class="team-board-card${overdue ? ' overdue' : ''}" onclick="${editFn}">
     <div class="team-board-card-name">${prioDot}${escHtml(item.name)}${srcBadge}</div>
     <div class="team-board-card-meta">
       <span class="team-board-card-owners">${ownerTags || '<span style="font-size:9px;color:var(--text3);">Solo</span>'}</span>
       <span style="display:inline-flex;align-items:center;gap:6px;">${estHtml}${dueHtml}</span>
     </div>
+    ${batonHtml}
     ${item.waiting ? `<div class="team-board-card-wait">⏳ ${escHtml(item.waiting)}</div>` : ''}
     <div class="team-board-card-foot">
       <span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="event.stopPropagation();${statusFn}" style="cursor:pointer;" title="Change status">${STATUS_LABELS[pStatus] || pStatus}</span>
-      <button class="team-board-reassign" onclick="event.stopPropagation();showReassignDropdown(event,'${rowKey}','${fromPerson.replace(/'/g, "\\'")}')" title="Reassign / delegate to another team member">⇄</button>
+      <span style="display:inline-flex;gap:5px;">${handoffBtn}<button class="team-board-reassign" onclick="event.stopPropagation();showReassignDropdown(event,'${rowKey}','${fromPerson.replace(/'/g, "\\'")}')" title="Reassign / delegate to another team member">⇄</button></span>
     </div>
   </div>`;
 }
@@ -9398,6 +9417,81 @@ function _toggleTeamPersonCollapse(person) {
   if (_collapsedTeamPersons.has(person)) _collapsedTeamPersons.delete(person);
   else _collapsedTeamPersons.add(person);
   renderTeam();
+}
+
+// ── Baton / hand-off relay ──────────────────────────────────────────────
+// A native deliverable carries `activeOwner` = whose court the ball is in now.
+// Owners[] is the full cast and only grows (everyone stays involved); the baton
+// just moves between them. When the ball lands on 'Me' we mirror it as a clean
+// personal task in My Tasks so it flows into your own tracking + capacity, and
+// close that task automatically when the ball leaves you or the item completes.
+function _batonOwner(item) {
+  const owners = (item.owners && item.owners.length ? item.owners : [item.owner]).filter(Boolean);
+  return item.activeOwner || owners[0] || '';
+}
+
+function showHandoffDropdown(e, itemId) {
+  e.stopPropagation();
+  const item = teamItems.find(t => t.id === itemId);
+  if (!item) return;
+  const cur = _batonOwner(item);
+  const owners = (item.owners && item.owners.length ? item.owners : [item.owner]).filter(Boolean);
+  // Owners first (the cast), then 'Me', then the rest of the team — current holder excluded.
+  const pool = [...owners, 'Me', ...(typeof PERSONS !== 'undefined' ? PERSONS : [])];
+  const seen = new Set();
+  const opts = pool.filter(p => p && p !== cur && !seen.has(p) && seen.add(p))
+    .map(p => ({ value: p, label: (owners.includes(p) ? '↩ ' : '→ ') + (p === 'Me' ? 'Me (your turn)' : p) }));
+  if (!opts.length) { if (typeof showSyncToast === 'function') showSyncToast('Add team members first', 'error'); return; }
+  showDropdown(e.currentTarget, opts, '', val => handoffBaton(itemId, val));
+}
+
+function handoffBaton(itemId, to) {
+  const item = teamItems.find(t => t.id === itemId);
+  if (!item || !to) return;
+  let owners = (item.owners && item.owners.length ? item.owners : [item.owner]).filter(Boolean);
+  const from = _batonOwner(item);
+  if (to === from) return;
+  // Keep everyone involved — the cast only grows.
+  if (!owners.includes(to)) { owners = [...owners, to]; item.owners = owners; item.owner = owners[0] || ''; }
+  item.handoffLog = item.handoffLog || [];
+  item.handoffLog.push({ from, to, at: today() });
+  item.activeOwner = to;
+  _syncBatonMirror(item, from, to);
+  save('wt_team', teamItems);
+  renderTeam();
+  if (typeof renderTasks === 'function') renderTasks();
+  if (typeof showSyncToast === 'function') showSyncToast(`Ball → ${to === 'Me' ? 'you' : to}`, 'success');
+}
+
+// Keep the My-Tasks mirror in step with the baton.
+function _syncBatonMirror(item, from, to) {
+  if (to === 'Me') {
+    let mt = item.reviewTaskId ? tasks.find(t => t.id === item.reviewTaskId) : null;
+    if (!mt) {
+      mt = {
+        id: uid(), name: item.name, project: item.project || 'overhead', subCode: item.subCode || '',
+        priority: item.priority || 'med', due: item.due || '', est: item.est || 0, category: '',
+        waiting: '', notes: '', recurrence: null, timer: 0, timerStart: null,
+        completed: false, delegatedTo: null, _deliverableId: item.id
+      };
+      tasks.push(mt);
+      item.reviewTaskId = mt.id;
+    } else {
+      // Revive the existing mirror and refresh the synced fields.
+      mt.completed = false; mt.completedAt = null;
+      mt.name = item.name; mt.due = item.due || ''; mt.project = item.project || 'overhead';
+      mt.subCode = item.subCode || ''; mt.priority = item.priority || 'med'; mt.est = item.est || 0;
+    }
+    save('wt_tasks', tasks);
+  } else if (from === 'Me') {
+    _closeBatonMirror(item);
+  }
+}
+
+function _closeBatonMirror(item) {
+  if (!item || !item.reviewTaskId) return;
+  const mt = tasks.find(t => t.id === item.reviewTaskId);
+  if (mt && !mt.completed) { mt.completed = true; mt.completedAt = today(); save('wt_tasks', tasks); }
 }
 
 // Notes popup — universal for any item type
@@ -14814,6 +14908,7 @@ function showStatusDropdown(e, itemId) {
   if (!item) return;
   showDropdown(e.currentTarget, STATUS_OPTS, item.status, val => {
     item.status = val;
+    if (val === 'complete') _closeBatonMirror(item);
     save('wt_team', teamItems);
     renderTeam();
     renderProjects();
