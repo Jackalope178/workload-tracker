@@ -5004,12 +5004,15 @@ function getSubCodeLabel(projKey, scId) {
 function populateSubCodeSelect(selectId, projKey, currentVal) {
   const el = document.getElementById(selectId);
   if (!el) return;
-  const subs = getSubCodes(projKey);
+  // Retired (inactive) sub-codes drop out of entry/edit dropdowns so they can't be
+  // picked for new work — but keep the one the edited item is already bound to, so
+  // editing an existing entry doesn't silently lose its (retired) sub-code.
+  const subs = getSubCodes(projKey).filter(sc => sc.active !== false || sc.id === currentVal);
   el.innerHTML = '<option value="">' + (subs.length ? '— No sub-code —' : '(none available)') + '</option>';
   subs.forEach(sc => {
     const opt = document.createElement('option');
     opt.value = sc.id;
-    opt.textContent = sc.code + ' ' + sc.label;
+    opt.textContent = sc.code + ' ' + sc.label + (sc.active === false ? ' (retired)' : '');
     el.appendChild(opt);
   });
   if (currentVal) el.value = currentVal;
