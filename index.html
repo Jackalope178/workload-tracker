@@ -1194,7 +1194,7 @@
   .relay-cur-actions { display: inline-flex; gap: 6px; }
   .relay-cur-actions .btn { font-size: 10px; padding: 4px 10px; }
   #editTeamRelayBody { overflow-x: auto; }
-  .relay-edit-row { display: grid; grid-template-columns: 14px 68px minmax(64px,1fr) 88px 42px 124px auto auto auto; gap: 5px; align-items: center; margin-bottom: 6px; min-width: 440px; }
+  .relay-edit-row { display: grid; grid-template-columns: 14px 76px minmax(96px,1fr) 46px 124px auto auto auto; gap: 5px; align-items: center; margin-bottom: 6px; min-width: 340px; }
   .relay-edit-est { text-align: right; }
   .relay-edit-due { padding: 4px 4px !important; font-size: 10px !important; }
   .relay-edit-num { font-size: 11px; font-weight: 700; color: var(--text3); text-align: center; }
@@ -9652,12 +9652,12 @@ function relayStatusInfo(item, person) {
   }
   // The holder's own board → their active work.
   if (person === holder) {
-    const al = k === 'review' ? 'Reviewing' : k === 'send' ? 'To send' : (st.label && st.label !== item.name ? st.label : 'In progress');
+    const al = k === 'review' ? 'Reviewing' : k === 'send' ? 'To send' : 'In progress';
     return { col: 'in-progress', label: al, holder, kind: k };
   }
   // Neutral (Everyone / list) → in-flight work reads as "Waiting on X"; active work in progress.
   if (k === 'review') return { col: 'in-review', label: `Waiting on ${who}`, holder, kind: k };
-  const al = k === 'send' ? `To send — ${who}` : `${(st.label && st.label !== item.name ? st.label : 'In progress')} — ${who}`;
+  const al = k === 'send' ? `To send — ${who}` : `In progress — ${who}`;
   return { col: 'in-progress', label: al, holder, kind: k };
 }
 
@@ -9754,7 +9754,7 @@ function _openRelayPass(item, mode) {
   const st = relayStage(item);
   const bill = [item.project ? projLabel(item.project) : '', item.subCode].filter(Boolean).join(' · ') || '—';
   const nm = document.getElementById('relayPassName'); if (nm) nm.textContent = item.name;
-  const lbl = document.getElementById('relayPassLeg'); if (lbl) lbl.textContent = st ? (st.label || 'KME review') : 'your leg';
+  const lbl = document.getElementById('relayPassLeg'); if (lbl) lbl.textContent = st ? (st.label || RELAY_KINDS[st.kind]?.label || 'your leg') : 'your leg';
   const bl = document.getElementById('relayPassBill'); if (bl) bl.textContent = bill;
   const hrs = document.getElementById('relayPassHours');
   if (hrs) { hrs.value = (st && Number(st.est) > 0) ? st.est : ''; hrs.placeholder = 'e.g. 0.5'; }
@@ -9814,7 +9814,6 @@ function _renderRelayEditor() {
         <option value="review"${s.kind === 'review' ? ' selected' : ''}>👁 Review</option>
         <option value="send"${s.kind === 'send' ? ' selected' : ''}>✉ Send</option>
       </select>
-      <input class="edit-input relay-edit-label" value="${escHtml(s.label || '')}" placeholder="${s.kind === 'review' ? 'e.g. KME review' : s.kind === 'send' ? 'e.g. Send newsletter' : 'e.g. Draft'}" onchange="_relaySet(${i},'label',this.value)">
       <select class="edit-input relay-edit-who" onchange="_relaySet(${i},'who',this.value)">${_relayPeopleOpts(s.who)}</select>
       <input class="edit-input relay-edit-est" type="number" min="0" step="0.25" value="${s.est != null && s.est !== '' ? s.est : ''}" placeholder="hrs" title="Estimated hours for this leg — counts toward this person's load" onchange="_relaySet(${i},'est',this.value)">
       <input class="edit-input relay-edit-due" type="date" value="${s.due || ''}" title="Due date for this leg — becomes the deliverable's due while it's this person's turn" onchange="_relaySet(${i},'due',this.value)">
@@ -9829,10 +9828,9 @@ function _relayAddStage() {
     // deliverable's own assignee + estimate so you don't re-enter it.
     let who = (typeof PERSONS !== 'undefined' && PERSONS[0]) || 'Me';
     try { const o = getSelectedTeamOwners('editTeamOwnerPills'); if (o && o.length) who = o[0]; } catch (e) {}
-    const name = (document.getElementById('editTeamName')?.value || '').trim();
     const e = parseFloat(document.getElementById('editTeamEst')?.value);
     const dd = (document.getElementById('editTeamDue')?.value || '');
-    _relayDraft.push({ id: uid(), kind: 'work', label: name || 'Draft', who, est: (e > 0 ? e : ''), due: dd });
+    _relayDraft.push({ id: uid(), kind: 'work', label: '', who, est: (e > 0 ? e : ''), due: dd });
   } else {
     _relayDraft.push({ id: uid(), kind: 'work', label: '', who: (typeof PERSONS !== 'undefined' && PERSONS[0]) || 'Me', est: '', due: '' });
   }
