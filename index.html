@@ -9196,7 +9196,7 @@ function renderTeam() {
         `;
     } else {
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${escHtml(item.name)}${(!isCompleted && item.activeOwner) ? `<span class="team-baton-inline${item.activeOwner === 'Me' ? ' mine' : ''}" title="Ball in court — open to pass the baton">${item.activeOwner === 'Me' ? '🟢 Your turn' : '◖ ' + escHtml(item.activeOwner)}</span>` : ''}${item.waiting ? `<span class="task-waiting">⏳ ${escHtml(item.waiting)}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
+        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${escHtml(item.name)}${(!isCompleted && item.activeOwner && !_isRelay(item)) ? `<span class="team-baton-inline${item.activeOwner === 'Me' ? ' mine' : ''}" title="Ball in court — open to pass the baton">${item.activeOwner === 'Me' ? '🟢 Your turn' : '◖ ' + escHtml(item.activeOwner)}</span>` : ''}${item.waiting ? `<span class="task-waiting">⏳ ${escHtml(item.waiting)}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
@@ -9455,13 +9455,12 @@ function teamBoardCard(item, forPerson) {
   const isNative = !item._delegated && !item._taskDelegated;
   let batonHtml = '', handoffBtn = '', relayRail = '', relayActions = '';
   if (relay) {
-    // Multi-stage relay: show the rail + whose turn + stage-driven actions.
+    // Multi-stage relay: show the rail + stage-driven actions. The column the card
+    // sits in already conveys whose turn it is, so no separate "your turn" badge.
     relayRail = _relayRailHtml(item);
     if (!_relayDone(item)) {
-      const holder = relay.holder, mine = holder === 'Me';
+      const holder = relay.holder;
       const isHolderView = forPerson ? (forPerson === holder) : true;
-      if (forPerson === holder) batonHtml = `<div class="team-baton mine" title="Your turn">🟢 Your turn</div>`;
-      else if (!forPerson) batonHtml = `<div class="team-baton${mine ? ' mine' : ''}" title="Ball in court — whose turn it is now">◖ ${mine ? 'KME' : escHtml(holder)}'s turn</div>`;
       // Only the holder (or the neutral Everyone board) can advance the relay.
       if (isHolderView) {
         const backBtn = relayIdx(item) > 0 ? `<button class="relay-act" onclick="event.stopPropagation();relayBack('${item.id}')" title="Send back a stage">↩</button>` : '';
