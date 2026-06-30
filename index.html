@@ -9633,7 +9633,10 @@ function relayStatusInfo(item) {
   } else if (k === 'send') {
     col = 'in-progress'; label = `To send — ${who}`;
   } else {
-    col = 'in-progress'; label = `${st.label || 'Work'} — ${who}`;
+    // Don't echo the deliverable name (the seeded main-task leg) back in the badge.
+    col = 'in-progress';
+    const wl = (st.label && st.label !== item.name) ? st.label : 'In progress';
+    label = `${wl} — ${who}`;
   }
   return { col, label, holder: st.who, kind: k, started: !!item.relayStarted, stage: st };
 }
