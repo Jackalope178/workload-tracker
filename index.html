@@ -9045,7 +9045,7 @@ function renderTeam() {
     const allPeople = [...new Set(allItems.flatMap(t => t.owners || [t.owner]).filter(Boolean))].sort();
     const curVal = personSelect.value;
     personSelect.innerHTML = '<option value="all">All people</option>';
-    allPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; personSelect.appendChild(o); });
+    allPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = _relayWho(p); personSelect.appendChild(o); });
     personSelect.value = curVal;
   }
 
@@ -9067,11 +9067,11 @@ function renderTeam() {
     boardSelect.style.display = _teamViewMode === 'board' ? '' : 'none';
     const boardPeople = [...new Set(allItems.flatMap(t => t.owners || [t.owner]).filter(Boolean))].sort();
     boardSelect.innerHTML = '<option value="all">👥 Everyone</option>';
-    boardPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; boardSelect.appendChild(o); });
-    // Default to a team member's board (not Everyone) unless the user explicitly picked one.
+    boardPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = _relayWho(p); boardSelect.appendChild(o); });
+    // Default to a team member's board (not Everyone, not your own) unless explicitly picked.
     let chosen;
     if (_teamBoardPerson && (_teamBoardPerson === 'all' || boardPeople.includes(_teamBoardPerson))) chosen = _teamBoardPerson;
-    else chosen = boardPeople[0] || 'all';
+    else chosen = boardPeople.find(p => p !== 'Me') || boardPeople[0] || 'all';
     boardSelect.value = chosen;
     _teamBoardPerson = chosen;
   }
@@ -9130,7 +9130,7 @@ function renderTeam() {
     if (!others.length) return '';
     return '<span class="team-coassignee-tags">' + others.map(o => {
       const pc = personColor(o);
-      return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 5px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">+${o}</span>`;
+      return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 5px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">+${_relayWho(o)}</span>`;
     }).join('') + '</span>';
   }
 
@@ -9161,7 +9161,7 @@ function renderTeam() {
       ? `<div class="team-owner" style="display:flex;flex-wrap:wrap;gap:3px;">${coAssigneeTags(owners, forPerson) || '<span style="font-size:10px;color:var(--text3);">Solo</span>'}</div>`
       : `<div class="team-owner" style="display:flex;flex-wrap:wrap;gap:3px;">${owners.map(o => {
           const pc = personColor(o || '—');
-          return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap;">${o}</span>`;
+          return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap;">${_relayWho(o)}</span>`;
         }).join('')}</div>`;
 
     if (item._delegated) {
@@ -9178,7 +9178,7 @@ function renderTeam() {
         ? bigProjs.find(p=>p.id===item._projId)?.sessions.find(s=>s.id===item._sessionId)?.subtasks?.find(st=>st.id===item._subtaskId)
         : bigProjs.find(p=>p.id===item._projId)?.sessions.find(s=>s.id===item._sessionId);
       row.innerHTML = `
-        <div class="team-task-name" onclick="${editFn}">${item._isSubtask ? '<span style="color:var(--text3);margin-right:4px;">╰</span>' : ''}${escHtml(item.name)}${_s?.waiting ? `<span class="task-waiting">⏳ ${escHtml(_s.waiting)}</span>` : ''}${_s?.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('${item._isSubtask ? 'subtask' : 'session'}','${item._isSubtask ? item._subtaskId : item._sessionId}','${item._projId}'${item._isSubtask ? `,'${item._sessionId}'` : ''})" title="View notes">📝</span>` : ''} <span class="delegate-tag">↗</span></div>
+        <div class="team-task-name" onclick="${editFn}">${item._isSubtask ? '<span style="color:var(--text3);margin-right:4px;">╰</span>' : ''}${escHtml(item.name)}${_s?.waiting ? `<span class="task-waiting">⏳ ${escHtml(_s.waiting)}</span>` : ''}${_s?.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('${item._isSubtask ? 'subtask' : 'session'}','${item._isSubtask ? item._subtaskId : item._sessionId}','${item._projId}'${item._isSubtask ? `,'${item._sessionId}'` : ''})" title="View notes">📝</span>` : ''}</div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
@@ -9187,7 +9187,7 @@ function renderTeam() {
         `;
     } else if (item._taskDelegated) {
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditModal('${item._taskId}')">${escHtml(item.name)} <span class="delegate-tag" style="background:var(--bg3);color:var(--text3);font-size:9px;">task</span></div>
+        <div class="team-task-name" onclick="openEditModal('${item._taskId}')">${escHtml(item.name)}</div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
         <div class="project-dot" style="background:${projColor(item.project)};"></div>
@@ -9336,7 +9336,7 @@ function renderTeamBoard(visible, boardPerson, container) {
       <div class="team-cockpit-top">
         <div class="team-cockpit-person">
           <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${pc.bg};border:1px solid ${pc.border};"></span>
-          <span class="team-cockpit-name">${escHtml(boardPerson)}</span>
+          <span class="team-cockpit-name">${escHtml(_relayWho(boardPerson))}</span>
         </div>
         <div class="team-cockpit-cap">
           <label>Weekly capacity</label>
@@ -9426,10 +9426,10 @@ function teamBoardCard(item, forPerson) {
   const tagOwners = forPerson ? owners.filter(o => o !== forPerson) : owners;
   const ownerTags = tagOwners.map(o => {
     const pc = personColor(o || '—');
-    return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 6px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">${forPerson ? '+' : ''}${escHtml(o || '—')}</span>`;
+    return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 6px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">${forPerson ? '+' : ''}${escHtml(_relayWho(o || '—'))}</span>`;
   }).join('');
 
-  const srcBadge = item._delegated ? '<span class="delegate-tag">↗ session</span>' : item._taskDelegated ? '<span class="delegate-tag">task</span>' : '';
+  const srcBadge = ''; // team-board items render uniformly as deliverables regardless of source
   const editFn = item._delegated
     ? (item._isSubtask ? `openEditSubtaskModal('${item._projId}','${item._sessionId}','${item._subtaskId}')` : `openEditSessionModal('${item._projId}','${item._sessionId}')`)
     : item._taskDelegated ? `openEditModal('${item._taskId}')` : `openEditTeamModal('${item.id}')`;
@@ -9676,7 +9676,7 @@ function _relayRailHtml(item) {
 
 // Re-sync derived fields (owners, baton, status, mirror) to the current stage.
 function _relaySync(item, prevWho) {
-  const persons = [...new Set(item.relay.map(s => s.who).filter(w => w && w !== 'Me'))];
+  const persons = [...new Set(item.relay.map(s => s.who).filter(Boolean))]; // include 'Me' so KME is a board participant
   if (persons.length) { item.owners = persons; item.owner = persons[0] || ''; }
   const cur = relayStage(item);
   item.activeOwner = cur ? cur.who : null;
