@@ -4712,14 +4712,19 @@ saveProjects();
 
 // Project display order
 let projOrder = load('wt_project_order', null) || Object.keys(PROJECTS);
-// Migration: append any new keys not in projOrder, remove stale keys
-(function migrateProjOrder() {
-  const allKeys = Object.keys(PROJECTS);
+// Reconcile projOrder against PROJECTS: append any project keys missing from the
+// order (so they become visible everywhere) and drop stale keys for deleted
+// projects. Must run not just at first load but after every cloud sync — the
+// per-key merge in loadFromSupabase() can pull a newer wt_projects_meta (with a
+// new parent code) while keeping a stale wt_project_order that lacks it, which
+// would otherwise orphan the project from every projOrder-driven view.
+function reconcileProjOrder(persist) {
   const existing = new Set(projOrder);
-  allKeys.forEach(k => { if (!existing.has(k)) projOrder.push(k); });
+  Object.keys(PROJECTS).forEach(k => { if (!existing.has(k)) projOrder.push(k); });
   projOrder = projOrder.filter(k => PROJECTS[k]);
-  save('wt_project_order', projOrder);
-})();
+  if (persist) save('wt_project_order', projOrder);
+}
+reconcileProjOrder(true);
 function saveProjOrder() { save('wt_project_order', projOrder); }
 
 // Collapse state for project rows in Manage Projects modal (session-only)
@@ -5050,12 +5055,15 @@ function getSubCodeLabel(projKey, scId) {
 function populateSubCodeSelect(selectId, projKey, currentVal) {
   const el = document.getElementById(selectId);
   if (!el) return;
-  const subs = getSubCodes(projKey);
+  // Retired (inactive) sub-codes drop out of entry/edit dropdowns so they can't be
+  // picked for new work — but keep the one the edited item is already bound to, so
+  // editing an existing entry doesn't silently lose its (retired) sub-code.
+  const subs = getSubCodes(projKey).filter(sc => sc.active !== false || sc.id === currentVal);
   el.innerHTML = '<option value="">' + (subs.length ? '— No sub-code —' : '(none available)') + '</option>';
   subs.forEach(sc => {
     const opt = document.createElement('option');
     opt.value = sc.id;
-    opt.textContent = sc.code + ' ' + sc.label;
+    opt.textContent = sc.code + ' ' + sc.label + (sc.active === false ? ' (retired)' : '');
     el.appendChild(opt);
   });
   if (currentVal) el.value = currentVal;
@@ -14243,8 +14251,13 @@ function renderAllocations() {
 
   // Collect projects that have sub-codes or billing codes, in user-defined order.
   // Archived projects are excluded by default; toolbar toggle re-includes them as read-only.
+  // Projects that already have allocation hours entered must always be shown,
+  // even if they lack a billing code and sub-codes — otherwise their data would
+  // be silently hidden and unreachable.
+  const projsWithAlloc = new Set();
+  Object.keys(allocations).forEach(k => { const pk = k.split('|')[0]; if (pk) projsWithAlloc.add(pk); });
   const projEntries = projOrder
-    .filter(k => PROJECTS[k] && ((PROJECTS[k].subCodes && PROJECTS[k].subCodes.length > 0) || PROJECTS[k].billingCode))
+    .filter(k => PROJECTS[k] && ((PROJECTS[k].subCodes && PROJECTS[k].subCodes.length > 0) || PROJECTS[k].billingCode || projsWithAlloc.has(k)))
     .filter(k => _allocShowArchived || !PROJECTS[k].archivedAt)
     .map(k => [k, PROJECTS[k]]);
 
@@ -14851,6 +14864,11 @@ function reloadStateFromLocalStorage() {
     if (!PROJECTS[k].tags) PROJECTS[k].tags = [];
   });
   projOrder = load('wt_project_order', null) || Object.keys(PROJECTS);
+  // Cloud sync merges wt_projects_meta and wt_project_order independently, so a
+  // parent code synced from another device can land in PROJECTS without being in
+  // projOrder. Reconcile here so it shows up across all tabs and the allocations
+  // grid (every view iterates projOrder). Persist so the repaired order syncs back.
+  reconcileProjOrder(true);
   allocations = load('wt_allocations', {});
   PERSONS = load('wt_persons', []);
   tasks = load('wt_tasks', null) || SEED_TASKS;
@@ -15933,11 +15951,16 @@ function addNewProjectCode() {
   let key = label.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
   if (!key) key = 'proj';
   if (PROJECTS[key]) key = key + '_' + Math.random().toString(36).slice(2, 5);
-  PROJECTS[key] = { label, color, billingCode, subCodes: [] };
+  PROJECTS[key] = { label, color, billingCode, subCodes: [], tags: [] };
   projOrder.push(key);
   saveProjects();
   saveProjOrder();
   renderProjectMetaList();
+  // Refresh the surfaces that read from projOrder/PROJECTS so the new code is
+  // immediately usable (bill time in other tabs, show in the allocations grid)
+  // without requiring a page reload.
+  populateProjectSelects();
+  renderAllocations();
   document.getElementById('newProjLabel').value = '';
   document.getElementById('newProjBillingCode').value = '';
   document.getElementById('newProjColor').value = '#60a5fa';
