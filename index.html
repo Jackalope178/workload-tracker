@@ -1193,7 +1193,8 @@
   .relay-cur-strip.done { color: var(--success); font-weight: 600; }
   .relay-cur-actions { display: inline-flex; gap: 6px; }
   .relay-cur-actions .btn { font-size: 10px; padding: 4px 10px; }
-  .relay-edit-row { display: grid; grid-template-columns: 18px 96px 1fr 120px auto auto auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .relay-edit-row { display: grid; grid-template-columns: 16px 84px 1fr 104px 52px auto auto auto; gap: 5px; align-items: center; margin-bottom: 6px; }
+  .relay-edit-est { text-align: right; }
   .relay-edit-num { font-size: 11px; font-weight: 700; color: var(--text3); text-align: center; }
   .relay-edit-row .edit-input { padding: 5px 7px; font-size: 11px; }
   .relay-edit-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); border-radius: 6px; font-size: 11px; padding: 4px 7px; cursor: pointer; }
@@ -9307,9 +9308,11 @@ function renderTeamBoard(visible, boardPerson, container) {
     const doneCount = items.length - active.length;
 
     // Near-term load = estimated hours for active work due this week or already overdue.
-    const weekLoad = active.filter(i => _teamItemOverdue(i) || _teamItemSoon(i)).reduce((s, i) => s + (Number(i.est) || 0), 0);
-    const backlog = active.reduce((s, i) => s + (Number(i.est) || 0), 0);
-    const noEst = active.filter(i => !(Number(i.est) > 0)).length;
+    // For relay items, this person is only on the hook for their own stages' hours.
+    const estFor = i => _isRelay(i) ? _relayPersonEst(i, boardPerson) : (Number(i.est) || 0);
+    const weekLoad = active.filter(i => _teamItemOverdue(i) || _teamItemSoon(i)).reduce((s, i) => s + estFor(i), 0);
+    const backlog = active.reduce((s, i) => s + estFor(i), 0);
+    const noEst = active.filter(i => !(estFor(i) > 0)).length;
     const cap = personWeeklyCap(boardPerson);
     const pct = cap > 0 ? Math.round((weekLoad / cap) * 100) : 0;
     const gaugeCls = pct >= 100 ? 'cap-over' : pct >= 80 ? 'cap-warn' : 'cap-ok';
@@ -9432,7 +9435,8 @@ function teamBoardCard(item, forPerson) {
   const overdue = pStatus !== 'complete' && _teamItemOverdue(item);
   const prio = item.priority || 'med';
   const prioDot = `<span class="prio-dot prio-${prio}" title="Priority: ${prio}"></span>`;
-  const estHtml = (Number(item.est) > 0) ? `<span class="team-board-card-est">${item.est}h</span>` : '';
+  const estVal = relay ? (forPerson ? _relayPersonEst(item, forPerson) : _relayTotalEst(item)) : (Number(item.est) || 0);
+  const estHtml = (estVal > 0) ? `<span class="team-board-card-est" title="${relay && forPerson ? forPerson + "'s legs" : 'Estimated hours'}">${estVal}h</span>` : '';
   const dueHtml = `<span class="team-due ${dc}">${overdue ? '⚠️ ' : ''}${item.due ? fmtDate(item.due) : '—'}</span>`;
 
   // Baton / hand-off relay — native deliverables only (sessions/tasks keep their own home).
@@ -9612,6 +9616,9 @@ function _relayWho(who) { return who === 'Me' ? 'KME' : who; }
 function relayIdx(item) { return Math.min(Math.max(0, item.relayStage || 0), item.relay.length); }
 function relayStage(item) { const i = relayIdx(item); return i < item.relay.length ? item.relay[i] : null; }
 function _relayDone(item) { return relayIdx(item) >= item.relay.length; }
+// Hours a given person is on the hook for across this relay (their stages summed).
+function _relayPersonEst(item, who) { return _isRelay(item) ? item.relay.filter(s => s.who === who).reduce((n, s) => n + (Number(s.est) || 0), 0) : 0; }
+function _relayTotalEst(item) { return _isRelay(item) ? item.relay.reduce((n, s) => n + (Number(s.est) || 0), 0) : 0; }
 
 // Derive the shared status (column + contextual label) from the current stage.
 function relayStatusInfo(item) {
@@ -9637,7 +9644,7 @@ function _relayRailHtml(item) {
   const dots = item.relay.map((s, i) => {
     const state = i < idx ? 'done' : (i === idx ? 'cur' : 'pend');
     const ic = RELAY_KINDS[s.kind] ? RELAY_KINDS[s.kind].icon : '•';
-    const tip = `${i + 1}. ${s.label || (RELAY_KINDS[s.kind] && RELAY_KINDS[s.kind].label) || ''} — ${_relayWho(s.who)}`;
+    const tip = `${i + 1}. ${s.label || (RELAY_KINDS[s.kind] && RELAY_KINDS[s.kind].label) || ''} — ${_relayWho(s.who)}${Number(s.est) > 0 ? ` · ${s.est}h` : ''}`;
     return `<span class="relay-dot ${state}" title="${escHtml(tip)}">${i < idx ? '✓' : ic}</span>`;
   }).join('<span class="relay-sep"></span>');
   return `<div class="relay-rail" title="Relay progress">${dots}</div>`;
@@ -9653,6 +9660,9 @@ function _relaySync(item, prevWho) {
   if (cur && cur.who === 'Me') {
     const nm = `${cur.label || RELAY_KINDS[cur.kind]?.label || 'Review'} — ${item.name}`;
     _syncBatonMirror(item, prevWho, 'Me', nm);
+    // Mirror reflects just this leg's estimate, not the whole deliverable's.
+    const mt = item.reviewTaskId ? tasks.find(t => t.id === item.reviewTaskId) : null;
+    if (mt) { mt.est = Number(cur.est) || 0; save('wt_tasks', tasks); }
   } else if (prevWho === 'Me') {
     _closeBatonMirror(item);
   }
@@ -9713,7 +9723,7 @@ function _logRelayLeg(item, stage, hours) {
       project: item.project || 'overhead',
       subCode: item.subCode || '',
       dateCompleted: today(),
-      estHours: item.est || 0,
+      estHours: Number(stage.est) || 0,
       actualHours: h,
       category: ''
     });
@@ -9731,8 +9741,8 @@ function _openRelayPass(item, mode) {
   const nm = document.getElementById('relayPassName'); if (nm) nm.textContent = item.name;
   const lbl = document.getElementById('relayPassLeg'); if (lbl) lbl.textContent = st ? (st.label || 'KME review') : 'your leg';
   const bl = document.getElementById('relayPassBill'); if (bl) bl.textContent = bill;
-  const hrs = document.getElementById('relayPassHours'); if (hrs) hrs.value = item.est ? '' : '';
-  if (hrs) hrs.placeholder = 'e.g. 0.5';
+  const hrs = document.getElementById('relayPassHours');
+  if (hrs) { hrs.value = (st && Number(st.est) > 0) ? st.est : ''; hrs.placeholder = 'e.g. 0.5'; }
   const nx = relayStage(item) ? null : null;
   const m = document.getElementById('relayPassModal'); if (m) m.classList.add('open');
 }
@@ -9768,6 +9778,7 @@ function _renderRelayEditor() {
       </select>
       <input class="edit-input relay-edit-label" value="${escHtml(s.label || '')}" placeholder="${s.kind === 'review' ? 'e.g. KME review' : s.kind === 'send' ? 'e.g. Send newsletter' : 'e.g. Draft'}" onchange="_relaySet(${i},'label',this.value)">
       <select class="edit-input relay-edit-who" onchange="_relaySet(${i},'who',this.value)">${_relayPeopleOpts(s.who)}</select>
+      <input class="edit-input relay-edit-est" type="number" min="0" step="0.25" value="${s.est != null && s.est !== '' ? s.est : ''}" placeholder="hrs" title="Estimated hours for this leg — counts toward this person's load" onchange="_relaySet(${i},'est',this.value)">
       <button type="button" class="relay-edit-btn" title="Move up" onclick="_relayMove(${i},-1)"${i === 0 ? ' disabled' : ''}>↑</button>
       <button type="button" class="relay-edit-btn" title="Move down" onclick="_relayMove(${i},1)"${i === _relayDraft.length - 1 ? ' disabled' : ''}>↓</button>
       <button type="button" class="relay-edit-btn danger" title="Remove" onclick="_relayDel(${i})">✕</button>
@@ -9775,10 +9786,14 @@ function _renderRelayEditor() {
 }
 function _relayAddStage() {
   const last = _relayDraft[_relayDraft.length - 1];
-  _relayDraft.push({ id: uid(), kind: 'work', label: '', who: (typeof PERSONS !== 'undefined' && PERSONS[0]) || 'Me' });
+  _relayDraft.push({ id: uid(), kind: 'work', label: '', who: (typeof PERSONS !== 'undefined' && PERSONS[0]) || 'Me', est: '' });
   _renderRelayEditor();
 }
-function _relaySet(i, field, val) { if (_relayDraft[i]) { _relayDraft[i][field] = val; if (field === 'kind') _renderRelayEditor(); } }
+function _relaySet(i, field, val) {
+  if (!_relayDraft[i]) return;
+  _relayDraft[i][field] = (field === 'est') ? (val === '' ? '' : (parseFloat(val) || 0)) : val;
+  if (field === 'kind') _renderRelayEditor();
+}
 function _relayDel(i) { _relayDraft.splice(i, 1); _renderRelayEditor(); }
 function _relayMove(i, dir) {
   const j = i + dir;
@@ -15726,7 +15741,7 @@ function saveEditTeamItem() {
   // ── Relay stages ──
   const wasRelay = _isRelay(item);
   const cleanRelay = (_relayDraft || []).filter(s => s && s.who).map(s => ({
-    id: s.id || uid(), kind: s.kind || 'work', label: (s.label || '').trim(), who: s.who
+    id: s.id || uid(), kind: s.kind || 'work', label: (s.label || '').trim(), who: s.who, est: parseFloat(s.est) || 0
   }));
   if (cleanRelay.length) {
     item.relay = cleanRelay;
