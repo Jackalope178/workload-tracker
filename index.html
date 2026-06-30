@@ -1180,6 +1180,27 @@
   .team-baton-inline { font-size: 10px; font-weight: 700; color: var(--text2); margin-left: 8px; white-space: nowrap; }
   .team-baton-inline.mine { color: var(--success); }
 
+  /* ── Relay (multi-stage pass-around) ── */
+  .relay-rail { display: flex; align-items: center; gap: 2px; margin: 6px 0 2px; flex-wrap: wrap; }
+  .relay-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; font-size: 9px; border: 1px solid var(--border); background: var(--bg3); color: var(--text3); flex-shrink: 0; }
+  .relay-dot.done { background: var(--success); border-color: var(--success); color: #07140d; }
+  .relay-dot.cur { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .relay-sep { width: 8px; height: 1px; background: var(--border); flex-shrink: 0; }
+  .relay-act { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); cursor: pointer; }
+  .relay-act:hover { border-color: var(--accent); color: var(--accent); }
+  .relay-act.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .relay-cur-strip { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; margin-bottom: 8px; }
+  .relay-cur-strip.done { color: var(--success); font-weight: 600; }
+  .relay-cur-actions { display: inline-flex; gap: 6px; }
+  .relay-cur-actions .btn { font-size: 10px; padding: 4px 10px; }
+  .relay-edit-row { display: grid; grid-template-columns: 18px 96px 1fr 120px auto auto auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .relay-edit-num { font-size: 11px; font-weight: 700; color: var(--text3); text-align: center; }
+  .relay-edit-row .edit-input { padding: 5px 7px; font-size: 11px; }
+  .relay-edit-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); border-radius: 6px; font-size: 11px; padding: 4px 7px; cursor: pointer; }
+  .relay-edit-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .relay-edit-btn:disabled { opacity: 0.35; cursor: default; }
+  .relay-edit-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
   /* ── Intern-management cockpit ── */
   .team-cockpit { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin: 6px 0 14px; }
   .team-cockpit-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -3384,6 +3405,29 @@ if (typeof XLSX === 'undefined') {
   </div>
 </div>
 
+<!-- RELAY PASS / LOG MODAL -->
+<div class="modal-overlay" id="relayPassModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-title">Pass the baton</div>
+    <div style="font-size:12px;color:var(--text2);margin:6px 0 14px;">Log your time on <strong id="relayPassLeg">this leg</strong> for <strong id="relayPassName">—</strong> before it moves on.</div>
+    <div class="edit-form-grid">
+      <div class="edit-form-group">
+        <label class="edit-label">Hours</label>
+        <input class="edit-input" type="number" min="0" step="0.25" id="relayPassHours" placeholder="e.g. 0.5">
+      </div>
+      <div class="edit-form-group">
+        <label class="edit-label">Bills to</label>
+        <input class="edit-input" id="relayPassBill" value="—" readonly style="color:var(--text3);">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" style="margin-right:auto;" onclick="_closeRelayPass()">Cancel</button>
+      <button class="btn" onclick="_confirmRelayPass(true)" title="Pass without logging time">Skip &amp; pass</button>
+      <button class="btn primary" onclick="_confirmRelayPass(false)">Log &amp; pass →</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD PROJECT MODAL -->
 <div class="modal-overlay" id="addProjectModal">
   <div class="modal">
@@ -3735,9 +3779,16 @@ if (typeof XLSX === 'undefined') {
         <label class="edit-label">Est. Hours <span style="font-weight:400;color:var(--text3);">(for capacity)</span></label>
         <input class="edit-input" type="number" min="0" step="0.5" id="editTeamEst" placeholder="e.g. 4">
       </div>
-      <div class="edit-form-group full">
+      <div class="edit-form-group full" id="editTeamBatonGroup">
         <label class="edit-label">Ball in court <span style="font-weight:400;color:var(--text3);">(pass the baton — whose turn now; everyone stays an owner)</span></label>
         <select class="edit-input" id="editTeamBaton"></select>
+      </div>
+      <div class="edit-form-group full">
+        <label class="edit-label">Relay / pass-around <span style="font-weight:400;color:var(--text3);">(ordered stages; the current stage sets whose turn it is and the status everyone sees)</span></label>
+        <div id="editTeamRelayCurrent" style="display:none;"></div>
+        <div id="editTeamRelayEmpty" style="font-size:11px;color:var(--text3);padding:4px 0;">No relay — this is a single-owner deliverable. Add stages to route it through multiple people (e.g. Draft → KME review → Alexandria review → Revisions → Send).</div>
+        <div id="editTeamRelayBody"></div>
+        <button type="button" class="btn" style="font-size:10px;padding:4px 10px;margin-top:6px;" onclick="_relayAddStage()">+ Add stage</button>
       </div>
       <div class="edit-form-group full">
         <label class="edit-label">Waiting On <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
@@ -9071,14 +9122,19 @@ function renderTeam() {
     const dc = dueCls(item.due);
     const owners = item.owners || [item.owner];
 
-    // Status badge — person-aware when rendered inside a person group/board
-    const pStatus = forPerson ? teamPersonStatus(item, forPerson) : item.status;
+    // Status badge — person-aware when rendered inside a person group/board;
+    // relay items show one shared, stage-derived status (not a manual dropdown).
+    const _relayInfo = _isRelay(item) ? relayStatusInfo(item) : null;
+    const pStatus = _relayInfo ? _relayInfo.col : (forPerson ? teamPersonStatus(item, forPerson) : item.status);
+    const _pLabel = _relayInfo ? _relayInfo.label : (STATUS_LABELS[pStatus] || pStatus);
     let _statusFn;
     if (forPerson) _statusFn = `showPersonStatusDropdown(event,'${_teamRowKey(item)}','${(forPerson || '').replace(/'/g, "\\'")}')`;
     else if (item._delegated) _statusFn = item._isSubtask ? `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}','${item._subtaskId}')` : `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')`;
     else if (item._taskDelegated) _statusFn = `showDelegatedTaskStatusDropdown(event,'${item._taskId}')`;
     else _statusFn = `showStatusDropdown(event,'${item.id}')`;
-    const statusBadge = `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="${_statusFn}" style="cursor:pointer;" title="${STATUS_LABELS[pStatus] || pStatus}">${STATUS_LABELS[pStatus] || pStatus}</span>`;
+    const statusBadge = _relayInfo
+      ? `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" title="Set by the relay stage">${escHtml(_pLabel)}</span>`
+      : `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="${_statusFn}" style="cursor:pointer;" title="${escHtml(_pLabel)}">${escHtml(_pLabel)}</span>`;
 
     // In grouped mode, show co-assignee tags instead of owner column
     const ownerHtml = forPerson
@@ -9224,10 +9280,11 @@ function renderTeamBoard(visible, boardPerson, container) {
   let items, statusOf;
   if (perPerson) {
     items = visible.filter(i => (i.owners || [i.owner]).includes(boardPerson));
-    statusOf = i => teamPersonStatus(i, boardPerson);
+    // Relay items show one shared, stage-derived status on everyone's board.
+    statusOf = i => _isRelay(i) ? relayStatusInfo(i).col : teamPersonStatus(i, boardPerson);
   } else {
     items = visible;
-    statusOf = i => i.status;
+    statusOf = i => _isRelay(i) ? relayStatusInfo(i).col : i.status;
   }
 
   // ── Cockpit panel: capacity gauge + scorecard + filter chips (per-person only) ──
@@ -9340,7 +9397,9 @@ function renderTeamBoard(visible, boardPerson, container) {
 function teamBoardCard(item, forPerson) {
   const owners = item.owners || [item.owner];
   const dc = dueCls(item.due);
-  const pStatus = forPerson ? teamPersonStatus(item, forPerson) : item.status;
+  const relay = _isRelay(item) ? relayStatusInfo(item) : null;
+  const pStatus = relay ? relay.col : (forPerson ? teamPersonStatus(item, forPerson) : item.status);
+  const pLabel = relay ? relay.label : (STATUS_LABELS[pStatus] || pStatus);
   const tagOwners = forPerson ? owners.filter(o => o !== forPerson) : owners;
   const ownerTags = tagOwners.map(o => {
     const pc = personColor(o || '—');
@@ -9370,13 +9429,27 @@ function teamBoardCard(item, forPerson) {
 
   // Baton / hand-off relay — native deliverables only (sessions/tasks keep their own home).
   const isNative = !item._delegated && !item._taskDelegated;
-  let batonHtml = '', handoffBtn = '';
-  if (isNative && pStatus !== 'complete') {
+  let batonHtml = '', handoffBtn = '', relayRail = '', relayActions = '';
+  if (relay) {
+    // Multi-stage relay: show the rail + whose turn + stage-driven actions.
+    relayRail = _relayRailHtml(item);
+    if (!_relayDone(item)) {
+      const holder = relay.holder, mine = holder === 'Me';
+      batonHtml = `<div class="team-baton${mine ? ' mine' : ''}" title="Ball in court — whose turn it is now">${mine ? '🟢 Your turn (KME)' : '◖ ' + escHtml(holder) + "'s turn"}</div>`;
+      const startBtn = (relay.kind === 'review' && !relay.started) ? `<button class="relay-act" onclick="event.stopPropagation();relayStart('${item.id}')" title="Mark as actively in review">Start</button>` : '';
+      const backBtn = relayIdx(item) > 0 ? `<button class="relay-act" onclick="event.stopPropagation();relayBack('${item.id}')" title="Send back a stage">↩</button>` : '';
+      relayActions = `<span style="display:inline-flex;gap:5px;">${startBtn}${backBtn}<button class="relay-act primary" onclick="event.stopPropagation();relayAdvance('${item.id}')" title="Pass to the next stage">Pass →</button></span>`;
+    }
+  } else if (isNative && pStatus !== 'complete') {
     const holder = _batonOwner(item);
     const mine = holder === 'Me';
     batonHtml = `<div class="team-baton${mine ? ' mine' : ''}" title="Ball in court — whose turn it is now">${mine ? '🟢 Your turn' : '◖ ' + escHtml(holder) + "'s turn"}</div>`;
     handoffBtn = `<button class="team-board-reassign" onclick="event.stopPropagation();showHandoffDropdown(event,'${item.id}')" title="Hand off — move the ball to the next person (keeps everyone involved)">⇢</button>`;
   }
+  // Relay items show one shared status; the badge is informational (not a manual dropdown).
+  const statusBadge = relay
+    ? `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" title="Set by the relay stage">${escHtml(pLabel)}</span>`
+    : `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="event.stopPropagation();${statusFn}" style="cursor:pointer;" title="Change status">${escHtml(pLabel)}</span>`;
 
   return `<div class="team-board-card${overdue ? ' overdue' : ''}" onclick="${editFn}">
     <div class="team-board-card-name">${prioDot}${escHtml(item.name)}${srcBadge}</div>
@@ -9384,11 +9457,14 @@ function teamBoardCard(item, forPerson) {
       <span class="team-board-card-owners">${ownerTags || '<span style="font-size:9px;color:var(--text3);">Solo</span>'}</span>
       <span style="display:inline-flex;align-items:center;gap:6px;">${estHtml}${dueHtml}</span>
     </div>
+    ${relayRail}
     ${batonHtml}
     ${item.waiting ? `<div class="team-board-card-wait">⏳ ${escHtml(item.waiting)}</div>` : ''}
     <div class="team-board-card-foot">
-      <span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="event.stopPropagation();${statusFn}" style="cursor:pointer;" title="Change status">${STATUS_LABELS[pStatus] || pStatus}</span>
-      <span style="display:inline-flex;gap:5px;">${handoffBtn}<button class="team-board-reassign" onclick="event.stopPropagation();showReassignDropdown(event,'${rowKey}','${fromPerson.replace(/'/g, "\\'")}')" title="Reassign / delegate to another team member">⇄</button></span>
+      ${statusBadge}
+      ${relay
+        ? relayActions
+        : `<span style="display:inline-flex;gap:5px;">${handoffBtn}<button class="team-board-reassign" onclick="event.stopPropagation();showReassignDropdown(event,'${rowKey}','${fromPerson.replace(/'/g, "\\'")}')" title="Reassign / delegate to another team member">⇄</button></span>`}
     </div>
   </div>`;
 }
@@ -9480,13 +9556,15 @@ function handoffBaton(itemId, to) {
   if (typeof showSyncToast === 'function') showSyncToast(`Ball → ${to === 'Me' ? 'you' : to}`, 'success');
 }
 
-// Keep the My-Tasks mirror in step with the baton.
-function _syncBatonMirror(item, from, to) {
+// Keep the My-Tasks mirror in step with the baton. `nameOverride` lets a relay
+// leg label the mirrored task (e.g. "KME review — Q3 Newsletter").
+function _syncBatonMirror(item, from, to, nameOverride) {
   if (to === 'Me') {
+    const mName = nameOverride || item.name;
     let mt = item.reviewTaskId ? tasks.find(t => t.id === item.reviewTaskId) : null;
     if (!mt) {
       mt = {
-        id: uid(), name: item.name, project: item.project || 'overhead', subCode: item.subCode || '',
+        id: uid(), name: mName, project: item.project || 'overhead', subCode: item.subCode || '',
         priority: item.priority || 'med', due: item.due || '', est: item.est || 0, category: '',
         waiting: '', notes: '', recurrence: null, timer: 0, timerStart: null,
         completed: false, delegatedTo: null, _deliverableId: item.id
@@ -9496,7 +9574,7 @@ function _syncBatonMirror(item, from, to) {
     } else {
       // Revive the existing mirror and refresh the synced fields.
       mt.completed = false; mt.completedAt = null;
-      mt.name = item.name; mt.due = item.due || ''; mt.project = item.project || 'overhead';
+      mt.name = mName; mt.due = item.due || ''; mt.project = item.project || 'overhead';
       mt.subCode = item.subCode || ''; mt.priority = item.priority || 'med'; mt.est = item.est || 0;
     }
     save('wt_tasks', tasks);
@@ -9509,6 +9587,196 @@ function _closeBatonMirror(item) {
   if (!item || !item.reviewTaskId) return;
   const mt = tasks.find(t => t.id === item.reviewTaskId);
   if (mt && !mt.completed) { mt.completed = true; mt.completedAt = today(); save('wt_tasks', tasks); }
+}
+
+// ── Multi-stage relay (pass-around) ─────────────────────────────────────
+// A deliverable can carry an ordered list of stages, each { id, kind, label, who }.
+// kind ∈ work | review | send. The *current* stage defines the baton holder and
+// the status everyone sees; passing advances it. When a stage's `who` is 'Me'
+// the leg crosses into My Tasks/Capacity/billing via the mirror task.
+const RELAY_KINDS = {
+  work:   { icon: '✎', label: 'Work' },
+  review: { icon: '👁', label: 'Review' },
+  send:   { icon: '✉', label: 'Send' }
+};
+function _isRelay(item) { return !!(item && Array.isArray(item.relay) && item.relay.length); }
+function _relayWho(who) { return who === 'Me' ? 'KME' : who; }
+function relayIdx(item) { return Math.min(Math.max(0, item.relayStage || 0), item.relay.length); }
+function relayStage(item) { const i = relayIdx(item); return i < item.relay.length ? item.relay[i] : null; }
+function _relayDone(item) { return relayIdx(item) >= item.relay.length; }
+
+// Derive the shared status (column + contextual label) from the current stage.
+function relayStatusInfo(item) {
+  if (_relayDone(item)) return { col: 'complete', label: 'Complete', holder: null, kind: null, started: false };
+  const st = relayStage(item);
+  const who = _relayWho(st.who);
+  const k = (st.kind || 'work');
+  let col, label;
+  if (k === 'review') {
+    if (item.relayStarted) { col = 'in-review'; label = `In ${who} review`; }
+    else { col = 'ready-review'; label = `Ready for ${who} review`; }
+  } else if (k === 'send') {
+    col = 'in-progress'; label = `To send — ${who}`;
+  } else {
+    col = 'in-progress'; label = `${st.label || 'Work'} — ${who}`;
+  }
+  return { col, label, holder: st.who, kind: k, started: !!item.relayStarted, stage: st };
+}
+
+// Compact stepper rail: ✓ done · current (icon) · pending, with per-stage tooltips.
+function _relayRailHtml(item) {
+  const idx = relayIdx(item);
+  const dots = item.relay.map((s, i) => {
+    const state = i < idx ? 'done' : (i === idx ? 'cur' : 'pend');
+    const ic = RELAY_KINDS[s.kind] ? RELAY_KINDS[s.kind].icon : '•';
+    const tip = `${i + 1}. ${s.label || (RELAY_KINDS[s.kind] && RELAY_KINDS[s.kind].label) || ''} — ${_relayWho(s.who)}`;
+    return `<span class="relay-dot ${state}" title="${escHtml(tip)}">${i < idx ? '✓' : ic}</span>`;
+  }).join('<span class="relay-sep"></span>');
+  return `<div class="relay-rail" title="Relay progress">${dots}</div>`;
+}
+
+// Re-sync derived fields (owners, baton, status, mirror) to the current stage.
+function _relaySync(item, prevWho) {
+  const persons = [...new Set(item.relay.map(s => s.who).filter(w => w && w !== 'Me'))];
+  if (persons.length) { item.owners = persons; item.owner = persons[0] || ''; }
+  const cur = relayStage(item);
+  item.activeOwner = cur ? cur.who : null;
+  item.status = _relayDone(item) ? 'complete' : relayStatusInfo(item).col;
+  if (cur && cur.who === 'Me') {
+    const nm = `${cur.label || RELAY_KINDS[cur.kind]?.label || 'Review'} — ${item.name}`;
+    _syncBatonMirror(item, prevWho, 'Me', nm);
+  } else if (prevWho === 'Me') {
+    _closeBatonMirror(item);
+  }
+}
+
+function relayStart(itemId) {
+  const item = teamItems.find(t => t.id === itemId);
+  if (!item || !_isRelay(item)) return;
+  item.relayStarted = true;
+  save('wt_team', teamItems);
+  renderTeam();
+}
+
+// Advance to the next stage. If leaving a 'Me' leg and hours weren't supplied,
+// open the log prompt first (which calls back with hours).
+function relayAdvance(itemId, loggedHours) {
+  const item = teamItems.find(t => t.id === itemId);
+  if (!item || !_isRelay(item) || _relayDone(item)) return;
+  const cur = relayStage(item);
+  if (cur && cur.who === 'Me' && loggedHours === undefined) { _openRelayPass(item, 'advance'); return; }
+  const prevWho = item.activeOwner;
+  if (cur && cur.who === 'Me') _logRelayLeg(item, cur, loggedHours);
+  item.relayLog = item.relayLog || [];
+  item.relayLog.push({ from: cur ? cur.who : null, at: today(), action: 'pass', hours: (cur && cur.who === 'Me') ? (Number(loggedHours) || 0) : undefined });
+  item.relayStage = relayIdx(item) + 1;
+  item.relayStarted = false;
+  _relaySync(item, prevWho);
+  save('wt_team', teamItems);
+  renderTeam();
+  if (typeof renderTasks === 'function') renderTasks();
+  if (typeof renderTimesheet === 'function') renderTimesheet();
+  if (typeof renderCapacity === 'function') renderCapacity();
+  const ns = relayStage(item);
+  if (typeof showSyncToast === 'function') showSyncToast(ns ? `Passed → ${_relayWho(ns.who)}` : '✓ Relay complete', 'success');
+}
+
+function relayBack(itemId) {
+  const item = teamItems.find(t => t.id === itemId);
+  if (!item || !_isRelay(item) || relayIdx(item) <= 0) return;
+  const prevWho = item.activeOwner;
+  item.relayStage = relayIdx(item) - 1;
+  item.relayStarted = false;
+  _relaySync(item, prevWho);
+  save('wt_team', teamItems);
+  renderTeam();
+  if (typeof renderTasks === 'function') renderTasks();
+  const ns = relayStage(item);
+  if (typeof showSyncToast === 'function') showSyncToast(ns ? `↩ Back to ${_relayWho(ns.who)}` : '', 'success');
+}
+
+// Log my leg's hours to the billing archive (project + sub-code) and close the mirror.
+function _logRelayLeg(item, stage, hours) {
+  const h = Math.max(0, Number(hours) || 0);
+  if (h > 0) {
+    completed.unshift({
+      id: uid(),
+      name: `${item.name} — ${stage.label || RELAY_KINDS[stage.kind]?.label || 'KME review'}`,
+      project: item.project || 'overhead',
+      subCode: item.subCode || '',
+      dateCompleted: today(),
+      estHours: item.est || 0,
+      actualHours: h,
+      category: ''
+    });
+    save('wt_completed', completed);
+  }
+  _closeBatonMirror(item);
+}
+
+// ── Pass-the-baton log prompt (when a 'Me' leg is handed onward) ──
+let _relayPassCtx = null;
+function _openRelayPass(item, mode) {
+  _relayPassCtx = { id: item.id, mode };
+  const st = relayStage(item);
+  const bill = [item.project ? projLabel(item.project) : '', item.subCode].filter(Boolean).join(' · ') || '—';
+  const nm = document.getElementById('relayPassName'); if (nm) nm.textContent = item.name;
+  const lbl = document.getElementById('relayPassLeg'); if (lbl) lbl.textContent = st ? (st.label || 'KME review') : 'your leg';
+  const bl = document.getElementById('relayPassBill'); if (bl) bl.textContent = bill;
+  const hrs = document.getElementById('relayPassHours'); if (hrs) hrs.value = item.est ? '' : '';
+  if (hrs) hrs.placeholder = 'e.g. 0.5';
+  const nx = relayStage(item) ? null : null;
+  const m = document.getElementById('relayPassModal'); if (m) m.classList.add('open');
+}
+function _confirmRelayPass(skip) {
+  if (!_relayPassCtx) return;
+  const id = _relayPassCtx.id;
+  const hrs = skip ? 0 : (parseFloat(document.getElementById('relayPassHours')?.value) || 0);
+  _relayPassCtx = null;
+  const m = document.getElementById('relayPassModal'); if (m) m.classList.remove('open');
+  relayAdvance(id, hrs);
+}
+function _closeRelayPass() { _relayPassCtx = null; const m = document.getElementById('relayPassModal'); if (m) m.classList.remove('open'); }
+
+// ── Relay stage editor (inside the Edit Deliverable modal) ──
+let _relayDraft = [];
+function _relayPeopleOpts(sel) {
+  const list = ['Me', ...((typeof PERSONS !== 'undefined') ? PERSONS : [])];
+  if (sel && !list.includes(sel)) list.unshift(sel);
+  return [...new Set(list)].map(p => `<option value="${escHtml(p)}"${p === sel ? ' selected' : ''}>${p === 'Me' ? 'KME (me)' : escHtml(p)}</option>`).join('');
+}
+function _renderRelayEditor() {
+  const wrap = document.getElementById('editTeamRelayBody');
+  const empty = document.getElementById('editTeamRelayEmpty');
+  if (!wrap) return;
+  if (empty) empty.style.display = _relayDraft.length ? 'none' : '';
+  wrap.innerHTML = _relayDraft.map((s, i) => `
+    <div class="relay-edit-row">
+      <span class="relay-edit-num">${i + 1}</span>
+      <select class="edit-input relay-edit-kind" onchange="_relaySet(${i},'kind',this.value)">
+        <option value="work"${s.kind === 'work' ? ' selected' : ''}>✎ Work</option>
+        <option value="review"${s.kind === 'review' ? ' selected' : ''}>👁 Review</option>
+        <option value="send"${s.kind === 'send' ? ' selected' : ''}>✉ Send</option>
+      </select>
+      <input class="edit-input relay-edit-label" value="${escHtml(s.label || '')}" placeholder="${s.kind === 'review' ? 'e.g. KME review' : s.kind === 'send' ? 'e.g. Send newsletter' : 'e.g. Draft'}" onchange="_relaySet(${i},'label',this.value)">
+      <select class="edit-input relay-edit-who" onchange="_relaySet(${i},'who',this.value)">${_relayPeopleOpts(s.who)}</select>
+      <button type="button" class="relay-edit-btn" title="Move up" onclick="_relayMove(${i},-1)"${i === 0 ? ' disabled' : ''}>↑</button>
+      <button type="button" class="relay-edit-btn" title="Move down" onclick="_relayMove(${i},1)"${i === _relayDraft.length - 1 ? ' disabled' : ''}>↓</button>
+      <button type="button" class="relay-edit-btn danger" title="Remove" onclick="_relayDel(${i})">✕</button>
+    </div>`).join('');
+}
+function _relayAddStage() {
+  const last = _relayDraft[_relayDraft.length - 1];
+  _relayDraft.push({ id: uid(), kind: 'work', label: '', who: (typeof PERSONS !== 'undefined' && PERSONS[0]) || 'Me' });
+  _renderRelayEditor();
+}
+function _relaySet(i, field, val) { if (_relayDraft[i]) { _relayDraft[i][field] = val; if (field === 'kind') _renderRelayEditor(); } }
+function _relayDel(i) { _relayDraft.splice(i, 1); _renderRelayEditor(); }
+function _relayMove(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= _relayDraft.length) return;
+  const tmp = _relayDraft[i]; _relayDraft[i] = _relayDraft[j]; _relayDraft[j] = tmp;
+  _renderRelayEditor();
 }
 
 // Notes popup — universal for any item type
@@ -15385,6 +15653,33 @@ function openEditTeamModal(itemId) {
     `<option value="${escHtml(p)}"${p === _holder ? ' selected' : ''}>${p === 'Me' ? 'Me (your turn)' : escHtml(p)}</option>`).join('');
   document.getElementById('editTeamWaiting').value = item.waiting || '';
   document.getElementById('editTeamNotes').value   = item.notes || '';
+  // Relay editor — load a draft of the stages; show current-stage strip if a relay is live.
+  _relayDraft = (item.relay || []).map(s => ({ ...s }));
+  _renderRelayEditor();
+  const batonGroup = document.getElementById('editTeamBatonGroup');
+  const curStrip = document.getElementById('editTeamRelayCurrent');
+  if (_isRelay(item)) {
+    if (batonGroup) batonGroup.style.display = 'none'; // relay drives the baton
+    if (curStrip) {
+      const info = relayStatusInfo(item);
+      const cur = relayStage(item);
+      const total = item.relay.length, idx = relayIdx(item);
+      curStrip.style.display = '';
+      curStrip.innerHTML = _relayDone(item)
+        ? `<div class="relay-cur-strip done">✓ Relay complete (${total} stage${total === 1 ? '' : 's'})</div>`
+        : `<div class="relay-cur-strip">
+             <span>Stage <strong>${idx + 1}/${total}</strong> · ${RELAY_KINDS[cur.kind]?.icon || ''} <strong>${escHtml(info.label)}</strong></span>
+             <span class="relay-cur-actions">
+               ${cur.kind === 'review' && !item.relayStarted ? `<button type="button" class="btn" onclick="relayStart('${item.id}');closeEditTeamModal();">Start</button>` : ''}
+               ${idx > 0 ? `<button type="button" class="btn" onclick="relayBack('${item.id}');closeEditTeamModal();" title="Send back a stage">↩ Back</button>` : ''}
+               <button type="button" class="btn primary" onclick="closeEditTeamModal();relayAdvance('${item.id}');" title="Pass to the next stage">Pass →</button>
+             </span>
+           </div>`;
+    }
+  } else {
+    if (batonGroup) batonGroup.style.display = '';
+    if (curStrip) curStrip.style.display = 'none';
+  }
   document.getElementById('editTeamModal').classList.add('open');
 }
 
@@ -15409,6 +15704,27 @@ function saveEditTeamItem() {
   item.est     = parseFloat(document.getElementById('editTeamEst').value) || 0;
   item.waiting = document.getElementById('editTeamWaiting').value.trim();
   item.notes   = document.getElementById('editTeamNotes').value.trim();
+
+  // ── Relay stages ──
+  const wasRelay = _isRelay(item);
+  const cleanRelay = (_relayDraft || []).filter(s => s && s.who).map(s => ({
+    id: s.id || uid(), kind: s.kind || 'work', label: (s.label || '').trim(), who: s.who
+  }));
+  if (cleanRelay.length) {
+    item.relay = cleanRelay;
+    if (item.relayStage == null || !wasRelay) { item.relayStage = 0; item.relayStarted = false; }
+    item.relayStage = Math.min(Math.max(0, item.relayStage), item.relay.length);
+    _relaySync(item, item.activeOwner);   // derive owners/baton/status/mirror from the relay
+    save('wt_team', teamItems);
+    closeEditTeamModal();
+    renderTeam(); renderProjects();
+    if (typeof renderTasks === 'function') renderTasks();
+    return;
+  } else if (wasRelay) {
+    // Relay cleared — revert to a plain single-owner deliverable.
+    delete item.relay; delete item.relayStage; delete item.relayStarted;
+  }
+
   // Hand-off / baton — if the chosen holder changed, move the ball (additive, logged, mirror-synced).
   const newHolder = document.getElementById('editTeamBaton').value;
   const prevHolder = item.activeOwner || (item.owners && item.owners[0]) || '';
