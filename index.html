@@ -9380,9 +9380,17 @@ function renderTeamBoard(visible, boardPerson, container) {
     buckets[s].push(i);
   });
 
+  // Board columns — "Ready for Review" and "In Review" are merged into a single review bucket.
+  const BOARD_COLS = [
+    { key: 'need-delegate', src: ['need-delegate'] },
+    { key: 'in-progress', src: ['in-progress'] },
+    { key: 'in-review', src: ['ready-review', 'in-review'], label: 'In Review' },
+    { key: 'blocked', src: ['blocked'] },
+    { key: 'complete', src: ['complete'] }
+  ];
   let html = panel + `<div class="team-board">`;
-  STATUS_CYCLE.forEach(c => {
-    const list = buckets[c] || [];
+  BOARD_COLS.forEach(col => {
+    const list = col.src.flatMap(s => buckets[s] || []);
     // Keep project grouping, but float overdue + higher-priority work to the top within each project.
     list.sort((a, b) => {
       const pa = projLabel(a.project), pb = projLabel(b.project);
@@ -9395,7 +9403,7 @@ function renderTeamBoard(visible, boardPerson, container) {
       return (a.due || '9999').localeCompare(b.due || '9999');
     });
     html += `<div class="team-board-col">
-      <div class="team-board-col-head"><span class="status-badge ${STATUS_CLS[c] || ''}" style="font-size:9px;">${STATUS_LABELS[c] || c}</span><span class="team-board-count">${list.length}</span></div>
+      <div class="team-board-col-head"><span class="status-badge ${STATUS_CLS[col.key] || ''}" style="font-size:9px;">${col.label || STATUS_LABELS[col.key] || col.key}</span><span class="team-board-count">${list.length}</span></div>
       <div class="team-board-col-body">`;
     if (!list.length) {
       html += '<div class="team-board-empty">—</div>';
