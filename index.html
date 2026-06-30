@@ -9133,7 +9133,7 @@ function renderTeam() {
 
     // Status badge — person-aware when rendered inside a person group/board;
     // relay items show one shared, stage-derived status (not a manual dropdown).
-    const _relayInfo = _isRelay(item) ? relayStatusInfo(item) : null;
+    const _relayInfo = _isRelay(item) ? relayStatusInfo(item, forPerson || null) : null;
     const pStatus = _relayInfo ? _relayInfo.col : (forPerson ? teamPersonStatus(item, forPerson) : item.status);
     const _pLabel = _relayInfo ? _relayInfo.label : (STATUS_LABELS[pStatus] || pStatus);
     let _statusFn;
@@ -9289,11 +9289,11 @@ function renderTeamBoard(visible, boardPerson, container) {
   let items, statusOf;
   if (perPerson) {
     items = visible.filter(i => (i.owners || [i.owner]).includes(boardPerson));
-    // Relay items show one shared, stage-derived status on everyone's board.
-    statusOf = i => _isRelay(i) ? relayStatusInfo(i).col : teamPersonStatus(i, boardPerson);
+    // Relay status is perspective-aware: holder sees In Progress, others In Review.
+    statusOf = i => _isRelay(i) ? relayStatusInfo(i, boardPerson).col : teamPersonStatus(i, boardPerson);
   } else {
     items = visible;
-    statusOf = i => _isRelay(i) ? relayStatusInfo(i).col : i.status;
+    statusOf = i => _isRelay(i) ? relayStatusInfo(i, null).col : i.status;
   }
 
   // ── Cockpit panel: capacity gauge + scorecard + filter chips (per-person only) ──
@@ -9408,7 +9408,7 @@ function renderTeamBoard(visible, boardPerson, container) {
 function teamBoardCard(item, forPerson) {
   const owners = item.owners || [item.owner];
   const dc = dueCls(item.due);
-  const relay = _isRelay(item) ? relayStatusInfo(item) : null;
+  const relay = _isRelay(item) ? relayStatusInfo(item, forPerson || null) : null;
   const pStatus = relay ? relay.col : (forPerson ? teamPersonStatus(item, forPerson) : item.status);
   const pLabel = relay ? relay.label : (STATUS_LABELS[pStatus] || pStatus);
   const tagOwners = forPerson ? owners.filter(o => o !== forPerson) : owners;
@@ -9447,10 +9447,14 @@ function teamBoardCard(item, forPerson) {
     relayRail = _relayRailHtml(item);
     if (!_relayDone(item)) {
       const holder = relay.holder, mine = holder === 'Me';
-      batonHtml = `<div class="team-baton${mine ? ' mine' : ''}" title="Ball in court — whose turn it is now">${mine ? '🟢 Your turn (KME)' : '◖ ' + escHtml(holder) + "'s turn"}</div>`;
-      const startBtn = (relay.kind === 'review' && !relay.started) ? `<button class="relay-act" onclick="event.stopPropagation();relayStart('${item.id}')" title="Mark as actively in review">Start</button>` : '';
-      const backBtn = relayIdx(item) > 0 ? `<button class="relay-act" onclick="event.stopPropagation();relayBack('${item.id}')" title="Send back a stage">↩</button>` : '';
-      relayActions = `<span style="display:inline-flex;gap:5px;">${startBtn}${backBtn}<button class="relay-act primary" onclick="event.stopPropagation();relayAdvance('${item.id}')" title="Pass to the next stage">Pass →</button></span>`;
+      const isHolderView = forPerson ? (forPerson === holder) : true;
+      if (forPerson === holder) batonHtml = `<div class="team-baton mine" title="Your turn">🟢 Your turn</div>`;
+      else if (!forPerson) batonHtml = `<div class="team-baton${mine ? ' mine' : ''}" title="Ball in court — whose turn it is now">◖ ${mine ? 'KME' : escHtml(holder)}'s turn</div>`;
+      // Only the holder (or the neutral Everyone board) can advance the relay.
+      if (isHolderView) {
+        const backBtn = relayIdx(item) > 0 ? `<button class="relay-act" onclick="event.stopPropagation();relayBack('${item.id}')" title="Send back a stage">↩</button>` : '';
+        relayActions = `<span style="display:inline-flex;gap:5px;">${backBtn}<button class="relay-act primary" onclick="event.stopPropagation();relayAdvance('${item.id}')" title="Pass to the next stage">Pass →</button></span>`;
+      }
     }
   } else if (isNative && pStatus !== 'complete') {
     const holder = _batonOwner(item);
@@ -9620,25 +9624,28 @@ function _relayDone(item) { return relayIdx(item) >= item.relay.length; }
 function _relayPersonEst(item, who) { return _isRelay(item) ? item.relay.filter(s => s.who === who).reduce((n, s) => n + (Number(s.est) || 0), 0) : 0; }
 function _relayTotalEst(item) { return _isRelay(item) ? item.relay.reduce((n, s) => n + (Number(s.est) || 0), 0) : 0; }
 
-// Derive the shared status (column + contextual label) from the current stage.
-function relayStatusInfo(item) {
-  if (_relayDone(item)) return { col: 'complete', label: 'Complete', holder: null, kind: null, started: false };
-  const st = relayStage(item);
-  const who = _relayWho(st.who);
-  const k = (st.kind || 'work');
-  let col, label;
-  if (k === 'review') {
-    if (item.relayStarted) { col = 'in-review'; label = `In ${who} review`; }
-    else { col = 'ready-review'; label = `Ready for ${who} review`; }
-  } else if (k === 'send') {
-    col = 'in-progress'; label = `To send — ${who}`;
-  } else {
-    // Don't echo the deliverable name (the seeded main-task leg) back in the badge.
-    col = 'in-progress';
-    const wl = (st.label && st.label !== item.name) ? st.label : 'In progress';
-    label = `${wl} — ${who}`;
+function _relayVerb(k) { return k === 'review' ? 'reviewing' : k === 'send' ? 'sending' : 'working'; }
+
+// Perspective-aware status. `person` = whose board we're rendering (null = neutral
+// Everyone/list view). The current holder sees the item as their active work
+// (In Progress); everyone else on the deliverable sees it as in flight (In Review).
+function relayStatusInfo(item, person) {
+  if (_relayDone(item)) return { col: 'complete', label: 'Complete', holder: null, kind: null };
+  const st = relayStage(item), holder = st.who, k = (st.kind || 'work');
+  const who = _relayWho(holder);
+  // Someone else's board → it's with the holder, not on this person's plate.
+  if (person && person !== holder) {
+    return { col: 'in-review', label: `${who} — ${_relayVerb(k)}`, holder, kind: k };
   }
-  return { col, label, holder: st.who, kind: k, started: !!item.relayStarted, stage: st };
+  // The holder's own board → their active work.
+  if (person === holder) {
+    const al = k === 'review' ? 'Reviewing' : k === 'send' ? 'To send' : (st.label && st.label !== item.name ? st.label : 'In progress');
+    return { col: 'in-progress', label: al, holder, kind: k };
+  }
+  // Neutral (Everyone / list) → outsider view: reviews read as "in review".
+  const col = k === 'review' ? 'in-review' : 'in-progress';
+  const al = k === 'review' ? `${who} — reviewing` : k === 'send' ? `To send — ${who}` : `${(st.label && st.label !== item.name ? st.label : 'In progress')} — ${who}`;
+  return { col, label: al, holder, kind: k };
 }
 
 // Compact stepper rail: ✓ done · current (icon) · pending, with per-stage tooltips.
@@ -9669,14 +9676,6 @@ function _relaySync(item, prevWho) {
   } else if (prevWho === 'Me') {
     _closeBatonMirror(item);
   }
-}
-
-function relayStart(itemId) {
-  const item = teamItems.find(t => t.id === itemId);
-  if (!item || !_isRelay(item)) return;
-  item.relayStarted = true;
-  save('wt_team', teamItems);
-  renderTeam();
 }
 
 // Advance to the next stage. If leaving a 'Me' leg and hours weren't supplied,
@@ -15715,7 +15714,6 @@ function openEditTeamModal(itemId) {
         : `<div class="relay-cur-strip">
              <span>Stage <strong>${idx + 1}/${total}</strong> · ${RELAY_KINDS[cur.kind]?.icon || ''} <strong>${escHtml(info.label)}</strong></span>
              <span class="relay-cur-actions">
-               ${cur.kind === 'review' && !item.relayStarted ? `<button type="button" class="btn" onclick="relayStart('${item.id}');closeEditTeamModal();">Start</button>` : ''}
                ${idx > 0 ? `<button type="button" class="btn" onclick="relayBack('${item.id}');closeEditTeamModal();" title="Send back a stage">↩ Back</button>` : ''}
                <button type="button" class="btn primary" onclick="closeEditTeamModal();relayAdvance('${item.id}');" title="Pass to the next stage">Pass →</button>
              </span>
