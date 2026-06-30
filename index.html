@@ -9785,8 +9785,17 @@ function _renderRelayEditor() {
     </div>`).join('');
 }
 function _relayAddStage() {
-  const last = _relayDraft[_relayDraft.length - 1];
-  _relayDraft.push({ id: uid(), kind: 'work', label: '', who: (typeof PERSONS !== 'undefined' && PERSONS[0]) || 'Me', est: '' });
+  if (!_relayDraft.length) {
+    // The first stage IS the main task: seed it as a work leg from the
+    // deliverable's own assignee + estimate so you don't re-enter it.
+    let who = (typeof PERSONS !== 'undefined' && PERSONS[0]) || 'Me';
+    try { const o = getSelectedTeamOwners('editTeamOwnerPills'); if (o && o.length) who = o[0]; } catch (e) {}
+    const name = (document.getElementById('editTeamName')?.value || '').trim();
+    const e = parseFloat(document.getElementById('editTeamEst')?.value);
+    _relayDraft.push({ id: uid(), kind: 'work', label: name || 'Draft', who, est: (e > 0 ? e : '') });
+  } else {
+    _relayDraft.push({ id: uid(), kind: 'work', label: '', who: (typeof PERSONS !== 'undefined' && PERSONS[0]) || 'Me', est: '' });
+  }
   _renderRelayEditor();
 }
 function _relaySet(i, field, val) {
