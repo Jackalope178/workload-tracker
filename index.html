@@ -9354,7 +9354,7 @@ function renderTeamBoard(visible, boardPerson, container) {
         ${chip('soon', '📅 Due ≤7d', soon.length, 'chip-warn')}
         ${chip('blocked', '🚫 Blocked', blocked.length, 'chip-blocked')}
         ${chip('waiting', '⏳ Waiting', waiting.length, 'chip-wait')}
-        ${chip('mine', '🟢 Your turn', onMe.length, 'chip-mine')}
+        ${chip('mine', '🟢 Waiting on KME', onMe.length, 'chip-mine')}
       </div>
     </div>`;
 
@@ -9646,19 +9646,19 @@ function relayStatusInfo(item, person) {
   if (_relayDone(item)) return { col: 'complete', label: 'Complete', holder: null, kind: null };
   const st = relayStage(item), holder = st.who, k = (st.kind || 'work');
   const who = _relayWho(holder);
-  // Someone else's board → it's with the holder, not on this person's plate.
+  // Someone else's board → it's parked with the holder, not on this person's plate.
   if (person && person !== holder) {
-    return { col: 'in-review', label: `${who} — ${_relayVerb(k)}`, holder, kind: k };
+    return { col: 'in-review', label: `Waiting on ${who}`, holder, kind: k };
   }
   // The holder's own board → their active work.
   if (person === holder) {
     const al = k === 'review' ? 'Reviewing' : k === 'send' ? 'To send' : (st.label && st.label !== item.name ? st.label : 'In progress');
     return { col: 'in-progress', label: al, holder, kind: k };
   }
-  // Neutral (Everyone / list) → outsider view: reviews read as "in review".
-  const col = k === 'review' ? 'in-review' : 'in-progress';
-  const al = k === 'review' ? `${who} — reviewing` : k === 'send' ? `To send — ${who}` : `${(st.label && st.label !== item.name ? st.label : 'In progress')} — ${who}`;
-  return { col, label: al, holder, kind: k };
+  // Neutral (Everyone / list) → in-flight work reads as "Waiting on X"; active work in progress.
+  if (k === 'review') return { col: 'in-review', label: `Waiting on ${who}`, holder, kind: k };
+  const al = k === 'send' ? `To send — ${who}` : `${(st.label && st.label !== item.name ? st.label : 'In progress')} — ${who}`;
+  return { col: 'in-progress', label: al, holder, kind: k };
 }
 
 // Compact stepper rail: ✓ done · current (icon) · pending, with per-stage tooltips.
