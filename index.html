@@ -7659,6 +7659,16 @@ function confirmComplete() {
     completed.unshift(entry);
     save('wt_completed', completed);
 
+    // If this task mirrors a KME relay leg, completing it here IS the hand-off:
+    // advance the relay with 0 hours so we don't double-bill (billing already
+    // logged just above), then fall through to remove the mirror task.
+    if (task._deliverableId && typeof teamItems !== 'undefined') {
+      const d = teamItems.find(t => t.id === task._deliverableId);
+      if (d && _isRelay(d) && !_relayDone(d) && relayStage(d) && relayStage(d).who === 'Me') {
+        relayAdvance(task._deliverableId, 0);
+      }
+    }
+
     if (task.recurrence) {
       let nextDate = nextRecurrenceAfter(task, task.due || today());
       const endDate  = task.recurrence.endDate;

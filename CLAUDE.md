@@ -15,6 +15,12 @@ No build step, no package manager, no dependencies to install. The `package.json
 
 Single-file app: everything lives in `index.html` (~9800 lines of inline HTML, CSS, and vanilla JS). No frameworks, no build step, no package manager.
 
+> **Team relay & KME flow:** the multi-stage pass-around on Team Deliverables,
+> and how the owner's ("KME"/`'Me'`) legs tie into My Tasks / Capacity /
+> billing, are documented in `docs/team-relay-and-kme-flow.md` — read it before
+> touching relay, the My-Tasks mirror, or team-board status. It also carries the
+> running intent log of relay asks.
+
 ### External CDN dependencies
 - `@supabase/supabase-js@2` — cloud sync
 - `xlsx@0.18.5` — Excel import
