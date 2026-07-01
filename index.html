@@ -9052,7 +9052,7 @@ function renderTeam() {
   // Populate person filter from all unique people
   const personSelect = document.getElementById('teamFilterPerson');
   if (personSelect) {
-    const allPeople = [...new Set(allItems.flatMap(t => t.owners || [t.owner]).filter(Boolean))].sort();
+    const allPeople = [...new Set([...(PERSONS || []), ...allItems.flatMap(t => t.owners || [t.owner])].filter(Boolean))].sort();
     const curVal = personSelect.value;
     personSelect.innerHTML = '<option value="all">All people</option>';
     allPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = _relayWho(p); personSelect.appendChild(o); });
@@ -9075,7 +9075,7 @@ function renderTeam() {
   const boardSelect = document.getElementById('teamBoardPerson');
   if (boardSelect) {
     boardSelect.style.display = _teamViewMode === 'board' ? '' : 'none';
-    const boardPeople = [...new Set(allItems.flatMap(t => t.owners || [t.owner]).filter(Boolean))].sort();
+    const boardPeople = [...new Set([...(PERSONS || []), ...allItems.flatMap(t => t.owners || [t.owner])].filter(Boolean))].sort();
     boardSelect.innerHTML = '<option value="all">👥 Everyone</option>';
     boardPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = _relayWho(p); boardSelect.appendChild(o); });
     // Default to a team member's board (not Everyone, not your own) unless explicitly picked.
