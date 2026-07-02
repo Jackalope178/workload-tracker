@@ -120,5 +120,6 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 - **New persistent state?** Add the key to `SYNC_KEYS` if it should follow the user across devices; use the `load`/`save` wrappers, never raw `localStorage` calls.
 - **Verify by opening `index.html` in a browser** — there is no test suite, linter, or build to run.
 - **Touching any calculation?** Read `docs/math-audit-2026-07.md` first — it records the July 2026 audit's findings, fixes, and the invariants they established.
+- **SOP — keep the in-app orientation current:** feature work isn't done until the ⓘ popover copy (`INFO_COPY`), the welcome tour (`welcomeOverlay` + `_WELCOME_STEPS`), and the per-tab help panel (`_TAB_TIPS`) reflect the change.
 - **Touching relay, the My-Tasks mirror, or team-board status?** Read `docs/team-relay-and-kme-flow.md` first and append to its intent log.
 - **`CLAUDE.md`** holds operating instructions for AI agents (branch policy, environment notes); this README is the architectural map. Keep both in sync when structure changes.
