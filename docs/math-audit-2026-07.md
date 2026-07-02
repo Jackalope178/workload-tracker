@@ -8,6 +8,12 @@ Findings are ranked by severity. Items 1–2 were verified by executable
 simulation of the exact code paths; the rest were verified by tracing every
 caller.
 
+**Update (same branch):** findings 1–6, 8, 10, 11 are now FIXED on this
+branch; each finding below carries a status line. Fixes were re-verified with
+the same simulations that proved the bugs (extracted from the patched file).
+Findings 7, 9 and the minor items remain open by choice — they involve
+judgment calls about intended semantics.
+
 ---
 
 ## Critical
@@ -38,10 +44,12 @@ Trigger condition: any `monthly-date` recurrence with `weekdayAdjust` and
 `dayOfMonth` 1–2 (day 1: whenever the 1st of a month is Sat/Sun — several
 times a year).
 
-Fix direction: in `nextRecurrenceAfter`, if the adjusted result is `<= fromDateStr`,
-advance to the following month and recompute (loop like the `monthly-weekday`
-branch). Also make every expansion loop defensively break when
-`next <= cursor`.
+**Status: FIXED.** `monthly-date`/`monthly-last-day` now step months until
+the adjusted result lands strictly after `from`, and `nextRecurrenceAfter` is
+wrapped with a monotonic guard (non-advancing result → `null`) so no future
+regression can stall an expansion loop. Verified: the Feb 2026 repro now
+yields Feb 2 → Feb 27 → Apr 1 → May 1 …, and the March window contains 0
+phantom items.
 
 ### 2. Simple "Monthly" recurrence drifts at month end
 `nextRecurrenceAfter` type `monthly` (`:5611`) uses `d.setMonth(d.getMonth()+1)`.
@@ -50,9 +58,12 @@ anchor permanently drifts to the 3rd); Mar 31 → May 1; Aug 31 → Oct 1.
 Verified by simulation: `2026-01-31 → 03-03 → 04-03 → 05-03 …`
 
 Any monthly task anchored on the 29th–31st silently loses occurrences and
-shifts its day-of-month. Fix: clamp to the last day of the target month
-(compute `min(anchorDay, daysInTargetMonth)` like the `monthly-date` branch),
-or convert `monthly` to `monthly-date` semantics internally.
+shifts its day-of-month.
+
+**Status: FIXED.** The target day is clamped to the target month's length:
+Jan 31 → Feb 28 → Mar 28 (no month ever skipped). Note the anchor day clamps
+and stays — pin-to-the-31st behavior is what the `monthly-date` /
+`monthly-last-day` types are for.
 
 ### 3. Tasks due on the current week's Saturday vanish from the My Tasks list view
 Bucketing in `renderTasks` (`:6232–6246`) routes items to: overdue (`< today`),
@@ -62,8 +73,8 @@ matches none of the branches and is silently dropped — the task appears
 nowhere in list view until it rolls into Overdue next week. (Week-planner view
 shows it in the weekend footer, so the two views disagree.)
 
-Fix: route `d <= wkEnd && !currentWeekDays.includes(d)` weekend items into a
-current-week weekend bucket (or the nearest day/future bucket).
+**Status: FIXED.** A `d <= wkEnd` weekend bucket now renders as a
+"Sat <date> — weekend" section after Friday (no weekday capacity bar).
 
 ---
 
@@ -84,9 +95,12 @@ Two related defects:
   (`renderWeekPlanner`, `_renderSchedCalendar`) silently drop them instead —
   so the month bar and its day breakdown disagree.
 
-Fix: emit occurrences windowed by their *effective* (override) date, and/or
-have aggregate callers filter `p.date >= from && p.date <= to` (holds
-excepted, since their `-15` date is a placeholder).
+**Status: FIXED.** All three recurring expansions in `plannedItems` now
+window by the effective (override) date and additionally scan the overrides
+map for occurrences rescheduled INTO the window from outside it. With this,
+every non-hold item the function returns is dated inside the query range, so
+aggregate callers are correct without re-filtering. Verified: an occurrence
+moved Jul 13 → Aug 3 counts once in August and not in July.
 
 ### 5. Moving items between months leaves a stale `workDate` → hours don't actually move
 Placement everywhere is `workDate || due` (`_expandPlanned:10184`), but:
@@ -99,34 +113,38 @@ Placement everywhere is `workDate || due` (`_expandPlanned:10184`), but:
   `_applyWorkPick`, same stale-`workDate` result.
 
 Contrast: `capParkHolds` (`:11119`) and `_capAssignOne` (`:11078`) handle
-`workDate` correctly. Fix: clear or re-derive `workDate` in both functions
-(or route through `_applyWorkPick`).
+`workDate` correctly.
 
-### 6. Rollover math for the project-level ('' sub-code) bucket is inconsistent and wrong
-Three different definitions of "actual" for the same bucket:
+**Status: FIXED.** `capMoveItem` clears `workDate` on all three item types;
+`_projCapDropAssign` now routes through `_capAssignOne`, which owns the
+work-date/deadline/allocMonth semantics.
 
-- `_rollRemainingForward` (`:12377`): `scId ? allocGetActuals(...) :
-  allocGetAllProjectActuals(...)` — for the `''` bucket it subtracts **all**
-  project actuals including hours already attributed to real sub-codes
-  (double-counted against their own buckets when those roll).
-- `_rollProjectAllSubsForward` (`:12437`): `scId ? allocGetActuals(...) : 0` —
-  the `''` bucket rolls its **full** allocation even when unassigned hours were
-  logged, and then `allocations[aKey] = actual > 0 ? actual : 0` deletes the
-  source cell as if nothing was spent.
+### 6. Rollover math for the project-level ('' sub-code) bucket is wrong in roll-all
+- `_rollProjectAllSubsForward` (`:12437`) used `scId ? allocGetActuals(...) :
+  0` — the `''` bucket rolled its **full** allocation even when unassigned
+  hours were logged, and `allocations[aKey] = actual > 0 ? actual : 0` deleted
+  the source cell as if nothing was spent. The correct spend for the `''`
+  bucket is `allocGetActuals(projKey, '', fromYM)` (entries logged without a
+  sub-code).
+- It also iterated `proj.subCodes + ''` only, so allocations parked on
+  **orphaned/deleted sub-codes** never rolled.
 
-The correct actual for the `''` bucket in both places is
-`allocGetActuals(projKey, '', fromYM)` (entries logged without a sub-code).
-Consequence today: the roll-all button's label (allocated − all-project
-actuals, from the drill header) doesn't match what actually moves.
+**Correction to the original finding:** `_rollRemainingForward`'s
+`scId='' → allocGetAllProjectActuals(...)` path is only reachable for projects
+**without** sub-codes (the drill routes has-subs projects to roll-all), and
+for a no-subs project all-project actuals IS the right spend — that half was
+not a bug and is unchanged.
 
-Also: `_rollProjectAllSubsForward` iterates `proj.subCodes + ''` only, so
-allocations parked on **orphaned/deleted sub-codes** never roll.
+**Status: FIXED.** Roll-all now uses `allocGetActuals(projKey, scId, fromYM)`
+for every bucket including `''`, and orphaned sub-code buckets are included in
+the roll.
 
 ---
 
 ## Medium
 
 ### 7. Team cockpit gauge counts completed relay legs and other people's active legs
+*(Status: open — semantics call, left for a product decision.)*
 `estFor` (`:9339`) uses `_relayPersonEst(item, person)` = sum of **all** of
 that person's stages, including stages already passed (✓ done). Week-load and
 backlog overstate accordingly. Additionally, an item due within 7 days counts
@@ -143,7 +161,12 @@ intended: `min(before, from+180)` or similar. Latent related bug:
 pack a phantom quarter-hour; both current callers guard with `rem < 0.25`, but
 the function is unsafe for future callers — clamp to 0 inside.
 
+**Status: FIXED.** Both functions now use `min(before, from+180)` when a
+deadline is given (70-day default otherwise), and `packIntoFreeDays` snaps
+with `snapQuarter` clamped at 0 instead of `roundToQuarter`'s 0.25 floor.
+
 ### 9. Timesheet month view: boundary weeks mix cross-month logged with month-clipped planned
+*(Status: open — pick a convention first; both clip-to-month and true-week are defensible.)*
 Week rows inside a month (`:10885–10890`) filter logged entries by the full
 Sun–Sat week (including days in adjacent months) but planned items come from
 `plannedItems(ms, me)` (month-only). A month-boundary week compares
@@ -158,6 +181,9 @@ sub-code. A subtask explicitly assigned to sub-code X under a session on
 sub-code Y appears in **no** section — while `allocGetPlanned`/Capacity still
 count it under X. Iterate subtasks independently of the parent match.
 
+**Status: FIXED.** Subtask iteration was unnested from the session match;
+subtasks now appear in the section of their own sub-code.
+
 ### 11. Completing a recurring item can land the anchor on a skipped occurrence
 `confirmComplete` (task `:7674`, session `:7593`, subtask `:7625`) advances via
 `nextRecurrenceAfter` without consulting `recurrence.skips`; the new
@@ -166,6 +192,11 @@ filters it out (skips list) while the stored anchor sits on it — the next
 visible occurrence differs from the stored one, and `openCompletionModal`'s
 "final recurrence" check (`:7405`) is similarly skip-blind. Advance in a loop
 until the date is not in `skips`.
+
+**Status: FIXED.** New `nextActiveRecurrenceAfter` helper advances past
+skipped dates; all anchor-advancing sites (three completion modals, three
+`confirmComplete` branches, `skipRecurOccurrence`, `confirmReschedule`) use it.
+Expansion loops keep the raw function since they filter skips themselves.
 
 ---
 
