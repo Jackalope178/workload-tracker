@@ -183,3 +183,9 @@ Chronological; newest last. Keeps the *why* across threads.
     arrows opens a note input. The current leg's note shows on board cards
     and list rows in the yellow waiting-on style, because "Work — X" alone
     isn't informative enough. Rail tooltips include it.
+23. **Catch-all allocation bars** — a no-sub-code allocation absorbs ALL of
+    that project's completed/planned hours not claimed by a sub-code-specific
+    bar in the same month (`_hoursFor` in the cockpit). Sub-code bars claim
+    exact matches first; the project-level bar sweeps the rest, so "20h of
+    Project X however it splits" works alongside carved-out codes. The bar is
+    labeled "· catch-all".

@@ -10079,12 +10079,26 @@ function renderTeamBoard(visible, boardPerson, container) {
       const h = estFor(i);
       if (h > 0) plannedByCode[k] = (plannedByCode[k] || 0) + h;
     });
+    // A no-sub-code allocation is a CATCH-ALL for its project: sub-code-specific
+    // bars claim their exact hours first; the project-level bar absorbs every
+    // other code on that project (and no-code items).
+    const _claimedCodes = new Set(Object.keys(allocs).filter(k => k.slice(k.lastIndexOf('|') + 1) !== ''));
+    const _hoursFor = (map, projKey, scId) => {
+      if (scId !== '') return map[`${projKey}|${scId}`] || 0;
+      let sum = 0;
+      Object.keys(map).forEach(k => {
+        if (k.slice(0, k.lastIndexOf('|')) !== projKey) return;
+        if (_claimedCodes.has(k)) return;
+        sum += map[k];
+      });
+      return sum;
+    };
     const allocBars = Object.keys(allocs).sort((a, b) => projLabel(a.split('|')[0]).localeCompare(projLabel(b.split('|')[0]))).map(codeKey => {
       const cut = codeKey.lastIndexOf('|');
       const projKey = codeKey.slice(0, cut), scId = codeKey.slice(cut + 1);
       const total = allocs[codeKey];
-      const done = doneByCode[codeKey] || 0;
-      const planned = plannedByCode[codeKey] || 0;
+      const done = _hoursFor(doneByCode, projKey, scId);
+      const planned = _hoursFor(plannedByCode, projKey, scId);
       const donePct = Math.min(100, Math.round((done / total) * 100));
       const planPct = Math.min(100, Math.round(((done + planned) / total) * 100));
       const over = done + planned > total + 0.01;
@@ -10093,7 +10107,7 @@ function renderTeamBoard(visible, boardPerson, container) {
       const status = over ? `⚠ ${fmtQ(done + planned - total)}h over` : `${fmtQ(Math.max(0, total - done - planned))}h open`;
       return `<div class="pa-bar-row" onclick="openPersonAllocModal('${personEsc}','${projKey}','${scId}')" title="Click to edit this allocation">
         <span class="project-dot" style="background:${color};"></span>
-        <span class="pa-bar-label">${escHtml(projLabel(projKey))}${scLbl ? ` · ${escHtml(scLbl)}` : ''}</span>
+        <span class="pa-bar-label">${escHtml(projLabel(projKey))}${scLbl ? ` · ${escHtml(scLbl)}` : ' <span style="color:var(--text3);font-weight:400;">· catch-all</span>'}</span>
         <div class="cap-bar-dual pa-bar-track">
           <div class="cap-bar-planned-hint" style="width:${planPct}%;"></div>
           <div style="width:${donePct}%;height:100%;border-radius:3px;background:${color};position:absolute;top:0;left:0;"></div>
@@ -15837,7 +15851,7 @@ const INFO_COPY = {
   },
   cockpitGauge: {
     title: 'What these allocation meters count',
-    body: 'One bar per billing code you\'ve <strong>allocated hours to this person</strong> for the selected month (‹ › changes the month). The <strong>solid fill</strong> (project color) = their completed work that month — finished relay legs at the stage\'s hours, plus completed deliverables and delegated tasks at their estimate. The <strong>lighter overlay</strong> = still-planned work on that code eating the rest of the allocation. <strong>+ Allocation</strong> budgets a code for the current + next 6 months; click any bar to edit it. <strong>Backlog</strong> below = remaining hours across all their active items, any code, any month.'
+    body: 'One bar per billing code you\'ve <strong>allocated hours to this person</strong> for the selected month (‹ › changes the month). The <strong>solid fill</strong> (project color) = their completed work that month — finished relay legs at the stage\'s hours, plus completed deliverables and delegated tasks at their estimate. The <strong>lighter overlay</strong> = still-planned work eating the rest of the allocation. A bar with no sub-code is a <strong>catch-all</strong>: it absorbs all of that project\'s work not claimed by a sub-code-specific bar. <strong>+ Allocation</strong> budgets a code for the current + next 6 months; click any bar to edit it. <strong>Backlog</strong> below = remaining hours across all their active items, any code, any month.'
   },
   relay: {
     title: 'Relays — pass the baton through stages',
@@ -15925,7 +15939,7 @@ const _TAB_TIPS = {
       'Track <strong>cross-team assignments</strong> — who owns what and its status.',
       '<strong>Relays</strong> pass a deliverable through ordered stages (work ✎ / review 👁 / send ✉) — the current stage\'s person holds the baton; everyone else sees "Waiting on …".',
       'When a relay leg is <strong>yours (KME)</strong>, it mirrors into My Tasks, counts in Capacity, and bills once when you pass it on.',
-      'Pick a <strong>person\'s board</strong> to see their allocation meters: hours you\'ve budgeted them per billing code for the month, drained by completed work with planned overlaid. <strong>+ Allocation</strong> adds a code; click a bar to edit it.',
+      'Pick a <strong>person\'s board</strong> to see their allocation meters: hours you\'ve budgeted them per billing code for the month, drained by completed work with planned overlaid. <strong>+ Allocation</strong> adds a code; click a bar to edit it. A no-sub-code bar is a <strong>catch-all</strong> for the whole project.',
       '<strong>Meetings</strong> have their own board column — tag teammates on a meeting task and it (and its hours) shows on their board.',
       'Hover a relay stage row in the editor to add a <strong>📝 note</strong> — it shows on the card in yellow while that leg is active, so "Work" can say what the work actually is.',
       'Click a deliverable to <strong>edit</strong> its stages, owner, status, and notes.',

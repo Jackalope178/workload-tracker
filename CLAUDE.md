@@ -194,9 +194,11 @@ preserve:
    solid fill = `_personCompletedHoursByCode` (relay `relayLog` pass hours —
    teammate legs record stage est, KME legs record logged hours — plus
    `completedAt`/`ownerStatusAt`-stamped completions), overlay = active
-   planned est. Card badges still show the person's total stage hours
-   (`_relayPersonEst`); remaining-legs math (`_relayPersonRemainingEst`)
-   still feeds the backlog line. Don't unify any of these.
+   planned est. A no-sub-code allocation is a **catch-all**: it absorbs the
+   project's hours not claimed by a sub-code-specific bar that month. Card
+   badges still show the person's total stage hours (`_relayPersonEst`);
+   remaining-legs math (`_relayPersonRemainingEst`) still feeds the backlog
+   line. Don't unify any of these.
 6. **Timesheet month-view week rows use the true Sun–Sat week** for logged,
    planned, AND capacity. Boundary weeks intentionally pull from the adjacent
    month and appear under both months — week bars don't sum to the month bar.
