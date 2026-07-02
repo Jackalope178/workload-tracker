@@ -25,6 +25,10 @@
 
     --cwc: #22c55e;
 
+    /* Reconcile view fills — two steps of one blue ramp (logged solid, planned lighter) */
+    --alloc-logged: #3b82f6;
+    --alloc-planned: #7ab8ff;
+
     --check-fg: #0d0f14;
 
     --header-h: 52px;
@@ -47,6 +51,7 @@
     --success: #16a34a;
     --warn: #d97706;
     --danger: #dc2626;
+    --alloc-planned: #6faeff;
     --check-fg: #ffffff;
   }
 
@@ -2360,6 +2365,74 @@
   .alloc-cell-summary .acs-dot.yellow { background: var(--warn); }
   .alloc-cell-summary .acs-dot.red { background: var(--danger); }
   .alloc-cell-summary .acs-dot.blue { background: var(--accent); }
+
+  /* ── Reconcile view (plan vs budget, one month) ── */
+  .alloc-recon-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 4px 10px;
+  }
+  .alloc-recon-monthlbl {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    min-width: 120px; text-align: center;
+  }
+  .alloc-recon-legend {
+    display: flex; align-items: center; gap: 14px; margin-left: auto;
+    font-size: 10px; color: var(--text2); flex-wrap: wrap;
+  }
+  .alloc-recon-legend .swatch {
+    display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+    margin-right: 4px; vertical-align: -1px;
+  }
+  .alloc-recon-legend .tickglyph {
+    display: inline-block; width: 2px; height: 12px; background: var(--text2);
+    margin-right: 5px; vertical-align: -2px;
+  }
+  .alloc-recon-summary {
+    font-size: 11px; color: var(--text2); padding: 0 4px 10px;
+  }
+  .alloc-recon-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 230px) 1fr minmax(190px, auto) 118px;
+    gap: 12px; align-items: center;
+    padding: 9px 8px; border-radius: 6px; cursor: pointer;
+    border-bottom: 1px solid var(--border);
+  }
+  .alloc-recon-row:hover { background: var(--bg3); }
+  .alloc-recon-row.quiet { opacity: 0.62; }
+  .alloc-recon-name {
+    font-size: 12px; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .alloc-recon-name .code { font-weight: 400; color: var(--text3); font-size: 10px; }
+  .alloc-recon-barouter { position: relative; padding: 5px 0; }
+  .alloc-recon-track {
+    display: flex; height: 14px; border-radius: 4px;
+    background: var(--bg3); overflow: hidden;
+  }
+  .alloc-recon-track > div { flex: none; }
+  .alloc-recon-seg-logged { background: var(--alloc-logged); }
+  .alloc-recon-seg-planned { background: var(--alloc-planned); }
+  .alloc-recon-track > div.last { border-radius: 0 4px 4px 0; }
+  .alloc-recon-tick {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: var(--text2); border-radius: 1px; z-index: 1;
+  }
+  .alloc-recon-nums {
+    font-size: 11px; color: var(--text2); white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .alloc-recon-nums .muted { color: var(--text3); }
+  .alloc-recon-chip {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+    white-space: nowrap; text-align: center; justify-self: start;
+    background: var(--bg3); color: var(--text3); border: 1px solid var(--border);
+  }
+  .alloc-recon-chip.over { color: var(--danger); border-color: var(--danger); background: transparent; }
+  .alloc-recon-chip.warnchip { color: var(--warn); border-color: var(--warn); background: transparent; }
+  .alloc-recon-chip.okchip { color: var(--success); border-color: transparent; background: transparent; }
+  .alloc-recon-groupfoot {
+    font-size: 10px; color: var(--text3); padding: 10px 8px; font-style: italic;
+  }
   .alloc-drill-section {
     font-size: 10px;
     font-weight: 700;
@@ -2793,14 +2866,22 @@
     margin-bottom: 14px;
   }
 </style>
-<!-- Supabase JS Client (v2) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<!-- SheetJS for Excel import (with CDN fallback) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Supabase JS Client — version-pinned with Subresource Integrity so a
+     compromised/tampered CDN file can't execute in the app origin. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js"
+        integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9"
+        crossorigin="anonymous"></script>
+<!-- SheetJS for Excel import (version-pinned + SRI, with CDN fallback) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+        integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"
+        crossorigin="anonymous"></script>
 <script>
 if (typeof XLSX === 'undefined') {
   var s = document.createElement('script');
   s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  // Same released file, so the same SRI hash applies to the fallback CDN.
+  s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw';
+  s.crossOrigin = 'anonymous';
   document.head.appendChild(s);
 }
 </script>
@@ -3172,6 +3253,7 @@ if (typeof XLSX === 'undefined') {
       <select class="filter-select" id="allocViewMode" onchange="renderAllocations()">
         <option value="detail">Detail View</option>
         <option value="summary">Summary Only</option>
+        <option value="reconcile">Reconcile ⚖</option>
       </select>
       <button class="btn" id="allocPastToggle" onclick="_toggleAllocPastMonths()" style="font-size:10px;padding:3px 8px;" title="Show or hide past months">Hide past</button>
       <button class="btn" id="allocArchivedToggle" onclick="_toggleAllocShowArchived()" style="font-size:10px;padding:3px 8px;" title="Show or hide archived (closed-out) projects">Show archived</button>
@@ -3182,7 +3264,7 @@ if (typeof XLSX === 'undefined') {
       <button class="btn" onclick="openManageProjectsModal()" style="font-size:10px;padding:3px 8px;">Manage Sub-Codes</button>
     </div>
     <div id="allocImportStatus" style="display:none;padding:6px 10px;margin-bottom:6px;border-radius:6px;font-size:11px;"></div>
-    <div class="alloc-legend">
+    <div class="alloc-legend" id="allocLegend">
       <span><span class="alloc-legend-dot" style="background:var(--accent);"></span> Planned work</span>
       <span><span class="alloc-legend-dot" style="background:var(--success);"></span> Logged (&lt;80%)</span>
       <span><span class="alloc-legend-dot" style="background:var(--warn);"></span> Nearing limit (80–99%)</span>
@@ -4525,12 +4607,15 @@ function updateAuthUI() {
 
 // ── Supabase Data Layer ──
 
+// NOTE: 'wt_api_key' is deliberately excluded — the Anthropic API key is a
+// secret and is kept device-local (localStorage only). Do not add it here, or
+// it will be synced to the cloud and written into exported backup files.
 const SYNC_KEYS = [
   'wt_tasks', 'wt_bigprojs', 'wt_team', 'wt_completed',
   'wt_projects_meta', 'wt_project_order', 'wt_allocations',
   'wt_persons', 'wt_hidden_projs', 'wt_proj_panel_collapsed',
   'wt_collapsed_projs', 'wt_team_group_person', 'wt_ts_capacity',
-  'wt_theme', 'wt_api_key',
+  'wt_theme',
   'wt_dup_decisions', 'wt_stale_subcodes',
   'wt_onboarded', 'wt_xlsx_alloc_imported',
   'wt_alloc_rollovers', 'wt_collapsed_task_sections',
@@ -5118,6 +5203,7 @@ function saveAllocations() { save('wt_allocations', allocations); }
 })();
 
 let allocYear = new Date().getFullYear();
+let _allocReconM = null; // 1-based month shown in the Allocations Reconcile view
 
 // Sub-code helpers
 function getSubCodes(projKey) {
@@ -5668,6 +5754,14 @@ function _nextUpcomingRecurrence(item, dueKey) {
 }
 
 function nextRecurrenceAfter(task, fromDateStr) {
+  const r = _nextRecurrenceAfterRaw(task, fromDateStr);
+  // Monotonic guarantee: a recurrence must strictly advance, or the expansion
+  // loops (plannedItems, renderTasks, …) would spin in place emitting
+  // duplicate occurrences. Treat a non-advancing result as "no next".
+  return (r && r <= fromDateStr) ? null : r;
+}
+
+function _nextRecurrenceAfterRaw(task, fromDateStr) {
   if (!task.recurrence) return null;
   const { type, dayOfMonth, weekOfMonth } = task.recurrence;
   const from = new Date(fromDateStr + 'T00:00:00');
@@ -5686,23 +5780,33 @@ function nextRecurrenceAfter(task, fromDateStr) {
     return localDateStr(d);
   }
   if (type === 'monthly') {
-    const d = new Date(from);
-    d.setMonth(d.getMonth() + 1);
-    return localDateStr(d);
+    // Clamp to the target month's length so month-end anchors don't overflow
+    // and drift (Jan 31 via setMonth would land on Mar 3, skipping February).
+    let m = from.getMonth() + 1, y = from.getFullYear();
+    if (m > 11) { m = 0; y++; }
+    const day = Math.min(from.getDate(), new Date(y, m + 1, 0).getDate());
+    return `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
   }
   if (type === 'monthly-date' || type === 'monthly-last-day') {
     let m = from.getMonth() + 1, y = from.getFullYear();
-    if (m > 11) { m = 0; y++; }
-    let day;
-    if (type === 'monthly-last-day') {
-      day = new Date(y, m + 1, 0).getDate(); // last day of month
-    } else {
-      const max = new Date(y, m + 1, 0).getDate();
-      day = Math.min(+dayOfMonth, max);
+    // weekdayAdjust can pull a 1st/2nd back into `from`'s own month (or
+    // earlier), which would stall the sequence — step months until the
+    // adjusted result lands strictly after `from`.
+    for (let tries = 0; tries < 14; tries++) {
+      if (m > 11) { m -= 12; y++; }
+      let day;
+      if (type === 'monthly-last-day') {
+        day = new Date(y, m + 1, 0).getDate(); // last day of month
+      } else {
+        const max = new Date(y, m + 1, 0).getDate();
+        day = Math.min(+dayOfMonth, max);
+      }
+      let result = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      if (task.recurrence.weekdayAdjust) result = adjustToWeekday(result);
+      if (result > fromDateStr) return result;
+      m++;
     }
-    let result = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    if (task.recurrence.weekdayAdjust) result = adjustToWeekday(result);
-    return result;
+    return null;
   }
   if (type === 'monthly-weekday') {
     const [dayOfWeek] = normDows(task.recurrence);
@@ -5717,6 +5821,17 @@ function nextRecurrenceAfter(task, fromDateStr) {
     }
   }
   return null;
+}
+
+// Next occurrence strictly after `from` that is NOT in recurrence.skips —
+// used when advancing an item's stored anchor (completion, skip, reschedule)
+// so the anchor never lands on a date the user explicitly skipped.
+function nextActiveRecurrenceAfter(task, fromDateStr) {
+  const skips = (task.recurrence && task.recurrence.skips) || [];
+  let d = nextRecurrenceAfter(task, fromDateStr);
+  let guard = 0;
+  while (d && skips.includes(d) && guard++ < 500) d = nextRecurrenceAfter(task, d);
+  return d;
 }
 
 function recurLabel(task) {
@@ -6425,6 +6540,7 @@ function renderTasks() {
   currentWeekDays.forEach(d => { dayBuckets[d] = []; });
 
   const futureBuckets = {};  // week-start string → items
+  const weekendBucket = [];  // this week's Saturday (Sunday is wkStart, always ≤ today)
   const unscheduled = [];
 
   allItems.forEach(item => {
@@ -6434,6 +6550,7 @@ function renderTasks() {
     if (d < todayStr) { overdueBucket.push(item); return; }
     if (d === todayStr) { (dayBuckets[todayStr] || (dayBuckets[todayStr] = [])).push(item); return; }
     if (currentWeekDays.includes(d)) { dayBuckets[d].push(item); return; }
+    if (d <= wkEnd) { weekendBucket.push(item); return; }
     if (d > wkEnd) {
       // find Sunday of that week (consistent with startOfWeek/timesheet weeks)
       const dt = new Date(d + 'T00:00:00');
@@ -6461,10 +6578,10 @@ function renderTasks() {
       row.dataset.id = task.id;
       row.innerHTML = `
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
-        <div class="project-dot" style="background:${projColor(task.project)};" title="${projLabel(task.project)}"></div>
+        <div class="project-dot" style="background:${escHtml(projColor(task.project))};" title="${escHtml(projLabel(task.project))}"></div>
         <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${task._deliverableId ? '<span class="from-team-badge" title="Your turn on a team deliverable — handed to you via the board">↩ team</span>' : ''}${_taskRelayPassBtn(task)}${delegateTagsHtml(task.delegatedTo)}${task.waiting ? `<span class="task-waiting">⏳ ${escHtml(task.waiting)}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}${spreadBadgeHtml(task, task.due)}${blocksBadgeHtml(task)}</div>
         <div class="task-recur-actions"><button class="row-edit-btn" onclick="event.stopPropagation();showTaskAssignDropdown(event,'${task.id}')" title="Assign" style="font-size:11px;padding:2px 4px;">↗</button>${task.recurrence ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>` : ''}</div>
-        <span class="task-category">${projLabel(task.project)}</span>
+        <span class="task-category">${escHtml(projLabel(task.project))}</span>
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
         <div class="task-due ${dc}" onclick="openDueDatePicker(this, '${task.id}')">${fmtDate(item._date)}${deadlineChipHtml(item._deadline, task.workDate, `openTaskDeadlinePicker(this,'${task.id}')`)}</div>
         <div class="task-est" onclick="event.stopPropagation();inlineEditEst(this,'task','${task.id}')" style="cursor:pointer;" title="Click to edit">${task.est ? task.est + 'h' : '—'}</div>
@@ -6482,7 +6599,7 @@ function renderTasks() {
       row.className = `task-row${sRunning ? ' running' : ''}`;
       row.innerHTML = `
         <div class="task-check${s.done ? ' done' : ''}" onclick="openSessionCompletionModal('${proj.id}','${s.id}')" title="Mark complete" style="cursor:pointer;"></div>
-        <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${projLabel(proj.project)}"></div>
+        <div class="project-dot" style="background:${escHtml(proj.color || projColor(proj.project))};" title="${escHtml(projLabel(proj.project))}"></div>
         <div class="task-name" onclick="openEditSessionModal('${proj.id}','${s.id}')">${escHtml(s.desc)}${delegateTagsHtml(s.delegatedTo)}${s.waiting ? `<span class="task-waiting">⏳ ${escHtml(s.waiting)}</span>` : ''}${s.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('session','${s.id}','${proj.id}')" title="View notes">📝</span>` : ''}</div>
         <div class="task-recur-actions"></div>
         <span class="task-category" style="color:var(--text3);font-style:italic;">${escHtml(proj.name)}</span>
@@ -6505,7 +6622,7 @@ function renderTasks() {
       row.style.borderLeft = '2px solid var(--border)';
       row.innerHTML = `
         <div class="task-check${st.done ? ' done' : ''}" onclick="openSubtaskCompletionModal('${proj.id}','${s.id}','${st.id}')" style="cursor:pointer;"></div>
-        <div class="project-dot" style="background:${proj.color || projColor(proj.project)};" title="${escHtml(proj.name)}"></div>
+        <div class="project-dot" style="background:${escHtml(proj.color || projColor(proj.project))};" title="${escHtml(proj.name)}"></div>
         <div class="task-name" onclick="openEditSubtaskModal('${proj.id}','${s.id}','${st.id}')" style="font-size:11px;">╰ ${escHtml(st.desc)}${delegateTagsHtml(st.delegatedTo)}${st.waiting ? `<span class="task-waiting">⏳ ${escHtml(st.waiting)}</span>` : ''}${st.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('subtask','${st.id}','${proj.id}','${s.id}')" title="View notes">📝</span>` : ''}</div>
         <div class="task-recur-actions"></div>
         <span class="task-category" style="color:var(--text3);font-style:italic;font-size:10px;">${escHtml(proj.name)}</span>
@@ -6525,10 +6642,10 @@ function renderTasks() {
       row.style.borderLeft = '2px solid var(--border)';
       row.innerHTML = `
         <div class="task-check" onclick="openBlockCompletionModal('${bt.id}','${b.id}')" title="Log this block as done"></div>
-        <div class="project-dot" style="background:${projColor(bt.project)};" title="${projLabel(bt.project)}"></div>
+        <div class="project-dot" style="background:${escHtml(projColor(bt.project))};" title="${escHtml(projLabel(bt.project))}"></div>
         <div class="task-name" onclick="openEditModal('${bt.id}')" style="font-size:11px;">╰ ${escHtml(bt.name)}${b.desc ? ` <span style="color:var(--text3);">· ${escHtml(b.desc)}</span>` : ''} <span class="recur-badge" title="Work block — part of ${fmtQ(bt.est || 0)}h total">▣ block</span></div>
         <div class="task-recur-actions"></div>
-        <span class="task-category">${projLabel(bt.project)}</span>
+        <span class="task-category">${escHtml(projLabel(bt.project))}</span>
         <div>${priorityBadge(bt.priority)}</div>
         <div class="task-due ${dc}" style="font-size:11px;cursor:pointer;" onclick="openBlockDatePicker(this,'${bt.id}','${b.id}')">${fmtDate(b.date)}${deadlineChipHtml(item._deadline, b.date, `openTaskDeadlinePicker(this,'${bt.id}')`)}</div>
         <div class="task-est" style="font-size:11px;">${b.hours ? fmtQ(b.hours) + 'h' : '—'}</div>
@@ -6699,6 +6816,12 @@ function renderTasks() {
     const label = isToday ? `Today — ${dayName} ${mo} ${dt.getDate()}` : `${dayName} ${mo} ${dt.getDate()}`;
     renderSection(label, _focusMode ? sortItems(items, 'priority', 'asc') : items, isToday ? 'today-header' : '', tsCapacity, [d], isToday ? _startNextBtn : undefined);
   });
+
+  // ── this week's Saturday (weekend — no weekday capacity bar) ──
+  if (weekendBucket.length) {
+    const satDt = new Date(wkEnd + 'T00:00:00');
+    renderSection(`${days[satDt.getDay()]} ${MONTH_NAMES[satDt.getMonth()]} ${satDt.getDate()} — weekend`, weekendBucket, '', null, null);
+  }
 
   // ── future weeks ──
   Object.keys(futureBuckets).sort().forEach(wk => {
@@ -7397,7 +7520,7 @@ function skipRecurOccurrence(taskId, occurrenceDate) {
   const orig = occurrenceDate || task.due;
   pushRecurUndo(`Skipped occurrence on ${orig}`, taskId, task.due, task.recurrence);
   task.recurrence.skips = [...(task.recurrence.skips || []), orig];
-  if (orig === task.due) task.due = nextRecurrenceAfter(task, orig) || orig;
+  if (orig === task.due) task.due = nextActiveRecurrenceAfter(task, orig) || orig;
   save('wt_tasks', tasks);
   renderTasks(); renderTimesheet();
 }
@@ -7430,7 +7553,7 @@ function confirmReschedule() {
   task.recurrence.overrides = { ...(task.recurrence.overrides || {}), [orig]: newDate };
   // If we rescheduled the anchor occurrence, advance the chain anchor to the next scheduled date
   // so future occurrences continue from the original schedule (not the rescheduled date)
-  if (orig === task.due) task.due = nextRecurrenceAfter(task, orig) || orig;
+  if (orig === task.due) task.due = nextActiveRecurrenceAfter(task, orig) || orig;
   save('wt_tasks', tasks);
   closeRescheduleModal();
   renderTasks(); renderTimesheet();
@@ -7645,7 +7768,7 @@ function openCompletionModal(taskId) {
     : roundToQuarter((task.blocks || []).length ? _ownPlannedHours(task) : (task.est || 0));
 
   if (task.recurrence) {
-    const nextDate = nextRecurrenceAfter(task, task.due || today());
+    const nextDate = nextActiveRecurrenceAfter(task, task.due || today());
     const endDate  = task.recurrence.endDate;
     const isLast   = !nextDate || (endDate && nextDate > endDate);
     document.getElementById('compModalTitle').textContent = isLast ? 'Complete Task (Final Recurrence)' : 'Complete & Reschedule';
@@ -7694,7 +7817,7 @@ function openSessionCompletionModal(projId, sessionId) {
   const billable = rawHours > 0 ? roundToQuarter(rawHours) : (s.hours || 0);
 
   if (s.recurrence) {
-    const nextDate = nextRecurrenceAfter(s, s.date || today());
+    const nextDate = nextActiveRecurrenceAfter(s, s.date || today());
     const endDate = s.recurrence.endDate;
     const isLast = !nextDate || (endDate && nextDate > endDate);
     document.getElementById('compModalTitle').textContent = isLast ? 'Complete Session (Final)' : 'Complete & Reschedule';
@@ -7742,7 +7865,7 @@ function openSubtaskCompletionModal(projId, sessionId, subtaskId) {
   const billable = rawHours > 0 ? roundToQuarter(rawHours) : (st.hours || 0);
 
   if (st.recurrence) {
-    const nextDate = nextRecurrenceAfter(st, st.date || today());
+    const nextDate = nextActiveRecurrenceAfter(st, st.date || today());
     const endDate = st.recurrence.endDate;
     const isLast = !nextDate || (endDate && nextDate > endDate);
     document.getElementById('compModalTitle').textContent = isLast ? 'Complete Subtask (Final)' : 'Complete & Reschedule';
@@ -7834,7 +7957,7 @@ function confirmComplete() {
       completed.unshift(entry);
       save('wt_completed', completed);
       if (s.recurrence) {
-        let nextDate = nextRecurrenceAfter(s, s.date || today());
+        let nextDate = nextActiveRecurrenceAfter(s, s.date || today());
         const endDate = s.recurrence.endDate;
         if (!nextDate && !endDate) {
           const fallbackDays = (s.recurrence.type === 'weekly' || s.recurrence.type === 'biweekly') ? 7 : 30;
@@ -7866,7 +7989,7 @@ function confirmComplete() {
       completed.unshift(entry);
       save('wt_completed', completed);
       if (st.recurrence) {
-        let nextDate = nextRecurrenceAfter(st, st.date || today());
+        let nextDate = nextActiveRecurrenceAfter(st, st.date || today());
         const endDate = st.recurrence.endDate;
         if (!nextDate && !endDate) {
           const fallbackDays = (st.recurrence.type === 'weekly' || st.recurrence.type === 'biweekly') ? 7 : 30;
@@ -7915,7 +8038,7 @@ function confirmComplete() {
     }
 
     if (task.recurrence) {
-      let nextDate = nextRecurrenceAfter(task, task.due || today());
+      let nextDate = nextActiveRecurrenceAfter(task, task.due || today());
       const endDate  = task.recurrence.endDate;
       // Fallback: if nextRecurrenceAfter returned null but there's no end date, advance by a safe default
       if (!nextDate && !endDate) {
@@ -7996,8 +8119,8 @@ function renderProjCodeList() {
       ondragover="event.preventDefault();this.classList.add('drag-over-code');"
       ondragleave="this.classList.remove('drag-over-code');"
       ondrop="event.preventDefault();this.classList.remove('drag-over-code');dropCodeReorder('${key}');">
-      <div class="proj-code-dot" style="background:${p.color || '#666'};"></div>
-      <span class="proj-code-label">${p.label || key}</span>
+      <div class="proj-code-dot" style="background:${escHtml(p.color || '#666')};"></div>
+      <span class="proj-code-label">${escHtml(p.label || key)}</span>
       <button class="proj-eye-btn" onclick="event.stopPropagation();archiveProject('${key}')" title="Close out / archive this project">📦</button>
       <button class="proj-eye-btn" onclick="event.stopPropagation();toggleProjHidden('${key}')" title="Hide this code">👁</button>
     </div>`;
@@ -8020,8 +8143,8 @@ function renderProjCodeList() {
           ondragover="event.preventDefault();this.classList.add('drag-over-code');"
           ondragleave="this.classList.remove('drag-over-code');"
           ondrop="event.preventDefault();this.classList.remove('drag-over-code');dropCodeReorder('${key}');">
-          <div class="proj-code-dot" style="background:${p.color || '#666'};"></div>
-          <span class="proj-code-label">${p.label || key}</span>
+          <div class="proj-code-dot" style="background:${escHtml(p.color || '#666')};"></div>
+          <span class="proj-code-label">${escHtml(p.label || key)}</span>
           <button class="proj-eye-btn" onclick="event.stopPropagation();toggleProjHidden('${key}')" title="Show this code">👁‍🗨</button>
         </div>`;
       });
@@ -8041,8 +8164,8 @@ function renderProjCodeList() {
         const p = PROJECTS[key];
         const dateLbl = p.archivedAt ? ` <span style="font-size:9px;color:var(--text3);">${p.archivedAt}</span>` : '';
         html += `<div class="proj-code-item hidden-item" data-code-key="${key}">
-          <div class="proj-code-dot" style="background:${p.color || '#666'};"></div>
-          <span class="proj-code-label">${p.label || key}${dateLbl}</span>
+          <div class="proj-code-dot" style="background:${escHtml(p.color || '#666')};"></div>
+          <span class="proj-code-label">${escHtml(p.label || key)}${dateLbl}</span>
           <button class="proj-eye-btn" onclick="event.stopPropagation();unarchiveProject('${key}')" title="Revive — reopen this project">↩</button>
         </div>`;
       });
@@ -8200,19 +8323,20 @@ function _projCapDropAssign(dateStr) {
   if (!d) return;
   _dragItemData = null;
   let name = '';
+  // _capAssignOne owns the work-date/deadline semantics (live deadline kept,
+  // pick becomes the work date; dead deadline replaced; workDate + allocMonth
+  // kept consistent) — writing due/date directly here left stale workDates.
   if (d.type === 'task') {
     const t = tasks.find(t => t.id === d.id);
     if (!t) return;
-    t.due = dateStr;
-    if (t.allocMonth && t.allocMonth !== dateStr.slice(0, 7)) t.allocMonth = dateStr.slice(0, 7);
+    _capAssignOne(t, 'due', dateStr);
     save('wt_tasks', tasks);
     name = t.name;
   } else if (d.type === 'session') {
     const bp = bigProjs.find(p => p.id === d.projId);
     const s = bp && bp.sessions.find(s => s.id === d.id);
     if (!s) return;
-    s.date = dateStr;
-    if (s.allocMonth && s.allocMonth !== dateStr.slice(0, 7)) s.allocMonth = dateStr.slice(0, 7);
+    _capAssignOne(s, 'date', dateStr);
     save('wt_bigprojs', bigProjs);
     name = s.desc;
   } else if (d.type === 'subtask') {
@@ -8220,8 +8344,7 @@ function _projCapDropAssign(dateStr) {
     const s = bp && bp.sessions.find(s => s.id === d.sessionId);
     const st = s && (s.subtasks || []).find(st => st.id === d.id);
     if (!st) return;
-    st.date = dateStr;
-    if (st.allocMonth && st.allocMonth !== dateStr.slice(0, 7)) st.allocMonth = dateStr.slice(0, 7);
+    _capAssignOne(st, 'date', dateStr);
     save('wt_bigprojs', bigProjs);
     name = st.desc;
   } else {
@@ -8286,13 +8409,16 @@ function renderProjCodeContent(projKey) {
         const ssc = s.subCode || bp.defaultSubCode || '';
         if (ssc === (scId || '')) {
           items.push({ _type: 'session', s, proj: bp, _date: s.date || (s.allocMonth ? s.allocMonth + '-01' : null), _src: bp.name });
-          (s.subtasks || []).forEach(st => {
-            const stsc = st.subCode || ssc;
-            if (stsc === (scId || '')) {
-              items.push({ _type: 'subtask', st, s, proj: bp, _date: st.date || (st.allocMonth ? st.allocMonth + '-01' : null), _src: bp.name });
-            }
-          });
         }
+        // Subtasks match on their OWN sub-code (falling back to the session's),
+        // independent of whether the parent session belongs to this section —
+        // a subtask billed to a different sub-code must still show up there.
+        (s.subtasks || []).forEach(st => {
+          const stsc = st.subCode || ssc;
+          if (stsc === (scId || '')) {
+            items.push({ _type: 'subtask', st, s, proj: bp, _date: st.date || (st.allocMonth ? st.allocMonth + '-01' : null), _src: bp.name });
+          }
+        });
       });
     });
     // Team deliverables
@@ -8349,7 +8475,7 @@ function renderProjCodeContent(projKey) {
     <span>${_selectedProjItems.size} selected</span>
     <select id="projBulkMoveTarget" class="filter-select" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);font-size:11px;">
       <option value="">Move to sub-code...</option>
-      ${subCodes.map(sc => `<option value="${sc.id}">${sc.code} ${escHtml(sc.label)}</option>`).join('')}
+      ${subCodes.map(sc => `<option value="${sc.id}">${escHtml(sc.code)} ${escHtml(sc.label)}</option>`).join('')}
     </select>
     <button class="btn" onclick="_bulkMoveToSubCode('${projKey}')">Move</button>
     <button class="btn" onclick="_clearBulkSelection()" style="margin-left:auto;">Cancel</button>
@@ -8438,7 +8564,7 @@ function renderProjCodeContent(projKey) {
       <div class="subcode-header" style="border-top:3px solid ${sec._inactive ? 'var(--border)' : color};" onclick="toggleSubSection('${sectionKey}')">
         ${isDraggable ? '<span class="subcode-drag-handle" title="Drag to reorder">⠿</span>' : ''}
         <span class="subcode-chevron${isCollapsed ? '' : ' open'}">›</span>
-        <span style="color:${sec._inactive ? 'var(--text3)' : 'var(--text)'};">${sec.scId && proj.billingCode ? '<span style="color:' + (sec._inactive ? 'var(--text3)' : color) + ';font-weight:700;">' + proj.billingCode + '</span> — ' : ''}${sec.scId ? `<span class="subcode-label-clickable" onclick="event.stopPropagation();_openScPopup(event,'${projKey}','${sec.scId}')">${sec.label}</span>` : sec.label}${sec._inactive ? ' <span style="font-size:9px;color:var(--text3);font-style:italic;">(inactive)</span>' : ''}</span>
+        <span style="color:${sec._inactive ? 'var(--text3)' : 'var(--text)'};">${sec.scId && proj.billingCode ? '<span style="color:' + (sec._inactive ? 'var(--text3)' : color) + ';font-weight:700;">' + escHtml(proj.billingCode) + '</span> — ' : ''}${sec.scId ? `<span class="subcode-label-clickable" onclick="event.stopPropagation();_openScPopup(event,'${projKey}','${sec.scId}')">${escHtml(sec.label)}</span>` : escHtml(sec.label)}${sec._inactive ? ' <span style="font-size:9px;color:var(--text3);font-style:italic;">(inactive)</span>' : ''}</span>
         ${meterHtml}
         <span class="subcode-count">${openCount} open / ${totalCount} total</span>
       </div>`;
@@ -8634,7 +8760,7 @@ function renderProjItemRow(item, projKey, scId) {
     const owners = ti.owners || [ti.owner];
     const ownerTags = owners.map(o => {
       const pc = personColor(o || '—');
-      return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 5px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">${o}</span>`;
+      return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 5px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">${escHtml(o)}</span>`;
     }).join('');
     return `<div class="proj-item-row">
       <div class="bulk-select-check${_selectedProjItems.has('team:'+ti.id) ? ' selected' : ''}" onclick="event.stopPropagation();_toggleProjItemSelect('team','${ti.id}')" title="Select for bulk action">${_selectedProjItems.has('team:'+ti.id) ? '<span style="color:#fff;font-size:10px;">✓</span>' : ''}</div>
@@ -9386,7 +9512,7 @@ function renderTeam() {
     if (!others.length) return '';
     return '<span class="team-coassignee-tags">' + others.map(o => {
       const pc = personColor(o);
-      return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 5px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">+${_relayWho(o)}</span>`;
+      return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 5px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">+${escHtml(_relayWho(o))}</span>`;
     }).join('') + '</span>';
   }
 
@@ -9404,7 +9530,7 @@ function renderTeam() {
     const pStatus = _relayInfo ? _relayInfo.col : (forPerson ? teamPersonStatus(item, forPerson) : item.status);
     const _pLabel = _relayInfo ? _relayInfo.label : (STATUS_LABELS[pStatus] || pStatus);
     let _statusFn;
-    if (forPerson) _statusFn = `showPersonStatusDropdown(event,'${_teamRowKey(item)}','${(forPerson || '').replace(/'/g, "\\'")}')`;
+    if (forPerson) _statusFn = `showPersonStatusDropdown(event,'${_teamRowKey(item)}','${(forPerson || '').replace(/'/g, "\\'").replace(/"/g,'&quot;')}')`;
     else if (item._delegated) _statusFn = item._isSubtask ? `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}','${item._subtaskId}')` : `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')`;
     else if (item._taskDelegated) _statusFn = `showDelegatedTaskStatusDropdown(event,'${item._taskId}')`;
     else _statusFn = `showStatusDropdown(event,'${item.id}')`;
@@ -9422,7 +9548,7 @@ function renderTeam() {
       ? `<div class="team-owner" style="display:flex;flex-wrap:wrap;gap:3px;">${coAssigneeTags(owners, forPerson) || '<span style="font-size:10px;color:var(--text3);">Solo</span>'}</div>`
       : `<div class="team-owner" style="display:flex;flex-wrap:wrap;gap:3px;">${owners.map(o => {
           const pc = personColor(o || '—');
-          return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap;">${_relayWho(o)}</span>`;
+          return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap;">${escHtml(_relayWho(o))}</span>`;
         }).join('')}</div>`;
 
     if (item._delegated) {
@@ -9441,8 +9567,8 @@ function renderTeam() {
       row.innerHTML = `
         <div class="team-task-name" onclick="${editFn}">${item._isSubtask ? '<span style="color:var(--text3);margin-right:4px;">╰</span>' : ''}${escHtml(item.name)}${_s?.waiting ? `<span class="task-waiting">⏳ ${escHtml(_s.waiting)}</span>` : ''}${_s?.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('${item._isSubtask ? 'subtask' : 'session'}','${item._isSubtask ? item._subtaskId : item._sessionId}','${item._projId}'${item._isSubtask ? `,'${item._sessionId}'` : ''})" title="View notes">📝</span>` : ''}</div>
         ${ownerHtml}
-        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
-        <div class="project-dot" style="background:${projColor(item.project)};"></div>
+        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(projLabel(item.project))}</span>
+        <div class="project-dot" style="background:${escHtml(projColor(item.project))};"></div>
         <span class="team-due ${dc}" style="cursor:pointer;" onclick="${dateFn}">${fmtDate(item.due)}</span>
         ${statusBadge}
         `;
@@ -9450,8 +9576,8 @@ function renderTeam() {
       row.innerHTML = `
         <div class="team-task-name" onclick="openEditModal('${item._taskId}')">${escHtml(item.name)}</div>
         ${ownerHtml}
-        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
-        <div class="project-dot" style="background:${projColor(item.project)};"></div>
+        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(projLabel(item.project))}</span>
+        <div class="project-dot" style="background:${escHtml(projColor(item.project))};"></div>
         <span class="team-due ${dc}" style="cursor:pointer;" onclick="openDueDatePicker(this,'${item._taskId}')">${fmtDate(item.due)}</span>
         ${statusBadge}
         `;
@@ -9459,8 +9585,8 @@ function renderTeam() {
       row.innerHTML = `
         <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${escHtml(item.name)}${(!isCompleted && item.activeOwner && !_isRelay(item)) ? `<span class="team-baton-inline${item.activeOwner === 'Me' ? ' mine' : ''}" title="Ball in court — open to pass the baton">${item.activeOwner === 'Me' ? '🟢 Your turn' : '◖ ' + escHtml(item.activeOwner)}</span>` : ''}${item.waiting ? `<span class="task-waiting">⏳ ${escHtml(item.waiting)}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
         ${ownerHtml}
-        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${projLabel(item.project)}</span>
-        <div class="project-dot" style="background:${projColor(item.project)};"></div>
+        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(projLabel(item.project))}</span>
+        <div class="project-dot" style="background:${escHtml(projColor(item.project))};"></div>
         <span class="team-due ${dc}" style="cursor:pointer;" onclick="openTeamDueDatePicker(this,'${item.id}')">${_effDue ? fmtDate(_effDue) : '—'}</span>
         ${statusBadge}
         `;
@@ -9580,11 +9706,15 @@ function renderTeamBoard(visible, boardPerson, container) {
     const doneCount = items.length - active.length;
 
     // Near-term load = estimated hours for active work due this week or already overdue.
-    // For relay items, this person is only on the hook for their own stages' hours.
-    const estFor = i => _isRelay(i) ? _relayPersonEst(i, boardPerson) : (Number(i.est) || 0);
+    // For relay items, this person is only on the hook for their own stages' hours —
+    // and only the REMAINING ones (legs already passed are spent, not load).
+    const estFor = i => _isRelay(i) ? _relayPersonRemainingEst(i, boardPerson) : (Number(i.est) || 0);
+    // "Without estimate" checks the person's TOTAL stage hours, so an item whose
+    // legs are simply all done isn't mislabeled as unestimated.
+    const totalEstFor = i => _isRelay(i) ? _relayPersonEst(i, boardPerson) : (Number(i.est) || 0);
     const weekLoad = active.filter(i => _teamItemOverdue(i) || _teamItemSoon(i)).reduce((s, i) => s + estFor(i), 0);
     const backlog = active.reduce((s, i) => s + estFor(i), 0);
-    const noEst = active.filter(i => !(estFor(i) > 0)).length;
+    const noEst = active.filter(i => !(totalEstFor(i) > 0)).length;
     const cap = personWeeklyCap(boardPerson);
     const pct = cap > 0 ? Math.round((weekLoad / cap) * 100) : 0;
     const gaugeCls = pct >= 100 ? 'cap-over' : pct >= 80 ? 'cap-warn' : 'cap-ok';
@@ -9601,7 +9731,7 @@ function renderTeamBoard(visible, boardPerson, container) {
         </div>
         <div class="team-cockpit-cap">
           <label>Weekly capacity</label>
-          <input type="number" min="0" step="1" value="${cap}" onchange="setPersonWeeklyCap('${boardPerson.replace(/'/g, "\\'")}', this.value)" title="Hours per week this person can take on"> h
+          <input type="number" min="0" step="1" value="${cap}" onchange="setPersonWeeklyCap('${boardPerson.replace(/'/g, "\\'").replace(/"/g,'&quot;')}', this.value)" title="Hours per week this person can take on"> h
         </div>
       </div>
       <div class="team-gauge-wrap">
@@ -9673,7 +9803,7 @@ function renderTeamBoard(visible, boardPerson, container) {
       list.forEach(item => {
         const pl = projLabel(item.project);
         if (pl !== lastProj) {
-          html += `<div class="team-board-projhdr"><span class="project-dot" style="background:${projColor(item.project)};"></span>${escHtml(pl)}</div>`;
+          html += `<div class="team-board-projhdr"><span class="project-dot" style="background:${escHtml(projColor(item.project))};"></span>${escHtml(pl)}</div>`;
           lastProj = pl;
         }
         html += teamBoardCard(item, perPerson ? boardPerson : null);
@@ -9704,7 +9834,7 @@ function teamBoardCard(item, forPerson) {
     : item._taskDelegated ? `openEditModal('${item._taskId}')` : `openEditTeamModal('${item.id}')`;
   const rowKey = _teamRowKey(item);
   let statusFn;
-  if (forPerson) statusFn = `showPersonStatusDropdown(event,'${rowKey}','${forPerson.replace(/'/g, "\\'")}')`;
+  if (forPerson) statusFn = `showPersonStatusDropdown(event,'${rowKey}','${forPerson.replace(/'/g, "\\'").replace(/"/g,'&quot;')}')`;
   else if (item._delegated) statusFn = item._isSubtask ? `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}','${item._subtaskId}')` : `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')`;
   else if (item._taskDelegated) statusFn = `showDelegatedTaskStatusDropdown(event,'${item._taskId}')`;
   else statusFn = `showStatusDropdown(event,'${item.id}')`;
@@ -9768,7 +9898,7 @@ function teamBoardCard(item, forPerson) {
       ${statusBadge}
       ${relay
         ? relayActions
-        : `<span style="display:inline-flex;gap:5px;">${handoffBtn}<button class="team-board-reassign" onclick="event.stopPropagation();showReassignDropdown(event,'${rowKey}','${fromPerson.replace(/'/g, "\\'")}')" title="Reassign / delegate to another team member">⇄</button></span>`}
+        : `<span style="display:inline-flex;gap:5px;">${handoffBtn}<button class="team-board-reassign" onclick="event.stopPropagation();showReassignDropdown(event,'${rowKey}','${fromPerson.replace(/'/g, "\\'").replace(/"/g,'&quot;')}')" title="Reassign / delegate to another team member">⇄</button></span>`}
     </div>
   </div>`;
 }
@@ -9910,6 +10040,14 @@ function relayStage(item) { const i = relayIdx(item); return i < item.relay.leng
 function _relayDone(item) { return relayIdx(item) >= item.relay.length; }
 // Hours a given person is on the hook for across this relay (their stages summed).
 function _relayPersonEst(item, who) { return _isRelay(item) ? item.relay.filter(s => s.who === who).reduce((n, s) => n + (Number(s.est) || 0), 0) : 0; }
+// Hours a person is STILL on the hook for: their stages at or after the current
+// baton position. Done legs are spent effort, not future load — the cockpit
+// gauge uses this so a person's meter drains as their legs complete.
+function _relayPersonRemainingEst(item, who) {
+  if (!_isRelay(item)) return 0;
+  const idx = relayIdx(item);
+  return item.relay.reduce((n, s, i) => n + ((i >= idx && s.who === who) ? (Number(s.est) || 0) : 0), 0);
+}
 function _relayTotalEst(item) { return _isRelay(item) ? item.relay.reduce((n, s) => n + (Number(s.est) || 0), 0) : 0; }
 
 function _relayVerb(k) { return k === 'review' ? 'reviewing' : k === 'send' ? 'sending' : 'working'; }
@@ -10393,9 +10531,13 @@ function _ownPlannedHours(obj) {
 // [{date, hours}] in quarter-hour chunks; may place less than asked when
 // the window is full — callers surface the leftover.
 function packIntoFreeDays(totalHours, opts = {}) {
-  let remaining = roundToQuarter(Math.max(totalHours || 0, 0));
+  // snapQuarter (not roundToQuarter) — the latter floors to 0.25 and would
+  // invent a quarter-hour of work when asked to pack ~0 hours.
+  let remaining = Math.max(0, snapQuarter(totalHours || 0));
   const from = opts.from && opts.from > today() ? opts.from : today();
-  const to = opts.before && opts.before < addDays(from, 180) ? opts.before : addDays(from, 70);
+  // With a deadline: search up to it, capped at 180 days out. Without: 70 days.
+  const horizon = addDays(from, 180);
+  const to = opts.before ? (opts.before < horizon ? opts.before : horizon) : addDays(from, 70);
   const out = [];
   if (remaining < 0.25 || to < from) return out;
   const planned = plannedItems(from, to).filter(p => !p._allocHold)
@@ -10483,6 +10625,7 @@ function plannedItems(fromDate, toDate) {
         const recurEnd  = t.recurrence.endDate || null;
         const skips     = t.recurrence.skips    || [];
         const overrides = t.recurrence.overrides || {};
+        const mkOcc = (orig, date) => ({ id: t.id + '_' + orig, name: t.name, project: t.project, date, hours: t.est || 0, subCode: t.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _src: 'task' });
         let d = t.due; let iters = 0;
         while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(t, d);
         iters = 0;
@@ -10490,10 +10633,20 @@ function plannedItems(fromDate, toDate) {
           if (recurEnd && d > recurEnd) break;
           if (!skips.includes(d)) {
             const displayDate = overrides[d] || d;
-            items.push({ id: t.id + '_' + d, name: t.name, project: t.project, date: displayDate, hours: t.est || 0, subCode: t.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[d], _src: 'task' });
+            // Window by the EFFECTIVE date: an occurrence rescheduled out of
+            // this range belongs to the range it moved to, not this one.
+            if (displayDate >= fromDate && displayDate <= toDate) items.push(mkOcc(d, displayDate));
           }
           d = nextRecurrenceAfter(t, d);
         }
+        // Occurrences rescheduled INTO this window from outside it
+        Object.entries(overrides).forEach(([orig, moved]) => {
+          if (moved < fromDate || moved > toDate) return;
+          if (orig >= fromDate && orig <= toDate) return; // handled above
+          if (orig < t.due || skips.includes(orig)) return;
+          if (recurEnd && orig > recurEnd) return;
+          items.push(mkOcc(orig, moved));
+        });
       } else if (t.allocMonth && !t.completed) {
         // Hold-month recurrence: expand monthly into future months
         const recurEnd = t.recurrence.endDate ? t.recurrence.endDate.slice(0, 7) : null;
@@ -10531,16 +10684,25 @@ function plannedItems(fromDate, toDate) {
           const recurEnd = s.recurrence.endDate || null;
           const skips = s.recurrence.skips || [];
           const overrides = s.recurrence.overrides || {};
+          const mkOcc = (orig, date) => ({ id: s.id + '_' + orig, name: s.desc, project: proj.project, date, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _src: 'session', _projId: proj.id });
           let d = s.date; let iters = 0;
           while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(s, d);
           iters = 0;
           while (d && d <= toDate && iters++ < 1000) {
             if (recurEnd && d > recurEnd) break;
             if (!skips.includes(d)) {
-              items.push({ id: s.id + '_' + d, name: s.desc, project: proj.project, date: overrides[d] || d, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[d], _src: 'session', _projId: proj.id });
+              const displayDate = overrides[d] || d;
+              if (displayDate >= fromDate && displayDate <= toDate) items.push(mkOcc(d, displayDate));
             }
             d = nextRecurrenceAfter(s, d);
           }
+          Object.entries(overrides).forEach(([orig, moved]) => {
+            if (moved < fromDate || moved > toDate) return;
+            if (orig >= fromDate && orig <= toDate) return;
+            if (orig < s.date || skips.includes(orig)) return;
+            if (recurEnd && orig > recurEnd) return;
+            items.push(mkOcc(orig, moved));
+          });
         } else if (s.allocMonth) {
           const recurEnd = s.recurrence.endDate ? s.recurrence.endDate.slice(0, 7) : null;
           let ym = s.allocMonth; let iters = 0;
@@ -10569,16 +10731,25 @@ function plannedItems(fromDate, toDate) {
             const recurEnd = st.recurrence.endDate || null;
             const skips = st.recurrence.skips || [];
             const overrides = st.recurrence.overrides || {};
+            const mkOcc = (orig, date) => ({ id: st.id + '_' + orig, name: st.desc, project: proj.project, date, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _src: 'subtask', _projId: proj.id, _sessionId: s.id });
             let d = st.date; let iters = 0;
             while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(st, d);
             iters = 0;
             while (d && d <= toDate && iters++ < 1000) {
               if (recurEnd && d > recurEnd) break;
               if (!skips.includes(d)) {
-                items.push({ id: st.id + '_' + d, name: st.desc, project: proj.project, date: overrides[d] || d, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[d], _src: 'subtask', _projId: proj.id, _sessionId: s.id });
+                const displayDate = overrides[d] || d;
+                if (displayDate >= fromDate && displayDate <= toDate) items.push(mkOcc(d, displayDate));
               }
               d = nextRecurrenceAfter(st, d);
             }
+            Object.entries(overrides).forEach(([orig, moved]) => {
+              if (moved < fromDate || moved > toDate) return;
+              if (orig >= fromDate && orig <= toDate) return;
+              if (orig < st.date || skips.includes(orig)) return;
+              if (recurEnd && orig > recurEnd) return;
+              items.push(mkOcc(orig, moved));
+            });
           } else if (st.allocMonth) {
             const recurEnd = st.recurrence.endDate ? st.recurrence.endDate.slice(0, 7) : null;
             let ym = st.allocMonth; let iters = 0;
@@ -10814,8 +10985,8 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
         const only = pg.subGroups[0][0];
         const scLabel = only.subCode ? getSubCodeLabel(only.project, only.subCode) : '';
         parentHdr.innerHTML = `
-          <span class="ts-entry-code" title="${projLabel(pg.parent)}" style="font-weight:800;">${parentCode}</span>
-          <span class="ts-entry-subcode" style="font-weight:700;">${scLabel || '—'}</span>
+          <span class="ts-entry-code" title="${escHtml(projLabel(pg.parent))}" style="font-weight:800;">${escHtml(parentCode)}</span>
+          <span class="ts-entry-subcode" style="font-weight:700;">${escHtml(scLabel || '—')}</span>
           <span class="ts-entry-name" onclick="openEditTsEntry('${only.id}')">${escHtml(only.name)}</span>
           <span class="ts-entry-hours" style="font-weight:800;">${fmtQ(parentTotal)}h</span>
           <div class="ts-entry-actions">
@@ -10824,7 +10995,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
         `;
       } else {
         parentHdr.innerHTML = `
-          <span class="ts-entry-code" title="${projLabel(pg.parent)}" style="font-weight:800;">${parentCode}</span>
+          <span class="ts-entry-code" title="${escHtml(projLabel(pg.parent))}" style="font-weight:800;">${escHtml(parentCode)}</span>
           <span></span>
           <span></span>
           <span class="ts-entry-hours" style="font-weight:800;">${fmtQ(parentTotal)}h</span>
@@ -10848,7 +11019,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
         if (isSingle) {
           subHdr.innerHTML = `
             <span></span>
-            <span class="ts-entry-subcode" style="font-weight:700;">${scLabel || '—'}</span>
+            <span class="ts-entry-subcode" style="font-weight:700;">${escHtml(scLabel || '—')}</span>
             <span class="ts-entry-name" onclick="openEditTsEntry('${first.id}')" style="text-transform:none;letter-spacing:normal;">${escHtml(first.name)}</span>
             <span class="ts-entry-hours" style="font-weight:700;">${fmtQ(subtotal)}h</span>
             <div class="ts-entry-actions">
@@ -10858,7 +11029,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
         } else {
           subHdr.innerHTML = `
             <span></span>
-            <span class="ts-entry-subcode" style="font-weight:700;">${scLabel || '—'}</span>
+            <span class="ts-entry-subcode" style="font-weight:700;">${escHtml(scLabel || '—')}</span>
             <span style="font-size:11px;color:var(--text3);">${group.length} entries</span>
             <span class="ts-entry-hours" style="font-weight:700;">${fmtQ(subtotal)}h</span>
             <div></div>
@@ -10925,8 +11096,8 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
           <span onclick="event.stopPropagation();openRescheduleModal('${taskObj.id}','${item.date}')" title="Reschedule this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">📅</span>`;
       }
       row.innerHTML = `
-        <span class="ts-entry-code" title="${projLabel(item.project)}">${parentCode}</span>
-        <span class="ts-entry-subcode">${scLabel || '—'}</span>
+        <span class="ts-entry-code" title="${escHtml(projLabel(item.project))}">${escHtml(parentCode)}</span>
+        <span class="ts-entry-subcode">${escHtml(scLabel || '—')}</span>
         <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(item.name)}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}${item._spread ? ' <span class="recur-badge" title="Part of a spread plan — hours split across weekdays until the deadline">⇶</span>' : ''}${item._block ? ' <span class="recur-badge" title="Work block — bite-sized session under the parent\'s deadline">▣</span>' : ''}</span>
         ${recurActions ? `<span class="ts-entry-hours" style="color:var(--text3);display:flex;align-items:center;gap:3px;justify-content:flex-end;">${recurActions}<span>${item.hours}h</span></span>` : `<span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>`}
         <div class="ts-entry-actions" style="opacity:1;">
@@ -11128,7 +11299,13 @@ function renderTimesheet() {
           if (wStart > me) break;
 
           const wEntries = entries.filter(e => e.date >= wStart && e.date <= wEnd);
-          const wPlanned = mDated.filter(p => p.date >= wStart && p.date <= wEnd);
+          // Full calendar week for BOTH logged and planned: the row's capacity
+          // (wCap) spans the whole Sun–Sat week, so boundary weeks must pull
+          // planned work from the adjacent month just like logged entries —
+          // clipping planned to the month made the two metrics incomparable.
+          const wPlanned = plannedItems(wStart, wEnd)
+            .filter(p => !p._allocHold)
+            .filter(p => fProj === 'all' || p.project === fProj);
           const wUsed = wEntries.reduce((a, e) => a + e.actualHours, 0);
           const wPlannedH = wPlanned.reduce((a, p) => a + p.hours, 0);
           const wTotal = wUsed + wPlannedH;
@@ -11765,7 +11942,9 @@ function _capPickManualSet() {
 function findNextFitDay(needHours, opts = {}) {
   const need = Math.max(needHours || 0, 0.25);
   const from = opts.from && opts.from > today() ? opts.from : today();
-  const to = opts.before && opts.before < addDays(from, 180) ? opts.before : addDays(from, 70);
+  // With a deadline: search up to it, capped at 180 days out. Without: 70 days.
+  const horizon = addDays(from, 180);
+  const to = opts.before ? (opts.before < horizon ? opts.before : horizon) : addDays(from, 70);
   if (to < from) return null;
   const planned = plannedItems(from, to).filter(p => !p._allocHold)
     .filter(p => !opts.excludeId || (p.id !== opts.excludeId && !(p.id || '').startsWith(opts.excludeId + '_')));
@@ -12092,7 +12271,7 @@ function _renderCapScheduler(container) {
     chip.className = 'cap-hold-chip' + (selected ? ' selected' : '');
     chip.innerHTML = `
       <span class="cap-hold-check">${selected ? '✓' : ''}</span>
-      <span class="cap-proj-color" style="background:${proj.color};"></span>
+      <span class="cap-proj-color" style="background:${escHtml(proj.color)};"></span>
       <span class="cap-hold-name">${escHtml(name)}</span>
       ${dateTag}
       <span class="cap-hold-hrs">${h.hours > 0 ? fmtQ(h.hours) + 'h' : '—'}</span>`;
@@ -12157,7 +12336,7 @@ function _renderCapScheduler(container) {
         chip.className = 'cap-hold-chip recur';
         chip.innerHTML = `
           <span class="cap-hold-check"></span>
-          <span class="cap-proj-color" style="background:${proj.color};"></span>
+          <span class="cap-proj-color" style="background:${escHtml(proj.color)};"></span>
           <span class="cap-hold-name">${escHtml(name)}</span>
           <span class="cap-hold-hrs">${h.hours > 0 ? fmtQ(h.hours) + 'h' : '—'}</span>`;
         backlog.appendChild(chip);
@@ -12217,11 +12396,11 @@ function _renderCapMonthDetail(container, ym, ms, me, entries, planned, cap) {
     };
     projRow.innerHTML = `
       <span class="ts-month-chevron${isExpanded ? ' open' : ''}">›</span>
-      <span class="cap-proj-color" style="background:${proj.color};"></span>
+      <span class="cap-proj-color" style="background:${escHtml(proj.color)};"></span>
       <span class="cap-proj-name">${escHtml(proj.label)}${proj.billingCode ? ' <span style="font-size:10px;color:var(--text3);font-weight:400;font-family:monospace;">' + proj.billingCode + '</span>' : ''}</span>
       <div style="display:flex;align-items:center;gap:4px;">
         <div class="ts-cap-bar-wrap" style="flex:1;margin-top:0;">
-          <div class="ts-cap-bar-fill" style="width:${projPct}%;background:${proj.color};opacity:0.7;"></div>
+          <div class="ts-cap-bar-fill" style="width:${projPct}%;background:${escHtml(proj.color)};opacity:0.7;"></div>
         </div>
       </div>
       <span class="cap-proj-hours"><span style="color:var(--text);font-weight:700;">${fmtQ(projTotal)}h</span></span>
@@ -12411,9 +12590,14 @@ function capMoveItem(type, ...ids) {
     const t = tasks.find(t => t.id === ids[0]);
     if (!t) return;
     // If task has a due date, shift it to the 15th of the new month
+    // (weekday-adjusted — a Sat/Sun 15th would show weekend load the
+    // packer would never create)
     if (t.due) {
-      t.due = newMonth + '-15';
+      t.due = adjustToWeekday(newMonth + '-15');
     }
+    // Placement everywhere is workDate || due — a stale work date would keep
+    // the hours planned in the old month despite the move.
+    t.workDate = null;
     t.allocMonth = newMonth;
     save('wt_tasks', tasks);
   } else if (type === 'session') {
@@ -12421,7 +12605,8 @@ function capMoveItem(type, ...ids) {
     if (!proj) return;
     const s = proj.sessions.find(s => s.id === ids[1]);
     if (!s) return;
-    if (s.date) s.date = newMonth + '-15';
+    if (s.date) s.date = adjustToWeekday(newMonth + '-15');
+    s.workDate = null;
     s.allocMonth = newMonth;
     save('wt_bigprojs', bigProjs);
   } else if (type === 'subtask') {
@@ -12431,7 +12616,8 @@ function capMoveItem(type, ...ids) {
     if (!s) return;
     const st = (s.subtasks || []).find(st => st.id === ids[2]);
     if (!st) return;
-    if (st.date) st.date = newMonth + '-15';
+    if (st.date) st.date = adjustToWeekday(newMonth + '-15');
+    st.workDate = null;
     st.allocMonth = newMonth;
     save('wt_bigprojs', bigProjs);
   }
@@ -12675,11 +12861,16 @@ function _rollProjectAllSubsForward(projKey, fromYM) {
   // Include project-level (no sub-code) bucket too
   const buckets = scs.map(s => s.id);
   buckets.push('');
+  // Allocations parked on deleted (orphaned) sub-codes must roll as well —
+  // they'd otherwise be stranded in the source month forever.
+  _getOrphanedSubCodes(projKey, fromYM.slice(0, 4)).forEach(id => { if (!buckets.includes(id)) buckets.push(id); });
 
   buckets.forEach(scId => {
     const aKey = allocKey(projKey, scId, fromYM);
     const allocated = allocations[aKey] || 0;
-    const actual = scId ? allocGetActuals(projKey, scId, fromYM) : 0;
+    // The '' bucket's spend is the hours logged WITHOUT a sub-code — not zero
+    // (which rolled the full allocation even when unassigned hours were logged).
+    const actual = allocGetActuals(projKey, scId, fromYM);
     const remaining = allocated - actual;
     if (remaining === 0) return;
 
@@ -13121,7 +13312,7 @@ function _openScPopup(event, projKey, scId) {
   select.innerHTML = '<option value="">— keep separate —</option>';
   (proj.subCodes || []).forEach(s => {
     if (s.id !== scId) {
-      select.innerHTML += `<option value="${s.id}">${s.label}</option>`;
+      select.innerHTML += `<option value="${s.id}">${escHtml(s.label)}</option>`;
     }
   });
 
@@ -14127,7 +14318,12 @@ function _commitAllocImportPlan() {
       // baseline, and the rolled-forward hours are the user's manual decision
       // layered on top. The drill popup already shows them as separate lines.
       if (c.val > 0) {
-        allocations[key] = c.val + rollover;
+        // A carried overspend (negative rollover) can exceed the new BigTime
+        // value — delete rather than store a ≤0 allocation, which every
+        // `allocated > 0` check would misread as "no allocation set".
+        const merged = c.val + rollover;
+        if (merged > 0) allocations[key] = merged;
+        else delete allocations[key];
         hasData = true;
       } else if (rollover > 0) {
         // BigTime row is missing or 0 but a rollover landed here — keep the rollover
@@ -14224,9 +14420,9 @@ function _commitAllocImportPlan() {
       dupeProjects.forEach((d, idx) => {
         detailHtml += `<div id="dupe-proj-${idx}" style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="color:var(--warn);">⚠</span>
-          <span>Project: "<strong>${d.a.label}</strong>" and "<strong>${d.b.label}</strong>"</span>
+          <span>Project: "<strong>${escHtml(d.a.label)}</strong>" and "<strong>${escHtml(d.b.label)}</strong>"</span>
           <span style="margin-left:auto;display:flex;gap:4px;">
-            <button class="btn" onclick="_mergeProjects('${d.aKey}','${d.bKey}');document.getElementById('dupe-proj-${idx}').innerHTML='<span style=\\'color:var(--success);\\'>✓ Merged into ${d.a.label.replace(/'/g, "\\'")}</span>';" style="font-size:9px;padding:2px 8px;">Merge</button>
+            <button class="btn" onclick="_mergeProjects('${d.aKey}','${d.bKey}');document.getElementById('dupe-proj-${idx}').innerHTML='<span style=\\'color:var(--success);\\'>✓ Merged</span>';" style="font-size:9px;padding:2px 8px;">Merge</button>
             <button class="btn" onclick="_dismissDup('${d.aKey}','${d.bKey}');document.getElementById('dupe-proj-${idx}').innerHTML='<span style=\\'color:var(--text3);\\'>✓ Kept as separate projects</span>';" style="font-size:9px;padding:2px 8px;color:var(--text3);">Keep separate</button>
           </span>
         </div>`;
@@ -14234,9 +14430,9 @@ function _commitAllocImportPlan() {
       dupeSubs.forEach((d, idx) => {
         detailHtml += `<div id="dupe-sc-${idx}" style="padding:3px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="color:var(--warn);">⚠</span>
-          <span>${PROJECTS[d.projKey]?.label}: "<strong>${d.a.label}</strong>" and "<strong>${d.b.label}</strong>"</span>
+          <span>${escHtml(PROJECTS[d.projKey]?.label)}: "<strong>${escHtml(d.a.label)}</strong>" and "<strong>${escHtml(d.b.label)}</strong>"</span>
           <span style="margin-left:auto;display:flex;gap:4px;">
-            <button class="btn" onclick="_mergeSubCodes('${d.projKey}','${d.aId}','${d.bId}');document.getElementById('dupe-sc-${idx}').innerHTML='<span style=\\'color:var(--success);\\'>✓ Merged into ${d.a.label.replace(/'/g, "\\'")}</span>';" style="font-size:9px;padding:2px 8px;">Merge</button>
+            <button class="btn" onclick="_mergeSubCodes('${d.projKey}','${d.aId}','${d.bId}');document.getElementById('dupe-sc-${idx}').innerHTML='<span style=\\'color:var(--success);\\'>✓ Merged</span>';" style="font-size:9px;padding:2px 8px;">Merge</button>
             <button class="btn" onclick="_dismissDup('${d.projKey}:${d.aId}','${d.projKey}:${d.bId}');document.getElementById('dupe-sc-${idx}').innerHTML='<span style=\\'color:var(--text3);\\'>✓ Kept as separate sub-codes</span>';" style="font-size:9px;padding:2px 8px;color:var(--text3);">Keep separate</button>
           </span>
         </div>`;
@@ -14311,8 +14507,8 @@ function allocSummaryCell(allocated, planned, actual, onclick, extraCls) {
   // Status dot
   let dotClr = '';
   if (actual > 0 && allocated > 0) {
-    const pct = Math.round((actual / allocated) * 100);
-    dotClr = pct > 100 ? 'red' : pct >= 100 ? 'green' : pct >= 80 ? 'yellow' : 'green';
+    const ratio = (actual / allocated) * 100; // raw — rounding would hide sub-0.5% overruns
+    dotClr = ratio > 100 ? 'red' : ratio >= 100 ? 'green' : ratio >= 80 ? 'yellow' : 'green';
   } else if (planned > 0 && allocated === 0) {
     dotClr = 'blue';
   }
@@ -14361,8 +14557,11 @@ function allocDualBars(allocated, planned, actual) {
     html += `<div class="alloc-planned-label${overPlan ? ' over' : ''}">${fmtQ(planned)}h planned${overPlan ? ' (+' + fmtQ(planned - allocated) + 'h over)' : ''}</div>`;
   }
   if (actual > 0 || allocated > 0) {
-    const aPct = allocated > 0 ? Math.round((actual / allocated) * 100) : (actual > 0 ? 100 : 0);
-    const clr = allocated > 0 ? barColor(aPct) : '';
+    // Color from the RAW ratio — rounding first would show green "100%" for
+    // anything up to 100.49% and hide small overruns. Display stays rounded.
+    const aRaw = allocated > 0 ? (actual / allocated) * 100 : (actual > 0 ? 100 : 0);
+    const aPct = Math.round(aRaw);
+    const clr = allocated > 0 ? barColor(aRaw) : '';
     html += `<div class="alloc-actual">${fmtQ(actual)}h logged</div>`;
     if (allocated > 0) {
       html += `<div class="alloc-bar-wrap"><div class="alloc-bar ${clr}" style="width:${Math.min(aPct, 100)}%"></div></div>`;
@@ -14370,6 +14569,138 @@ function allocDualBars(allocated, planned, actual) {
     }
   }
   return html;
+}
+
+// ── Reconcile View (plan vs budget, one month at a time) ──
+
+// Whole-project month totals. Budget sums EVERY allocation key under the
+// project (current sub-codes, orphaned ones, and the project-level '' bucket),
+// so it can't under-count the way a subCodes-only walk would; actuals/planned
+// use the project-level getters, which already span all sub-codes.
+function _allocProjMonthTotals(projKey, proj, ym) {
+  let alloc = 0;
+  const pref = projKey + '|', suf = '|' + ym;
+  Object.keys(allocations).forEach(k => {
+    if (k.startsWith(pref) && k.endsWith(suf)) alloc += allocations[k] || 0;
+  });
+  return {
+    alloc,
+    actual: allocGetAllProjectActuals(projKey, ym),
+    planned: allocGetAllProjectPlanned(projKey, ym)
+  };
+}
+
+function _allocReconShift(d) {
+  if (_allocReconM == null) _allocReconM = new Date().getMonth() + 1;
+  _allocReconM += d;
+  if (_allocReconM < 1) { _allocReconM = 12; allocYear--; }
+  if (_allocReconM > 12) { _allocReconM = 1; allocYear++; }
+  renderAllocations();
+}
+
+function _allocReconToday() {
+  allocYear = new Date().getFullYear();
+  _allocReconM = new Date().getMonth() + 1;
+  renderAllocations();
+}
+
+function _renderAllocReconcile(grid, projEntries) {
+  const curY = new Date().getFullYear();
+  const curM = new Date().getMonth() + 1;
+  if (_allocReconM == null) _allocReconM = allocYear === curY ? curM : 1;
+  const ym = `${allocYear}-${String(_allocReconM).padStart(2, '0')}`;
+
+  // One row per project with any budget or committed work this month.
+  // Groups (sorted worst-first): 0 over-committed · 1 no budget set ·
+  // 2 budgeted but nothing scheduled · 3 headroom left · 4 matched.
+  const rows = [];
+  let hiddenCount = 0, totAlloc = 0, totCommitted = 0, attention = 0;
+  projEntries.forEach(([projKey, proj]) => {
+    const t = _allocProjMonthTotals(projKey, proj, ym);
+    const committed = t.actual + t.planned;
+    if (t.alloc === 0 && committed === 0) { hiddenCount++; return; }
+    totAlloc += t.alloc;
+    totCommitted += committed;
+    const gap = t.alloc - committed;
+    let group, mag, chip, chipCls, quiet = false;
+    if (t.alloc > 0 && gap < -0.5) {
+      group = 0; mag = -gap; chipCls = 'over'; chip = `▲ +${fmtQ(-gap)}h over`;
+    } else if (t.alloc === 0) {
+      group = 1; mag = committed; chipCls = 'warnchip'; chip = '⚠ no budget set';
+    } else if (committed === 0) {
+      group = 2; mag = t.alloc; chipCls = 'warnchip'; chip = '◌ nothing scheduled';
+    } else if (gap > 0.5) {
+      group = 3; mag = gap; chipCls = ''; chip = `${fmtQ(gap)}h free`; quiet = true;
+    } else {
+      group = 4; mag = 0; chipCls = 'okchip'; chip = '✓ matched'; quiet = true;
+    }
+    if (group <= 2) attention++;
+    rows.push({ projKey, proj, t, committed, group, mag, chip, chipCls, quiet });
+  });
+  rows.sort((a, b) => a.group - b.group || b.mag - a.mag);
+
+  let html = `<div class="alloc-recon-head">
+    <button class="btn" onclick="_allocReconShift(-1)" title="Previous month">‹</button>
+    <span class="alloc-recon-monthlbl">${MONTH_NAMES[_allocReconM - 1]} ${allocYear}</span>
+    <button class="btn" onclick="_allocReconShift(1)" title="Next month">›</button>
+    <button class="btn" onclick="_allocReconToday()" style="font-size:10px;padding:3px 8px;">This month</button>
+    <div class="alloc-recon-legend">
+      <span><span class="swatch" style="background:var(--alloc-logged);"></span>Logged</span>
+      <span><span class="swatch" style="background:var(--alloc-planned);"></span>Planned</span>
+      <span><span class="tickglyph"></span>Budget</span>
+    </div>
+  </div>`;
+
+  if (rows.length === 0) {
+    html += `<div style="padding:40px;text-align:center;color:var(--text3);font-size:13px;">
+      Nothing budgeted or scheduled in ${MONTH_NAMES[_allocReconM - 1]} ${allocYear}.</div>`;
+    grid.innerHTML = html;
+    return;
+  }
+
+  html += `<div class="alloc-recon-summary">
+    <strong>${fmtQ(totCommitted)}h</strong> committed (logged + planned) of <strong>${totAlloc}h</strong> budgeted
+    · ${attention > 0
+      ? `<span style="color:var(--warn);font-weight:600;">${attention} project${attention === 1 ? '' : 's'} need${attention === 1 ? 's' : ''} attention</span>`
+      : `<span style="color:var(--success);font-weight:600;">everything lines up ✓</span>`}
+  </div>`;
+
+  rows.forEach(r => {
+    const { t, committed } = r;
+    const scale = Math.max(t.alloc, committed, 1);
+    const tickPct = t.alloc > 0 ? Math.min((t.alloc / scale) * 100, 100) : null;
+    const codeStr = r.proj.billingCode ? ` <span class="code">${r.proj.billingCode}</span>` : '';
+    const tip = `${r.proj.label} — ${MONTH_NAMES[_allocReconM - 1]}: ` +
+      `${fmtQ(t.actual)}h logged, ${fmtQ(t.planned)}h planned, ${t.alloc}h budgeted. Click for task breakdown.`;
+    // Exact calc widths keep the committed edge honest against the budget
+    // tick; the 2px surface gap between segments comes out of planned's width.
+    const pctL = (t.actual / scale) * 100;
+    const pctP = (t.planned / scale) * 100;
+    let segs = '';
+    if (t.actual > 0) {
+      segs += `<div class="alloc-recon-seg-logged${t.planned > 0 ? '' : ' last'}" style="width:${pctL}%;"></div>`;
+    }
+    if (t.planned > 0) {
+      const w = t.actual > 0 ? `calc(${pctP}% - 2px);margin-left:2px` : `${pctP}%`;
+      segs += `<div class="alloc-recon-seg-planned last" style="width:${w};"></div>`;
+    }
+    html += `<div class="alloc-recon-row${r.quiet ? ' quiet' : ''}" onclick="openAllocDrill('${r.projKey}','','${ym}')" title="${tip}">
+      <div class="alloc-recon-name"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${r.proj.color};margin-right:6px;"></span>${r.proj.label}${codeStr}</div>
+      <div class="alloc-recon-barouter">
+        <div class="alloc-recon-track">${segs}</div>
+        ${tickPct !== null ? `<div class="alloc-recon-tick" style="left:calc(${tickPct}% - 1px);"></div>` : ''}
+      </div>
+      <div class="alloc-recon-nums">${fmtQ(t.actual)}h logged <span class="muted">+</span> ${fmtQ(t.planned)}h planned <span class="muted">/ ${t.alloc > 0 ? t.alloc + 'h budget' : 'no budget'}</span></div>
+      <span class="alloc-recon-chip ${r.chipCls}">${r.chip}</span>
+    </div>`;
+  });
+
+  html += `<div class="alloc-recon-groupfoot">
+    Bar = this month's committed hours; the tick is the budget line. Sorted worst-first — anything past its tick or missing a budget floats to the top.
+    ${hiddenCount > 0 ? ` · ${hiddenCount} project${hiddenCount === 1 ? '' : 's'} with no activity hidden.` : ''}
+  </div>`;
+
+  grid.innerHTML = html;
 }
 
 // ── Allocation Drill-Down Popup ──
@@ -14507,7 +14838,7 @@ function openAllocDrill(projKey, scId, yearMonth) {
   function scBadge(subCodeId) {
     if (!matchAllSubs || !subCodeId) return '';
     const found = (proj.subCodes || []).find(s => s.id === subCodeId);
-    return found ? `<span class="adi-type" style="background:var(--bg3);">${found.label}</span>` : '';
+    return found ? `<span class="adi-type" style="background:var(--bg3);">${escHtml(found.label)}</span>` : '';
   }
 
   function renderTaskItem(t) {
@@ -14604,6 +14935,12 @@ function renderAllocations() {
   if (yearLabel) yearLabel.textContent = allocYear;
 
   const viewMode = document.getElementById('allocViewMode')?.value || 'detail';
+  // The static legend and past-months toggle describe the grid views;
+  // Reconcile brings its own legend and month picker.
+  const legendEl = document.getElementById('allocLegend');
+  if (legendEl) legendEl.style.display = viewMode === 'reconcile' ? 'none' : '';
+  const pastBtn = document.getElementById('allocPastToggle');
+  if (pastBtn) pastBtn.style.display = viewMode === 'reconcile' ? 'none' : '';
   const months = [];
   for (let m = 1; m <= 12; m++) {
     months.push({
@@ -14634,6 +14971,11 @@ function renderAllocations() {
 
   if (projEntries.length === 0) {
     grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3);font-size:13px;">No sub-codes configured yet. Go to <strong>Manage Sub-Codes</strong> to add sub-codes under your project billing codes, then set monthly hour allocations here.</div>';
+    return;
+  }
+
+  if (viewMode === 'reconcile') {
+    _renderAllocReconcile(grid, projEntries);
     return;
   }
 
@@ -14671,7 +15013,7 @@ function renderAllocations() {
     const projPlannedTotals = new Array(12).fill(0);
 
     // Project header row
-    const codeStr = proj.billingCode ? ` (${proj.billingCode})` : '';
+    const codeStr = proj.billingCode ? ` (${escHtml(proj.billingCode)})` : '';
     const allocCollapsed = collapsedAllocProjs.has(projKey);
     const chevron = subs.length > 0 ? `<span class="alloc-collapse-btn ${allocCollapsed ? '' : 'open'}" onclick="toggleAllocProjCollapse('${projKey}')" title="${allocCollapsed ? 'Expand' : 'Collapse'} sub-codes">›</span>` : '';
     const editBtn = subs.length > 0 ? `<span onclick="event.stopPropagation();openScManager('${projKey}')" style="cursor:pointer;font-size:11px;opacity:0.5;margin-left:4px;" title="Manage sub-codes">✎</span>` : '';
@@ -14681,7 +15023,7 @@ function renderAllocations() {
       : `<span onclick="event.stopPropagation();archiveProject('${projKey}')" style="cursor:pointer;font-size:11px;opacity:0.5;margin-left:4px;" title="Close out / archive this project">📦</span>`;
     const archBadge = projArchived ? ` <span style="font-size:9px;color:var(--text3);font-style:italic;background:var(--bg3);padding:1px 5px;border-radius:3px;margin-left:4px;">archived ${proj.archivedAt}</span>` : '';
     const rowStyle = projArchived ? ' style="opacity:0.55;"' : '';
-    html += `<tr class="alloc-proj-header"${rowStyle}><td>${chevron}<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${proj.color};margin-right:6px;"></span>${proj.label}${codeStr}${archBadge}${editBtn}${archBtn}</td>`;
+    html += `<tr class="alloc-proj-header"${rowStyle}><td>${chevron}<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${escHtml(proj.color)};margin-right:6px;"></span>${escHtml(proj.label)}${codeStr}${archBadge}${editBtn}${archBtn}</td>`;
 
     // Project-level summary per month
     const noSubs = subs.length === 0;
@@ -14723,7 +15065,7 @@ function renderAllocations() {
           } else {
             html += `<input type="number" min="0" step="1" value="${projAlloc || ''}" placeholder="—"
                       onchange="allocSet('${projKey}','','${m.ym}',this.value)" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"
-                      title="Allocated hours for ${proj.label} in ${m.label}">`;
+                      title="Allocated hours for ${escHtml(proj.label)} in ${m.label}">`;
           }
         } else {
           html += `<div style="font-weight:600;font-size:11px;">${projAlloc > 0 ? projAlloc + 'h' : '—'}</div>`;
@@ -14739,7 +15081,7 @@ function renderAllocations() {
     grandAllocYTD += projAllocYTD;
     grandActualYTD += projActualYTD;
     const ytdPct = projAllocYTD > 0 ? Math.round((projActualYTD / projAllocYTD) * 100) : 0;
-    const ytdClr = projAllocYTD > 0 ? barColor(ytdPct) : '';
+    const ytdClr = projAllocYTD > 0 ? barColor((projActualYTD / projAllocYTD) * 100) : '';
     html += `<td class="alloc-cell alloc-ytd-col">`;
     html += `<div style="font-weight:600;">${projAllocYTD > 0 ? projAllocYTD + 'h' : '—'}</div>`;
     if (projActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(projActualYTD)}h</div>`;
@@ -14751,7 +15093,7 @@ function renderAllocations() {
       subs.forEach(sc => {
         const fullCode = proj.billingCode || '';
         const scIsActive = sc.active !== false;
-        html += `<tr class="alloc-sc-row"${scIsActive ? '' : ' style="opacity:0.45;"'}><td>${sc.label}${scIsActive ? '' : ' <span style="font-size:9px;color:var(--text3);font-style:italic;">(inactive)</span>'}</td>`;
+        html += `<tr class="alloc-sc-row"${scIsActive ? '' : ' style="opacity:0.45;"'}><td>${escHtml(sc.label)}${scIsActive ? '' : ' <span style="font-size:9px;color:var(--text3);font-style:italic;">(inactive)</span>'}</td>`;
         let scAllocYTD = 0, scActualYTD = 0;
         let scPlannedYTD = 0;
         months.forEach((m, mi) => {
@@ -14771,7 +15113,7 @@ function renderAllocations() {
             } else {
               html += `<input type="number" min="0" step="1" value="${allocated || ''}" placeholder="—"
                         onchange="allocSet('${projKey}','${sc.id}','${m.ym}',this.value)" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"
-                        title="Allocated hours for ${fullCode} in ${m.label}">`;
+                        title="Allocated hours for ${escHtml(fullCode)} in ${m.label}">`;
             }
             html += allocDualBars(allocated, planned, actual);
           } else {
@@ -14786,7 +15128,7 @@ function renderAllocations() {
         });
         // YTD
         const scYtdPct = scAllocYTD > 0 ? Math.round((scActualYTD / scAllocYTD) * 100) : 0;
-        const scYtdClr = scAllocYTD > 0 ? barColor(scYtdPct) : '';
+        const scYtdClr = scAllocYTD > 0 ? barColor((scActualYTD / scAllocYTD) * 100) : '';
         html += `<td class="alloc-cell alloc-ytd-col">`;
         html += `<div style="font-size:11px;">${scAllocYTD > 0 ? scAllocYTD + 'h' : '—'}</div>`;
         if (scActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(scActualYTD)}h</div>`;
@@ -14837,7 +15179,7 @@ function renderAllocations() {
   });
   // Grand YTD
   const gPct = grandAllocYTD > 0 ? Math.round((grandActualYTD / grandAllocYTD) * 100) : 0;
-  const gClr = grandAllocYTD > 0 ? barColor(gPct) : '';
+  const gClr = grandAllocYTD > 0 ? barColor((grandActualYTD / grandAllocYTD) * 100) : '';
   html += `<td class="alloc-cell alloc-ytd-col"><div>${grandAllocYTD > 0 ? grandAllocYTD + 'h' : '—'}</div>`;
   if (grandActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(grandActualYTD)}h</div>`;
   if (grandAllocYTD > 0) html += `<div class="alloc-pct ${gClr}">${gPct}%</div>`;
@@ -15342,7 +15684,7 @@ function showDropdown(anchorEl, items, currentVal, callback) {
   const rect = anchorEl.getBoundingClientRect();
   menu.innerHTML = items.map(it =>
     `<div class="dropdown-item${it.value === currentVal ? ' current' : ''}" onclick="_ddSelect('${it.value}')">
-      ${it.swatch ? `<span class="dd-swatch" style="background:${it.swatch}"></span>` : ''}${it.label}
+      ${it.swatch ? `<span class="dd-swatch" style="background:${escHtml(it.swatch)}"></span>` : ''}${escHtml(it.label)}
     </div>`
   ).join('');
   // Position below anchor (fixed positioning — use viewport coords, no scrollY)
@@ -15429,7 +15771,7 @@ function _renderAssignOptions(menu, current, personsList, onClickFn) {
     const label = name === 'Me' ? '📌 Me' : name;
     return `<div class="assign-dd-item" onclick="${onClickFn}('${name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="${checked ? `background:${c.bg};` : ''}">
       <span class="assign-dd-check" style="${checked ? `color:${c.text};` : ''}">${checked ? '✓' : ''}</span>
-      <span style="${checked ? `color:${c.text};font-weight:600;` : ''}">${label}</span>
+      <span style="${checked ? `color:${c.text};font-weight:600;` : ''}">${escHtml(label)}</span>
     </div>`;
   }).join('');
   if (!personsList.length) {
@@ -15634,7 +15976,7 @@ function renderProjMembersList(members) {
   const list = document.getElementById('editBigProjMembersList');
   if (!list) return;
   list.innerHTML = members.length ? members.map((m, i) => `
-    <span class="member-chip">${m}<button onclick="removeProjMember(${i})" title="Remove">×</button></span>
+    <span class="member-chip">${escHtml(m)}<button onclick="removeProjMember(${i})" title="Remove">×</button></span>
   `).join('') : '<span style="font-size:11px;color:var(--text3);">No members yet</span>';
 }
 
@@ -16220,7 +16562,7 @@ function renderProjectMetaList() {
     // Sub-code rows HTML
     const subRows = subs.map(sc => `
       <div class="subcode-row">
-        <input class="proj-meta-input sc-label-input" type="text" value="${sc.label}"
+        <input class="proj-meta-input sc-label-input" type="text" value="${escHtml(sc.label)}"
                onblur="updateSubCode('${key}','${sc.id}','label',this.value)"
                onkeydown="if(event.key==='Enter') this.blur()"
                placeholder="Sub-code description"
@@ -16234,9 +16576,9 @@ function renderProjectMetaList() {
       <span class="proj-drag-handle" title="Drag to reorder">⠿</span>
       <button class="proj-collapse-btn ${isCollapsed ? '' : 'open'}" onclick="toggleProjMetaCollapse('${key}')" title="${isCollapsed ? 'Expand' : 'Collapse'} sub-codes">›</button>
       <span class="proj-meta-key">${key}</span>
-      <input type="color" class="color-picker" value="${proj.color}"
+      <input type="color" class="color-picker" value="${escHtml(proj.color)}"
              onchange="updateProjectColor('${key}', this.value)" title="Pick color">
-      <input class="proj-meta-input" type="text" value="${proj.label}"
+      <input class="proj-meta-input" type="text" value="${escHtml(proj.label)}"
              onblur="updateProjectLabel('${key}', this.value)"
              onkeydown="if(event.key==='Enter') this.blur()">
       <input class="proj-meta-input" type="text" value="${proj.billingCode || ''}"
@@ -16451,7 +16793,7 @@ function openSettingsModal() {
     if (_currentUser) {
       acctInfo.innerHTML = '<div style="margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:6px;">' +
         '<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Signed in as</div>' +
-        '<div style="font-size:13px;font-weight:600;">' + (_currentUser.user_metadata?.display_name || '') + '</div>' +
+        '<div style="font-size:13px;font-weight:600;">' + escHtml(_currentUser.user_metadata?.display_name || '') + '</div>' +
         '<div style="font-size:11px;color:var(--text3);">' + _currentUser.email + '</div>' +
         '<div style="font-size:10px;color:var(--success);margin-top:4px;">Cloud sync enabled</div>' +
         '</div>';
@@ -16785,7 +17127,9 @@ function renderReviewContent() {
 }
 
 function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;');
 }
 
 function toggleReviewItem(key) {
