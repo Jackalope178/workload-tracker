@@ -39,9 +39,11 @@ state (localStorage wt_*)  ⇄  Supabase user_data (per-user KV of JSON blobs)
 render*() rebuilds DOM per tab  ←  user actions mutate state → save() → re-render
 ```
 
-External code comes from three CDNs: `@supabase/supabase-js@2` (sync),
+External code comes from three CDNs: `@supabase/supabase-js@2.110.0` (sync),
 `xlsx@0.18.5` (BigTime Excel import, with a fallback CDN retry), and Google
-Fonts (Inter, Syne).
+Fonts (Inter, Syne). The two `<script>` tags are **version-pinned with
+Subresource Integrity** (`integrity="sha384-…"`) — see Security invariants
+before bumping either version.
 
 ## File map — where things live in `index.html` (~16,700 lines)
 
@@ -211,3 +213,38 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
   `docs/team-relay-and-kme-flow.md` first and append to its intent log.
 - **Touching any calculation?** Read `docs/math-audit-2026-07.md` first and
   preserve the invariants above.
+
+## Security invariants — DO NOT regress these
+
+These were hardened in a security audit (see `docs/security-audit-2026-07.md`).
+A change that "cleans up" or "simplifies" any of them reintroduces a real bug.
+
+1. **Escape user/import data before it hits `innerHTML`.** Any field a user or a
+   spreadsheet import can set — project `label`/`billingCode`, project/session
+   `name`, sub-code `code`/`label`, person/owner names, `_currentUser` display
+   name — MUST be wrapped in `escHtml(...)` when interpolated into a template
+   literal that becomes `innerHTML`/`outerHTML`. Task `name`/`notes`/`waiting`
+   are already escaped; match that pattern. `escHtml` escapes `& < > " ' \``;
+   do not "trim" it back down. Values are stored raw and escaped only at render,
+   so a missed sink = stored XSS (reachable via a crafted `.xlsx` import).
+   When in doubt, escape. Rendering via `.textContent` / `.value =` is already
+   safe and needs no escaping.
+2. **Person names inside inline `onclick`/`onchange` need dual escaping**, not
+   `escHtml`. Use `.replace(/'/g,"\\'").replace(/"/g,'&quot;')` (see
+   `showPersonStatusDropdown` / `setPersonWeeklyCap` / `showReassignDropdown`
+   call sites). A plain HTML-escape does NOT protect a JS-string-in-attribute
+   because the parser decodes entities before the JS runs. Never interpolate a
+   free-text value into a handler that then assigns it to `innerHTML`.
+3. **`wt_api_key` stays out of `SYNC_KEYS`.** The Anthropic key is device-local
+   (localStorage only). Adding it back syncs the secret to Supabase and writes
+   it into exported backup JSON. There is a comment on the array — leave it.
+4. **CDN scripts are version-pinned with `integrity="sha384-…"`.** If you bump
+   `@supabase/supabase-js` or `xlsx`, you MUST regenerate the SRI hash for the
+   new file in the same change or the script silently fails to load and the app
+   breaks. Compute from the exact published file, e.g.
+   `openssl dgst -sha384 -binary <file> | openssl base64 -A`. The supabase tag
+   points at `dist/umd/supabase.js` (not `.min.js`) on purpose — jsDelivr can't
+   give a stable hash for its on-the-fly-minified `.min.js`.
+5. **RLS is the security boundary.** Data is per-user (`auth.uid() = user_id`);
+   the baked-in anon key is public and safe *only* because RLS is enforced.
+   Don't add tables/queries that bypass it.
