@@ -12334,8 +12334,10 @@ function capMoveItem(type, ...ids) {
     const t = tasks.find(t => t.id === ids[0]);
     if (!t) return;
     // If task has a due date, shift it to the 15th of the new month
+    // (weekday-adjusted — a Sat/Sun 15th would show weekend load the
+    // packer would never create)
     if (t.due) {
-      t.due = newMonth + '-15';
+      t.due = adjustToWeekday(newMonth + '-15');
     }
     // Placement everywhere is workDate || due — a stale work date would keep
     // the hours planned in the old month despite the move.
@@ -12347,7 +12349,7 @@ function capMoveItem(type, ...ids) {
     if (!proj) return;
     const s = proj.sessions.find(s => s.id === ids[1]);
     if (!s) return;
-    if (s.date) s.date = newMonth + '-15';
+    if (s.date) s.date = adjustToWeekday(newMonth + '-15');
     s.workDate = null;
     s.allocMonth = newMonth;
     save('wt_bigprojs', bigProjs);
@@ -12358,7 +12360,7 @@ function capMoveItem(type, ...ids) {
     if (!s) return;
     const st = (s.subtasks || []).find(st => st.id === ids[2]);
     if (!st) return;
-    if (st.date) st.date = newMonth + '-15';
+    if (st.date) st.date = adjustToWeekday(newMonth + '-15');
     st.workDate = null;
     st.allocMonth = newMonth;
     save('wt_bigprojs', bigProjs);
@@ -14060,7 +14062,12 @@ function _commitAllocImportPlan() {
       // baseline, and the rolled-forward hours are the user's manual decision
       // layered on top. The drill popup already shows them as separate lines.
       if (c.val > 0) {
-        allocations[key] = c.val + rollover;
+        // A carried overspend (negative rollover) can exceed the new BigTime
+        // value — delete rather than store a ≤0 allocation, which every
+        // `allocated > 0` check would misread as "no allocation set".
+        const merged = c.val + rollover;
+        if (merged > 0) allocations[key] = merged;
+        else delete allocations[key];
         hasData = true;
       } else if (rollover > 0) {
         // BigTime row is missing or 0 but a rollover landed here — keep the rollover
@@ -14244,8 +14251,8 @@ function allocSummaryCell(allocated, planned, actual, onclick, extraCls) {
   // Status dot
   let dotClr = '';
   if (actual > 0 && allocated > 0) {
-    const pct = Math.round((actual / allocated) * 100);
-    dotClr = pct > 100 ? 'red' : pct >= 100 ? 'green' : pct >= 80 ? 'yellow' : 'green';
+    const ratio = (actual / allocated) * 100; // raw — rounding would hide sub-0.5% overruns
+    dotClr = ratio > 100 ? 'red' : ratio >= 100 ? 'green' : ratio >= 80 ? 'yellow' : 'green';
   } else if (planned > 0 && allocated === 0) {
     dotClr = 'blue';
   }
@@ -14294,8 +14301,11 @@ function allocDualBars(allocated, planned, actual) {
     html += `<div class="alloc-planned-label${overPlan ? ' over' : ''}">${fmtQ(planned)}h planned${overPlan ? ' (+' + fmtQ(planned - allocated) + 'h over)' : ''}</div>`;
   }
   if (actual > 0 || allocated > 0) {
-    const aPct = allocated > 0 ? Math.round((actual / allocated) * 100) : (actual > 0 ? 100 : 0);
-    const clr = allocated > 0 ? barColor(aPct) : '';
+    // Color from the RAW ratio — rounding first would show green "100%" for
+    // anything up to 100.49% and hide small overruns. Display stays rounded.
+    const aRaw = allocated > 0 ? (actual / allocated) * 100 : (actual > 0 ? 100 : 0);
+    const aPct = Math.round(aRaw);
+    const clr = allocated > 0 ? barColor(aRaw) : '';
     html += `<div class="alloc-actual">${fmtQ(actual)}h logged</div>`;
     if (allocated > 0) {
       html += `<div class="alloc-bar-wrap"><div class="alloc-bar ${clr}" style="width:${Math.min(aPct, 100)}%"></div></div>`;
@@ -14815,7 +14825,7 @@ function renderAllocations() {
     grandAllocYTD += projAllocYTD;
     grandActualYTD += projActualYTD;
     const ytdPct = projAllocYTD > 0 ? Math.round((projActualYTD / projAllocYTD) * 100) : 0;
-    const ytdClr = projAllocYTD > 0 ? barColor(ytdPct) : '';
+    const ytdClr = projAllocYTD > 0 ? barColor((projActualYTD / projAllocYTD) * 100) : '';
     html += `<td class="alloc-cell alloc-ytd-col">`;
     html += `<div style="font-weight:600;">${projAllocYTD > 0 ? projAllocYTD + 'h' : '—'}</div>`;
     if (projActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(projActualYTD)}h</div>`;
@@ -14862,7 +14872,7 @@ function renderAllocations() {
         });
         // YTD
         const scYtdPct = scAllocYTD > 0 ? Math.round((scActualYTD / scAllocYTD) * 100) : 0;
-        const scYtdClr = scAllocYTD > 0 ? barColor(scYtdPct) : '';
+        const scYtdClr = scAllocYTD > 0 ? barColor((scActualYTD / scAllocYTD) * 100) : '';
         html += `<td class="alloc-cell alloc-ytd-col">`;
         html += `<div style="font-size:11px;">${scAllocYTD > 0 ? scAllocYTD + 'h' : '—'}</div>`;
         if (scActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(scActualYTD)}h</div>`;
@@ -14913,7 +14923,7 @@ function renderAllocations() {
   });
   // Grand YTD
   const gPct = grandAllocYTD > 0 ? Math.round((grandActualYTD / grandAllocYTD) * 100) : 0;
-  const gClr = grandAllocYTD > 0 ? barColor(gPct) : '';
+  const gClr = grandAllocYTD > 0 ? barColor((grandActualYTD / grandAllocYTD) * 100) : '';
   html += `<td class="alloc-cell alloc-ytd-col"><div>${grandAllocYTD > 0 ? grandAllocYTD + 'h' : '—'}</div>`;
   if (grandActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(grandActualYTD)}h</div>`;
   if (grandAllocYTD > 0) html += `<div class="alloc-pct ${gClr}">${gPct}%</div>`;

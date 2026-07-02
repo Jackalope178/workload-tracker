@@ -167,11 +167,10 @@ preserve:
    planned, AND capacity. Boundary weeks intentionally pull from the adjacent
    month and appear under both months — week bars don't sum to the month bar.
 
-Known-open minor items (deliberate — see the audit's Minor section): rounded
-percent color thresholds hide sub-0.5% overruns; `fmtQ` snaps legacy
-non-quarter values for display only (sums use raw values); an import merging
-a negative rollover can store a ≤0 allocation; `capMoveItem` targets the 15th
-even when it falls on a weekend.
+Known-open minor item (deliberate — see the audit's Minor section): `fmtQ`
+snaps legacy non-quarter values for display only (sums use raw values). The
+audit's other minor items (rounded color thresholds, negative import
+allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 
 ## Sync architecture
 
