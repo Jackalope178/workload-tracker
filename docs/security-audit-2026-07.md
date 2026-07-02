@@ -138,9 +138,43 @@ Low exploitability under normal UI, but worth constraining if dates ever become 
 - **Passwords** are read from the auth form and passed to Supabase; they are never stored
   locally.
 
-## Recommended priority
+## Remediation applied (2026-07-02)
 
-1. Add SRI + version pinning to the two CDN scripts (Finding 2) — highest impact, small change.
-2. Escape project labels / billing codes / names everywhere they hit `innerHTML` (Finding 1).
-3. Keep `wt_api_key` out of cloud sync and backup export, or warn about it (Finding 3).
-4. Escape the remaining self-authored sinks and validate color values (Findings 4–5).
+All findings above were fixed in `index.html` in this change:
+
+1. **CDN Subresource Integrity (Finding 2).** Both `<script>` tags are now
+   version-pinned (`@supabase/supabase-js@2.110.0`, `xlsx@0.18.5`) with
+   `integrity="sha384-…"` + `crossorigin="anonymous"`, and the cdnjs xlsx
+   fallback carries the same hash. A tampered CDN file will now be refused by
+   the browser instead of executing. (The supabase URL was pointed at the
+   package's published `dist/umd/supabase.js`, which is the same minified UMD
+   that exposes the `supabase` global — jsDelivr can't produce a stable hash
+   for the on-the-fly `.min.js` variant.)
+
+2. **Stored-XSS escaping (Findings 1, 4).** `escHtml()` was hardened to also
+   escape `'` and backtick, and every user/import-controlled field that reaches
+   `innerHTML` is now routed through it: project labels, billing codes, project
+   display names, sub-code codes/labels, person/owner names, and the signed-in
+   display name — across My Tasks, Projects, Team (list/person/board views),
+   Timesheet, Capacity, Allocations, the duplicate-merge modal, the shared
+   dropdown, and project-member chips. Inline `onclick`/`onchange` handlers that
+   pass a person name now escape it for both the HTML-attribute and JS-string
+   context (a plain HTML-escape is insufficient there because the parser decodes
+   entities before the JS runs); the duplicate-merge success messages no longer
+   interpolate a label into an `innerHTML`-setting handler at all.
+
+3. **API key kept device-local (Finding 3).** `wt_api_key` was removed from
+   `SYNC_KEYS`, so the Anthropic key is no longer pushed to Supabase or written
+   into exported backup files; a maintainer comment documents why.
+
+4. **Color attributes (Finding 5).** Color values interpolated into `style="…"`
+   / `value="…"` are now escaped, closing the attribute-breakout path.
+
+### Verification
+
+Changes were verified in a headless Chromium run: the pinned CDN files load and
+satisfy SRI; seeding a malicious `"><img onerror=…>` payload as a project label,
+billing code, sub-code, task field, owner, and board-person name produced **zero
+injected elements and zero script execution** across every tab and all three
+team views, while ordinary labels containing `'` and `&` still render correctly
+(no double-escaping). The full inline script also passes a `node --check` parse.
