@@ -79,9 +79,11 @@ Perspective-aware (`person` = whose board; `null` = Everyone/list):
 ---
 
 ## Known gaps / deliberate decisions
-- **Undated legs don't reach Capacity.** `plannedItems()` needs a `due` (or
-  `allocMonth`). Set per-leg due dates so KME legs count forward. *(Mitigated:
-  per-leg due is supported in the relay editor.)*
+- ~~Undated legs don't reach Capacity.~~ **Closed:** an undated active Me leg
+  now sets `allocMonth` (current month) on the mirror, so it appears in the
+  Capacity planner as a hold (`_allocHold`) and releases on completion.
+- **Billing convention:** relay leg hours are quarter-rounded with a 0.25 floor
+  (`roundToQuarter` in `_logRelayLeg`), matching the completion modal.
 - **Relay → mirror is one-way.** Editing the mirror task does not update the
   relay stage.
 - **One billing code per deliverable.** All legs bill to the deliverable's
@@ -140,3 +142,14 @@ Chronological; newest last. Keeps the *why* across threads.
 14. **Merged the two review board columns** into one "In Review".
 15. **Audit of the KME flow** → fixed checkbox-complete not advancing the relay
     (and its double-billing risk); wrote this doc.
+16. **Roster in dropdowns** — board/person selectors list all `PERSONS`, not
+    just people who already own items.
+17. **Person-colored rail + badges** — rail dots show initials in each person's
+    color (current = solid + ring, upcoming = faint, done = quiet ✓);
+    "Waiting on X" badges tinted with X's color. Vision: *where is it floating*
+    should read as a recognizable color before words.
+18. **Ecosystem audit (plate / holds / logging)** — verified mirror creation on
+    save (not only on pass); undated Me legs now hold the current month in
+    Capacity via `allocMonth` and release on completion; relay billing
+    quarter-rounded (0.25 floor); Allocations month actuals and the Timesheet
+    pick up relay entries via `completed[]`.

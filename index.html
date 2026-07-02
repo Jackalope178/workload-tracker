@@ -9732,7 +9732,14 @@ function _relaySync(item, prevWho) {
     _syncBatonMirror(item, prevWho, 'Me', nm);
     // Mirror reflects just this leg's estimate + due, not the whole deliverable's.
     const mt = item.reviewTaskId ? tasks.find(t => t.id === item.reviewTaskId) : null;
-    if (mt) { mt.est = Number(cur.est) || 0; if (cur.due) mt.due = cur.due; save('wt_tasks', tasks); }
+    if (mt) {
+      mt.est = Number(cur.est) || 0;
+      if (cur.due) mt.due = cur.due;
+      // No date anywhere → hold this month's capacity so the pending leg still
+      // shows in the Capacity planner instead of silently vanishing.
+      if (!mt.due) mt.allocMonth = mt.allocMonth || today().slice(0, 7);
+      save('wt_tasks', tasks);
+    }
   } else if (prevWho === 'Me') {
     _closeBatonMirror(item);
   }
@@ -9777,7 +9784,9 @@ function relayBack(itemId) {
 
 // Log my leg's hours to the billing archive (project + sub-code) and close the mirror.
 function _logRelayLeg(item, stage, hours) {
-  const h = Math.max(0, Number(hours) || 0);
+  // Same billing convention as the completion modal: quarter-hours, 0.25 floor.
+  let h = Math.max(0, Number(hours) || 0);
+  if (h > 0) h = Math.max(0.25, roundToQuarter(h));
   if (h > 0) {
     completed.unshift({
       id: uid(),
