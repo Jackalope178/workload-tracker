@@ -27,7 +27,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 
 | Region | Approx. lines | Contents |
 |---|---|---|
-| CSS | 7–2,730 | One `<style>` block. Themes via `data-theme` attr + CSS variables in `:root`. |
+| CSS | 7–2,730 | One `<style>` block. Light-only theme (dark retired July 2026): permanent `data-theme="light"` over dark `:root` base variables. |
 | CDN loads | 2,732–2,741 | Supabase, XLSX (with a fallback CDN retry). |
 | HTML body | 2,743–4,081 | Tab bar (`.tabs`, ~line 2,856), six tab panels, all modals (setup, settings, brain-dump, welcome). |
 | Sync + auth | 4,082–~4,600 | `_supabase` client, login, `SYNC_KEYS` list, `cloudSave`/`cloudLoad`/`loadFromSupabase`. |
@@ -111,7 +111,8 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
 | Tabs / navigation | `_switchTab`, `data-tab` |
-| Theming | `data-theme`, `:root` |
+| Theming (light-only) | `applyTheme`, `data-theme`, `:root` |
+| Person pill colors | `personColor`, `wt_person_colors` |
 
 ## Working on this codebase
 
