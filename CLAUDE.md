@@ -85,6 +85,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_projects_meta` | Project definitions: `{ label, color, billingCode, subCodes[], tags[] }` |
 | `wt_persons` | Team roster |
 | `wt_allocations` | Monthly budget allocations, keyed `projKey|scId|YYYY-MM` |
+| `wt_person_allocs` | Per-person monthly hour allocations by billing code, keyed `person|projKey|scId|YYYY-MM` (drives the person-board allocation meters; parse keys from the END — names may contain `|`) |
 
 Plus ~20 smaller preference/UI keys (`wt_theme`, `wt_ts_capacity`, collapse
 states, …). Anything that must survive across devices belongs in `SYNC_KEYS`.
@@ -188,9 +189,14 @@ preserve:
    value. `roundToQuarter` has a 0.25 FLOOR — never use it on a
    possibly-zero quantity (use `snapQuarter` clamped at 0, as
    `packIntoFreeDays` does).
-5. **Cockpit gauge = remaining relay legs** (`_relayPersonRemainingEst`,
-   stages at/after the baton — the meter drains as legs complete); card
-   badges show the person's total (`_relayPersonEst`). Don't unify them.
+5. **Person-board meters are allocation meters** (July 2026 — replaced the
+   weekly-capacity gauge): bar = `wt_person_allocs` for the selected month,
+   solid fill = `_personCompletedHoursByCode` (relay `relayLog` pass hours —
+   teammate legs record stage est, KME legs record logged hours — plus
+   `completedAt`/`ownerStatusAt`-stamped completions), overlay = active
+   planned est. Card badges still show the person's total stage hours
+   (`_relayPersonEst`); remaining-legs math (`_relayPersonRemainingEst`)
+   still feeds the backlog line. Don't unify any of these.
 6. **Timesheet month-view week rows use the true Sun–Sat week** for logged,
    planned, AND capacity. Boundary weeks intentionally pull from the adjacent
    month and appear under both months — week bars don't sum to the month bar.
@@ -218,6 +224,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Personal tasks, recurrence, timers | `function renderTasks`, `renderWeekPlanner`, `confirmComplete`, `nextRecurrenceAfter` |
 | ADHD ergonomics (capture/inbox, wins, focus, day-fit) | `quickCaptureAdd`, `_celebrateWin`, `_focusMode`, `_fitStatus`, `_startNextQueue` |
 | Team board, statuses, relay/hand-offs | `renderTeamBoard`, `relayStatusInfo`, `_relaySync`, `relayAdvance` |
+| Person-board allocation meters / meetings column | `personAllocKey`, `_personCompletedHoursByCode`, `openPersonAllocModal`, `BOARD_COLS` |
 | KME mirror tasks / My-Tasks ↔ Team link | `_syncBatonMirror`, `_closeBatonMirror`, `_taskRelayPassBtn`, `_deliverableId` |
 | Billing / logged hours | `_logRelayLeg`, `wt_completed`, `roundToQuarter`, `enforceQuarter` |
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls`, `payPeriodOf` |

@@ -21,8 +21,11 @@ tie into **My Tasks**, **Capacity**, and **Timesheet/Billing**. Also logs the
 
 ## Data model
 **Team deliverable** (`wt_team` item) relay fields:
-- `relay`: `[{ id, kind, who, est, due }]` — `kind ∈ work | review | send`.
-  (No per-stage label — removed by design; type + person convey the leg.)
+- `relay`: `[{ id, kind, who, est, due, note }]` — `kind ∈ work | review | send`.
+  (No per-stage label — removed by design; type + person convey the leg.
+  `note` is different: an optional free-text annotation of what the leg is
+  actually doing, edited via the hover 📝 in the stage row and shown on cards
+  in the yellow waiting-on style while that leg holds the baton.)
 - `relayStage`: index of the current stage. `>= relay.length` ⇒ complete.
 - `activeOwner`: current holder (kept in sync = `relay[relayStage].who`).
 - `owners`: derived = unique stage assignees, **including `'Me'`** so KME gets a
@@ -158,3 +161,25 @@ Chronological; newest last. Keeps the *why* across threads.
     hours to *remaining* stage hours (`_relayPersonRemainingEst`), so the
     per-person meter drains as legs complete; scorecard "without estimate"
     still checks the total.
+20. **Meetings column** — the board's Blocked column became **Meetings**:
+    anything meeting-priority while active (typically My-Tasks meetings
+    delegated to teammates) routes there, so tagged people see the meeting
+    and its hours on their board. Blocked cards fold into In Progress
+    (keeping the 🚫 badge); the cockpit Blocked chip still isolates them.
+21. **Per-person allocation meters** — the cockpit's weekly-capacity gauge was
+    replaced by **allocation meters**: monthly hours KME budgets per person
+    per billing code (`wt_person_allocs`, keyed `person|projKey|scId|YYYY-MM`,
+    edited via the + Allocation popup: current + next 6 months; ‹ › month nav
+    on the cockpit). Bar total = allocation; solid fill (project color) = the
+    person's completed work that month; lighter overlay = planned. To
+    attribute completed work: `relayLog` pass entries now record hours for
+    **teammate legs too** (stage est; KME legs keep actually-logged hours),
+    and non-relay completions stamp `completedAt` / per-person
+    `ownerStatusAt[person]`. Key fns: `_personCompletedHoursByCode`,
+    `personAllocKey`, `openPersonAllocModal`. The old `wt_person_capacity`
+    weekly-cap data is retained but no longer surfaced.
+22. **Stage notes** — reintroduced per-leg annotation as `note` (NOT the old
+    label field): hover a stage row in the relay editor → 📝 after the ↑↓
+    arrows opens a note input. The current leg's note shows on board cards
+    and list rows in the yellow waiting-on style, because "Work — X" alone
+    isn't informative enough. Rail tooltips include it.

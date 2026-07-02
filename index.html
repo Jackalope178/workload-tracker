@@ -356,6 +356,20 @@
   }
   .person-color-swatch::-webkit-color-swatch-wrapper { padding: 2px; }
   .person-color-swatch::-webkit-color-swatch { border: none; border-radius: 3px; }
+
+  /* ── Person-board allocation meters ── */
+  .pa-month-nav { display: flex; align-items: center; gap: 6px; }
+  .pa-month-nav .btn { font-size: 11px; padding: 3px 9px; }
+  .pa-month-label { font-size: 12px; font-weight: 700; color: var(--text); min-width: 78px; text-align: center; }
+  .pa-bars { margin: 8px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+  .pa-bars-empty { font-size: 11px; color: var(--text3); padding: 6px 2px; }
+  .pa-bar-row { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 3px 4px; border-radius: 6px; }
+  .pa-bar-row:hover { background: var(--bg2); }
+  .pa-bar-label { font-size: 11px; font-weight: 600; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+  .pa-bar-track { flex: 1; min-width: 80px; }
+  .pa-bar-nums { font-size: 10px; color: var(--text2); white-space: nowrap; }
+  .pa-bar-status { font-size: 10px; font-weight: 700; color: var(--text3); white-space: nowrap; }
+  .pa-bar-status.over { color: var(--danger); }
   .week-expand-chevron {
     cursor: pointer;
     font-size: 12px;
@@ -1292,7 +1306,13 @@
   .relay-cur-actions { display: inline-flex; gap: 6px; }
   .relay-cur-actions .btn { font-size: 10px; padding: 4px 10px; }
   #editTeamRelayBody { overflow-x: auto; }
-  .relay-edit-row { display: grid; grid-template-columns: 14px 76px minmax(96px,1fr) 46px 124px auto auto auto; gap: 5px; align-items: center; margin-bottom: 6px; min-width: 340px; }
+  .relay-edit-row { display: grid; grid-template-columns: 14px 76px minmax(96px,1fr) 46px 124px auto auto auto auto; gap: 5px; align-items: center; margin-bottom: 6px; min-width: 340px; }
+  /* Stage note: dim until the row is hovered (or a note exists) — same reveal spot as the arrows */
+  .relay-edit-row .relay-note-btn { opacity: 0.3; transition: opacity 0.12s; }
+  .relay-edit-row:hover .relay-note-btn, .relay-edit-row .relay-note-btn.has-note { opacity: 1; }
+  .relay-edit-row .relay-note-btn.has-note { border-color: var(--warn); color: var(--warn); }
+  .relay-note-row { margin: -2px 0 8px 19px; }
+  .relay-note-row .edit-input { width: 100%; font-size: 11px; padding: 5px 7px; border-color: var(--warn); }
   .relay-edit-est { text-align: right; }
   .relay-edit-due { padding: 4px 4px !important; font-size: 10px !important; }
   .relay-edit-num { font-size: 11px; font-weight: 700; color: var(--text3); text-align: center; }
@@ -4067,6 +4087,23 @@ if (typeof XLSX === 'undefined') {
   </div>
 </div>
 
+<!-- PERSON ALLOCATION MODAL -->
+<div class="modal-overlay" id="personAllocModal">
+  <div class="modal">
+    <div class="modal-title" id="paTitle">Allocations</div>
+    <div class="modal-subtitle">Monthly hours you're allocating to this person for one billing code. Blank or 0 clears a month.</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <select class="edit-input" id="paProject" onchange="populateSubCodeSelect('paSubCode', this.value);_paFillMonths();" style="flex:1;"></select>
+      <select class="edit-input" id="paSubCode" onchange="_paFillMonths()" style="max-width:180px;"></select>
+    </div>
+    <div id="paMonths"></div>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="btn" onclick="closePersonAllocModal()">Cancel</button>
+      <button class="btn primary" onclick="savePersonAllocModal()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- BRAIN DUMP MODAL (disabled) -->
 <div class="modal-overlay" id="brainDumpModal" style="display:none !important;">
   <div class="modal modal-wide">
@@ -4261,7 +4298,7 @@ if (typeof XLSX === 'undefined') {
       <h3>Team Relays & Your Turn</h3>
       <p>A deliverable can carry a <strong>relay</strong>: ordered stages (work ✎ / review 👁 / send ✉), each with a person, estimate, and due date. Whoever holds the current stage has the <strong>baton</strong>.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">🟢</span><span>When it's <strong>your turn</strong>, the leg appears in My Tasks (↩ team badge) and counts in your Capacity. <strong>Pass →</strong> logs your hours to the deliverable's billing code exactly once and hands it on.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">👥</span><span>Each person's board has a <strong>capacity cockpit</strong> — week load, backlog, and filter chips — to see who has room.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">👥</span><span>Each person's board opens with <strong>allocation meters</strong> — the monthly hours you've budgeted them per billing code, drained by completed work — plus backlog and filter chips.</span></div>
     </div>
 
     <div class="welcome-step" data-step="6">
@@ -4696,7 +4733,7 @@ const SYNC_KEYS = [
   'wt_dup_decisions', 'wt_stale_subcodes',
   'wt_onboarded', 'wt_xlsx_alloc_imported',
   'wt_alloc_rollovers', 'wt_collapsed_task_sections',
-  'wt_alloc_aliases', 'wt_person_colors'
+  'wt_alloc_aliases', 'wt_person_colors', 'wt_person_allocs'
 ];
 
 async function cloudSave(key, data) {
@@ -5371,6 +5408,134 @@ function savePersons() { save('wt_persons', PERSONS); }
 // auto colors, so text/border contrast stays legible whatever the user picks.
 let PERSON_COLORS = load('wt_person_colors', {});
 function savePersonColors() { save('wt_person_colors', PERSON_COLORS); }
+
+// Monthly hours KME allocates to each person per billing code (the person-board
+// meters). Flat map: `person|projKey|scId|YYYY-MM` -> hours. Parse keys from the
+// END (ym, scId, projKey) so person names containing '|' can't corrupt them.
+let PERSON_ALLOCS = load('wt_person_allocs', {});
+function savePersonAllocs() { save('wt_person_allocs', PERSON_ALLOCS); }
+function personAllocKey(person, projKey, scId, ym) { return `${person}|${projKey}|${scId || ''}|${ym}`; }
+function _parsePersonAllocKey(k) {
+  const parts = k.split('|');
+  const ym = parts.pop(), scId = parts.pop(), projKey = parts.pop();
+  return { person: parts.join('|'), projKey, scId, ym };
+}
+
+// ── Person allocation modal (the + Allocation popup on a person's board) ──
+let _paPerson = null;
+
+function _paMonthList() {
+  // Current month + the next 6 — the editing horizon for forward allocations
+  const [y, m] = today().slice(0, 7).split('-').map(Number);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(y, m - 1 + i, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+}
+
+function openPersonAllocModal(person, projKey, scId) {
+  _paPerson = person;
+  document.getElementById('paTitle').textContent = `Allocations — ${_relayWho(person)}`;
+  const sel = document.getElementById('paProject');
+  sel.innerHTML = projOrder.filter(k => PROJECTS[k] && !PROJECTS[k].archivedAt).map(k => {
+    const v = PROJECTS[k];
+    return `<option value="${escHtml(k)}">${escHtml(v.billingCode ? `${v.label} (${v.billingCode})` : v.label)}</option>`;
+  }).join('');
+  if (projKey && PROJECTS[projKey]) sel.value = projKey;
+  populateSubCodeSelect('paSubCode', sel.value, scId || '');
+  // A bar click passes scId explicitly ('' = no sub-code) — honor it even when
+  // populateSubCodeSelect would auto-select a lone sub-code.
+  if (scId != null) document.getElementById('paSubCode').value = scId || '';
+  _paFillMonths();
+  document.getElementById('personAllocModal').classList.add('open');
+}
+
+function _paFillMonths() {
+  if (_paPerson == null) return;
+  const projKey = document.getElementById('paProject').value;
+  const scId = document.getElementById('paSubCode').value || '';
+  document.getElementById('paMonths').innerHTML = _paMonthList().map(ym => {
+    const cur = PERSON_ALLOCS[personAllocKey(_paPerson, projKey, scId, ym)];
+    const [y, m] = ym.split('-').map(Number);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--border);">
+      <span style="font-size:12px;color:var(--text2);">${MONTH_NAMES[m - 1]} ${y}</span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);">
+        <input type="number" class="edit-input pa-month-input" data-ym="${ym}" min="0" step="0.25" value="${cur != null ? cur : ''}" placeholder="—" style="width:90px;text-align:right;"> h
+      </span>
+    </div>`;
+  }).join('');
+}
+
+function savePersonAllocModal() {
+  if (_paPerson == null) return;
+  const projKey = document.getElementById('paProject').value;
+  const scId = document.getElementById('paSubCode').value || '';
+  document.querySelectorAll('.pa-month-input').forEach(inp => {
+    const key = personAllocKey(_paPerson, projKey, scId, inp.dataset.ym);
+    const v = parseFloat(inp.value);
+    if (v > 0) PERSON_ALLOCS[key] = enforceQuarter(v, 'allocation');
+    else delete PERSON_ALLOCS[key];
+  });
+  savePersonAllocs();
+  closePersonAllocModal();
+  renderTeam();
+}
+
+function closePersonAllocModal() {
+  document.getElementById('personAllocModal').classList.remove('open');
+  _paPerson = null;
+}
+
+// Completed hours attributed to a person for one month, grouped by billing code
+// (`projKey|scId`). Sources: relay pass-log entries (KME legs = logged hours,
+// teammates' legs = stage est), native deliverables via ownerStatusAt/completedAt,
+// delegated tasks/sessions/subtasks via completedAt. Older data without these
+// stamps simply doesn't count — the meters look forward, not back.
+function _personCompletedHoursByCode(person, ym) {
+  const out = {};
+  const add = (proj, sc, h) => { if (!(h > 0)) return; const k = `${proj || 'overhead'}|${sc || ''}`; out[k] = (out[k] || 0) + h; };
+  const inMonth = d => (d || '').slice(0, 7) === ym;
+
+  teamItems.forEach(item => {
+    if (_isRelay(item)) {
+      // The k-th 'pass' entry completes the k-th stage (relayBack logs nothing).
+      let passIdx = 0;
+      (item.relayLog || []).forEach(e => {
+        if (e.action !== 'pass') return;
+        const stage = (item.relay || [])[passIdx]; passIdx++;
+        if (e.from !== person || !inMonth(e.at)) return;
+        const h = e.hours != null ? Number(e.hours) : ((stage && stage.who === person) ? Number(stage.est) || 0 : 0);
+        add(item.project, item.subCode, h);
+      });
+      return;
+    }
+    const owners = item.owners && item.owners.length ? item.owners : [item.owner];
+    if (!owners.includes(person)) return;
+    const personDone = item.ownerStatus && item.ownerStatus[person] === 'complete';
+    const at = (item.ownerStatusAt && item.ownerStatusAt[person]) || item.completedAt;
+    if ((personDone || item.status === 'complete') && inMonth(at)) add(item.project, item.subCode, Number(item.est) || 0);
+  });
+
+  tasks.forEach(t => {
+    if (!normDelegated(t.delegatedTo).includes(person)) return;
+    const at = (t.ownerStatusAt && t.ownerStatusAt[person]) || t.completedAt;
+    if (t.completed && inMonth(at)) add(t.project, t.subCode, Number(t.est) || 0);
+  });
+
+  bigProjs.forEach(proj => {
+    proj.sessions.forEach(s => {
+      const check = (obj, hours) => {
+        if (!normDelegated(obj.delegatedTo).includes(person)) return;
+        const at = (obj.ownerStatusAt && obj.ownerStatusAt[person]) || obj.completedAt;
+        if (obj.done && inMonth(at)) add(proj.project, obj.subCode || s.subCode, Number(hours) || 0);
+      };
+      check(s, s.hours);
+      (s.subtasks || []).forEach(st => check(st, st.hours));
+    });
+  });
+
+  return out;
+}
 
 function getPersonsForProject(projId) {
   const proj = bigProjs ? bigProjs.find(p => p.id === projId) : null;
@@ -9404,7 +9569,9 @@ const STATUS_CLS = {
   'complete': 's-complete',
   // Legacy mappings
   'not-started': 's-need-delegate',
-  'pending': 's-in-progress'
+  'pending': 's-in-progress',
+  // Pseudo-column (not a status): the board's Meetings column header badge
+  'meeting': 'p-meeting'
 };
 
 
@@ -9415,6 +9582,14 @@ let _teamSortDir = 'asc';
 let _teamViewMode = load('wt_team_view', null) || (load('wt_team_group_person', false) ? 'person' : 'list');
 let _teamBoardPerson = load('wt_team_board_person', null); // null → default to first team member
 let _teamBoardFilter = 'all'; // 'all' | 'overdue' | 'soon' | 'blocked' | 'waiting'
+// Month the person-board allocation meters show ("period of interest")
+let _teamAllocMonth = today().slice(0, 7);
+function _teamAllocShift(n) {
+  const [y, m] = _teamAllocMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  _teamAllocMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  renderTeam();
+}
 let _personCapacity = load('wt_person_capacity', {}); // { personName: weeklyHours }
 let _teamHideDelegatedTasks = load('wt_team_hide_tasks', false); // hide delegated personal 'task' cards on the board
 const _collapsedTeamPersons = new Set();
@@ -9506,9 +9681,14 @@ function showPersonStatusDropdown(e, key, person) {
   showDropdown(e.currentTarget, STATUS_OPTS, cur, val => {
     if (!ref.obj.ownerStatus) ref.obj.ownerStatus = {};
     ref.obj.ownerStatus[person] = val;
+    // Per-person completion date — feeds that person's allocation meters
+    if (!ref.obj.ownerStatusAt) ref.obj.ownerStatusAt = {};
+    if (val === 'complete') ref.obj.ownerStatusAt[person] = ref.obj.ownerStatusAt[person] || today();
+    else delete ref.obj.ownerStatusAt[person];
     const resolved = o => ref.obj.ownerStatus[o] || ref.overall();
     const allDone = ref.owners.length > 0 && ref.owners.every(o => resolved(o) === 'complete');
     ref.applyOverall(allDone);
+    if (allDone) ref.obj.completedAt = ref.obj.completedAt || today();
     ref.save();
     renderTeam();
     if (typeof renderTasks === 'function') renderTasks();
@@ -9738,7 +9918,7 @@ function renderTeam() {
         `;
     } else {
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${escHtml(item.name)}${(!isCompleted && item.activeOwner && !_isRelay(item)) ? `<span class="team-baton-inline${item.activeOwner === 'Me' ? ' mine' : ''}" title="Ball in court — open to pass the baton">${item.activeOwner === 'Me' ? '🟢 Your turn' : '◖ ' + escHtml(item.activeOwner)}</span>` : ''}${item.waiting ? `<span class="task-waiting">⏳ ${escHtml(item.waiting)}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
+        <div class="team-task-name" onclick="openEditTeamModal('${item.id}')">${escHtml(item.name)}${(!isCompleted && item.activeOwner && !_isRelay(item)) ? `<span class="team-baton-inline${item.activeOwner === 'Me' ? ' mine' : ''}" title="Ball in court — open to pass the baton">${item.activeOwner === 'Me' ? '🟢 Your turn' : '◖ ' + escHtml(item.activeOwner)}</span>` : ''}${(_isRelay(item) && !_relayDone(item) && relayStage(item)?.note) ? `<span class="task-waiting" title="Note on the current leg">📝 ${escHtml(relayStage(item).note)}</span>` : ''}${item.waiting ? `<span class="task-waiting">⏳ ${escHtml(item.waiting)}</span>` : ''}${item.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('team','${item.id}')" title="View notes">📝</span>` : ''}</div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(projLabel(item.project))}</span>
         <div class="project-dot" style="background:${escHtml(projColor(item.project))};"></div>
@@ -9848,6 +10028,14 @@ function renderTeamBoard(visible, boardPerson, container) {
     items = visible;
     statusOf = i => _isRelay(i) ? relayStatusInfo(i, null).col : i.status;
   }
+  // Meetings get their own column: anything meeting-priority that isn't done
+  // (typically My-Tasks meetings delegated to teammates) routes there, so
+  // tagged people see the meeting load on their board.
+  const _rawStatusOf = statusOf;
+  statusOf = i => {
+    const s = _rawStatusOf(i);
+    return (s !== 'complete' && (i.priority === 'meeting')) ? 'meeting' : s;
+  };
 
   // ── Cockpit panel: capacity gauge + scorecard + filter chips (per-person only) ──
   let panel = '';
@@ -9867,14 +10055,53 @@ function renderTeamBoard(visible, boardPerson, container) {
     // "Without estimate" checks the person's TOTAL stage hours, so an item whose
     // legs are simply all done isn't mislabeled as unestimated.
     const totalEstFor = i => _isRelay(i) ? _relayPersonEst(i, boardPerson) : (Number(i.est) || 0);
-    const weekLoad = active.filter(i => _teamItemOverdue(i) || _teamItemSoon(i)).reduce((s, i) => s + estFor(i), 0);
     const backlog = active.reduce((s, i) => s + estFor(i), 0);
     const noEst = active.filter(i => !(totalEstFor(i) > 0)).length;
-    const cap = personWeeklyCap(boardPerson);
-    const pct = cap > 0 ? Math.round((weekLoad / cap) * 100) : 0;
-    const gaugeCls = pct >= 100 ? 'cap-over' : pct >= 80 ? 'cap-warn' : 'cap-ok';
-    const gaugeMsg = pct >= 100 ? '⚠️ Over capacity' : pct >= 80 ? 'Nearly full' : '✅ Has room';
     const pc = personColor(boardPerson);
+    const personEsc = boardPerson.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+    // ── Allocation meters: what I've allocated to this person per billing code
+    // for the selected month, drained by completed work, with planned overlaid. ──
+    const ym = _teamAllocMonth;
+    const [ymY, ymM] = ym.split('-').map(Number);
+    const ymLabel = `${MONTH_NAMES[ymM - 1]} ${ymY}`;
+    const allocs = {};   // `projKey|scId` -> allocated hours this month
+    Object.keys(PERSON_ALLOCS).forEach(k => {
+      const p = _parsePersonAllocKey(k);
+      if (p.person === boardPerson && p.ym === ym && Number(PERSON_ALLOCS[k]) > 0) {
+        allocs[`${p.projKey}|${p.scId}`] = Number(PERSON_ALLOCS[k]);
+      }
+    });
+    const doneByCode = _personCompletedHoursByCode(boardPerson, ym);
+    const plannedByCode = {};
+    active.forEach(i => {
+      const k = `${i.project || 'overhead'}|${i.subCode || ''}`;
+      const h = estFor(i);
+      if (h > 0) plannedByCode[k] = (plannedByCode[k] || 0) + h;
+    });
+    const allocBars = Object.keys(allocs).sort((a, b) => projLabel(a.split('|')[0]).localeCompare(projLabel(b.split('|')[0]))).map(codeKey => {
+      const cut = codeKey.lastIndexOf('|');
+      const projKey = codeKey.slice(0, cut), scId = codeKey.slice(cut + 1);
+      const total = allocs[codeKey];
+      const done = doneByCode[codeKey] || 0;
+      const planned = plannedByCode[codeKey] || 0;
+      const donePct = Math.min(100, Math.round((done / total) * 100));
+      const planPct = Math.min(100, Math.round(((done + planned) / total) * 100));
+      const over = done + planned > total + 0.01;
+      const color = escHtml(projColor(projKey));
+      const scLbl = scId ? (getSubCodeLabel(projKey, scId) || scId) : '';
+      const status = over ? `⚠ ${fmtQ(done + planned - total)}h over` : `${fmtQ(Math.max(0, total - done - planned))}h open`;
+      return `<div class="pa-bar-row" onclick="openPersonAllocModal('${personEsc}','${projKey}','${scId}')" title="Click to edit this allocation">
+        <span class="project-dot" style="background:${color};"></span>
+        <span class="pa-bar-label">${escHtml(projLabel(projKey))}${scLbl ? ` · ${escHtml(scLbl)}` : ''}</span>
+        <div class="cap-bar-dual pa-bar-track">
+          <div class="cap-bar-planned-hint" style="width:${planPct}%;"></div>
+          <div style="width:${donePct}%;height:100%;border-radius:3px;background:${color};position:absolute;top:0;left:0;"></div>
+        </div>
+        <span class="pa-bar-nums">${fmtQ(done)} / ${fmtQ(total)}h${planned ? ` · ${fmtQ(planned)}h planned` : ''}</span>
+        <span class="pa-bar-status${over ? ' over' : ''}">${status}</span>
+      </div>`;
+    }).join('');
 
     const chip = (key, label, n, cls) => `<button class="team-chip ${cls}${_teamBoardFilter === key ? ' active' : ''}" onclick="_setTeamBoardFilter('${key}')">${label} <strong>${n}</strong></button>`;
 
@@ -9884,14 +10111,16 @@ function renderTeamBoard(visible, boardPerson, container) {
           <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${pc.bg};border:1px solid ${pc.border};"></span>
           <span class="team-cockpit-name">${escHtml(_relayWho(boardPerson))}</span>
         </div>
-        <div class="team-cockpit-cap">
-          <label>Weekly capacity</label>
-          <input type="number" min="0" step="1" value="${cap}" onchange="setPersonWeeklyCap('${boardPerson.replace(/'/g, "\\'").replace(/"/g,'&quot;')}', this.value)" title="Hours per week this person can take on"> h
+        <div class="pa-month-nav">
+          <button class="btn" onclick="_teamAllocShift(-1)" title="Previous month">‹</button>
+          <span class="pa-month-label">${ymLabel}</span>
+          <button class="btn" onclick="_teamAllocShift(1)" title="Next month">›</button>
+          <button class="btn primary" style="font-size:10px;padding:3px 10px;" onclick="openPersonAllocModal('${personEsc}')" title="Allocate monthly hours to this person for a billing code">+ Allocation</button>
         </div>
       </div>
-      <div class="team-gauge-wrap">
-        <div class="team-gauge"><div class="team-gauge-fill ${gaugeCls}" style="width:${Math.min(100, pct)}%;"></div></div>
-        <div class="team-gauge-label"><strong>${weekLoad}h</strong> / ${cap}h this week · ${pct}% <span class="team-gauge-msg ${gaugeCls}">${gaugeMsg}</span>${infoIcon('cockpitGauge')}</div>
+      <div class="pa-bars">
+        ${allocBars || `<div class="pa-bars-empty">No allocations for ${ymLabel} — use <strong>+ Allocation</strong> to budget this person's hours by code.${infoIcon('cockpitGauge')}</div>`}
+        ${allocBars ? `<div style="text-align:right;">${infoIcon('cockpitGauge')}</div>` : ''}
       </div>
       <div class="team-cockpit-sub">Backlog: <strong>${backlog}h</strong> across ${active.length} active item${active.length === 1 ? '' : 's'}${noEst ? ` · <span style="color:var(--text3);">${noEst} without estimate</span>` : ''}${doneCount ? ` · ${doneCount} done` : ''}</div>
       <div class="team-chips">
@@ -9918,7 +10147,7 @@ function renderTeamBoard(visible, boardPerson, container) {
     }
   }
 
-  const buckets = {};
+  const buckets = { meeting: [] };
   STATUS_CYCLE.forEach(c => { buckets[c] = []; });
   items.forEach(i => {
     let s = statusOf(i) || 'need-delegate';
@@ -9926,12 +10155,15 @@ function renderTeamBoard(visible, boardPerson, container) {
     buckets[s].push(i);
   });
 
-  // Board columns — "Ready for Review" and "In Review" are merged into a single review bucket.
+  // Board columns — "Ready for Review" and "In Review" are merged into a single
+  // review bucket. Blocked lost its column to Meetings: blocked cards live in
+  // In Progress (they're stuck in-flight work) and keep their 🚫 badge + the
+  // cockpit Blocked chip for isolating them.
   const BOARD_COLS = [
     { key: 'need-delegate', src: ['need-delegate'] },
-    { key: 'in-progress', src: ['in-progress'] },
+    { key: 'in-progress', src: ['in-progress', 'blocked'] },
     { key: 'in-review', src: ['ready-review', 'in-review'], label: 'In Review' },
-    { key: 'blocked', src: ['blocked'] },
+    { key: 'meeting', src: ['meeting'], label: 'Meetings' },
     { key: 'complete', src: ['complete'] }
   ];
   let html = panel + `<div class="team-board">`;
@@ -10048,6 +10280,7 @@ function teamBoardCard(item, forPerson) {
     </div>
     ${relayRail}
     ${batonHtml}
+    ${(relay && !_relayDone(item) && relayStage(item)?.note) ? `<div class="team-board-card-wait" style="color:var(--warn);" title="Note on the current leg">📝 ${escHtml(relayStage(item).note)}</div>` : ''}
     ${item.waiting ? `<div class="team-board-card-wait">⏳ ${escHtml(item.waiting)}</div>` : ''}
     <div class="team-board-card-foot">
       ${statusBadge}
@@ -10244,7 +10477,7 @@ function _relayRailHtml(item) {
   const dots = item.relay.map((s, i) => {
     const state = i < idx ? 'done' : (i === idx ? 'cur' : 'pend');
     const kindLbl = (RELAY_KINDS[s.kind] && RELAY_KINDS[s.kind].label) || '';
-    const tip = `${i + 1}. ${s.label || kindLbl} — ${_relayWho(s.who)}${Number(s.est) > 0 ? ` · ${s.est}h` : ''}${s.due ? ` · due ${fmtDate(s.due)}` : ''}`;
+    const tip = `${i + 1}. ${s.label || kindLbl} — ${_relayWho(s.who)}${Number(s.est) > 0 ? ` · ${s.est}h` : ''}${s.due ? ` · due ${fmtDate(s.due)}` : ''}${s.note ? ` — ${s.note}` : ''}`;
     if (state === 'done') return `<span class="relay-dot done" title="${escHtml(tip)}">✓</span>`;
     // Current + upcoming legs are people: initials in that person's color, so the
     // rail reads as "who has it, who's next" at a glance.
@@ -10293,7 +10526,10 @@ function relayAdvance(itemId, loggedHours) {
   const prevWho = item.activeOwner;
   if (cur && cur.who === 'Me') _logRelayLeg(item, cur, loggedHours);
   item.relayLog = item.relayLog || [];
-  item.relayLog.push({ from: cur ? cur.who : null, at: today(), action: 'pass', hours: (cur && cur.who === 'Me') ? (Number(loggedHours) || 0) : undefined });
+  // Hours on the pass entry: KME legs record the actually-logged hours (billing);
+  // teammates' legs record the stage estimate — the per-person allocation meters
+  // read these to attribute completed work to a person + month.
+  item.relayLog.push({ from: cur ? cur.who : null, at: today(), action: 'pass', hours: (cur && cur.who === 'Me') ? (Number(loggedHours) || 0) : (cur ? (Number(cur.est) || 0) : undefined) });
   item.relayStage = relayIdx(item) + 1;
   item.relayStarted = false;
   _relaySync(item, prevWho);
@@ -10395,6 +10631,16 @@ function _relayPeopleOpts(sel) {
   if (sel && !list.includes(sel)) list.unshift(sel);
   return [...new Set(list)].map(p => `<option value="${escHtml(p)}"${p === sel ? ' selected' : ''}>${p === 'Me' ? 'KME (me)' : escHtml(p)}</option>`).join('');
 }
+// Stage-note editors the user has toggled open (by stage id, modal-session only)
+let _relayNoteOpen = new Set();
+function _relayNoteToggle(i) {
+  const s = _relayDraft[i];
+  if (!s) return;
+  if (_relayNoteOpen.has(s.id)) _relayNoteOpen.delete(s.id);
+  else _relayNoteOpen.add(s.id);
+  _renderRelayEditor();
+  if (_relayNoteOpen.has(s.id)) document.getElementById(`relayNoteInput_${i}`)?.focus();
+}
 function _renderRelayEditor() {
   const wrap = document.getElementById('editTeamRelayBody');
   const empty = document.getElementById('editTeamRelayEmpty');
@@ -10413,8 +10659,14 @@ function _renderRelayEditor() {
       <input class="edit-input relay-edit-due" type="date" value="${s.due || ''}" title="Due date for this leg — becomes the deliverable's due while it's this person's turn" onchange="_relaySet(${i},'due',this.value)">
       <button type="button" class="relay-edit-btn" title="Move up" onclick="_relayMove(${i},-1)"${i === 0 ? ' disabled' : ''}>↑</button>
       <button type="button" class="relay-edit-btn" title="Move down" onclick="_relayMove(${i},1)"${i === _relayDraft.length - 1 ? ' disabled' : ''}>↓</button>
+      <button type="button" class="relay-edit-btn relay-note-btn${s.note ? ' has-note' : ''}" title="${s.note ? escHtml(s.note) : 'Add a note — what is this leg actually doing?'}" onclick="_relayNoteToggle(${i})">📝</button>
       <button type="button" class="relay-edit-btn danger" title="Remove" onclick="_relayDel(${i})">✕</button>
-    </div>`).join('');
+    </div>
+    ${_relayNoteOpen.has(s.id) ? `<div class="relay-note-row">
+      <input class="edit-input" id="relayNoteInput_${i}" type="text" maxlength="200" value="${escHtml(s.note || '')}"
+        placeholder="What is ${escHtml(_relayWho(s.who))} actually doing on this leg?"
+        oninput="_relaySet(${i},'note',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+    </div>` : ''}`).join('');
 }
 function _relayAddStage() {
   if (!_relayDraft.length) {
@@ -10424,9 +10676,9 @@ function _relayAddStage() {
     try { const o = getSelectedTeamOwners('editTeamOwnerPills'); if (o && o.length) who = o[0]; } catch (e) {}
     const e = parseFloat(document.getElementById('editTeamEst')?.value);
     const dd = (document.getElementById('editTeamDue')?.value || '');
-    _relayDraft.push({ id: uid(), kind: 'work', label: '', who, est: (e > 0 ? e : ''), due: dd });
+    _relayDraft.push({ id: uid(), kind: 'work', label: '', note: '', who, est: (e > 0 ? e : ''), due: dd });
   } else {
-    _relayDraft.push({ id: uid(), kind: 'work', label: '', who: (typeof PERSONS !== 'undefined' && PERSONS[0]) || 'Me', est: '', due: '' });
+    _relayDraft.push({ id: uid(), kind: 'work', label: '', note: '', who: (typeof PERSONS !== 'undefined' && PERSONS[0]) || 'Me', est: '', due: '' });
   }
   _renderRelayEditor();
 }
@@ -15584,8 +15836,8 @@ const INFO_COPY = {
     body: '<strong>Overdue</strong> (the day already passed), <strong>month holds</strong> (parked in a month, no date yet), and <strong>undated</strong> work. Select items, then click a calendar day to schedule them there — or <strong>Park</strong> them in a month to decide later. Recurring items are managed from their own edit modal (skip / reschedule) instead of this board.'
   },
   cockpitGauge: {
-    title: 'What this gauge counts',
-    body: '<strong>This week</strong> = the person\'s estimated hours on active items that are overdue or due within 7 days. For relay deliverables only their <strong>remaining legs</strong> count (stages at or after the baton) — the gauge drains as legs complete. <strong>Backlog</strong> = remaining hours across all their active items. Weekly capacity is editable per person right here.'
+    title: 'What these allocation meters count',
+    body: 'One bar per billing code you\'ve <strong>allocated hours to this person</strong> for the selected month (‹ › changes the month). The <strong>solid fill</strong> (project color) = their completed work that month — finished relay legs at the stage\'s hours, plus completed deliverables and delegated tasks at their estimate. The <strong>lighter overlay</strong> = still-planned work on that code eating the rest of the allocation. <strong>+ Allocation</strong> budgets a code for the current + next 6 months; click any bar to edit it. <strong>Backlog</strong> below = remaining hours across all their active items, any code, any month.'
   },
   relay: {
     title: 'Relays — pass the baton through stages',
@@ -15673,7 +15925,9 @@ const _TAB_TIPS = {
       'Track <strong>cross-team assignments</strong> — who owns what and its status.',
       '<strong>Relays</strong> pass a deliverable through ordered stages (work ✎ / review 👁 / send ✉) — the current stage\'s person holds the baton; everyone else sees "Waiting on …".',
       'When a relay leg is <strong>yours (KME)</strong>, it mirrors into My Tasks, counts in Capacity, and bills once when you pass it on.',
-      'Pick a <strong>person\'s board</strong> to see their capacity cockpit: week load, backlog, and filter chips. The gauge counts their remaining relay legs, not completed ones.',
+      'Pick a <strong>person\'s board</strong> to see their allocation meters: hours you\'ve budgeted them per billing code for the month, drained by completed work with planned overlaid. <strong>+ Allocation</strong> adds a code; click a bar to edit it.',
+      '<strong>Meetings</strong> have their own board column — tag teammates on a meeting task and it (and its hours) shows on their board.',
+      'Hover a relay stage row in the editor to add a <strong>📝 note</strong> — it shows on the card in yellow while that leg is active, so "Work" can say what the work actually is.',
       'Click a deliverable to <strong>edit</strong> its stages, owner, status, and notes.',
       'Use <strong>filters</strong> to view by person, project, or status.'
     ]
@@ -15836,6 +16090,7 @@ function reloadStateFromLocalStorage() {
   allocations = load('wt_allocations', {});
   PERSONS = load('wt_persons', []);
   PERSON_COLORS = load('wt_person_colors', {});
+  PERSON_ALLOCS = load('wt_person_allocs', {});
   tasks = load('wt_tasks', null) || SEED_TASKS;
   bigProjs = load('wt_bigprojs', null) || SEED_PROJECTS;
   collapsedProjs = new Set(load('wt_collapsed_projs', []));
@@ -16178,7 +16433,9 @@ function showStatusDropdown(e, itemId) {
   if (!item) return;
   showDropdown(e.currentTarget, STATUS_OPTS, item.status, val => {
     item.status = val;
-    if (val === 'complete') _closeBatonMirror(item);
+    // Completion date feeds the per-person allocation meters (month attribution)
+    if (val === 'complete') { item.completedAt = item.completedAt || today(); _closeBatonMirror(item); }
+    else delete item.completedAt;
     save('wt_team', teamItems);
     renderTeam();
     renderProjects();
@@ -16198,6 +16455,8 @@ function showDelegatedStatusDropdown(e, projId, sessionId, subtaskId) {
   showDropdown(e.currentTarget, STATUS_OPTS, curStatus, val => {
     target.done = (val === 'complete');
     target.status = val;
+    if (target.done) target.completedAt = target.completedAt || today();
+    else delete target.completedAt;
     save('wt_bigprojs', bigProjs);
     renderTeam();
     renderTasks();
@@ -16214,6 +16473,8 @@ function showDelegatedTaskStatusDropdown(e, taskId) {
   showDropdown(e.currentTarget, STATUS_OPTS, curStatus, val => {
     task.completed = (val === 'complete');
     task.status = val;
+    if (task.completed) task.completedAt = task.completedAt || today();
+    else task.completedAt = null;
     save('wt_tasks', tasks);
     renderTeam();
     renderTasks();
@@ -16691,7 +16952,7 @@ function saveEditTeamItem() {
   // ── Relay stages ──
   const wasRelay = _isRelay(item);
   const cleanRelay = (_relayDraft || []).filter(s => s && s.who).map(s => ({
-    id: s.id || uid(), kind: s.kind || 'work', label: (s.label || '').trim(), who: s.who, est: parseFloat(s.est) || 0, due: s.due || ''
+    id: s.id || uid(), kind: s.kind || 'work', label: (s.label || '').trim(), note: (s.note || '').trim(), who: s.who, est: parseFloat(s.est) || 0, due: s.due || ''
   }));
   if (cleanRelay.length) {
     item.relay = cleanRelay;
