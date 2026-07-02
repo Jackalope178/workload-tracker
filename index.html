@@ -1182,9 +1182,10 @@
 
   /* ── Relay (multi-stage pass-around) ── */
   .relay-rail { display: flex; align-items: center; gap: 2px; margin: 6px 0 2px; flex-wrap: wrap; }
-  .relay-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; font-size: 9px; border: 1px solid var(--border); background: var(--bg3); color: var(--text3); flex-shrink: 0; }
-  .relay-dot.done { background: var(--success); border-color: var(--success); color: #07140d; }
-  .relay-dot.cur { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .relay-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; font-size: 8px; font-weight: 700; letter-spacing: 0.02em; border: 1px solid var(--border); background: var(--bg3); color: var(--text3); flex-shrink: 0; }
+  .relay-dot.tight { font-size: 6.5px; letter-spacing: 0; }
+  .relay-dot.done { background: var(--success); border-color: var(--success); color: #07140d; opacity: 0.75; }
+  .relay-dot.cur { box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 28%, transparent); }
   .relay-sep { width: 8px; height: 1px; background: var(--border); flex-shrink: 0; }
   .relay-act { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); cursor: pointer; }
   .relay-act:hover { border-color: var(--accent); color: var(--accent); }
@@ -9162,8 +9163,13 @@ function renderTeam() {
     else if (item._delegated) _statusFn = item._isSubtask ? `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}','${item._subtaskId}')` : `showDelegatedStatusDropdown(event,'${item._projId}','${item._sessionId}')`;
     else if (item._taskDelegated) _statusFn = `showDelegatedTaskStatusDropdown(event,'${item._taskId}')`;
     else _statusFn = `showStatusDropdown(event,'${item.id}')`;
+    let _relayBadgeStyle = '';
+    if (_relayInfo && _relayInfo.col === 'in-review' && _relayInfo.holder) {
+      const _hpc = personColor(_relayInfo.holder);
+      _relayBadgeStyle = `background:${_hpc.bg};color:${_hpc.text};border:1px solid ${_hpc.border};`;
+    }
     const statusBadge = _relayInfo
-      ? `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" title="Set by the relay stage">${escHtml(_pLabel)}</span>`
+      ? `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" style="${_relayBadgeStyle}" title="Set by the relay stage">${escHtml(_pLabel)}</span>`
       : `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="${_statusFn}" style="cursor:pointer;" title="${escHtml(_pLabel)}">${escHtml(_pLabel)}</span>`;
 
     // In grouped mode, show co-assignee tags instead of owner column
@@ -9494,8 +9500,14 @@ function teamBoardCard(item, forPerson) {
     handoffBtn = `<button class="team-board-reassign" onclick="event.stopPropagation();showHandoffDropdown(event,'${item.id}')" title="Hand off — move the ball to the next person (keeps everyone involved)">⇢</button>`;
   }
   // Relay items show one shared status; the badge is informational (not a manual dropdown).
+  // "Waiting on X" badges wear X's person color so you can spot who has it before reading.
+  let relayBadgeStyle = '';
+  if (relay && relay.col === 'in-review' && relay.holder) {
+    const hpc = personColor(relay.holder);
+    relayBadgeStyle = `background:${hpc.bg};color:${hpc.text};border:1px solid ${hpc.border};`;
+  }
   const statusBadge = relay
-    ? `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" title="Set by the relay stage">${escHtml(pLabel)}</span>`
+    ? `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" style="${relayBadgeStyle}" title="Set by the relay stage">${escHtml(pLabel)}</span>`
     : `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="event.stopPropagation();${statusFn}" style="cursor:pointer;" title="Change status">${escHtml(pLabel)}</span>`;
 
   return `<div class="team-board-card${overdue ? ' overdue' : ''}" onclick="${editFn}">
@@ -9680,13 +9692,30 @@ function relayStatusInfo(item, person) {
 }
 
 // Compact stepper rail: ✓ done · current (icon) · pending, with per-stage tooltips.
+// Short initials for a rail dot — "Jordan K" → JK, "Amanda" → Am, 'Me' → KME.
+function _personInitials(who) {
+  if (who === 'Me') return 'KME';
+  const parts = String(who || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '•';
+  if (parts.length === 1) return (parts[0][0] || '').toUpperCase() + (parts[0][1] || '');
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 function _relayRailHtml(item) {
   const idx = relayIdx(item);
   const dots = item.relay.map((s, i) => {
     const state = i < idx ? 'done' : (i === idx ? 'cur' : 'pend');
-    const ic = RELAY_KINDS[s.kind] ? RELAY_KINDS[s.kind].icon : '•';
-    const tip = `${i + 1}. ${s.label || (RELAY_KINDS[s.kind] && RELAY_KINDS[s.kind].label) || ''} — ${_relayWho(s.who)}${Number(s.est) > 0 ? ` · ${s.est}h` : ''}${s.due ? ` · due ${fmtDate(s.due)}` : ''}`;
-    return `<span class="relay-dot ${state}" title="${escHtml(tip)}">${i < idx ? '✓' : ic}</span>`;
+    const kindLbl = (RELAY_KINDS[s.kind] && RELAY_KINDS[s.kind].label) || '';
+    const tip = `${i + 1}. ${s.label || kindLbl} — ${_relayWho(s.who)}${Number(s.est) > 0 ? ` · ${s.est}h` : ''}${s.due ? ` · due ${fmtDate(s.due)}` : ''}`;
+    if (state === 'done') return `<span class="relay-dot done" title="${escHtml(tip)}">✓</span>`;
+    // Current + upcoming legs are people: initials in that person's color, so the
+    // rail reads as "who has it, who's next" at a glance.
+    const pc = personColor(s.who || '—');
+    const ini = _personInitials(s.who);
+    const style = state === 'cur'
+      ? `background:${pc.bg};border-color:${pc.border};color:${pc.text};`
+      : `background:transparent;border-color:${pc.border};color:${pc.text};opacity:0.6;`;
+    return `<span class="relay-dot ${state}${ini.length > 2 ? ' tight' : ''}" style="${style}" title="${escHtml(tip)}">${escHtml(ini)}</span>`;
   }).join('<span class="relay-sep"></span>');
   return `<div class="relay-rail" title="Relay progress">${dots}</div>`;
 }
