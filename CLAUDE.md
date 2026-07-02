@@ -195,6 +195,7 @@ even when it falls on a weekend.
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls`, `payPeriodOf` |
 | Capacity planner / drill-down / scheduler | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold`, `_capAssignOne` |
 | Allocations / Excel import / rollovers | `renderAllocations`, `handleAllocImport`, `allocKey`, `_rollRemainingForward` |
+| Reconcile view (plan vs budget, one month) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
 | Tabs / navigation | `_switchTab`, `data-tab` |
@@ -203,6 +204,8 @@ even when it falls on a weekend.
 ## Working on this codebase
 
 - **Single-file discipline:** all HTML/CSS/JS changes go in `index.html`. Docs go in `docs/`.
+- **`README.md` is the human-facing mirror of this file** (for GitHub
+  visitors). When structure changes here, keep it in sync.
 - **New persistent state?** Add the key to `SYNC_KEYS` if it should follow the
   user across devices; use the `load`/`save` wrappers, never raw `localStorage`.
 - **Touching relay, the My-Tasks mirror, or team-board status?** Read
