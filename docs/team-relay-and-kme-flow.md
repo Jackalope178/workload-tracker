@@ -90,8 +90,9 @@ Perspective-aware (`person` = whose board; `null` = Everyone/list):
   `project`+`subCode`; stages don't carry their own code.
 - **Two representations by design.** A KME relay item appears on the KME team
   board *and* as a My-Tasks mirror (team-side vs personal-side). Not additive
-  across meters: the team cockpit gauge uses stage `est` (`_relayPersonEst`);
-  Capacity uses the mirror task.
+  across meters: the team cockpit gauge uses the person's REMAINING stage
+  hours (`_relayPersonRemainingEst` — legs at/after the baton; done legs are
+  spent effort, not load); Capacity uses the mirror task.
 - **Capacity double-count guard.** The main Capacity/Allocations planner reads
   `plannedItems()` which does **not** include `wt_team` deliverables — only the
   mirror task — so KME's review load is counted once.
@@ -153,3 +154,7 @@ Chronological; newest last. Keeps the *why* across threads.
     Capacity via `allocMonth` and release on completion; relay billing
     quarter-rounded (0.25 floor); Allocations month actuals and the Timesheet
     pick up relay entries via `completed[]`.
+19. **Math audit follow-up** — cockpit gauge switched from total person stage
+    hours to *remaining* stage hours (`_relayPersonRemainingEst`), so the
+    per-person meter drains as legs complete; scorecard "without estimate"
+    still checks the total.
