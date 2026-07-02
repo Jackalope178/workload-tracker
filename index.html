@@ -9375,11 +9375,15 @@ function renderTeamBoard(visible, boardPerson, container) {
     const doneCount = items.length - active.length;
 
     // Near-term load = estimated hours for active work due this week or already overdue.
-    // For relay items, this person is only on the hook for their own stages' hours.
-    const estFor = i => _isRelay(i) ? _relayPersonEst(i, boardPerson) : (Number(i.est) || 0);
+    // For relay items, this person is only on the hook for their own stages' hours —
+    // and only the REMAINING ones (legs already passed are spent, not load).
+    const estFor = i => _isRelay(i) ? _relayPersonRemainingEst(i, boardPerson) : (Number(i.est) || 0);
+    // "Without estimate" checks the person's TOTAL stage hours, so an item whose
+    // legs are simply all done isn't mislabeled as unestimated.
+    const totalEstFor = i => _isRelay(i) ? _relayPersonEst(i, boardPerson) : (Number(i.est) || 0);
     const weekLoad = active.filter(i => _teamItemOverdue(i) || _teamItemSoon(i)).reduce((s, i) => s + estFor(i), 0);
     const backlog = active.reduce((s, i) => s + estFor(i), 0);
-    const noEst = active.filter(i => !(estFor(i) > 0)).length;
+    const noEst = active.filter(i => !(totalEstFor(i) > 0)).length;
     const cap = personWeeklyCap(boardPerson);
     const pct = cap > 0 ? Math.round((weekLoad / cap) * 100) : 0;
     const gaugeCls = pct >= 100 ? 'cap-over' : pct >= 80 ? 'cap-warn' : 'cap-ok';
@@ -9705,6 +9709,14 @@ function relayStage(item) { const i = relayIdx(item); return i < item.relay.leng
 function _relayDone(item) { return relayIdx(item) >= item.relay.length; }
 // Hours a given person is on the hook for across this relay (their stages summed).
 function _relayPersonEst(item, who) { return _isRelay(item) ? item.relay.filter(s => s.who === who).reduce((n, s) => n + (Number(s.est) || 0), 0) : 0; }
+// Hours a person is STILL on the hook for: their stages at or after the current
+// baton position. Done legs are spent effort, not future load — the cockpit
+// gauge uses this so a person's meter drains as their legs complete.
+function _relayPersonRemainingEst(item, who) {
+  if (!_isRelay(item)) return 0;
+  const idx = relayIdx(item);
+  return item.relay.reduce((n, s, i) => n + ((i >= idx && s.who === who) ? (Number(s.est) || 0) : 0), 0);
+}
 function _relayTotalEst(item) { return _isRelay(item) ? item.relay.reduce((n, s) => n + (Number(s.est) || 0), 0) : 0; }
 
 function _relayVerb(k) { return k === 'review' ? 'reviewing' : k === 'send' ? 'sending' : 'working'; }
@@ -10956,7 +10968,13 @@ function renderTimesheet() {
           if (wStart > me) break;
 
           const wEntries = entries.filter(e => e.date >= wStart && e.date <= wEnd);
-          const wPlanned = mDated.filter(p => p.date >= wStart && p.date <= wEnd);
+          // Full calendar week for BOTH logged and planned: the row's capacity
+          // (wCap) spans the whole Sun–Sat week, so boundary weeks must pull
+          // planned work from the adjacent month just like logged entries —
+          // clipping planned to the month made the two metrics incomparable.
+          const wPlanned = plannedItems(wStart, wEnd)
+            .filter(p => !p._allocHold)
+            .filter(p => fProj === 'all' || p.project === fProj);
           const wUsed = wEntries.reduce((a, e) => a + e.actualHours, 0);
           const wPlannedH = wPlanned.reduce((a, p) => a + p.hours, 0);
           const wTotal = wUsed + wPlannedH;

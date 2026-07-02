@@ -8,11 +8,11 @@ Findings are ranked by severity. Items 1–2 were verified by executable
 simulation of the exact code paths; the rest were verified by tracing every
 caller.
 
-**Update (same branch):** findings 1–6, 8, 10, 11 are now FIXED on this
-branch; each finding below carries a status line. Fixes were re-verified with
+**Update (same branch):** findings 1–6, 8, 10, 11 were FIXED in the first
+fix pass; findings 7 and 9 were fixed in a follow-up after the semantics were
+decided. Each finding below carries a status line. Fixes were re-verified with
 the same simulations that proved the bugs (extracted from the patched file).
-Findings 7, 9 and the minor items remain open by choice — they involve
-judgment calls about intended semantics.
+Only the minor/cosmetic items remain open.
 
 ---
 
@@ -144,7 +144,14 @@ the roll.
 ## Medium
 
 ### 7. Team cockpit gauge counts completed relay legs and other people's active legs
-*(Status: open — semantics call, left for a product decision.)*
+*(Status: FIXED — decision: the gauge measures FUTURE load. Week-load and
+backlog now use `_relayPersonRemainingEst` — the person's stages at or after
+the current baton position — so a meter drains as legs complete. The
+"without estimate" chip still checks the person's total stage hours so an
+item whose legs are simply all done isn't mislabeled as unestimated. An item
+due soon still counts a person's remaining future legs even while someone
+else holds the baton — if the whole deliverable lands this week, so do their
+legs.)*
 `estFor` (`:9339`) uses `_relayPersonEst(item, person)` = sum of **all** of
 that person's stages, including stages already passed (✓ done). Week-load and
 backlog overstate accordingly. Additionally, an item due within 7 days counts
@@ -166,7 +173,13 @@ deadline is given (70-day default otherwise), and `packIntoFreeDays` snaps
 with `snapQuarter` clamped at 0 instead of `roundToQuarter`'s 0.25 floor.
 
 ### 9. Timesheet month view: boundary weeks mix cross-month logged with month-clipped planned
-*(Status: open — pick a convention first; both clip-to-month and true-week are defensible.)*
+*(Status: FIXED — decision: true-week. The row's capacity already spans the
+full Sun–Sat week, so planned work is now queried for the same full week
+(`plannedItems(wStart, wEnd)`, holds excluded) instead of being clipped to
+the month. Logged, planned, and capacity are now the same window; the known
+consequence — boundary weeks appearing under two months, so week bars don't
+sum to the month bar — already applied to logged hours and is inherent to
+calendar-week rows.)*
 Week rows inside a month (`:10885–10890`) filter logged entries by the full
 Sun–Sat week (including days in adjacent months) but planned items come from
 `plannedItems(ms, me)` (month-only). A month-boundary week compares
