@@ -197,6 +197,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Reconcile view (plan vs budget, one month) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
+| In-app orientation / ⓘ help | `INFO_COPY`, `infoIcon`, `showWelcome`, `_TAB_TIPS` |
 | Tabs / navigation | `_switchTab`, `data-tab` |
 | Theming | `data-theme`, `:root` |
 
@@ -211,3 +212,10 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
   `docs/team-relay-and-kme-flow.md` first and append to its intent log.
 - **Touching any calculation?** Read `docs/math-audit-2026-07.md` first and
   preserve the invariants above.
+- **SOP — keep the in-app orientation current.** Whenever a feature is added
+  or a meter/board changes what it counts, update all three help surfaces as
+  part of the same change: (1) the ⓘ popover copy (`INFO_COPY` — one entry
+  per component, plain-English "what does this count"), (2) the welcome tour
+  (`welcomeOverlay` steps in the HTML + `_WELCOME_STEPS`), and (3) the
+  per-tab help panel (`_TAB_TIPS`). Stale orientation is a bug: tips must
+  never reference features that don't exist or describe old math.

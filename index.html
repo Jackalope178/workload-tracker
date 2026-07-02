@@ -2368,6 +2368,34 @@
   .alloc-recon-groupfoot {
     font-size: 10px; color: var(--text3); padding: 10px 8px; font-style: italic;
   }
+
+  /* ── ⓘ info icons + popover — click for "what does this measure?" copy ── */
+  .info-i {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+    border: 1px solid var(--text3); color: var(--text3);
+    font-size: 9px; font-weight: 700; font-style: italic; font-family: Georgia, serif;
+    cursor: pointer; user-select: none; vertical-align: 1px;
+    margin-left: 5px; opacity: 0.7; transition: all 0.12s;
+  }
+  .info-i:hover { opacity: 1; border-color: var(--accent); color: var(--accent); }
+  .info-popover {
+    position: fixed; z-index: 1200; width: 320px; max-width: 92vw;
+    background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px;
+    padding: 12px 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  }
+  .info-popover-title {
+    font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .info-popover-title::before {
+    content: 'i'; display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+    border: 1px solid var(--accent); color: var(--accent);
+    font-size: 9px; font-style: italic; font-family: Georgia, serif;
+  }
+  .info-popover-body { font-size: 11px; color: var(--text2); line-height: 1.55; }
+  .info-popover-body strong { color: var(--text); }
   .alloc-drill-section {
     font-size: 10px;
     font-weight: 700;
@@ -3035,6 +3063,7 @@ if (typeof XLSX === 'undefined') {
         <span style="font-size:11px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:6px;">
           <span id="tasksCapChevron" class="week-expand-chevron">›</span>
           <span id="tasksCapLabel"></span>
+          <span class="info-i" onclick="event.stopPropagation();showInfoPopover(event,'payPeriodBar')" title="What does this bar measure?">i</span>
         </span>
         <span style="font-size:11px;color:var(--text3);" id="tasksCapDetail"></span>
       </div>
@@ -3114,6 +3143,7 @@ if (typeof XLSX === 'undefined') {
         <button id="tsViewPeriod"  class="ts-view-btn active" onclick="setTsView('period')">Pay Period</button>
         <button id="tsViewMonth"   class="ts-view-btn"        onclick="setTsView('month')">Month</button>
       </div>
+      <span class="info-i" onclick="showInfoPopover(event,'tsViews')" title="How do the two views differ?">i</span>
       <div id="tsPeriodNav" style="display:flex;align-items:center;gap:4px;">
         <button class="btn" onclick="tsPeriodPrev()">‹</button>
         <span id="tsPeriodLabel" style="font-size:12px;min-width:150px;text-align:center;color:var(--text2);"></span>
@@ -3137,7 +3167,7 @@ if (typeof XLSX === 'undefined') {
   <!-- CAPACITY -->
   <div class="panel" id="panel-capacity" role="tabpanel" aria-labelledby="tab-capacity">
     <div class="cap-toolbar">
-      <span style="font-size:12px;font-weight:600;color:var(--text);">Capacity Planner</span>
+      <span style="font-size:12px;font-weight:600;color:var(--text);">Capacity Planner<span class="info-i" onclick="showInfoPopover(event,'capacityMeters')" title="What do these bars count?">i</span></span>
       <div id="capYearNav" style="display:flex;align-items:center;gap:4px;">
         <button class="btn" onclick="capYearPrev()">‹</button>
         <span id="capYearLabel" style="font-size:12px;min-width:50px;text-align:center;color:var(--text2);font-weight:600;"></span>
@@ -3187,6 +3217,7 @@ if (typeof XLSX === 'undefined') {
       <span><span class="alloc-legend-dot" style="background:var(--success);"></span> Logged (&lt;80%)</span>
       <span><span class="alloc-legend-dot" style="background:var(--warn);"></span> Nearing limit (80–99%)</span>
       <span><span class="alloc-legend-dot" style="background:var(--danger);"></span> Over allocation (100%+)</span>
+      <span class="info-i" onclick="showInfoPopover(event,'allocGrid')" title="How do I read this grid?">i</span>
     </div>
     <div class="alloc-container">
       <div id="allocGrid"></div>
@@ -3572,6 +3603,7 @@ if (typeof XLSX === 'undefined') {
 
 <!-- CAPACITY-AWARE DATE PICKER (shared by all date fields) -->
 <div id="capDatePicker" class="cap-pick-popover" style="display:none;"></div>
+<div id="infoPopover" class="info-popover" style="display:none;"></div>
 
 <!-- SUBCODE ACTION POPUP -->
 <div id="scActionPopup" class="sc-popup" style="display:none;">
@@ -3864,7 +3896,7 @@ if (typeof XLSX === 'undefined') {
         <input class="edit-input" type="number" min="0" step="0.5" id="editTeamEst" placeholder="e.g. 4">
       </div>
       <div class="edit-form-group full" id="editTeamBatonGroup">
-        <label class="edit-label">Ball in court <span style="font-weight:400;color:var(--text3);">(pass the baton — whose turn now; everyone stays an owner)</span></label>
+        <label class="edit-label">Ball in court <span style="font-weight:400;color:var(--text3);">(pass the baton — whose turn now; everyone stays an owner)</span><span class="info-i" onclick="showInfoPopover(event,'relay')" title="How do relays work?">i</span></label>
         <select class="edit-input" id="editTeamBaton"></select>
       </div>
       <div class="edit-form-group full">
@@ -4081,34 +4113,53 @@ if (typeof XLSX === 'undefined') {
     </div>
 
     <div class="welcome-step" data-step="1">
-      <h3>Your 5 Tabs</h3>
-      <div class="welcome-tip"><span class="welcome-tip-icon">1</span><span><strong>My Tasks</strong> — your personal to-do list with timers, priorities, and recurring tasks.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — organize work into projects with sessions and subtasks.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">3</span><span><strong>Team Deliverables</strong> — track cross-team assignments and delegated work.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">4</span><span><strong>Timesheet</strong> — pay-period and monthly views of logged vs planned hours.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">5</span><span><strong>Allocations</strong> — monthly capacity planning by person and project.</span></div>
+      <h3>Your 6 Tabs</h3>
+      <div class="welcome-tip"><span class="welcome-tip-icon">1</span><span><strong>My Tasks</strong> — your personal billable work: timers, priorities, recurring tasks, week planner.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — billing codes with sub-codes; sessions and subtasks live under each.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">3</span><span><strong>Team Deliverables</strong> — cross-team work and relay hand-offs (who has the baton).</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">4</span><span><strong>Timesheet</strong> — logged hours by pay period (billing record) and by month (headroom).</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">5</span><span><strong>Capacity</strong> — 12-month forward planner: "someone needs this by May — do I have room?"</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">6</span><span><strong>Allocations</strong> — budgeted vs actual hours per project/sub-code, with a Reconcile view for plan-vs-budget.</span></div>
     </div>
 
     <div class="welcome-step" data-step="2">
       <h3>Adding Tasks & Tracking Time</h3>
       <p>Use <strong>+ Add Task</strong> or press <strong>N</strong> to create a task. Set a priority, due date, and time estimate.</p>
-      <div class="welcome-tip"><span class="welcome-tip-icon">⏱</span><span>Click the <strong>play button</strong> on any task to start a timer. When you complete the task, actual hours are logged to your timesheet automatically.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">↻</span><span>Tasks can <strong>recur</strong> weekly, biweekly, or monthly — set it up in the task edit modal.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">⏱</span><span>Click the <strong>play button</strong> on any task to start a timer. When you complete the task, actual hours are logged to your timesheet automatically — always in <strong>quarter-hour increments</strong>.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">⚑</span><span><strong>Work date vs deadline:</strong> pick a day other than the due date to work on it — the ⚑ chip keeps the deadline in view (red = at risk), and Capacity follows the work date.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">↻</span><span>Tasks can <strong>recur</strong> weekly, biweekly, or monthly — set it up in the task edit modal. Skip or reschedule any single occurrence from its row.</span></div>
     </div>
 
     <div class="welcome-step" data-step="3">
       <h3>Projects & Sessions</h3>
-      <p>The <strong>Projects</strong> tab groups work into projects. Each project can have multiple <strong>sessions</strong> (work items) and <strong>subtasks</strong>.</p>
+      <p>The <strong>Projects</strong> tab groups work under billing codes. Each project can have multiple <strong>sessions</strong> (work items) and <strong>subtasks</strong>, organized by sub-code.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">📂</span><span>Sessions have their own timers, due dates, and can be delegated to team members.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">◷</span><span>The <strong>Capacity split</strong> (◷ button) shows the month's free hours beside your project — drag any row onto a day to schedule it.</span></div>
       <!-- Brain Dump tip hidden while feature is disabled -->
       <!-- <div class="welcome-tip"><span class="welcome-tip-icon">💡</span><span>Use the <strong>Brain Dump</strong> button (in settings) to paste messy notes — AI turns them into organized tasks.</span></div> -->
     </div>
 
     <div class="welcome-step" data-step="4">
-      <h3>Keyboard Shortcuts & Tips</h3>
-      <div class="welcome-tip"><span class="welcome-tip-icon">⌨</span><span><strong>N</strong> = new task &nbsp; <strong>1-5</strong> = switch tabs &nbsp; <strong>/</strong> = search &nbsp; <strong>Esc</strong> = close modal &nbsp; <strong>Ctrl+Z</strong> = undo delete</span></div>
+      <h3>Plan Forward with Capacity</h3>
+      <p>The <strong>Capacity</strong> tab shows 12 months of logged + planned hours against your working-day capacity. Expand a month to see which projects fill it, then move or delegate work.</p>
+      <div class="welcome-tip"><span class="welcome-tip-icon">◷</span><span><strong>Schedule work</strong> opens a board of everything needing a home — overdue, held, and undated items — to place onto days with room.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">⟡</span><span><strong>Month holds</strong> park an item in a month without picking a day — it counts in that month's total until you schedule it.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">📅</span><span>Every date field opens a <strong>capacity-aware picker</strong>: each day shows its free hours, and ⚡ Next fit jumps to the first day with room.</span></div>
+    </div>
+
+    <div class="welcome-step" data-step="5">
+      <h3>Team Relays & Your Turn</h3>
+      <p>A deliverable can carry a <strong>relay</strong>: ordered stages (work ✎ / review 👁 / send ✉), each with a person, estimate, and due date. Whoever holds the current stage has the <strong>baton</strong>.</p>
+      <div class="welcome-tip"><span class="welcome-tip-icon">🟢</span><span>When it's <strong>your turn</strong>, the leg appears in My Tasks (↩ team badge) and counts in your Capacity. <strong>Pass →</strong> logs your hours to the deliverable's billing code exactly once and hands it on.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">👥</span><span>Each person's board has a <strong>capacity cockpit</strong> — week load, backlog, and filter chips — to see who has room.</span></div>
+    </div>
+
+    <div class="welcome-step" data-step="6">
+      <h3>Shortcuts & Getting Help</h3>
+      <div class="welcome-tip"><span class="welcome-tip-icon">⌨</span><span><strong>N</strong> = new task &nbsp; <strong>1-6</strong> = switch tabs &nbsp; <strong>/</strong> = search &nbsp; <strong>Esc</strong> = close modal &nbsp; <strong>Ctrl+Z</strong> = undo delete</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">ⓘ</span><span>Look for the small <strong>ⓘ icons</strong> next to meters and boards — click one for a plain-English explanation of exactly what that component counts.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">☁</span><span>Your data syncs to the cloud automatically. Click the <strong>cloud icon</strong> in the header to force a sync.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">ℹ</span><span>Click the <strong>(i)</strong> button in the bottom-right corner anytime for help, tips, and shortcuts.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">ℹ</span><span>Click the <strong>(i)</strong> button in the bottom-right corner anytime for tips on the current tab — or to replay this tour.</span></div>
     </div>
 
     <div class="welcome-dots" id="welcomeDots"></div>
@@ -4137,7 +4188,7 @@ if (typeof XLSX === 'undefined') {
   <div class="help-section">
     <div class="help-section-title">Keyboard Shortcuts</div>
     <div class="help-item"><span class="help-kbd">N</span> New task / deliverable</div>
-    <div class="help-item"><span class="help-kbd">1</span>–<span class="help-kbd">5</span> Switch tabs</div>
+    <div class="help-item"><span class="help-kbd">1</span>–<span class="help-kbd">6</span> Switch tabs</div>
     <div class="help-item"><span class="help-kbd">/</span> Focus search</div>
     <div class="help-item"><span class="help-kbd">Esc</span> Close modal</div>
     <div class="help-item"><span class="help-kbd">Ctrl</span>+<span class="help-kbd">Z</span> Undo delete</div>
@@ -9480,7 +9531,7 @@ function renderTeamBoard(visible, boardPerson, container) {
       </div>
       <div class="team-gauge-wrap">
         <div class="team-gauge"><div class="team-gauge-fill ${gaugeCls}" style="width:${Math.min(100, pct)}%;"></div></div>
-        <div class="team-gauge-label"><strong>${weekLoad}h</strong> / ${cap}h this week · ${pct}% <span class="team-gauge-msg ${gaugeCls}">${gaugeMsg}</span></div>
+        <div class="team-gauge-label"><strong>${weekLoad}h</strong> / ${cap}h this week · ${pct}% <span class="team-gauge-msg ${gaugeCls}">${gaugeMsg}</span>${infoIcon('cockpitGauge')}</div>
       </div>
       <div class="team-cockpit-sub">Backlog: <strong>${backlog}h</strong> across ${active.length} active item${active.length === 1 ? '' : 's'}${noEst ? ` · <span style="color:var(--text3);">${noEst} without estimate</span>` : ''}${doneCount ? ` · ${doneCount} done` : ''}</div>
       <div class="team-chips">
@@ -12003,7 +12054,7 @@ function _renderCapScheduler(container) {
   // ── Right: backlog — overdue, holds by month, undated ──
   const backlog = document.createElement('div');
   backlog.className = 'cap-sched-backlog';
-  backlog.innerHTML = `<div class="cap-sched-colhdr">To place — overdue · holds · no date</div>`;
+  backlog.innerHTML = `<div class="cap-sched-colhdr">To place — overdue · holds · no date${infoIcon('schedBacklog')}</div>`;
 
   const chipFor = (h) => {
     const key = holdKey(h);
@@ -14392,6 +14443,7 @@ function _renderAllocReconcile(grid, projEntries) {
       <span><span class="swatch" style="background:var(--alloc-logged);"></span>Logged</span>
       <span><span class="swatch" style="background:var(--alloc-planned);"></span>Planned</span>
       <span><span class="tickglyph"></span>Budget</span>
+      ${infoIcon('reconcile')}
     </div>
   </div>`;
 
@@ -15102,7 +15154,7 @@ document.getElementById('tsFilterProject')?.addEventListener('change', () => { _
 // =============================================
 
 let _welcomeStep = 0;
-const _WELCOME_STEPS = 5;
+const _WELCOME_STEPS = 7;
 
 function showWelcome() {
   _welcomeStep = 0;
@@ -15148,6 +15200,85 @@ function _maybeShowWelcome() {
 }
 
 // =============================================
+// ⓘ INFO ICONS — click-for-clarity popovers
+// =============================================
+// One dictionary of copy, one popover. SOP: when a feature changes what a
+// meter/board counts, update its INFO_COPY entry here, the welcome tour
+// steps, and _TAB_TIPS below — all three are part of definition-of-done.
+
+const INFO_COPY = {
+  payPeriodBar: {
+    title: 'Pay-period bar — logged hours only',
+    body: 'Target = weekdays in the period × your hours/day (80h or 88h depending on the calendar). This bar counts <strong>logged hours only</strong> — it is your billing record for the 1–15 / 16–EOM period. Weekend hours log into the period but add no capacity, so running over reads as <strong>banked flex time</strong>. Planned (future) work is measured in the Timesheet month view and the Capacity tab instead.'
+  },
+  tsViews: {
+    title: 'Pay Period vs Month — two different meters',
+    body: '<strong>Pay Period</strong> bars count logged hours only against the period target — a backward-looking billing record. <strong>Month</strong> bars count logged + planned against capacity — forward-looking headroom. This difference is deliberate. Month-view week rows measure the true Sun–Sat week, so a week straddling two months pulls days from both and appears under both — week bars don\'t sum to the month bar.'
+  },
+  capacityMeters: {
+    title: 'What a Capacity month counts',
+    body: 'Each bar = <strong>logged + planned hours vs weekdays × hours/day</strong>. Recurring items are expanded into every future occurrence so the load is real, and an item sits on its <strong>work date</strong> when one is set (its deadline otherwise). <strong>Month holds</strong> — items parked in a month with no date — count in the month total but never pin to a day. Different job than Allocations: Capacity is your personal headroom, Allocations is project budget tracking.'
+  },
+  schedBacklog: {
+    title: 'The backlog — everything needing a home',
+    body: '<strong>Overdue</strong> (the day already passed), <strong>month holds</strong> (parked in a month, no date yet), and <strong>undated</strong> work. Select items, then click a calendar day to schedule them there — or <strong>Park</strong> them in a month to decide later. Recurring items are managed from their own edit modal (skip / reschedule) instead of this board.'
+  },
+  cockpitGauge: {
+    title: 'What this gauge counts',
+    body: '<strong>This week</strong> = the person\'s estimated hours on active items that are overdue or due within 7 days. For relay deliverables only their <strong>remaining legs</strong> count (stages at or after the baton) — the gauge drains as legs complete. <strong>Backlog</strong> = remaining hours across all their active items. Weekly capacity is editable per person right here.'
+  },
+  relay: {
+    title: 'Relays — pass the baton through stages',
+    body: 'A relay moves one deliverable through ordered stages (<strong>work ✎ / review 👁 / send ✉</strong>), each with an assignee, estimate, and due date. The current stage\'s assignee <strong>holds the baton</strong>; everyone else sees "Waiting on …". When a stage is yours (KME), a mirror task appears in <strong>My Tasks</strong> and counts in Capacity; passing it logs your hours to the deliverable\'s billing code <strong>exactly once</strong>.'
+  },
+  allocGrid: {
+    title: 'Reading the allocation grid',
+    body: 'The number in each cell is your <strong>budget</strong> (allocated hours) for that project/sub-code and month — type to set it. The bars beneath show <strong>logged</strong> (completed work) and <strong>planned</strong> (scheduled work) against that budget. Click any cell for the item-by-item breakdown and to <strong>roll unspent budget forward</strong> to the next month. Colors compare logged vs allocated: green under 80%, yellow 80–99%, red over.'
+  },
+  reconcile: {
+    title: 'Reconcile — plan vs budget, one month',
+    body: 'One row per project: the bar is this month\'s <strong>committed hours</strong> (solid = logged, lighter = planned) and the <strong>tick is the budget line</strong>. Sorted worst-first — over budget, then budgeted-but-nothing-scheduled, then missing budgets; healthy rows dim. Click a row for the full breakdown.'
+  }
+};
+
+function infoIcon(key, style) {
+  const c = INFO_COPY[key];
+  if (!c) return '';
+  return `<span class="info-i" style="${style || ''}" onclick="event.stopPropagation();showInfoPopover(event,'${key}')" title="${escHtml(c.body.replace(/<[^>]+>/g, ''))}">i</span>`;
+}
+
+let _infoOpenKey = null;
+function showInfoPopover(ev, key) {
+  const c = INFO_COPY[key];
+  const pop = document.getElementById('infoPopover');
+  if (!c || !pop) return;
+  if (_infoOpenKey === key && pop.style.display !== 'none') { closeInfoPopover(); return; }
+  closeInfoPopover();
+  _infoOpenKey = key;
+  pop.innerHTML = `<div class="info-popover-title">${c.title}</div><div class="info-popover-body">${c.body}</div>`;
+  const r = ev.target.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left - 20, window.innerWidth - 340)) + 'px';
+  pop.style.top = (r.bottom + 8) + 'px';
+  pop.style.display = 'block';
+  _clampPopupToViewport(pop);
+  setTimeout(() => document.addEventListener('click', _infoOutside, true), 0);
+}
+function _infoOutside(e) {
+  const pop = document.getElementById('infoPopover');
+  if (!pop || pop.contains(e.target)) return;
+  // Clicks on an ⓘ icon are handled by its own onclick (toggle / switch);
+  // closing here too would reopen instead of toggling.
+  if (e.target.classList && e.target.classList.contains('info-i')) return;
+  closeInfoPopover();
+}
+function closeInfoPopover() {
+  const pop = document.getElementById('infoPopover');
+  if (pop) { pop.style.display = 'none'; pop.innerHTML = ''; }
+  document.removeEventListener('click', _infoOutside, true);
+  _infoOpenKey = null;
+}
+
+// =============================================
 // HELP PANEL
 // =============================================
 
@@ -15180,9 +15311,11 @@ const _TAB_TIPS = {
     title: 'Team Deliverables — Tips',
     tips: [
       'Track <strong>cross-team assignments</strong> — who owns what and its status.',
-      'Click a deliverable to <strong>edit</strong> its owner, status, and notes.',
-      'Use <strong>filters</strong> to view by person, project, or status.',
-      'Statuses: need-delegate, in-progress, ready-review, in-review, blocked, complete.'
+      '<strong>Relays</strong> pass a deliverable through ordered stages (work ✎ / review 👁 / send ✉) — the current stage\'s person holds the baton; everyone else sees "Waiting on …".',
+      'When a relay leg is <strong>yours (KME)</strong>, it mirrors into My Tasks, counts in Capacity, and bills once when you pass it on.',
+      'Pick a <strong>person\'s board</strong> to see their capacity cockpit: week load, backlog, and filter chips. The gauge counts their remaining relay legs, not completed ones.',
+      'Click a deliverable to <strong>edit</strong> its stages, owner, status, and notes.',
+      'Use <strong>filters</strong> to view by person, project, or status.'
     ]
   },
   timesheet: {
@@ -15193,17 +15326,29 @@ const _TAB_TIPS = {
       '<strong>Pay Period</strong> view shows the 1st–15th and 16th–EOM billing windows; <strong>Month</strong> shows the year.',
       'Each period\'s target is <strong>weekdays × your h/day</strong> (80h or 88h). Weekend overtime counts as logged — running over flags flex time.',
       'All hours snap to <strong>quarter-hour increments</strong> automatically.',
+      '<strong>Unscheduled holds</strong> (items parked in a month with no date) count in the month total but not in any period or week bar — click the holds line to schedule them in Capacity.',
       'Set your <strong>hours/day capacity</strong> in the toolbar.'
+    ]
+  },
+  capacity: {
+    title: 'Capacity — Tips',
+    tips: [
+      'Each month bar = <strong>logged + planned vs weekdays × h/day</strong> — your personal headroom, with all recurrences expanded.',
+      'Expand a month → <strong>projects → sub-codes → items</strong>, each with Done / Edit / Move / Delegate actions.',
+      '<strong>◷ Schedule work</strong> opens the board: select overdue, held, or undated items and click a day to place them — or <strong>Park</strong> them in a month to decide later.',
+      '<strong>⚖ Rebalance</strong> on an over-booked day moves the lowest-priority movable item to the next day with room, never past its deadline.',
+      'Items sit on their <strong>work date</strong> when one is set (deadline otherwise) — moving work keeps the deadline flag ⚑ honest.',
+      'Distinct from Allocations: Capacity is <strong>your headroom</strong>; Allocations tracks <strong>project budgets</strong>.'
     ]
   },
   allocations: {
     title: 'Allocations — Tips',
     tips: [
-      'Plan <strong>monthly capacity</strong> by person and project.',
-      'Click any cell to <strong>enter planned hours</strong>.',
-      'Actual hours from completed work appear as a <strong>second bar</strong>.',
-      'Import allocations from an <strong>Excel spreadsheet</strong>.',
-      'Use <strong>Copy Forward</strong> to fill empty future months with current values.'
+      'Track <strong>budgeted vs actual hours</strong> per project/sub-code per month.',
+      'Type in any cell to set its <strong>allocated hours</strong>; bars show logged and planned against it.',
+      'Click a cell for the <strong>item breakdown</strong> and to <strong>roll unspent budget</strong> (or overspend) into next month.',
+      'The <strong>Reconcile ⚖</strong> view shows one month, one row per project — committed bar vs budget tick, worst problems first.',
+      'Import from your <strong>BigTime spreadsheet</strong> — re-importing updates current and future months, preserves manual rollovers, and never touches past data.'
     ]
   }
 };
@@ -15238,8 +15383,14 @@ document.addEventListener('keydown', e => {
   const tag = document.activeElement?.tagName;
   const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
-  // Escape: close the capacity date picker first, then any open modal
+  // Escape: close the info popover / capacity date picker first, then any open modal
   if (e.key === 'Escape') {
+    const infoPop = document.getElementById('infoPopover');
+    if (infoPop && infoPop.style.display !== 'none') {
+      closeInfoPopover();
+      e.preventDefault();
+      return;
+    }
     if (_capPick) {
       closeCapacityDatePicker();
       e.preventDefault();
@@ -15280,8 +15431,8 @@ document.addEventListener('keydown', e => {
     else if (activeTab === 'team') { e.preventDefault(); openAddTeamModal(); }
   }
 
-  // 1-5: switch tabs
-  if (e.key >= '1' && e.key <= '5' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+  // 1-6: switch tabs
+  if (e.key >= '1' && e.key <= '6' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const tabs = document.querySelectorAll('.tab');
     const idx = parseInt(e.key) - 1;
     if (tabs[idx]) { e.preventDefault(); tabs[idx].click(); }
@@ -15297,7 +15448,7 @@ document.addEventListener('keydown', e => {
   // ?: show keyboard shortcuts help
   if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
     e.preventDefault();
-    showSyncToast('Keys: N=new, 1-5=tabs, /=search, Esc=close, Ctrl+Z=undo', 'success');
+    showSyncToast('Keys: N=new, 1-6=tabs, /=search, Esc=close, Ctrl+Z=undo', 'success');
   }
 });
 
