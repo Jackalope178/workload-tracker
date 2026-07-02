@@ -52,6 +52,7 @@ Single-file app: everything lives in `index.html` (~9800 lines of inline HTML, C
 
 ### Task object
 `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }`
+- `inbox: true` marks a quick-captured task awaiting triage (renders in the 📥 Inbox section of My Tasks). Cleared by saving the edit modal or setting a date inline.
 
 ### Team item object
 `{ id, name, owner, owners[], project, subCode, due, status, waiting, notes }`
@@ -77,6 +78,13 @@ A dedicated main tab called **Capacity** for forward-looking workload planning:
 - All recurrences should be expanded so the user sees true future load
 - This is distinct from the existing Allocations tab (which tracks budgeted vs actual by project). Capacity is about personal workload headroom.
 - Key functions: `renderCapacity()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()`
+
+## ADHD Ergonomics (My Tasks)
+Deliberate design layer — don't strip these as "clutter":
+- **Quick capture → Inbox**: the box above the toolbar (`quickCaptureAdd`, `N` key) creates bare `inbox: true` tasks; the 📥 Inbox section holds them for later triage. Capture must stay one-field, zero-decision.
+- **Completion celebration**: `_celebrateWin` (confetti + win toast + wins/streak chip via `_updateWinsChip`) fires from every `confirmComplete` path. Completing work must never be visually silent.
+- **Focus mode**: `_focusMode` (`wt_focus_mode`, 🎯 toolbar button) shows only Overdue + Today, urgent first, with a parked-items count. `_startNextQueue`/`_focusStartNext` power the "▶ Start next" chip in the Today header (starts the timer on the most urgent item — kills task-picking paralysis).
+- **Day-fit lens**: `_fitStatus(logged, planned, cap)` drives day/week section status text ("DOESN'T FIT" / "FREE AFTER PLAN" / "CLEAR"). This is a *planning* lens; the pay-period bar above the list stays a *billing* lens (logged vs target, "banked" framing) — keep the two framings distinct.
 
 ## Conventions
 - **IDs**: `uid()` = `'_' + Math.random().toString(36).slice(2, 11)`
