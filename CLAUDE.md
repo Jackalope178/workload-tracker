@@ -118,8 +118,11 @@ Keep its intent log updated when changing relay behavior.
 - **Completion celebration:** `_celebrateWin` (confetti + win toast +
   wins/streak chip via `_updateWinsChip`) fires from every `confirmComplete`
   path. Completing work must never be visually silent.
-- **Focus mode:** `_focusMode` (`wt_focus_mode`, 🎯 toolbar button) shows only
-  Overdue + Today, urgent first, with a parked-items count.
+- **Focus mode:** `_focusMode` (`wt_focus_mode`, 🎯 toolbar button) shows
+  Overdue + Today in full, urgent first. Everything else renders as dimmed
+  one-line **parked stubs** with live counts (`_focusStubs`), click-to-peek via
+  `_focusPeek`/`_focusPeekToggle` — **never fully hidden** (hiding sections
+  outright caused real object-permanence panic; keep the whole map on screen).
   `_startNextQueue`/`_focusStartNext` power the "▶ Start next" chip in the
   Today header (starts the timer on the most urgent item — kills task-picking
   paralysis). `wt_focus_mode` is deliberately **not** in `SYNC_KEYS` — it's a

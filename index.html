@@ -329,6 +329,24 @@
     background: var(--bg2); border: 1px dashed var(--border); border-radius: 8px;
   }
   .focus-note a { color: var(--accent); cursor: pointer; font-weight: 600; }
+  /* Parked stubs: everything not on the runway stays visible as a one-line
+     count — out of the way, never out of sight. */
+  .focus-parked-header {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text3); padding: 14px 4px 4px;
+  }
+  .focus-stub {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11px; color: var(--text3);
+    padding: 6px 12px; margin-top: 4px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    cursor: pointer; opacity: 0.75; transition: opacity 0.15s, border-color 0.15s;
+  }
+  .focus-stub:hover { opacity: 1; border-color: var(--text3); }
+  .focus-stub.open { opacity: 1; border-color: var(--accent); margin-bottom: 4px; }
+  .focus-stub .focus-stub-label { font-weight: 600; color: var(--text2); }
+  .focus-stub .focus-stub-meta { color: var(--text3); }
+  .focus-stub .focus-stub-peek { margin-left: auto; color: var(--accent); font-weight: 600; font-size: 10px; }
   .week-expand-chevron {
     cursor: pointer;
     font-size: 12px;
@@ -3044,7 +3062,7 @@ if (typeof XLSX === 'undefined') {
       </select>
       <!-- Brain Dump disabled — re-enable by removing display:none -->
       <button class="btn" onclick="openBrainDumpModal()" style="display:none;border-color:#7c3aed;color:#a78bfa;" title="AI-powered task import from free text">⚡ Brain Dump</button>
-      <button class="btn" id="focusModeBtn" onclick="toggleFocusMode()" title="Show only Overdue + Today, urgent first — everything else waits">🎯 Focus</button>
+      <button class="btn" id="focusModeBtn" onclick="toggleFocusMode()" title="Overdue + Today in full, urgent first — everything else parks below as one-line counts you can peek into">🎯 Focus</button>
       <button class="btn" id="taskViewToggle" onclick="toggleTaskView()" title="Switch between the task list and the week planner">📅 Week</button>
       <button class="btn primary" onclick="toggleAddForm()">+ Add Task</button>
       <button class="btn" id="clearFiltersBtn" onclick="_clearAllTaskFilters()" style="display:none;font-size:10px;padding:4px 10px;color:var(--text3);">✕ Clear filters</button>
@@ -6124,9 +6142,20 @@ function quickCaptureAdd() {
   renderTasks();
 }
 
+// Session-only set of parked-stub keys the user has peeked open. Reset on
+// every focus toggle so focus mode always starts from the clean runway.
+let _focusPeek = new Set();
+
 function toggleFocusMode() {
   _focusMode = !_focusMode;
+  _focusPeek = new Set();
   save('wt_focus_mode', _focusMode);
+  renderTasks();
+}
+
+function _focusPeekToggle(key) {
+  if (_focusPeek.has(key)) _focusPeek.delete(key);
+  else _focusPeek.add(key);
   renderTasks();
 }
 
@@ -6787,13 +6816,16 @@ function renderTasks() {
     ? `<span onclick="event.stopPropagation();_focusStartNext()" style="margin-left:auto;font-size:10px;color:var(--accent);cursor:pointer;font-weight:600;letter-spacing:normal;text-transform:none;" title="Start the timer on the most urgent item (overdue first) — no picking required">▶ Start next</span>`
     : '';
 
-  let _focusHidden = 0;
+  // Focus mode parks non-runway sections as one-line stubs instead of hiding
+  // them — the whole map stays on screen (out of the way, never out of sight).
+  const _focusStubs = [];
+  const _inboxHint = `<span style="margin-left:auto;font-size:10px;color:var(--text3);font-weight:400;letter-spacing:normal;text-transform:none;">click a task to add project, date & estimate</span>`;
 
   // ── inbox (quick-captured, awaiting triage) ──
   if (inboxBucket.length) {
-    if (_focusMode) _focusHidden += inboxBucket.length;
-    else renderSection('📥 Inbox — triage when ready', inboxBucket, 'inbox-header', null, null,
-      `<span style="margin-left:auto;font-size:10px;color:var(--text3);font-weight:400;letter-spacing:normal;text-transform:none;">click a task to add project, date & estimate</span>`);
+    if (_focusMode) _focusStubs.push({ key: 'inbox', label: '📥 Inbox', items: inboxBucket,
+      renderFull: () => renderSection('📥 Inbox — triage when ready', inboxBucket, 'inbox-header', null, null, _inboxHint) });
+    else renderSection('📥 Inbox — triage when ready', inboxBucket, 'inbox-header', null, null, _inboxHint);
   }
 
   // ── overdue (above today) ──
@@ -6810,10 +6842,14 @@ function renderTasks() {
     const mo = MONTH_NAMES[dt.getMonth()];
     const isToday = d === todayStr;
     const isPast  = d < todayStr;
-    if (_focusMode && !isToday) { _focusHidden += items.length; return; }
+    const label = isToday ? `Today — ${dayName} ${mo} ${dt.getDate()}` : `${dayName} ${mo} ${dt.getDate()}`;
+    if (_focusMode && !isToday) {
+      if (items.length) _focusStubs.push({ key: d, label: `${dayName} ${mo} ${dt.getDate()}`, items,
+        renderFull: () => renderSection(label, items, '', tsCapacity, [d]) });
+      return;
+    }
     // hide past days with no items; always show today and future days
     if (isPast && !isToday && !items.length) return;
-    const label = isToday ? `Today — ${dayName} ${mo} ${dt.getDate()}` : `${dayName} ${mo} ${dt.getDate()}`;
     renderSection(label, _focusMode ? sortItems(items, 'priority', 'asc') : items, isToday ? 'today-header' : '', tsCapacity, [d], isToday ? _startNextBtn : undefined);
   });
 
@@ -6826,11 +6862,16 @@ function renderTasks() {
   // ── future weeks ──
   Object.keys(futureBuckets).sort().forEach(wk => {
     const items = futureBuckets[wk];
-    if (_focusMode) { _focusHidden += items.length; return; }
     const dt = new Date(wk + 'T00:00:00');
     const wkCapF = workingDays(wk, addDays(wk, 6)) * tsCapacity;
     const wkDates = [];
     for (let i = 0; i < 7; i++) { wkDates.push(addDays(wk, i)); }
+    if (_focusMode) {
+      const wkStubLabel = `Week of ${MONTH_NAMES[dt.getMonth()]} ${dt.getDate()}`;
+      _focusStubs.push({ key: wk, label: wkStubLabel, items,
+        renderFull: () => renderSection(wkStubLabel, items, '', wkCapF, wkDates) });
+      return;
+    }
     const isExpanded = !_collapsedWeeks.has(wk);
     const chevron = `<span class="week-expand-chevron${isExpanded ? ' open' : ''}" onclick="_toggleWeekExpand('${wk}')" title="${isExpanded ? 'Collapse to week' : 'Expand to days'}">›</span>`;
     const wkLabel = `Week of ${MONTH_NAMES[dt.getMonth()]} ${dt.getDate()}`;
@@ -6950,10 +6991,12 @@ function renderTasks() {
   });
 
   // ── unscheduled (no date set) — includes month-holds, which never pin to a day ──
-  if (_focusMode) _focusHidden += unscheduled.length;
-  else renderSection('Unscheduled & holds (no date)', unscheduled, '', null, null, unscheduled.length ? _schedBoardLink : '');
+  if (_focusMode) {
+    if (unscheduled.length) _focusStubs.push({ key: 'unsched', label: 'Unscheduled & holds', items: unscheduled,
+      renderFull: () => renderSection('Unscheduled & holds (no date)', unscheduled, '', null, null, _schedBoardLink) });
+  } else renderSection('Unscheduled & holds (no date)', unscheduled, '', null, null, unscheduled.length ? _schedBoardLink : '');
 
-  // ── focus mode footer: what's parked, and the way out ──
+  // ── focus mode: runway done — now the parked map (visible, dimmed, peekable) ──
   if (_focusMode) {
     if (!hasAny) {
       const clearDiv = document.createElement('div');
@@ -6962,9 +7005,27 @@ function renderTasks() {
       container.appendChild(clearDiv);
       hasAny = true;
     }
+    if (_focusStubs.length) {
+      const parkedHeader = document.createElement('div');
+      parkedHeader.className = 'focus-parked-header';
+      parkedHeader.textContent = 'Parked — still here, just resting';
+      container.appendChild(parkedHeader);
+      _focusStubs.forEach(s => {
+        const isOpen = _focusPeek.has(s.key);
+        const est = s.items.reduce((a, i) => a + _itemEstFor(i), 0);
+        const stub = document.createElement('div');
+        stub.className = 'focus-stub' + (isOpen ? ' open' : '');
+        stub.onclick = () => _focusPeekToggle(s.key);
+        stub.innerHTML = `<span class="focus-stub-label">${s.label}</span>
+          <span class="focus-stub-meta">${s.items.length} item${s.items.length === 1 ? '' : 's'}${est > 0 ? ` · ${fmtQ(est)}h planned` : ''}</span>
+          <span class="focus-stub-peek">${isOpen ? '▴ tuck away' : '▾ peek'}</span>`;
+        container.appendChild(stub);
+        if (isOpen) s.renderFull();
+      });
+    }
     const note = document.createElement('div');
     note.className = 'focus-note';
-    note.innerHTML = `🎯 Focus mode — showing Overdue + Today, urgent first.${_focusHidden ? ` ${_focusHidden} item${_focusHidden === 1 ? '' : 's'} parked out of sight.` : ''} <a onclick="toggleFocusMode()">Show everything</a>`;
+    note.innerHTML = `🎯 Focus mode — full rows for Overdue + Today, urgent first. Everything else is parked above with live counts. <a onclick="toggleFocusMode()">Show everything</a>`;
     container.appendChild(note);
   }
 
