@@ -13,7 +13,11 @@ No build step, no package manager, no dependencies to install. The `package.json
 
 ## Architecture
 
-Single-file app: everything lives in `index.html` (~9800 lines of inline HTML, CSS, and vanilla JS). No frameworks, no build step, no package manager.
+Single-file app: everything lives in `index.html` (~16,600 lines of inline HTML, CSS, and vanilla JS). No frameworks, no build step, no package manager.
+
+> **Architecture map:** `README.md` is the big-picture orientation doc — file
+> regions, tab/function index, invariants, and a task→grep-anchor table. Start
+> there before diving into `index.html`.
 
 > **Team relay & KME flow:** the multi-stage pass-around on Team Deliverables,
 > and how the owner's ("KME"/`'Me'`) legs tie into My Tasks / Capacity /
