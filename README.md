@@ -1,12 +1,12 @@
 # PM Workload Tracker
 
-A personal project-management cockpit for a PM ("KME") coordinating their own billable work, a team's deliverables, timesheets, and forward capacity planning — all in **one HTML file** (`index.html`, ~16,600 lines) with no build step, no framework, no tests, no package manager.
+A personal project-management cockpit for a PM ("KME") coordinating their own billable work, a team's deliverables, timesheets, and forward capacity planning — all in **one HTML file** (`index.html`, ~16,900 lines) with no build step, no framework, no tests, no package manager.
 
 - **Live site:** https://jackalope178.github.io/workload-tracker/ (GitHub Pages, `main` branch)
 - **Cloud sync:** Supabase project `fkgmgpfbfoadgjllttjd` (config baked into the app)
 - **Repo rule:** develop on `main` unless told otherwise; push directly.
 
-**If you change only one habit:** navigate by grepping function names (there are ~500), not by line numbers — they drift. Every subsystem below lists its grep anchors.
+**If you change only one habit:** navigate by grepping function names (there are ~525), not by line numbers — they drift. Every subsystem below lists its grep anchors.
 
 ## The 30-second mental model
 
@@ -21,7 +21,7 @@ render*() functions rebuild DOM per tab   ←  user actions mutate state → sav
 
 There are **no frameworks, no package manager, no build step, no tests**. The `package.json` exists only to satisfy the Claude Code web environment — never add dependencies to it. External code comes from three CDNs: `@supabase/supabase-js@2` (sync), `xlsx@0.18.5` (Excel import of BigTime allocations), and Google Fonts (Inter, Syne).
 
-## File map — where things live in `index.html` (~16,600 lines)
+## File map — where things live in `index.html` (~16,900 lines)
 
 Line numbers drift as the file grows; use them as landmarks and confirm with grep.
 
@@ -32,7 +32,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | HTML body | 2,743–4,081 | Tab bar (`.tabs`, ~line 2,856), six tab panels, all modals (setup, settings, brain-dump, welcome). |
 | Sync + auth | 4,082–~4,600 | `_supabase` client, login, `SYNC_KEYS` list, `cloudSave`/`cloudLoad`/`loadFromSupabase`. |
 | Core helpers | ~5,100 | `uid()`, `load(key, fallback)`, `save(key, data)`. |
-| Tab renderers + logic | ~5,900–16,615 | The bulk of the app; see the tab table below. |
+| Tab renderers + logic | ~5,900–end | The bulk of the app; see the tab table below. |
 
 ## The six tabs
 
@@ -41,9 +41,9 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | **My Tasks** | Personal billable tasks: recurrence, timers, priority, week planner. | `renderTasks()`, `renderWeekPlanner()` |
 | **Projects** | Project codes, metadata, members, per-project item lists. | `renderProjects()`, `renderProjCodeList()`, `renderProjCodeContent()` |
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
-| **Timesheet** | Logged time per project; week view (backward-looking) and month/year view (forward-looking). | `renderTimesheet()`, `renderTsCapacityBar()` |
+| **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). | `renderTimesheet()`, `renderTsCapacityBar()` |
 | **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, move/delegate. | `renderCapacity()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
-| **Allocations** | Budgeted vs actual hours per person/project per month (BigTime import). | `renderAllocations()`, `handleAllocImport()` |
+| **Allocations** | Budgeted vs actual hours per project/sub-code per month (BigTime import). | `renderAllocations()`, `handleAllocImport()` |
 
 Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 
@@ -81,7 +81,7 @@ The single most interconnected subsystem. A Team deliverable can carry a **relay
 
 These look like inconsistencies or bugs but are intentional. Violating them is a regression:
 
-1. **Timesheet week view ≠ month view math.** Week bars = **logged only** vs capacity (backward-looking record). Month/year bars = **logged + planned** vs capacity (forward-looking headroom), with class-based green/yellow/red coloring (`mCls`/`wCls`) that differs from week view's inline color logic. Never unify them.
+1. **Timesheet pay-period view ≠ month view math.** Period bars = **logged only** vs capacity (backward-looking record). Month/year bars = **logged + planned** vs capacity (forward-looking headroom), with class-based green/yellow/red coloring (`mCls`/`wCls`) that differs from period view's inline color logic. Never unify them.
 2. **A KME relay item appears twice by design** — on the team board (using stage `est` via `_relayPersonEst`) and as a My-Tasks mirror (which is what Capacity counts). The two meters are intentionally non-additive; `plannedItems()` excludes `wt_team` items to prevent double-counting.
 3. **Checkbox-completing a relay mirror advances the relay with 0 extra hours** — the completion modal already logged them; the 0 prevents double-billing.
 4. **Relay stages have no label field** and the `ready-review` + `in-review` statuses share one merged board column (`BOARD_COLS` in `renderTeamBoard`) — removed/merged by design.
@@ -119,5 +119,6 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 - **Rebuild-from-state pattern:** after mutating state, call the owning tab's `render*()`; don't patch DOM incrementally.
 - **New persistent state?** Add the key to `SYNC_KEYS` if it should follow the user across devices; use the `load`/`save` wrappers, never raw `localStorage` calls.
 - **Verify by opening `index.html` in a browser** — there is no test suite, linter, or build to run.
+- **Touching any calculation?** Read `docs/math-audit-2026-07.md` first — it records the July 2026 audit's findings, fixes, and the invariants they established.
 - **Touching relay, the My-Tasks mirror, or team-board status?** Read `docs/team-relay-and-kme-flow.md` first and append to its intent log.
 - **`CLAUDE.md`** holds operating instructions for AI agents (branch policy, environment notes); this README is the architectural map. Keep both in sync when structure changes.
