@@ -39,16 +39,11 @@ state (localStorage wt_*)  ⇄  Supabase user_data (per-user KV of JSON blobs)
 render*() rebuilds DOM per tab  ←  user actions mutate state → save() → re-render
 ```
 
-<<<<<<< Updated upstream
-External code comes from three CDNs: `@supabase/supabase-js@2` (sync),
+External code comes from three CDNs: `@supabase/supabase-js@2.110.0` (sync),
 `xlsx@0.18.5` (BigTime Excel import, with a fallback CDN retry), and Google
-Fonts (Inter, Syne).
-=======
-### External CDN dependencies
-- `@supabase/supabase-js@2.110.0` — cloud sync — **pinned + SRI** (see Security invariants)
-- `xlsx@0.18.5` — Excel import — **pinned + SRI**
-- Google Fonts (Inter, Syne)
->>>>>>> Stashed changes
+Fonts (Inter, Syne). The two `<script>` tags are **version-pinned with
+Subresource Integrity** (`integrity="sha384-…"`) — see Security invariants
+before bumping either version.
 
 ## File map — where things live in `index.html` (~16,700 lines)
 
@@ -103,7 +98,6 @@ states, …). Anything that must survive across devices belongs in `SYNC_KEYS`.
 - **The `'Me'` sentinel:** the app owner is stored as `'Me'` everywhere, displayed as **"KME"** on the Team tab
 - **Render pattern:** after mutating state, call the owning tab's `render*()`; don't patch DOM incrementally
 
-<<<<<<< Updated upstream
 ## The relay / KME flow — read before touching Team, My Tasks mirroring, or billing
 
 The single most interconnected subsystem. A Team deliverable can carry a
@@ -219,7 +213,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
   `docs/team-relay-and-kme-flow.md` first and append to its intent log.
 - **Touching any calculation?** Read `docs/math-audit-2026-07.md` first and
   preserve the invariants above.
-=======
+
 ## Security invariants — DO NOT regress these
 
 These were hardened in a security audit (see `docs/security-audit-2026-07.md`).
@@ -254,13 +248,3 @@ A change that "cleans up" or "simplifies" any of them reintroduces a real bug.
 5. **RLS is the security boundary.** Data is per-user (`auth.uid() = user_id`);
    the baked-in anon key is public and safe *only* because RLS is enforced.
    Don't add tables/queries that bypass it.
-
-## Conventions
-- **IDs**: `uid()` = `'_' + Math.random().toString(36).slice(2, 11)`
-- **Statuses**: `need-delegate`, `in-progress`, `ready-review`, `in-review`, `blocked`, `complete`
-- **Priorities**: `urgent`, `high`, `med`, `low`
-- **Billing codes**: format like `T-21-010`, `W-24-022`
-- **Themes**: dark/light via `data-theme` attribute, CSS variables in `:root`
-- **Render pattern**: `render*()` functions rebuild UI from state
-- **Internal composite objects**: `_type` prefix (`task`, `session`, `team`) with `_date`, `_src`, `_delegated` fields
->>>>>>> Stashed changes
