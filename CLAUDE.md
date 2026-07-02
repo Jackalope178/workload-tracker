@@ -167,11 +167,10 @@ preserve:
    planned, AND capacity. Boundary weeks intentionally pull from the adjacent
    month and appear under both months — week bars don't sum to the month bar.
 
-Known-open minor items (deliberate — see the audit's Minor section): rounded
-percent color thresholds hide sub-0.5% overruns; `fmtQ` snaps legacy
-non-quarter values for display only (sums use raw values); an import merging
-a negative rollover can store a ≤0 allocation; `capMoveItem` targets the 15th
-even when it falls on a weekend.
+Known-open minor item (deliberate — see the audit's Minor section): `fmtQ`
+snaps legacy non-quarter values for display only (sums use raw values). The
+audit's other minor items (rounded color thresholds, negative import
+allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 
 ## Sync architecture
 
@@ -195,6 +194,7 @@ even when it falls on a weekend.
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls`, `payPeriodOf` |
 | Capacity planner / drill-down / scheduler | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold`, `_capAssignOne` |
 | Allocations / Excel import / rollovers | `renderAllocations`, `handleAllocImport`, `allocKey`, `_rollRemainingForward` |
+| Reconcile view (plan vs budget, one month) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
 | Tabs / navigation | `_switchTab`, `data-tab` |
@@ -203,6 +203,8 @@ even when it falls on a weekend.
 ## Working on this codebase
 
 - **Single-file discipline:** all HTML/CSS/JS changes go in `index.html`. Docs go in `docs/`.
+- **`README.md` is the human-facing mirror of this file** (for GitHub
+  visitors). When structure changes here, keep it in sync.
 - **New persistent state?** Add the key to `SYNC_KEYS` if it should follow the
   user across devices; use the `load`/`save` wrappers, never raw `localStorage`.
 - **Touching relay, the My-Tasks mirror, or team-board status?** Read

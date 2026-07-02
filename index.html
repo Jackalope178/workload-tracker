@@ -25,6 +25,10 @@
 
     --cwc: #22c55e;
 
+    /* Reconcile view fills — two steps of one blue ramp (logged solid, planned lighter) */
+    --alloc-logged: #3b82f6;
+    --alloc-planned: #7ab8ff;
+
     --check-fg: #0d0f14;
 
     --header-h: 52px;
@@ -47,6 +51,7 @@
     --success: #16a34a;
     --warn: #d97706;
     --danger: #dc2626;
+    --alloc-planned: #6faeff;
     --check-fg: #ffffff;
   }
 
@@ -2295,6 +2300,74 @@
   .alloc-cell-summary .acs-dot.yellow { background: var(--warn); }
   .alloc-cell-summary .acs-dot.red { background: var(--danger); }
   .alloc-cell-summary .acs-dot.blue { background: var(--accent); }
+
+  /* ── Reconcile view (plan vs budget, one month) ── */
+  .alloc-recon-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 4px 10px;
+  }
+  .alloc-recon-monthlbl {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    min-width: 120px; text-align: center;
+  }
+  .alloc-recon-legend {
+    display: flex; align-items: center; gap: 14px; margin-left: auto;
+    font-size: 10px; color: var(--text2); flex-wrap: wrap;
+  }
+  .alloc-recon-legend .swatch {
+    display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+    margin-right: 4px; vertical-align: -1px;
+  }
+  .alloc-recon-legend .tickglyph {
+    display: inline-block; width: 2px; height: 12px; background: var(--text2);
+    margin-right: 5px; vertical-align: -2px;
+  }
+  .alloc-recon-summary {
+    font-size: 11px; color: var(--text2); padding: 0 4px 10px;
+  }
+  .alloc-recon-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 230px) 1fr minmax(190px, auto) 118px;
+    gap: 12px; align-items: center;
+    padding: 9px 8px; border-radius: 6px; cursor: pointer;
+    border-bottom: 1px solid var(--border);
+  }
+  .alloc-recon-row:hover { background: var(--bg3); }
+  .alloc-recon-row.quiet { opacity: 0.62; }
+  .alloc-recon-name {
+    font-size: 12px; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .alloc-recon-name .code { font-weight: 400; color: var(--text3); font-size: 10px; }
+  .alloc-recon-barouter { position: relative; padding: 5px 0; }
+  .alloc-recon-track {
+    display: flex; height: 14px; border-radius: 4px;
+    background: var(--bg3); overflow: hidden;
+  }
+  .alloc-recon-track > div { flex: none; }
+  .alloc-recon-seg-logged { background: var(--alloc-logged); }
+  .alloc-recon-seg-planned { background: var(--alloc-planned); }
+  .alloc-recon-track > div.last { border-radius: 0 4px 4px 0; }
+  .alloc-recon-tick {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: var(--text2); border-radius: 1px; z-index: 1;
+  }
+  .alloc-recon-nums {
+    font-size: 11px; color: var(--text2); white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .alloc-recon-nums .muted { color: var(--text3); }
+  .alloc-recon-chip {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+    white-space: nowrap; text-align: center; justify-self: start;
+    background: var(--bg3); color: var(--text3); border: 1px solid var(--border);
+  }
+  .alloc-recon-chip.over { color: var(--danger); border-color: var(--danger); background: transparent; }
+  .alloc-recon-chip.warnchip { color: var(--warn); border-color: var(--warn); background: transparent; }
+  .alloc-recon-chip.okchip { color: var(--success); border-color: transparent; background: transparent; }
+  .alloc-recon-groupfoot {
+    font-size: 10px; color: var(--text3); padding: 10px 8px; font-style: italic;
+  }
   .alloc-drill-section {
     font-size: 10px;
     font-weight: 700;
@@ -3106,6 +3179,7 @@ if (typeof XLSX === 'undefined') {
       <select class="filter-select" id="allocViewMode" onchange="renderAllocations()">
         <option value="detail">Detail View</option>
         <option value="summary">Summary Only</option>
+        <option value="reconcile">Reconcile ⚖</option>
       </select>
       <button class="btn" id="allocPastToggle" onclick="_toggleAllocPastMonths()" style="font-size:10px;padding:3px 8px;" title="Show or hide past months">Hide past</button>
       <button class="btn" id="allocArchivedToggle" onclick="_toggleAllocShowArchived()" style="font-size:10px;padding:3px 8px;" title="Show or hide archived (closed-out) projects">Show archived</button>
@@ -3116,7 +3190,7 @@ if (typeof XLSX === 'undefined') {
       <button class="btn" onclick="openManageProjectsModal()" style="font-size:10px;padding:3px 8px;">Manage Sub-Codes</button>
     </div>
     <div id="allocImportStatus" style="display:none;padding:6px 10px;margin-bottom:6px;border-radius:6px;font-size:11px;"></div>
-    <div class="alloc-legend">
+    <div class="alloc-legend" id="allocLegend">
       <span><span class="alloc-legend-dot" style="background:var(--accent);"></span> Planned work</span>
       <span><span class="alloc-legend-dot" style="background:var(--success);"></span> Logged (&lt;80%)</span>
       <span><span class="alloc-legend-dot" style="background:var(--warn);"></span> Nearing limit (80–99%)</span>
@@ -5052,6 +5126,7 @@ function saveAllocations() { save('wt_allocations', allocations); }
 })();
 
 let allocYear = new Date().getFullYear();
+let _allocReconM = null; // 1-based month shown in the Allocations Reconcile view
 
 // Sub-code helpers
 function getSubCodes(projKey) {
@@ -12270,8 +12345,10 @@ function capMoveItem(type, ...ids) {
     const t = tasks.find(t => t.id === ids[0]);
     if (!t) return;
     // If task has a due date, shift it to the 15th of the new month
+    // (weekday-adjusted — a Sat/Sun 15th would show weekend load the
+    // packer would never create)
     if (t.due) {
-      t.due = newMonth + '-15';
+      t.due = adjustToWeekday(newMonth + '-15');
     }
     // Placement everywhere is workDate || due — a stale work date would keep
     // the hours planned in the old month despite the move.
@@ -12283,7 +12360,7 @@ function capMoveItem(type, ...ids) {
     if (!proj) return;
     const s = proj.sessions.find(s => s.id === ids[1]);
     if (!s) return;
-    if (s.date) s.date = newMonth + '-15';
+    if (s.date) s.date = adjustToWeekday(newMonth + '-15');
     s.workDate = null;
     s.allocMonth = newMonth;
     save('wt_bigprojs', bigProjs);
@@ -12294,7 +12371,7 @@ function capMoveItem(type, ...ids) {
     if (!s) return;
     const st = (s.subtasks || []).find(st => st.id === ids[2]);
     if (!st) return;
-    if (st.date) st.date = newMonth + '-15';
+    if (st.date) st.date = adjustToWeekday(newMonth + '-15');
     st.workDate = null;
     st.allocMonth = newMonth;
     save('wt_bigprojs', bigProjs);
@@ -13996,7 +14073,12 @@ function _commitAllocImportPlan() {
       // baseline, and the rolled-forward hours are the user's manual decision
       // layered on top. The drill popup already shows them as separate lines.
       if (c.val > 0) {
-        allocations[key] = c.val + rollover;
+        // A carried overspend (negative rollover) can exceed the new BigTime
+        // value — delete rather than store a ≤0 allocation, which every
+        // `allocated > 0` check would misread as "no allocation set".
+        const merged = c.val + rollover;
+        if (merged > 0) allocations[key] = merged;
+        else delete allocations[key];
         hasData = true;
       } else if (rollover > 0) {
         // BigTime row is missing or 0 but a rollover landed here — keep the rollover
@@ -14180,8 +14262,8 @@ function allocSummaryCell(allocated, planned, actual, onclick, extraCls) {
   // Status dot
   let dotClr = '';
   if (actual > 0 && allocated > 0) {
-    const pct = Math.round((actual / allocated) * 100);
-    dotClr = pct > 100 ? 'red' : pct >= 100 ? 'green' : pct >= 80 ? 'yellow' : 'green';
+    const ratio = (actual / allocated) * 100; // raw — rounding would hide sub-0.5% overruns
+    dotClr = ratio > 100 ? 'red' : ratio >= 100 ? 'green' : ratio >= 80 ? 'yellow' : 'green';
   } else if (planned > 0 && allocated === 0) {
     dotClr = 'blue';
   }
@@ -14230,8 +14312,11 @@ function allocDualBars(allocated, planned, actual) {
     html += `<div class="alloc-planned-label${overPlan ? ' over' : ''}">${fmtQ(planned)}h planned${overPlan ? ' (+' + fmtQ(planned - allocated) + 'h over)' : ''}</div>`;
   }
   if (actual > 0 || allocated > 0) {
-    const aPct = allocated > 0 ? Math.round((actual / allocated) * 100) : (actual > 0 ? 100 : 0);
-    const clr = allocated > 0 ? barColor(aPct) : '';
+    // Color from the RAW ratio — rounding first would show green "100%" for
+    // anything up to 100.49% and hide small overruns. Display stays rounded.
+    const aRaw = allocated > 0 ? (actual / allocated) * 100 : (actual > 0 ? 100 : 0);
+    const aPct = Math.round(aRaw);
+    const clr = allocated > 0 ? barColor(aRaw) : '';
     html += `<div class="alloc-actual">${fmtQ(actual)}h logged</div>`;
     if (allocated > 0) {
       html += `<div class="alloc-bar-wrap"><div class="alloc-bar ${clr}" style="width:${Math.min(aPct, 100)}%"></div></div>`;
@@ -14239,6 +14324,138 @@ function allocDualBars(allocated, planned, actual) {
     }
   }
   return html;
+}
+
+// ── Reconcile View (plan vs budget, one month at a time) ──
+
+// Whole-project month totals. Budget sums EVERY allocation key under the
+// project (current sub-codes, orphaned ones, and the project-level '' bucket),
+// so it can't under-count the way a subCodes-only walk would; actuals/planned
+// use the project-level getters, which already span all sub-codes.
+function _allocProjMonthTotals(projKey, proj, ym) {
+  let alloc = 0;
+  const pref = projKey + '|', suf = '|' + ym;
+  Object.keys(allocations).forEach(k => {
+    if (k.startsWith(pref) && k.endsWith(suf)) alloc += allocations[k] || 0;
+  });
+  return {
+    alloc,
+    actual: allocGetAllProjectActuals(projKey, ym),
+    planned: allocGetAllProjectPlanned(projKey, ym)
+  };
+}
+
+function _allocReconShift(d) {
+  if (_allocReconM == null) _allocReconM = new Date().getMonth() + 1;
+  _allocReconM += d;
+  if (_allocReconM < 1) { _allocReconM = 12; allocYear--; }
+  if (_allocReconM > 12) { _allocReconM = 1; allocYear++; }
+  renderAllocations();
+}
+
+function _allocReconToday() {
+  allocYear = new Date().getFullYear();
+  _allocReconM = new Date().getMonth() + 1;
+  renderAllocations();
+}
+
+function _renderAllocReconcile(grid, projEntries) {
+  const curY = new Date().getFullYear();
+  const curM = new Date().getMonth() + 1;
+  if (_allocReconM == null) _allocReconM = allocYear === curY ? curM : 1;
+  const ym = `${allocYear}-${String(_allocReconM).padStart(2, '0')}`;
+
+  // One row per project with any budget or committed work this month.
+  // Groups (sorted worst-first): 0 over-committed · 1 no budget set ·
+  // 2 budgeted but nothing scheduled · 3 headroom left · 4 matched.
+  const rows = [];
+  let hiddenCount = 0, totAlloc = 0, totCommitted = 0, attention = 0;
+  projEntries.forEach(([projKey, proj]) => {
+    const t = _allocProjMonthTotals(projKey, proj, ym);
+    const committed = t.actual + t.planned;
+    if (t.alloc === 0 && committed === 0) { hiddenCount++; return; }
+    totAlloc += t.alloc;
+    totCommitted += committed;
+    const gap = t.alloc - committed;
+    let group, mag, chip, chipCls, quiet = false;
+    if (t.alloc > 0 && gap < -0.5) {
+      group = 0; mag = -gap; chipCls = 'over'; chip = `▲ +${fmtQ(-gap)}h over`;
+    } else if (t.alloc === 0) {
+      group = 1; mag = committed; chipCls = 'warnchip'; chip = '⚠ no budget set';
+    } else if (committed === 0) {
+      group = 2; mag = t.alloc; chipCls = 'warnchip'; chip = '◌ nothing scheduled';
+    } else if (gap > 0.5) {
+      group = 3; mag = gap; chipCls = ''; chip = `${fmtQ(gap)}h free`; quiet = true;
+    } else {
+      group = 4; mag = 0; chipCls = 'okchip'; chip = '✓ matched'; quiet = true;
+    }
+    if (group <= 2) attention++;
+    rows.push({ projKey, proj, t, committed, group, mag, chip, chipCls, quiet });
+  });
+  rows.sort((a, b) => a.group - b.group || b.mag - a.mag);
+
+  let html = `<div class="alloc-recon-head">
+    <button class="btn" onclick="_allocReconShift(-1)" title="Previous month">‹</button>
+    <span class="alloc-recon-monthlbl">${MONTH_NAMES[_allocReconM - 1]} ${allocYear}</span>
+    <button class="btn" onclick="_allocReconShift(1)" title="Next month">›</button>
+    <button class="btn" onclick="_allocReconToday()" style="font-size:10px;padding:3px 8px;">This month</button>
+    <div class="alloc-recon-legend">
+      <span><span class="swatch" style="background:var(--alloc-logged);"></span>Logged</span>
+      <span><span class="swatch" style="background:var(--alloc-planned);"></span>Planned</span>
+      <span><span class="tickglyph"></span>Budget</span>
+    </div>
+  </div>`;
+
+  if (rows.length === 0) {
+    html += `<div style="padding:40px;text-align:center;color:var(--text3);font-size:13px;">
+      Nothing budgeted or scheduled in ${MONTH_NAMES[_allocReconM - 1]} ${allocYear}.</div>`;
+    grid.innerHTML = html;
+    return;
+  }
+
+  html += `<div class="alloc-recon-summary">
+    <strong>${fmtQ(totCommitted)}h</strong> committed (logged + planned) of <strong>${totAlloc}h</strong> budgeted
+    · ${attention > 0
+      ? `<span style="color:var(--warn);font-weight:600;">${attention} project${attention === 1 ? '' : 's'} need${attention === 1 ? 's' : ''} attention</span>`
+      : `<span style="color:var(--success);font-weight:600;">everything lines up ✓</span>`}
+  </div>`;
+
+  rows.forEach(r => {
+    const { t, committed } = r;
+    const scale = Math.max(t.alloc, committed, 1);
+    const tickPct = t.alloc > 0 ? Math.min((t.alloc / scale) * 100, 100) : null;
+    const codeStr = r.proj.billingCode ? ` <span class="code">${r.proj.billingCode}</span>` : '';
+    const tip = `${r.proj.label} — ${MONTH_NAMES[_allocReconM - 1]}: ` +
+      `${fmtQ(t.actual)}h logged, ${fmtQ(t.planned)}h planned, ${t.alloc}h budgeted. Click for task breakdown.`;
+    // Exact calc widths keep the committed edge honest against the budget
+    // tick; the 2px surface gap between segments comes out of planned's width.
+    const pctL = (t.actual / scale) * 100;
+    const pctP = (t.planned / scale) * 100;
+    let segs = '';
+    if (t.actual > 0) {
+      segs += `<div class="alloc-recon-seg-logged${t.planned > 0 ? '' : ' last'}" style="width:${pctL}%;"></div>`;
+    }
+    if (t.planned > 0) {
+      const w = t.actual > 0 ? `calc(${pctP}% - 2px);margin-left:2px` : `${pctP}%`;
+      segs += `<div class="alloc-recon-seg-planned last" style="width:${w};"></div>`;
+    }
+    html += `<div class="alloc-recon-row${r.quiet ? ' quiet' : ''}" onclick="openAllocDrill('${r.projKey}','','${ym}')" title="${tip}">
+      <div class="alloc-recon-name"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${r.proj.color};margin-right:6px;"></span>${r.proj.label}${codeStr}</div>
+      <div class="alloc-recon-barouter">
+        <div class="alloc-recon-track">${segs}</div>
+        ${tickPct !== null ? `<div class="alloc-recon-tick" style="left:calc(${tickPct}% - 1px);"></div>` : ''}
+      </div>
+      <div class="alloc-recon-nums">${fmtQ(t.actual)}h logged <span class="muted">+</span> ${fmtQ(t.planned)}h planned <span class="muted">/ ${t.alloc > 0 ? t.alloc + 'h budget' : 'no budget'}</span></div>
+      <span class="alloc-recon-chip ${r.chipCls}">${r.chip}</span>
+    </div>`;
+  });
+
+  html += `<div class="alloc-recon-groupfoot">
+    Bar = this month's committed hours; the tick is the budget line. Sorted worst-first — anything past its tick or missing a budget floats to the top.
+    ${hiddenCount > 0 ? ` · ${hiddenCount} project${hiddenCount === 1 ? '' : 's'} with no activity hidden.` : ''}
+  </div>`;
+
+  grid.innerHTML = html;
 }
 
 // ── Allocation Drill-Down Popup ──
@@ -14473,6 +14690,12 @@ function renderAllocations() {
   if (yearLabel) yearLabel.textContent = allocYear;
 
   const viewMode = document.getElementById('allocViewMode')?.value || 'detail';
+  // The static legend and past-months toggle describe the grid views;
+  // Reconcile brings its own legend and month picker.
+  const legendEl = document.getElementById('allocLegend');
+  if (legendEl) legendEl.style.display = viewMode === 'reconcile' ? 'none' : '';
+  const pastBtn = document.getElementById('allocPastToggle');
+  if (pastBtn) pastBtn.style.display = viewMode === 'reconcile' ? 'none' : '';
   const months = [];
   for (let m = 1; m <= 12; m++) {
     months.push({
@@ -14503,6 +14726,11 @@ function renderAllocations() {
 
   if (projEntries.length === 0) {
     grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3);font-size:13px;">No sub-codes configured yet. Go to <strong>Manage Sub-Codes</strong> to add sub-codes under your project billing codes, then set monthly hour allocations here.</div>';
+    return;
+  }
+
+  if (viewMode === 'reconcile') {
+    _renderAllocReconcile(grid, projEntries);
     return;
   }
 
@@ -14608,7 +14836,7 @@ function renderAllocations() {
     grandAllocYTD += projAllocYTD;
     grandActualYTD += projActualYTD;
     const ytdPct = projAllocYTD > 0 ? Math.round((projActualYTD / projAllocYTD) * 100) : 0;
-    const ytdClr = projAllocYTD > 0 ? barColor(ytdPct) : '';
+    const ytdClr = projAllocYTD > 0 ? barColor((projActualYTD / projAllocYTD) * 100) : '';
     html += `<td class="alloc-cell alloc-ytd-col">`;
     html += `<div style="font-weight:600;">${projAllocYTD > 0 ? projAllocYTD + 'h' : '—'}</div>`;
     if (projActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(projActualYTD)}h</div>`;
@@ -14655,7 +14883,7 @@ function renderAllocations() {
         });
         // YTD
         const scYtdPct = scAllocYTD > 0 ? Math.round((scActualYTD / scAllocYTD) * 100) : 0;
-        const scYtdClr = scAllocYTD > 0 ? barColor(scYtdPct) : '';
+        const scYtdClr = scAllocYTD > 0 ? barColor((scActualYTD / scAllocYTD) * 100) : '';
         html += `<td class="alloc-cell alloc-ytd-col">`;
         html += `<div style="font-size:11px;">${scAllocYTD > 0 ? scAllocYTD + 'h' : '—'}</div>`;
         if (scActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(scActualYTD)}h</div>`;
@@ -14706,7 +14934,7 @@ function renderAllocations() {
   });
   // Grand YTD
   const gPct = grandAllocYTD > 0 ? Math.round((grandActualYTD / grandAllocYTD) * 100) : 0;
-  const gClr = grandAllocYTD > 0 ? barColor(gPct) : '';
+  const gClr = grandAllocYTD > 0 ? barColor((grandActualYTD / grandAllocYTD) * 100) : '';
   html += `<td class="alloc-cell alloc-ytd-col"><div>${grandAllocYTD > 0 ? grandAllocYTD + 'h' : '—'}</div>`;
   if (grandActualYTD > 0) html += `<div class="alloc-actual">${fmtQ(grandActualYTD)}h</div>`;
   if (grandAllocYTD > 0) html += `<div class="alloc-pct ${gClr}">${gPct}%</div>`;

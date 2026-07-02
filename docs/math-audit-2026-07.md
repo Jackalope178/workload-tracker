@@ -218,7 +218,8 @@ Expansion loops keep the raw function since they filter skips themselves.
 - **`barColor` / `allocSummaryCell` dots** (`:14052`, `:14070`): `Math.round`
   before comparing to 100 means up to ~100.49% displays as green "100%";
   exactly-100% green is presumably intentional ("on target"), but the rounding
-  hides small overruns.
+  hides small overruns. **Status: FIXED** — colors now compare the raw ratio;
+  the displayed percent stays rounded.
 - **`fmtQ` masks non-quarter legacy values** (`:5448`): display snaps to 0.25
   while sums use raw values, so a column of rows can visibly disagree with its
   total by up to 0.125h per row. New entries are guarded by `enforceQuarter`,
@@ -226,8 +227,12 @@ Expansion loops keep the raw function since they filter skips themselves.
 - **`_commitAllocImportPlan`** (`:13884`): `c.val + rollover` with a negative
   (overspend) rollover can store a ≤ 0 allocation, which every `allocated > 0`
   check then treats as "no allocation" while the cell still holds a value.
+  **Status: FIXED** — a merged value ≤ 0 deletes the cell (matching `allocSet`);
+  the overspend record stays visible via `_allocRollovers` in the drill popup.
 - **`capMoveItem` due = `YYYY-MM-15`** may be a weekend; the capacity views
   then show weekend load that the packer would never have created.
+  **Status: FIXED** — the 15th is run through `adjustToWeekday` (Sat → 14th,
+  Sun → 13th; always stays mid-month).
 
 ---
 
