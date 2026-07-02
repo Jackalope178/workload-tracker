@@ -347,6 +347,15 @@
   .focus-stub .focus-stub-label { font-weight: 600; color: var(--text2); }
   .focus-stub .focus-stub-meta { color: var(--text3); }
   .focus-stub .focus-stub-peek { margin-left: auto; color: var(--accent); font-weight: 600; font-size: 10px; }
+
+  /* ── Person pill color picker (Manage Persons) ── */
+  .person-color-swatch {
+    width: 26px; height: 22px; padding: 0;
+    border: 1px solid var(--border); border-radius: 5px;
+    background: none; cursor: pointer; flex-shrink: 0;
+  }
+  .person-color-swatch::-webkit-color-swatch-wrapper { padding: 2px; }
+  .person-color-swatch::-webkit-color-swatch { border: none; border-radius: 3px; }
   .week-expand-chevron {
     cursor: pointer;
     font-size: 12px;
@@ -3032,7 +3041,6 @@ if (typeof XLSX === 'undefined') {
   <div class="header-meta" id="headerMeta"></div>
   <div class="header-actions" style="display:flex;gap:6px;margin-left:12px;">
     <button class="btn header-btn" onclick="openManageProjectsModal()" style="font-size:10px;padding:4px 10px;" title="Add / edit project codes">⬡ Projects</button>
-    <button class="btn header-btn" id="themeToggleBtn" onclick="toggleTheme()" style="font-size:10px;padding:4px 10px;" title="Toggle light/dark mode">☀ Light</button>
     <button class="btn header-btn" onclick="openSettingsModal()" style="font-size:10px;padding:4px 10px;" title="API Settings">⚙ Settings</button>
     <button class="btn header-btn" id="syncStatusBtn" onclick="syncToCloud()" style="font-size:10px;padding:4px 10px;display:none;" title="Click to sync">☁</button>
     <span id="authUserDisplay" style="font-size:10px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
@@ -4047,7 +4055,7 @@ if (typeof XLSX === 'undefined') {
 <div class="modal-overlay" id="managePersonsModal">
   <div class="modal modal-wide">
     <div class="modal-title">Manage Persons</div>
-    <div class="modal-subtitle">Add or remove people available for assignment across all projects.</div>
+    <div class="modal-subtitle">Add or remove people available for assignment, and pick each person's pill color (the ↺ button returns to the automatic color).</div>
     <div id="personMetaList" style="max-height:380px;overflow-y:auto;margin-bottom:14px;"></div>
     <div style="display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
       <input class="edit-input" id="newPersonName" placeholder="New person name" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();addNewPerson();}">
@@ -4688,7 +4696,7 @@ const SYNC_KEYS = [
   'wt_dup_decisions', 'wt_stale_subcodes',
   'wt_onboarded', 'wt_xlsx_alloc_imported',
   'wt_alloc_rollovers', 'wt_collapsed_task_sections',
-  'wt_alloc_aliases'
+  'wt_alloc_aliases', 'wt_person_colors'
 ];
 
 async function cloudSave(key, data) {
@@ -4809,7 +4817,7 @@ let _appInitialized = false;
 
 async function boot() {
   try {
-  applyTheme(getThemePreBoot());
+  applyTheme();
 
   // Enter-key support for auth forms
   ['authEmail', 'authPassword'].forEach(id => {
@@ -4873,10 +4881,6 @@ async function boot() {
     document.getElementById('authScreen').style.display = 'none';
     initApp();
   }
-}
-
-function getThemePreBoot() {
-  try { return localStorage.getItem('wt_theme') || 'dark'; } catch(e) { return 'dark'; }
 }
 
 // =============================================
@@ -5361,6 +5365,12 @@ function removeProjTag(projKey, tag) {
 
 let PERSONS = load('wt_persons', []);
 function savePersons() { save('wt_persons', PERSONS); }
+
+// Custom pill colors per person, keyed by name ('Me' = KME). A stored hex is
+// reduced to hue+saturation and fed through the same lightness formula as the
+// auto colors, so text/border contrast stays legible whatever the user picks.
+let PERSON_COLORS = load('wt_person_colors', {});
+function savePersonColors() { save('wt_person_colors', PERSON_COLORS); }
 
 function getPersonsForProject(projId) {
   const proj = bigProjs ? bigProjs.find(p => p.id === projId) : null;
@@ -5980,19 +5990,52 @@ function normDelegated(val) {
 // Deterministic per-person color from name hash
 let _isLightTheme = false;
 function _updateThemeFlag() { _isLightTheme = document.documentElement.getAttribute('data-theme') === 'light'; }
-function personColor(name) {
-  const isLight = _isLightTheme;
-  if (name === 'Me') return isLight
-    ? { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' }
-    : { bg: '#1e2d3d', text: '#60a5fa', border: '#2563eb' };
+function _hexToHsl(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l: Math.round(l * 100) };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0));
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return { h: Math.round(h * 60), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+function _hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const to = x => Math.round(x * 255).toString(16).padStart(2, '0');
+  return '#' + to(f(0)) + to(f(8)) + to(f(4));
+}
+
+// The hue+sat a person's pills are drawn from: custom override first, else the
+// name-hash default ('Me' keeps its fixed blue).
+function _personHueSat(name) {
+  const hsl = _hexToHsl(PERSON_COLORS[name]);
+  if (hsl) return { hue: hsl.h, sat: Math.min(Math.max(hsl.s, 25), 90) };
+  if (name === 'Me') return { hue: 217, sat: 76 };
   let h = 0;
   for (let i = 0; i < name.length; i++) h = ((h << 5) - h) + name.charCodeAt(i);
   h = Math.abs(h);
-  const hue = h % 360;
-  const sat = 50 + (h % 25);
+  return { hue: h % 360, sat: 50 + (h % 25) };
+}
+
+function personColor(name) {
+  const isLight = _isLightTheme;
+  if (name === 'Me' && !PERSON_COLORS['Me']) return isLight
+    ? { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' }
+    : { bg: '#1e2d3d', text: '#60a5fa', border: '#2563eb' };
+  const { hue, sat } = _personHueSat(name);
   return isLight
-    ? { bg: `hsl(${hue},${sat}%,92%)`, text: `hsl(${hue},${sat+10}%,30%)`, border: `hsl(${hue},${sat}%,78%)` }
-    : { bg: `hsl(${hue},${sat}%,17%)`, text: `hsl(${hue},${sat+10}%,72%)`, border: `hsl(${hue},${sat}%,33%)` };
+    ? { bg: `hsl(${hue},${sat}%,92%)`, text: `hsl(${hue},${Math.min(sat+10,95)}%,30%)`, border: `hsl(${hue},${sat}%,78%)` }
+    : { bg: `hsl(${hue},${sat}%,17%)`, text: `hsl(${hue},${Math.min(sat+10,95)}%,72%)`, border: `hsl(${hue},${sat}%,33%)` };
 }
 
 function delegateTagsHtml(val) {
@@ -15792,6 +15835,7 @@ function reloadStateFromLocalStorage() {
   reconcileProjOrder(true);
   allocations = load('wt_allocations', {});
   PERSONS = load('wt_persons', []);
+  PERSON_COLORS = load('wt_person_colors', {});
   tasks = load('wt_tasks', null) || SEED_TASKS;
   bigProjs = load('wt_bigprojs', null) || SEED_PROJECTS;
   collapsedProjs = new Set(load('wt_collapsed_projs', []));
@@ -15831,7 +15875,7 @@ function initApp() {
     updateHeaderMeta();
     _ensureTickerRunning();
     updateActiveStrip();
-    applyTheme(getTheme());
+    applyTheme();
 
     // Restore last active tab on refresh
     const savedTab = localStorage.getItem('wt_active_tab');
@@ -15856,7 +15900,7 @@ function initApp() {
 // (otherwise boot() → showApp() → initApp() handles it, avoiding double-render)
 (function() {
   const hasSB = getSupabaseConfig() && typeof supabase !== 'undefined';
-  applyTheme(getTheme());
+  applyTheme();
   if (!hasSB) {
     populateProjectSelects();
     _restoreFilters();
@@ -16901,17 +16945,71 @@ function closeManagePersonsModal() {
   document.getElementById('managePersonsModal').classList.remove('open');
 }
 
+// Representative hex for a person's color input (mid-lightness of their hue)
+function _personSwatchHex(name) {
+  if (PERSON_COLORS[name]) return PERSON_COLORS[name];
+  const { hue, sat } = _personHueSat(name);
+  return _hslToHex(hue, sat, 55);
+}
+
+function _personColorCell(name, idx) {
+  const isMe = name === 'Me';
+  const set = isMe ? `setPersonColor('Me', this.value)` : `setPersonColorByIdx(${idx}, this.value)`;
+  const reset = isMe ? `resetPersonColor('Me')` : `resetPersonColorByIdx(${idx})`;
+  const pc = personColor(name);
+  return `
+    <input type="color" class="person-color-swatch" value="${_personSwatchHex(name)}" onchange="${set}" title="Pill color">
+    <span class="delegate-tag" style="background:${pc.bg};color:${pc.text};border-color:${pc.border};">${isMe ? 'KME' : escHtml(name)}</span>
+    ${PERSON_COLORS[name] ? `<button class="row-edit-btn" onclick="${reset}" title="Reset to auto color">↺</button>` : ''}`;
+}
+
 function renderPersonMetaList() {
   const container = document.getElementById('personMetaList');
   if (!container) return;
-  container.innerHTML = PERSONS.length ? PERSONS.map((name, idx) => `
+  const meRow = `
+    <div class="proj-meta-row">
+      <span class="proj-meta-input" style="border:none;background:transparent;">KME (you)</span>
+      ${_personColorCell('Me')}
+      <span style="width:26px;"></span>
+    </div>`;
+  container.innerHTML = meRow + (PERSONS.length ? PERSONS.map((name, idx) => `
     <div class="proj-meta-row" id="pmr-person-${idx}">
       <input class="proj-meta-input" type="text" value="${name.replace(/"/g,'&quot;')}"
              onblur="updatePersonName(${idx}, this.value)"
              onkeydown="if(event.key==='Enter') this.blur()">
+      ${_personColorCell(name, idx)}
       <button class="row-edit-btn" onclick="deletePerson(${idx})" style="color:var(--danger);" title="Remove person">✕</button>
     </div>
-  `).join('') : '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No persons yet. Add one below.</div>';
+  `).join('') : '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No persons yet. Add one below.</div>');
+}
+
+// Re-render every surface that draws person pills
+function _refreshPersonColorSurfaces() {
+  renderPersonMetaList();
+  renderTasks();
+  renderTeam();
+  renderProjects();
+}
+
+function setPersonColor(name, hex) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return;
+  PERSON_COLORS[name] = hex.toLowerCase();
+  savePersonColors();
+  _refreshPersonColorSurfaces();
+}
+
+function setPersonColorByIdx(idx, hex) {
+  if (PERSONS[idx] !== undefined) setPersonColor(PERSONS[idx], hex);
+}
+
+function resetPersonColor(name) {
+  delete PERSON_COLORS[name];
+  savePersonColors();
+  _refreshPersonColorSurfaces();
+}
+
+function resetPersonColorByIdx(idx) {
+  if (PERSONS[idx] !== undefined) resetPersonColor(PERSONS[idx]);
 }
 
 function addNewPerson() {
@@ -16927,8 +17025,15 @@ function addNewPerson() {
 }
 
 function updatePersonName(idx, name) {
-  if (!name.trim() || PERSONS[idx] === undefined) return;
-  PERSONS[idx] = name.trim();
+  const old = PERSONS[idx];
+  if (!name.trim() || old === undefined) return;
+  const next = name.trim();
+  if (old !== next && PERSON_COLORS[old]) {
+    PERSON_COLORS[next] = PERSON_COLORS[old];
+    delete PERSON_COLORS[old];
+    savePersonColors();
+  }
+  PERSONS[idx] = next;
   savePersons();
 }
 
@@ -16944,36 +17049,21 @@ function deletePerson(idx) {
 }
 
 // =============================================
-// THEME TOGGLE
+// THEME — light only (dark mode retired July 2026)
 // =============================================
+// The dark :root variables remain in the CSS as the base layer that the
+// permanent [data-theme="light"] overrides sit on — removing them would mean
+// rewriting every default. wt_theme in storage is ignored.
 
-function getTheme() { return load('wt_theme', 'dark') || 'dark'; }
+function getTheme() { return 'light'; }
 
-function applyTheme(theme) {
-  if (theme === 'light') {
-    document.documentElement.setAttribute('data-theme', 'light');
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-  }
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', 'light');
   _updateThemeFlag();
-  const btn = document.getElementById('themeToggleBtn');
-  if (btn) btn.textContent = theme === 'light' ? '🌙 Dark' : '☀ Light';
 }
 
-function toggleTheme() {
-  const current = getTheme();
-  const next = current === 'dark' ? 'light' : 'dark';
-  save('wt_theme', next);
-  applyTheme(next);
-  renderTasks();
-  renderProjects();
-  renderTeam();
-  renderTimesheet();
-  renderAllocations();
-}
-
-// Apply saved theme on load
-applyTheme(getTheme());
+// Apply theme on load
+applyTheme();
 
 // ── Kick off Supabase boot sequence ──
 boot();
