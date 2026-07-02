@@ -107,6 +107,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls` |
 | Capacity planner / drill-down | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold` |
 | Allocations / Excel import | `renderAllocations`, `handleAllocImport` |
+| Reconcile view (plan vs budget) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
 | Tabs / navigation | `_switchTab`, `data-tab` |
