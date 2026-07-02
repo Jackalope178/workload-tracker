@@ -264,6 +264,89 @@
   }
   .task-group-header.today-header { color: var(--accent); border-bottom-color: var(--accent); }
   .task-group-header.overdue-header { color: var(--danger); border-bottom-color: var(--danger); }
+  .task-group-header.inbox-header { color: #a78bfa; border-bottom-color: #7c3aed; }
+
+  /* ── Quick capture (ADHD inbox) ── */
+  .quick-capture-wrap { margin-bottom: 8px; }
+  .quick-capture {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg2);
+    border: 1px dashed #7c3aed88;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .quick-capture:focus { border-color: #7c3aed; border-style: solid; box-shadow: 0 0 0 3px #7c3aed22; }
+  .quick-capture::placeholder { color: var(--text3); }
+
+  /* ── Wins chip + celebration ── */
+  .wins-chip { font-size: 11px; font-weight: 700; color: var(--success); white-space: nowrap; }
+  .wins-chip .streak { color: #f59e0b; margin-left: 6px; }
+  .win-toast {
+    display: none;
+    position: fixed;
+    bottom: 64px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg3);
+    border: 1px solid var(--success);
+    border-radius: 10px;
+    padding: 12px 22px;
+    z-index: 10000;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    box-shadow: 0 6px 20px #0008;
+    animation: winPop 0.25s ease-out;
+  }
+  @keyframes winPop { from { transform: translateX(-50%) scale(0.85); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+  .win-confetti { position: fixed; inset: 0; pointer-events: none; z-index: 10001; overflow: hidden; }
+  .win-confetti span {
+    position: absolute;
+    left: 50%; top: 55%;
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    animation: confettiFly 1s ease-out forwards;
+  }
+  @keyframes confettiFly {
+    from { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    to   { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .win-confetti { display: none; }
+    .win-toast { animation: none; }
+  }
+
+  /* ── Focus mode ── */
+  #focusModeBtn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .focus-note {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--text3);
+    padding: 10px 12px; margin-top: 10px;
+    background: var(--bg2); border: 1px dashed var(--border); border-radius: 8px;
+  }
+  .focus-note a { color: var(--accent); cursor: pointer; font-weight: 600; }
+  /* Parked stubs: everything not on the runway stays visible as a one-line
+     count — out of the way, never out of sight. */
+  .focus-parked-header {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text3); padding: 14px 4px 4px;
+  }
+  .focus-stub {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11px; color: var(--text3);
+    padding: 6px 12px; margin-top: 4px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    cursor: pointer; opacity: 0.75; transition: opacity 0.15s, border-color 0.15s;
+  }
+  .focus-stub:hover { opacity: 1; border-color: var(--text3); }
+  .focus-stub.open { opacity: 1; border-color: var(--accent); margin-bottom: 4px; }
+  .focus-stub .focus-stub-label { font-weight: 600; color: var(--text2); }
+  .focus-stub .focus-stub-meta { color: var(--text3); }
+  .focus-stub .focus-stub-peek { margin-left: auto; color: var(--accent); font-weight: 600; font-size: 10px; }
   .week-expand-chevron {
     cursor: pointer;
     font-size: 12px;
@@ -2975,6 +3058,11 @@ if (typeof XLSX === 'undefined') {
 
   <!-- MY TASKS -->
   <div class="panel active" id="panel-tasks" role="tabpanel" aria-labelledby="tab-tasks">
+    <div class="quick-capture-wrap">
+      <input class="quick-capture" type="text" id="quickCapture"
+        placeholder="⚡ Quick capture — type a thought, hit Enter. It lands in your Inbox to fill in later. (N)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();quickCaptureAdd();}">
+    </div>
     <div class="toolbar">
       <input class="search-box" type="text" id="taskSearch" placeholder="Search tasks...">
       <select class="filter-select" id="filterDate">
@@ -3002,6 +3090,7 @@ if (typeof XLSX === 'undefined') {
       </select>
       <!-- Brain Dump disabled — re-enable by removing display:none -->
       <button class="btn" onclick="openBrainDumpModal()" style="display:none;border-color:#7c3aed;color:#a78bfa;" title="AI-powered task import from free text">⚡ Brain Dump</button>
+      <button class="btn" id="focusModeBtn" onclick="toggleFocusMode()" title="Overdue + Today in full, urgent first — everything else parks below as one-line counts you can peek into">🎯 Focus</button>
       <button class="btn" id="taskViewToggle" onclick="toggleTaskView()" title="Switch between the task list and the week planner">📅 Week</button>
       <button class="btn primary" onclick="toggleAddForm()">+ Add Task</button>
       <button class="btn" id="clearFiltersBtn" onclick="_clearAllTaskFilters()" style="display:none;font-size:10px;padding:4px 10px;color:var(--text3);">✕ Clear filters</button>
@@ -3073,7 +3162,10 @@ if (typeof XLSX === 'undefined') {
           <span id="tasksCapLabel"></span>
           <span class="info-i" onclick="event.stopPropagation();showInfoPopover(event,'payPeriodBar')" title="What does this bar measure?">i</span>
         </span>
-        <span style="font-size:11px;color:var(--text3);" id="tasksCapDetail"></span>
+        <span style="display:flex;align-items:center;gap:12px;">
+          <span class="wins-chip" id="tasksWinsChip"></span>
+          <span style="font-size:11px;color:var(--text3);" id="tasksCapDetail"></span>
+        </span>
       </div>
       <div class="ts-cap-bar-wrap">
         <div id="tasksCapFillDone" class="ts-cap-bar-fill" style="width:0%;background:var(--success);opacity:0.35;position:absolute;left:0;top:0;bottom:0;border-radius:4px;"></div>
@@ -3268,6 +3360,8 @@ if (typeof XLSX === 'undefined') {
 </div>
 
 <!-- SYNC STATUS TOAST -->
+<div class="win-toast" id="winToast"></div>
+
 <div id="syncToast" style="display:none;position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 16px;align-items:center;gap:8px;z-index:9999;font-size:12px;box-shadow:0 4px 12px #0006;max-width:360px;">
   <span id="syncToastMsg" style="color:var(--text2);"></span>
   <button onclick="document.getElementById('syncToast').style.display='none'" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 0 0 8px;">✕</button>
@@ -4132,7 +4226,7 @@ if (typeof XLSX === 'undefined') {
 
     <div class="welcome-step" data-step="2">
       <h3>Adding Tasks & Tracking Time</h3>
-      <p>Use <strong>+ Add Task</strong> or press <strong>N</strong> to create a task. Set a priority, due date, and time estimate.</p>
+      <p>Use <strong>+ Add Task</strong> for the full form, or just type into the <strong>⚡ Quick capture</strong> box (press <strong>N</strong>) — the thought lands in your Inbox and you fill in details when you're ready.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">⏱</span><span>Click the <strong>play button</strong> on any task to start a timer. When you complete the task, actual hours are logged to your timesheet automatically — always in <strong>quarter-hour increments</strong>.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">⚑</span><span><strong>Work date vs deadline:</strong> pick a day other than the due date to work on it — the ⚑ chip keeps the deadline in view (red = at risk), and Capacity follows the work date.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">↻</span><span>Tasks can <strong>recur</strong> weekly, biweekly, or monthly — set it up in the task edit modal. Skip or reschedule any single occurrence from its row.</span></div>
@@ -4164,7 +4258,7 @@ if (typeof XLSX === 'undefined') {
 
     <div class="welcome-step" data-step="6">
       <h3>Shortcuts & Getting Help</h3>
-      <div class="welcome-tip"><span class="welcome-tip-icon">⌨</span><span><strong>N</strong> = new task &nbsp; <strong>1-6</strong> = switch tabs &nbsp; <strong>/</strong> = search &nbsp; <strong>Esc</strong> = close modal &nbsp; <strong>Ctrl+Z</strong> = undo delete</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">⌨</span><span><strong>N</strong> = quick capture &nbsp; <strong>Shift+N</strong> = full task form &nbsp; <strong>1-6</strong> = switch tabs &nbsp; <strong>/</strong> = search &nbsp; <strong>Esc</strong> = close modal &nbsp; <strong>Ctrl+Z</strong> = undo delete</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">ⓘ</span><span>Look for the small <strong>ⓘ icons</strong> next to meters and boards — click one for a plain-English explanation of exactly what that component counts.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">☁</span><span>Your data syncs to the cloud automatically. Click the <strong>cloud icon</strong> in the header to force a sync.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">ℹ</span><span>Click the <strong>(i)</strong> button in the bottom-right corner anytime for tips on the current tab — or to replay this tour.</span></div>
@@ -4195,7 +4289,8 @@ if (typeof XLSX === 'undefined') {
 
   <div class="help-section">
     <div class="help-section-title">Keyboard Shortcuts</div>
-    <div class="help-item"><span class="help-kbd">N</span> New task / deliverable</div>
+    <div class="help-item"><span class="help-kbd">N</span> Quick capture / new deliverable</div>
+    <div class="help-item"><span class="help-kbd">Shift</span>+<span class="help-kbd">N</span> New task (full form)</div>
     <div class="help-item"><span class="help-kbd">1</span>–<span class="help-kbd">6</span> Switch tabs</div>
     <div class="help-item"><span class="help-kbd">/</span> Focus search</div>
     <div class="help-item"><span class="help-kbd">Esc</span> Close modal</div>
@@ -6008,6 +6103,133 @@ function _renderTasksCapLoggedList() {
   box.innerHTML = rows + `<div style="display:flex;justify-content:flex-end;gap:6px;font-size:11px;font-weight:700;padding-top:6px;"><span style="color:var(--text3);">Period total:</span> <span>${fmtQ(total)}h</span></div>`;
 }
 
+// =============================================
+// WINS, QUICK CAPTURE & FOCUS MODE (ADHD ergonomics)
+// =============================================
+
+let _focusMode = load('wt_focus_mode', false);
+let _startNextQueue = [];   // rebuilt on every renderTasks: overdue → today, urgent first
+
+function _winStats() {
+  const t = today();
+  let todayCount = 0, todayHours = 0;
+  completed.forEach(c => {
+    if (c.dateCompleted === t) { todayCount++; todayHours += (c.actualHours || 0); }
+  });
+  // Streak = consecutive days with at least one logged entry. Weekends without
+  // entries neither count nor break it. An empty today doesn't break it either —
+  // the streak just waits on yesterday's chain.
+  const daysWith = new Set(completed.map(c => c.dateCompleted));
+  let streak = 0;
+  let cursor = daysWith.has(t) ? t : addDays(t, -1);
+  for (let i = 0; i < 120; i++) {
+    const dow = new Date(cursor + 'T00:00:00').getDay();
+    if (daysWith.has(cursor)) streak++;
+    else if (dow !== 0 && dow !== 6) break;
+    cursor = addDays(cursor, -1);
+  }
+  return { todayCount, todayHours, streak };
+}
+
+function _updateWinsChip() {
+  const el = document.getElementById('tasksWinsChip');
+  if (!el) return;
+  const { todayCount, todayHours, streak } = _winStats();
+  const streakHtml = streak >= 2 ? `<span class="streak">🔥 ${streak}d</span>` : '';
+  el.innerHTML = todayCount
+    ? `✓ ${todayCount} win${todayCount === 1 ? '' : 's'} today · ${fmtQ(todayHours)}h${streakHtml}`
+    : (streak >= 2 ? `<span class="streak">🔥 ${streak}-day streak — first win keeps it alive</span>` : '');
+}
+
+const _WIN_MESSAGES = ['Nice.', 'Done and dusted.', 'Momentum!', 'Another one down.', 'That counts.', 'Shipped.'];
+
+function _celebrateWin() {
+  const { todayCount, todayHours, streak } = _winStats();
+  const toast = document.getElementById('winToast');
+  if (toast) {
+    const msg = _WIN_MESSAGES[Math.floor(Math.random() * _WIN_MESSAGES.length)];
+    const streakStr = streak >= 2 ? ` · 🔥 ${streak}-day streak` : '';
+    toast.innerHTML = `✓ ${msg} <span style="color:var(--success);">${todayCount} win${todayCount === 1 ? '' : 's'} today · ${fmtQ(todayHours)}h</span>${streakStr}`;
+    toast.style.display = 'block';
+    clearTimeout(_celebrateWin._t);
+    _celebrateWin._t = setTimeout(() => { toast.style.display = 'none'; }, 3500);
+  }
+  _confettiBurst();
+}
+
+function _confettiBurst() {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#a78bfa', '#ec4899'];
+  const wrap = document.createElement('div');
+  wrap.className = 'win-confetti';
+  for (let i = 0; i < 24; i++) {
+    const p = document.createElement('span');
+    const ang = Math.random() * Math.PI;   // upward fan
+    const dist = 80 + Math.random() * 240;
+    p.style.setProperty('--dx', `${(Math.cos(ang) * dist).toFixed(0)}px`);
+    p.style.setProperty('--dy', `${(-Math.sin(ang) * dist - 40).toFixed(0)}px`);
+    p.style.setProperty('--rot', `${(Math.random() * 720 - 360).toFixed(0)}deg`);
+    p.style.background = colors[i % colors.length];
+    p.style.animationDelay = `${(Math.random() * 0.1).toFixed(2)}s`;
+    wrap.appendChild(p);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 1400);
+}
+
+function quickCaptureAdd() {
+  const input = document.getElementById('quickCapture');
+  const name = (input?.value || '').trim();
+  if (!name) return;
+  tasks.unshift({
+    id: uid(), name, project: 'overhead', subCode: '',
+    priority: 'med', due: '', est: 0, category: '',
+    waiting: '', notes: '', recurrence: null,
+    timer: 0, timerStart: null, completed: false, inbox: true
+  });
+  save('wt_tasks', tasks);
+  input.value = '';
+  input.focus();   // keep the box hot for rapid-fire capture
+  renderTasks();
+}
+
+// Session-only set of parked-stub keys the user has peeked open. Reset on
+// every focus toggle so focus mode always starts from the clean runway.
+let _focusPeek = new Set();
+
+function toggleFocusMode() {
+  _focusMode = !_focusMode;
+  _focusPeek = new Set();
+  save('wt_focus_mode', _focusMode);
+  renderTasks();
+}
+
+function _focusPeekToggle(key) {
+  if (_focusPeek.has(key)) _focusPeek.delete(key);
+  else _focusPeek.add(key);
+  renderTasks();
+}
+
+function _focusStartNext() {
+  const next = _startNextQueue[0];
+  if (!next) { showSyncToast('Nothing queued — runway is clear.', 'success'); return; }
+  if (next.type === 'task') startTimer(next.id);
+  else if (next.type === 'session') startSessionTimer(next.projId, next.id);
+  else if (next.type === 'subtask') startSubtaskTimer(next.projId, next.sessionId, next.id);
+}
+
+// Planning lens for day/week capacity headers: does the planned work actually
+// fit in the hours left, after what's already logged? (The pay-period bar above
+// the list stays a billing lens — logged vs target.)
+function _fitStatus(logged, planned, cap) {
+  const room = cap - logged - planned;
+  if (planned <= 0.01 && logged > cap + 0.01) return { text: `⚡ +${fmtQ(logged - cap)}H BANKED`, color: '#3b82f6' };
+  if (room < -0.01) return { text: `⚠ ${fmtQ(-room)}H OVER — DOESN'T FIT`, color: 'var(--danger)' };
+  if (room <= 0.01) return { text: 'FULL — FITS EXACTLY', color: 'var(--warn)' };
+  if (planned <= 0.01 && logged > 0.01) return { text: `✨ CLEAR — ${fmtQ(room)}H FREE`, color: 'var(--success)' };
+  return { text: `${fmtQ(room)}H FREE AFTER PLAN`, color: 'var(--text)' };
+}
+
 function priorityBadge(p) {
   const map = { urgent: ['Urgent', 'p-urgent'], high: ['High', 'p-high'], med: ['Med', 'p-med'], low: ['Low', 'p-low'], meeting: ['Meeting', 'p-meeting'] };
   const [label, cls] = map[p] || ['Med', 'p-med'];
@@ -6207,6 +6429,8 @@ function renderWeekPlanner(container) {
 function renderTasks() {
   const viewBtn = document.getElementById('taskViewToggle');
   if (viewBtn) viewBtn.textContent = taskViewMode === 'week' ? '☰ List' : '📅 Week';
+  const focusBtn = document.getElementById('focusModeBtn');
+  if (focusBtn) focusBtn.classList.toggle('active', _focusMode);
   if (taskViewMode === 'week') {
     const capBar = document.getElementById('tasksCapBar');
     if (capBar) capBar.style.display = 'none';
@@ -6370,7 +6594,8 @@ function renderTasks() {
   const wkLoggedPct = Math.min(Math.round((wkDone / wkCap) * 100), 100);
   const wkBarColor = wkDone > wkCap ? '#3b82f6' : wkDone >= wkCap - 0.01 ? 'var(--success)' : 'var(--text3)';
   const wkLabelColor = wkDone > wkCap ? '#3b82f6' : wkDone >= wkCap - 0.01 ? 'var(--success)' : 'var(--text)';
-  const wkStatusText = wkDone > wkCap ? `+${fmtQ(wkDone - wkCap)}H OVER — FLEX AVAILABLE` : wkDone >= wkCap - 0.01 ? 'ON TARGET' : `${fmtQ(wkCap - wkDone)}H LEFT`;
+  // Positive framing: hours are banked toward the target, not owed to it.
+  const wkStatusText = wkDone > wkCap ? `⚡ +${fmtQ(wkDone - wkCap)}H BANKED — FLEX EARNED` : wkDone >= wkCap - 0.01 ? '🎯 TARGET HIT' : `${fmtQ(wkDone)}H BANKED · ${fmtQ(wkCap - wkDone)}H TO TARGET`;
   const capBar = document.getElementById('tasksCapBar');
   if (capBar) {
     capBar.style.display = '';
@@ -6385,9 +6610,11 @@ function renderTasks() {
     const doneFill = document.getElementById('tasksCapFillDone');
     if (doneFill) { doneFill.style.width = '0%'; }
     _renderTasksCapLoggedList();
+    _updateWinsChip();
   }
 
   // ── bucket items ──
+  const inboxBucket = [];    // quick-captured tasks awaiting triage
   const overdueBucket = [];  // strictly before today
   const dayBuckets = {};   // YYYY-MM-DD → items (current week days only)
   currentWeekDays.forEach(d => { dayBuckets[d] = []; });
@@ -6397,6 +6624,7 @@ function renderTasks() {
   const unscheduled = [];
 
   allItems.forEach(item => {
+    if (item._type === 'task' && item.task.inbox) { inboxBucket.push(item); return; }
     const d = item._date;
     if (!d) { unscheduled.push(item); return; }
     if (d < todayStr) { overdueBucket.push(item); return; }
@@ -6572,8 +6800,9 @@ function renderTasks() {
       const loggedPct   = Math.min(Math.round((logged / dayCap) * 100), 100);
       const plannedPct  = Math.min(Math.round((total / dayCap) * 100), 100);
       const barColor = logged > dayCap ? '#3b82f6' : logged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text3)';
-      const labelColor = logged > dayCap ? 'var(--danger)' : logged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text)';
-      const statusText = logged > dayCap ? `+${fmtQ(logged - dayCap)}H OVER` : logged >= dayCap - 0.01 ? 'ON TARGET' : `${fmtQ(dayCap - logged)}H LEFT`;
+      const fit = _fitStatus(logged, planned, dayCap);
+      const labelColor = fit.color;
+      const statusText = fit.text;
       const hoursText = `${fmtQ(planned)}h planned / ${fmtQ(logged)}h logged`;
 
       capHtml = `
@@ -6625,10 +6854,35 @@ function renderTasks() {
     container.appendChild(section);
   }
 
+  // ── "start next" queue: overdue then today, urgent first — one click, no picking ──
+  const _snSource = [...sortItems(overdueBucket, 'priority', 'asc'), ...sortItems(dayBuckets[todayStr] || [], 'priority', 'asc')];
+  const _snSeen = new Set();
+  _startNextQueue = _snSource.map(i => {
+    if (i._type === 'task' && !i.task.waiting && !i.task.inbox && !i.task.timerStart) return { type: 'task', id: i.task.id };
+    if (i._type === 'session' && !i.s.waiting && !i.s.timerStart) return { type: 'session', id: i.s.id, projId: i.proj.id };
+    if (i._type === 'subtask' && !i.st.waiting && !i.st.timerStart) return { type: 'subtask', id: i.st.id, projId: i.proj.id, sessionId: i.s.id };
+    return null;
+  }).filter(q => q && !_snSeen.has(q.id) && _snSeen.add(q.id));
+  const _startNextBtn = _startNextQueue.length
+    ? `<span onclick="event.stopPropagation();_focusStartNext()" style="margin-left:auto;font-size:10px;color:var(--accent);cursor:pointer;font-weight:600;letter-spacing:normal;text-transform:none;" title="Start the timer on the most urgent item (overdue first) — no picking required">▶ Start next</span>`
+    : '';
+
+  // Focus mode parks non-runway sections as one-line stubs instead of hiding
+  // them — the whole map stays on screen (out of the way, never out of sight).
+  const _focusStubs = [];
+  const _inboxHint = `<span style="margin-left:auto;font-size:10px;color:var(--text3);font-weight:400;letter-spacing:normal;text-transform:none;">click a task to add project, date & estimate</span>`;
+
+  // ── inbox (quick-captured, awaiting triage) ──
+  if (inboxBucket.length) {
+    if (_focusMode) _focusStubs.push({ key: 'inbox', label: '📥 Inbox', items: inboxBucket,
+      renderFull: () => renderSection('📥 Inbox — triage when ready', inboxBucket, 'inbox-header', null, null, _inboxHint) });
+    else renderSection('📥 Inbox — triage when ready', inboxBucket, 'inbox-header', null, null, _inboxHint);
+  }
+
   // ── overdue (above today) ──
   const _schedBoardLink = `<span onclick="event.stopPropagation();capOpenScheduler()" style="margin-left:auto;font-size:10px;color:var(--accent);cursor:pointer;font-weight:600;letter-spacing:normal;text-transform:none;" title="Open the capacity board to batch-reschedule these against days with room">◷ Schedule on calendar →</span>`;
   if (overdueBucket.length) {
-    renderSection('Overdue', overdueBucket, 'overdue-header', null, null, _schedBoardLink);
+    renderSection('Overdue', _focusMode ? sortItems(overdueBucket, 'priority', 'asc') : overdueBucket, 'overdue-header', null, null, _schedBoardLink);
   }
 
   // ── current week: one section per day ──
@@ -6639,10 +6893,15 @@ function renderTasks() {
     const mo = MONTH_NAMES[dt.getMonth()];
     const isToday = d === todayStr;
     const isPast  = d < todayStr;
+    const label = isToday ? `Today — ${dayName} ${mo} ${dt.getDate()}` : `${dayName} ${mo} ${dt.getDate()}`;
+    if (_focusMode && !isToday) {
+      if (items.length) _focusStubs.push({ key: d, label: `${dayName} ${mo} ${dt.getDate()}`, items,
+        renderFull: () => renderSection(label, items, '', tsCapacity, [d]) });
+      return;
+    }
     // hide past days with no items; always show today and future days
     if (isPast && !isToday && !items.length) return;
-    const label = isToday ? `Today — ${dayName} ${mo} ${dt.getDate()}` : `${dayName} ${mo} ${dt.getDate()}`;
-    renderSection(label, items, isToday ? 'today-header' : '', tsCapacity, [d]);
+    renderSection(label, _focusMode ? sortItems(items, 'priority', 'asc') : items, isToday ? 'today-header' : '', tsCapacity, [d], isToday ? _startNextBtn : undefined);
   });
 
   // ── this week's Saturday (weekend — no weekday capacity bar) ──
@@ -6658,6 +6917,12 @@ function renderTasks() {
     const wkCapF = workingDays(wk, addDays(wk, 6)) * tsCapacity;
     const wkDates = [];
     for (let i = 0; i < 7; i++) { wkDates.push(addDays(wk, i)); }
+    if (_focusMode) {
+      const wkStubLabel = `Week of ${MONTH_NAMES[dt.getMonth()]} ${dt.getDate()}`;
+      _focusStubs.push({ key: wk, label: wkStubLabel, items,
+        renderFull: () => renderSection(wkStubLabel, items, '', wkCapF, wkDates) });
+      return;
+    }
     const isExpanded = !_collapsedWeeks.has(wk);
     const chevron = `<span class="week-expand-chevron${isExpanded ? ' open' : ''}" onclick="_toggleWeekExpand('${wk}')" title="${isExpanded ? 'Collapse to week' : 'Expand to days'}">›</span>`;
     const wkLabel = `Week of ${MONTH_NAMES[dt.getMonth()]} ${dt.getDate()}`;
@@ -6681,8 +6946,9 @@ function renderTasks() {
         const loggedPct  = Math.min(Math.round((logged / wkCapF) * 100), 100);
         const plannedPct = Math.min(Math.round((total / wkCapF) * 100), 100);
         const barColor = logged > wkCapF ? '#3b82f6' : logged >= wkCapF - 0.01 ? 'var(--success)' : 'var(--text3)';
-        const labelColor = logged > wkCapF ? 'var(--danger)' : logged >= wkCapF - 0.01 ? 'var(--success)' : 'var(--text)';
-        const statusText = logged > wkCapF ? `+${fmtQ(logged - wkCapF)}H OVER` : logged >= wkCapF - 0.01 ? 'ON TARGET' : `${fmtQ(wkCapF - logged)}H LEFT`;
+        const fit = _fitStatus(logged, planned, wkCapF);
+        const labelColor = fit.color;
+        const statusText = fit.text;
         const hoursText = `${fmtQ(planned)}h planned / ${fmtQ(logged)}h logged`;
         wkCapHtml = `<div style="padding:5px 8px;display:flex;align-items:center;gap:10px;background:var(--bg2);">
           <div class="cap-bar-dual" style="flex:1;">
@@ -6727,8 +6993,9 @@ function renderTasks() {
           const loggedPct  = Math.min(Math.round((dayLogged / dayCap) * 100), 100);
           const plannedPct = Math.min(Math.round((dayTotal / dayCap) * 100), 100);
           const barColor = dayLogged > dayCap ? '#3b82f6' : dayLogged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text3)';
-          const labelColor = dayLogged > dayCap ? 'var(--danger)' : dayLogged >= dayCap - 0.01 ? 'var(--success)' : 'var(--text)';
-          const statusText = dayLogged > dayCap ? `+${fmtQ(dayLogged - dayCap)}H OVER` : dayLogged >= dayCap - 0.01 ? 'ON TARGET' : `${fmtQ(dayCap - dayLogged)}H LEFT`;
+          const fit = _fitStatus(dayLogged, dayEst, dayCap);
+          const labelColor = fit.color;
+          const statusText = fit.text;
           const hoursText = `${fmtQ(dayEst)}h planned / ${fmtQ(dayLogged)}h logged`;
 
           dayCapBar = `<div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
@@ -6775,7 +7042,43 @@ function renderTasks() {
   });
 
   // ── unscheduled (no date set) — includes month-holds, which never pin to a day ──
-  renderSection('Unscheduled & holds (no date)', unscheduled, '', null, null, unscheduled.length ? _schedBoardLink : '');
+  if (_focusMode) {
+    if (unscheduled.length) _focusStubs.push({ key: 'unsched', label: 'Unscheduled & holds', items: unscheduled,
+      renderFull: () => renderSection('Unscheduled & holds (no date)', unscheduled, '', null, null, _schedBoardLink) });
+  } else renderSection('Unscheduled & holds (no date)', unscheduled, '', null, null, unscheduled.length ? _schedBoardLink : '');
+
+  // ── focus mode: runway done — now the parked map (visible, dimmed, peekable) ──
+  if (_focusMode) {
+    if (!hasAny) {
+      const clearDiv = document.createElement('div');
+      clearDiv.className = 'empty-state';
+      clearDiv.innerHTML = '<span style="font-size:20px;">✨</span><br>Nothing overdue, nothing due today.<br><span style="font-size:11px;color:var(--text3);">Runway clear — pull something forward or enjoy it.</span>';
+      container.appendChild(clearDiv);
+      hasAny = true;
+    }
+    if (_focusStubs.length) {
+      const parkedHeader = document.createElement('div');
+      parkedHeader.className = 'focus-parked-header';
+      parkedHeader.textContent = 'Parked — still here, just resting';
+      container.appendChild(parkedHeader);
+      _focusStubs.forEach(s => {
+        const isOpen = _focusPeek.has(s.key);
+        const est = s.items.reduce((a, i) => a + _itemEstFor(i), 0);
+        const stub = document.createElement('div');
+        stub.className = 'focus-stub' + (isOpen ? ' open' : '');
+        stub.onclick = () => _focusPeekToggle(s.key);
+        stub.innerHTML = `<span class="focus-stub-label">${s.label}</span>
+          <span class="focus-stub-meta">${s.items.length} item${s.items.length === 1 ? '' : 's'}${est > 0 ? ` · ${fmtQ(est)}h planned` : ''}</span>
+          <span class="focus-stub-peek">${isOpen ? '▴ tuck away' : '▾ peek'}</span>`;
+        container.appendChild(stub);
+        if (isOpen) s.renderFull();
+      });
+    }
+    const note = document.createElement('div');
+    note.className = 'focus-note';
+    note.innerHTML = `🎯 Focus mode — full rows for Overdue + Today, urgent first. Everything else is parked above with live counts. <a onclick="toggleFocusMode()">Show everything</a>`;
+    container.appendChild(note);
+  }
 
   if (!hasAny) {
     const hasFilters = document.getElementById('taskSearch')?.value || document.getElementById('filterPriority')?.value || document.getElementById('filterProject')?.value !== 'all' || document.getElementById('filterWaiting')?.value;
@@ -6927,7 +7230,7 @@ function openDueDatePicker(el, taskId) {
     project: task.project,
     subCode: task.subCode || '',
     fitBy: task.due || null,
-    onPick: d => { _applyWorkPick(task, 'due', d); save('wt_tasks', tasks); _afterDateChange(); },
+    onPick: d => { _applyWorkPick(task, 'due', d); delete task.inbox; save('wt_tasks', tasks); _afterDateChange(); },
     onClear: () => { _applyWorkClear(task, 'due'); save('wt_tasks', tasks); _afterDateChange(); }
   });
 }
@@ -7230,6 +7533,7 @@ function saveEditTask() {
   task.notes    = document.getElementById('editNotes').value.trim();
   const delegated = getSelectedDelegatees('editTaskDelegateWrap');
   task.delegatedTo = delegated.length ? delegated : null;
+  delete task.inbox;   // opening + saving the full form IS the triage
 
   // Recurrence pattern
   const rType = document.getElementById('editRecurType').value;
@@ -7740,6 +8044,7 @@ function confirmComplete() {
       if ((task.blocks || []).every(x => x.done) && _ownPlannedHours(task) <= 0) {
         showSyncToast('All blocks logged — tick the task itself to close it out.', 'success');
       }
+      _celebrateWin();
       renderTasks(); renderProjects(); renderTimesheet(); renderCapacity();
       return;
     }
@@ -7867,6 +8172,7 @@ function confirmComplete() {
   }
 
   closeCompletionModal();
+  _celebrateWin();
   renderTasks();
   renderProjects();
   renderTimesheet();
@@ -15435,10 +15741,14 @@ document.addEventListener('keydown', e => {
   // Shortcuts below only fire when not in an input
   if (inInput) return;
 
-  // N: quick-add task (opens new task modal)
-  if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+  // N: quick capture (Shift+N for the full task modal)
+  if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const activeTab = document.querySelector('.tab.active')?.dataset.tab;
-    if (activeTab === 'tasks') { e.preventDefault(); openEditModal('__new__'); }
+    if (activeTab === 'tasks') {
+      e.preventDefault();
+      if (e.key === 'N') openEditModal('__new__');
+      else document.getElementById('quickCapture')?.focus();
+    }
     else if (activeTab === 'team') { e.preventDefault(); openAddTeamModal(); }
   }
 
@@ -15459,7 +15769,7 @@ document.addEventListener('keydown', e => {
   // ?: show keyboard shortcuts help
   if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
     e.preventDefault();
-    showSyncToast('Keys: N=new, 1-6=tabs, /=search, Esc=close, Ctrl+Z=undo', 'success');
+    showSyncToast('Keys: N=quick capture, Shift+N=full task, 1-6=tabs, /=search, Esc=close, Ctrl+Z=undo', 'success');
   }
 });
 
@@ -15499,6 +15809,7 @@ function reloadStateFromLocalStorage() {
   _allocRollovers = load('wt_alloc_rollovers', {});
   allocAliases = load('wt_alloc_aliases', {});
   _collapsedTaskSections = new Set(load('wt_collapsed_task_sections', []));
+  _focusMode = load('wt_focus_mode', false);
 }
 
 function initApp() {

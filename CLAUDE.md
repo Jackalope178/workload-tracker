@@ -78,7 +78,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 
 | Key | Contents |
 |---|---|
-| `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }` |
+| `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }`. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). |
 | `wt_team` | Team deliverables: `{ id, name, owner, owners[], project, subCode, due, status, waiting, notes }` + relay fields (`relay[]`, `relayStage`, `activeOwner`, `reviewTaskId`, `relayLog[]`) |
 | `wt_bigprojs` | Big projects (multi-session/subtask structures) |
 | `wt_completed` | Archive of completed items — also the **billing ledger** (Timesheet/Allocations actuals read from here) |
@@ -109,6 +109,32 @@ shows in My Tasks, counts in Capacity, and bills once (never twice) to
 
 **Full documentation and design-intent log: `docs/team-relay-and-kme-flow.md`.**
 Keep its intent log updated when changing relay behavior.
+
+## ADHD ergonomics (My Tasks) — deliberate design layer, don't strip as "clutter"
+
+- **Quick capture → Inbox:** the box above the toolbar (`quickCaptureAdd`, `N`
+  key; `Shift+N` opens the full form) creates bare `inbox: true` tasks; the 📥
+  Inbox section holds them for later triage. Capture must stay one-field,
+  zero-decision; inbox tasks carry no date/estimate so they can't pollute
+  Capacity or day-fit math before triage.
+- **Completion celebration:** `_celebrateWin` (confetti + win toast +
+  wins/streak chip via `_updateWinsChip`) fires from every `confirmComplete`
+  path. Completing work must never be visually silent.
+- **Focus mode:** `_focusMode` (`wt_focus_mode`, 🎯 toolbar button) shows
+  Overdue + Today in full, urgent first. Everything else renders as dimmed
+  one-line **parked stubs** with live counts (`_focusStubs`), click-to-peek via
+  `_focusPeek`/`_focusPeekToggle` — **never fully hidden** (hiding sections
+  outright caused real object-permanence panic; keep the whole map on screen).
+  `_startNextQueue`/`_focusStartNext` power the "▶ Start next" chip in the
+  Today header (starts the timer on the most urgent item — kills task-picking
+  paralysis). `wt_focus_mode` is deliberately **not** in `SYNC_KEYS` — it's a
+  device-local view mode (like `wt_task_view`), so one machine's focus state
+  never hides tasks on another.
+- **Day-fit lens:** `_fitStatus(logged, planned, cap)` drives day/week section
+  status text ("DOESN'T FIT" / "FREE AFTER PLAN" / "CLEAR"). This is a
+  *planning* lens; the pay-period bar above the list stays a *billing* lens
+  (logged vs target, "banked" framing) — keep the two framings distinct (this
+  mirrors invariant #1 below).
 
 ## Invariants — deliberate design, do NOT "fix"
 
@@ -190,6 +216,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | If the task touches… | Start by grepping… |
 |---|---|
 | Personal tasks, recurrence, timers | `function renderTasks`, `renderWeekPlanner`, `confirmComplete`, `nextRecurrenceAfter` |
+| ADHD ergonomics (capture/inbox, wins, focus, day-fit) | `quickCaptureAdd`, `_celebrateWin`, `_focusMode`, `_fitStatus`, `_startNextQueue` |
 | Team board, statuses, relay/hand-offs | `renderTeamBoard`, `relayStatusInfo`, `_relaySync`, `relayAdvance` |
 | KME mirror tasks / My-Tasks ↔ Team link | `_syncBatonMirror`, `_closeBatonMirror`, `_taskRelayPassBtn`, `_deliverableId` |
 | Billing / logged hours | `_logRelayLeg`, `wt_completed`, `roundToQuarter`, `enforceQuarter` |
