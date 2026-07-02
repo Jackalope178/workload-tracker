@@ -5591,6 +5591,14 @@ function _nextUpcomingRecurrence(item, dueKey) {
 }
 
 function nextRecurrenceAfter(task, fromDateStr) {
+  const r = _nextRecurrenceAfterRaw(task, fromDateStr);
+  // Monotonic guarantee: a recurrence must strictly advance, or the expansion
+  // loops (plannedItems, renderTasks, …) would spin in place emitting
+  // duplicate occurrences. Treat a non-advancing result as "no next".
+  return (r && r <= fromDateStr) ? null : r;
+}
+
+function _nextRecurrenceAfterRaw(task, fromDateStr) {
   if (!task.recurrence) return null;
   const { type, dayOfMonth, weekOfMonth } = task.recurrence;
   const from = new Date(fromDateStr + 'T00:00:00');
@@ -5609,23 +5617,33 @@ function nextRecurrenceAfter(task, fromDateStr) {
     return localDateStr(d);
   }
   if (type === 'monthly') {
-    const d = new Date(from);
-    d.setMonth(d.getMonth() + 1);
-    return localDateStr(d);
+    // Clamp to the target month's length so month-end anchors don't overflow
+    // and drift (Jan 31 via setMonth would land on Mar 3, skipping February).
+    let m = from.getMonth() + 1, y = from.getFullYear();
+    if (m > 11) { m = 0; y++; }
+    const day = Math.min(from.getDate(), new Date(y, m + 1, 0).getDate());
+    return `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
   }
   if (type === 'monthly-date' || type === 'monthly-last-day') {
     let m = from.getMonth() + 1, y = from.getFullYear();
-    if (m > 11) { m = 0; y++; }
-    let day;
-    if (type === 'monthly-last-day') {
-      day = new Date(y, m + 1, 0).getDate(); // last day of month
-    } else {
-      const max = new Date(y, m + 1, 0).getDate();
-      day = Math.min(+dayOfMonth, max);
+    // weekdayAdjust can pull a 1st/2nd back into `from`'s own month (or
+    // earlier), which would stall the sequence — step months until the
+    // adjusted result lands strictly after `from`.
+    for (let tries = 0; tries < 14; tries++) {
+      if (m > 11) { m -= 12; y++; }
+      let day;
+      if (type === 'monthly-last-day') {
+        day = new Date(y, m + 1, 0).getDate(); // last day of month
+      } else {
+        const max = new Date(y, m + 1, 0).getDate();
+        day = Math.min(+dayOfMonth, max);
+      }
+      let result = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      if (task.recurrence.weekdayAdjust) result = adjustToWeekday(result);
+      if (result > fromDateStr) return result;
+      m++;
     }
-    let result = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    if (task.recurrence.weekdayAdjust) result = adjustToWeekday(result);
-    return result;
+    return null;
   }
   if (type === 'monthly-weekday') {
     const [dayOfWeek] = normDows(task.recurrence);
@@ -5640,6 +5658,17 @@ function nextRecurrenceAfter(task, fromDateStr) {
     }
   }
   return null;
+}
+
+// Next occurrence strictly after `from` that is NOT in recurrence.skips —
+// used when advancing an item's stored anchor (completion, skip, reschedule)
+// so the anchor never lands on a date the user explicitly skipped.
+function nextActiveRecurrenceAfter(task, fromDateStr) {
+  const skips = (task.recurrence && task.recurrence.skips) || [];
+  let d = nextRecurrenceAfter(task, fromDateStr);
+  let guard = 0;
+  while (d && skips.includes(d) && guard++ < 500) d = nextRecurrenceAfter(task, d);
+  return d;
 }
 
 function recurLabel(task) {
@@ -6227,6 +6256,7 @@ function renderTasks() {
   currentWeekDays.forEach(d => { dayBuckets[d] = []; });
 
   const futureBuckets = {};  // week-start string → items
+  const weekendBucket = [];  // this week's Saturday (Sunday is wkStart, always ≤ today)
   const unscheduled = [];
 
   allItems.forEach(item => {
@@ -6235,6 +6265,7 @@ function renderTasks() {
     if (d < todayStr) { overdueBucket.push(item); return; }
     if (d === todayStr) { (dayBuckets[todayStr] || (dayBuckets[todayStr] = [])).push(item); return; }
     if (currentWeekDays.includes(d)) { dayBuckets[d].push(item); return; }
+    if (d <= wkEnd) { weekendBucket.push(item); return; }
     if (d > wkEnd) {
       // find Sunday of that week (consistent with startOfWeek/timesheet weeks)
       const dt = new Date(d + 'T00:00:00');
@@ -6476,6 +6507,12 @@ function renderTasks() {
     const label = isToday ? `Today — ${dayName} ${mo} ${dt.getDate()}` : `${dayName} ${mo} ${dt.getDate()}`;
     renderSection(label, items, isToday ? 'today-header' : '', tsCapacity, [d]);
   });
+
+  // ── this week's Saturday (weekend — no weekday capacity bar) ──
+  if (weekendBucket.length) {
+    const satDt = new Date(wkEnd + 'T00:00:00');
+    renderSection(`${days[satDt.getDay()]} ${MONTH_NAMES[satDt.getMonth()]} ${satDt.getDate()} — weekend`, weekendBucket, '', null, null);
+  }
 
   // ── future weeks ──
   Object.keys(futureBuckets).sort().forEach(wk => {
@@ -7154,7 +7191,7 @@ function skipRecurOccurrence(taskId, occurrenceDate) {
   const orig = occurrenceDate || task.due;
   pushRecurUndo(`Skipped occurrence on ${orig}`, taskId, task.due, task.recurrence);
   task.recurrence.skips = [...(task.recurrence.skips || []), orig];
-  if (orig === task.due) task.due = nextRecurrenceAfter(task, orig) || orig;
+  if (orig === task.due) task.due = nextActiveRecurrenceAfter(task, orig) || orig;
   save('wt_tasks', tasks);
   renderTasks(); renderTimesheet();
 }
@@ -7187,7 +7224,7 @@ function confirmReschedule() {
   task.recurrence.overrides = { ...(task.recurrence.overrides || {}), [orig]: newDate };
   // If we rescheduled the anchor occurrence, advance the chain anchor to the next scheduled date
   // so future occurrences continue from the original schedule (not the rescheduled date)
-  if (orig === task.due) task.due = nextRecurrenceAfter(task, orig) || orig;
+  if (orig === task.due) task.due = nextActiveRecurrenceAfter(task, orig) || orig;
   save('wt_tasks', tasks);
   closeRescheduleModal();
   renderTasks(); renderTimesheet();
@@ -7402,7 +7439,7 @@ function openCompletionModal(taskId) {
     : roundToQuarter((task.blocks || []).length ? _ownPlannedHours(task) : (task.est || 0));
 
   if (task.recurrence) {
-    const nextDate = nextRecurrenceAfter(task, task.due || today());
+    const nextDate = nextActiveRecurrenceAfter(task, task.due || today());
     const endDate  = task.recurrence.endDate;
     const isLast   = !nextDate || (endDate && nextDate > endDate);
     document.getElementById('compModalTitle').textContent = isLast ? 'Complete Task (Final Recurrence)' : 'Complete & Reschedule';
@@ -7451,7 +7488,7 @@ function openSessionCompletionModal(projId, sessionId) {
   const billable = rawHours > 0 ? roundToQuarter(rawHours) : (s.hours || 0);
 
   if (s.recurrence) {
-    const nextDate = nextRecurrenceAfter(s, s.date || today());
+    const nextDate = nextActiveRecurrenceAfter(s, s.date || today());
     const endDate = s.recurrence.endDate;
     const isLast = !nextDate || (endDate && nextDate > endDate);
     document.getElementById('compModalTitle').textContent = isLast ? 'Complete Session (Final)' : 'Complete & Reschedule';
@@ -7499,7 +7536,7 @@ function openSubtaskCompletionModal(projId, sessionId, subtaskId) {
   const billable = rawHours > 0 ? roundToQuarter(rawHours) : (st.hours || 0);
 
   if (st.recurrence) {
-    const nextDate = nextRecurrenceAfter(st, st.date || today());
+    const nextDate = nextActiveRecurrenceAfter(st, st.date || today());
     const endDate = st.recurrence.endDate;
     const isLast = !nextDate || (endDate && nextDate > endDate);
     document.getElementById('compModalTitle').textContent = isLast ? 'Complete Subtask (Final)' : 'Complete & Reschedule';
@@ -7590,7 +7627,7 @@ function confirmComplete() {
       completed.unshift(entry);
       save('wt_completed', completed);
       if (s.recurrence) {
-        let nextDate = nextRecurrenceAfter(s, s.date || today());
+        let nextDate = nextActiveRecurrenceAfter(s, s.date || today());
         const endDate = s.recurrence.endDate;
         if (!nextDate && !endDate) {
           const fallbackDays = (s.recurrence.type === 'weekly' || s.recurrence.type === 'biweekly') ? 7 : 30;
@@ -7622,7 +7659,7 @@ function confirmComplete() {
       completed.unshift(entry);
       save('wt_completed', completed);
       if (st.recurrence) {
-        let nextDate = nextRecurrenceAfter(st, st.date || today());
+        let nextDate = nextActiveRecurrenceAfter(st, st.date || today());
         const endDate = st.recurrence.endDate;
         if (!nextDate && !endDate) {
           const fallbackDays = (st.recurrence.type === 'weekly' || st.recurrence.type === 'biweekly') ? 7 : 30;
@@ -7671,7 +7708,7 @@ function confirmComplete() {
     }
 
     if (task.recurrence) {
-      let nextDate = nextRecurrenceAfter(task, task.due || today());
+      let nextDate = nextActiveRecurrenceAfter(task, task.due || today());
       const endDate  = task.recurrence.endDate;
       // Fallback: if nextRecurrenceAfter returned null but there's no end date, advance by a safe default
       if (!nextDate && !endDate) {
@@ -7955,19 +7992,20 @@ function _projCapDropAssign(dateStr) {
   if (!d) return;
   _dragItemData = null;
   let name = '';
+  // _capAssignOne owns the work-date/deadline semantics (live deadline kept,
+  // pick becomes the work date; dead deadline replaced; workDate + allocMonth
+  // kept consistent) — writing due/date directly here left stale workDates.
   if (d.type === 'task') {
     const t = tasks.find(t => t.id === d.id);
     if (!t) return;
-    t.due = dateStr;
-    if (t.allocMonth && t.allocMonth !== dateStr.slice(0, 7)) t.allocMonth = dateStr.slice(0, 7);
+    _capAssignOne(t, 'due', dateStr);
     save('wt_tasks', tasks);
     name = t.name;
   } else if (d.type === 'session') {
     const bp = bigProjs.find(p => p.id === d.projId);
     const s = bp && bp.sessions.find(s => s.id === d.id);
     if (!s) return;
-    s.date = dateStr;
-    if (s.allocMonth && s.allocMonth !== dateStr.slice(0, 7)) s.allocMonth = dateStr.slice(0, 7);
+    _capAssignOne(s, 'date', dateStr);
     save('wt_bigprojs', bigProjs);
     name = s.desc;
   } else if (d.type === 'subtask') {
@@ -7975,8 +8013,7 @@ function _projCapDropAssign(dateStr) {
     const s = bp && bp.sessions.find(s => s.id === d.sessionId);
     const st = s && (s.subtasks || []).find(st => st.id === d.id);
     if (!st) return;
-    st.date = dateStr;
-    if (st.allocMonth && st.allocMonth !== dateStr.slice(0, 7)) st.allocMonth = dateStr.slice(0, 7);
+    _capAssignOne(st, 'date', dateStr);
     save('wt_bigprojs', bigProjs);
     name = st.desc;
   } else {
@@ -8041,13 +8078,16 @@ function renderProjCodeContent(projKey) {
         const ssc = s.subCode || bp.defaultSubCode || '';
         if (ssc === (scId || '')) {
           items.push({ _type: 'session', s, proj: bp, _date: s.date || (s.allocMonth ? s.allocMonth + '-01' : null), _src: bp.name });
-          (s.subtasks || []).forEach(st => {
-            const stsc = st.subCode || ssc;
-            if (stsc === (scId || '')) {
-              items.push({ _type: 'subtask', st, s, proj: bp, _date: st.date || (st.allocMonth ? st.allocMonth + '-01' : null), _src: bp.name });
-            }
-          });
         }
+        // Subtasks match on their OWN sub-code (falling back to the session's),
+        // independent of whether the parent session belongs to this section —
+        // a subtask billed to a different sub-code must still show up there.
+        (s.subtasks || []).forEach(st => {
+          const stsc = st.subCode || ssc;
+          if (stsc === (scId || '')) {
+            items.push({ _type: 'subtask', st, s, proj: bp, _date: st.date || (st.allocMonth ? st.allocMonth + '-01' : null), _src: bp.name });
+          }
+        });
       });
     });
     // Team deliverables
@@ -10148,9 +10188,13 @@ function _ownPlannedHours(obj) {
 // [{date, hours}] in quarter-hour chunks; may place less than asked when
 // the window is full — callers surface the leftover.
 function packIntoFreeDays(totalHours, opts = {}) {
-  let remaining = roundToQuarter(Math.max(totalHours || 0, 0));
+  // snapQuarter (not roundToQuarter) — the latter floors to 0.25 and would
+  // invent a quarter-hour of work when asked to pack ~0 hours.
+  let remaining = Math.max(0, snapQuarter(totalHours || 0));
   const from = opts.from && opts.from > today() ? opts.from : today();
-  const to = opts.before && opts.before < addDays(from, 180) ? opts.before : addDays(from, 70);
+  // With a deadline: search up to it, capped at 180 days out. Without: 70 days.
+  const horizon = addDays(from, 180);
+  const to = opts.before ? (opts.before < horizon ? opts.before : horizon) : addDays(from, 70);
   const out = [];
   if (remaining < 0.25 || to < from) return out;
   const planned = plannedItems(from, to).filter(p => !p._allocHold)
@@ -10238,6 +10282,7 @@ function plannedItems(fromDate, toDate) {
         const recurEnd  = t.recurrence.endDate || null;
         const skips     = t.recurrence.skips    || [];
         const overrides = t.recurrence.overrides || {};
+        const mkOcc = (orig, date) => ({ id: t.id + '_' + orig, name: t.name, project: t.project, date, hours: t.est || 0, subCode: t.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _src: 'task' });
         let d = t.due; let iters = 0;
         while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(t, d);
         iters = 0;
@@ -10245,10 +10290,20 @@ function plannedItems(fromDate, toDate) {
           if (recurEnd && d > recurEnd) break;
           if (!skips.includes(d)) {
             const displayDate = overrides[d] || d;
-            items.push({ id: t.id + '_' + d, name: t.name, project: t.project, date: displayDate, hours: t.est || 0, subCode: t.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[d], _src: 'task' });
+            // Window by the EFFECTIVE date: an occurrence rescheduled out of
+            // this range belongs to the range it moved to, not this one.
+            if (displayDate >= fromDate && displayDate <= toDate) items.push(mkOcc(d, displayDate));
           }
           d = nextRecurrenceAfter(t, d);
         }
+        // Occurrences rescheduled INTO this window from outside it
+        Object.entries(overrides).forEach(([orig, moved]) => {
+          if (moved < fromDate || moved > toDate) return;
+          if (orig >= fromDate && orig <= toDate) return; // handled above
+          if (orig < t.due || skips.includes(orig)) return;
+          if (recurEnd && orig > recurEnd) return;
+          items.push(mkOcc(orig, moved));
+        });
       } else if (t.allocMonth && !t.completed) {
         // Hold-month recurrence: expand monthly into future months
         const recurEnd = t.recurrence.endDate ? t.recurrence.endDate.slice(0, 7) : null;
@@ -10286,16 +10341,25 @@ function plannedItems(fromDate, toDate) {
           const recurEnd = s.recurrence.endDate || null;
           const skips = s.recurrence.skips || [];
           const overrides = s.recurrence.overrides || {};
+          const mkOcc = (orig, date) => ({ id: s.id + '_' + orig, name: s.desc, project: proj.project, date, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _src: 'session', _projId: proj.id });
           let d = s.date; let iters = 0;
           while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(s, d);
           iters = 0;
           while (d && d <= toDate && iters++ < 1000) {
             if (recurEnd && d > recurEnd) break;
             if (!skips.includes(d)) {
-              items.push({ id: s.id + '_' + d, name: s.desc, project: proj.project, date: overrides[d] || d, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[d], _src: 'session', _projId: proj.id });
+              const displayDate = overrides[d] || d;
+              if (displayDate >= fromDate && displayDate <= toDate) items.push(mkOcc(d, displayDate));
             }
             d = nextRecurrenceAfter(s, d);
           }
+          Object.entries(overrides).forEach(([orig, moved]) => {
+            if (moved < fromDate || moved > toDate) return;
+            if (orig >= fromDate && orig <= toDate) return;
+            if (orig < s.date || skips.includes(orig)) return;
+            if (recurEnd && orig > recurEnd) return;
+            items.push(mkOcc(orig, moved));
+          });
         } else if (s.allocMonth) {
           const recurEnd = s.recurrence.endDate ? s.recurrence.endDate.slice(0, 7) : null;
           let ym = s.allocMonth; let iters = 0;
@@ -10324,16 +10388,25 @@ function plannedItems(fromDate, toDate) {
             const recurEnd = st.recurrence.endDate || null;
             const skips = st.recurrence.skips || [];
             const overrides = st.recurrence.overrides || {};
+            const mkOcc = (orig, date) => ({ id: st.id + '_' + orig, name: st.desc, project: proj.project, date, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _src: 'subtask', _projId: proj.id, _sessionId: s.id });
             let d = st.date; let iters = 0;
             while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(st, d);
             iters = 0;
             while (d && d <= toDate && iters++ < 1000) {
               if (recurEnd && d > recurEnd) break;
               if (!skips.includes(d)) {
-                items.push({ id: st.id + '_' + d, name: st.desc, project: proj.project, date: overrides[d] || d, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[d], _src: 'subtask', _projId: proj.id, _sessionId: s.id });
+                const displayDate = overrides[d] || d;
+                if (displayDate >= fromDate && displayDate <= toDate) items.push(mkOcc(d, displayDate));
               }
               d = nextRecurrenceAfter(st, d);
             }
+            Object.entries(overrides).forEach(([orig, moved]) => {
+              if (moved < fromDate || moved > toDate) return;
+              if (orig >= fromDate && orig <= toDate) return;
+              if (orig < st.date || skips.includes(orig)) return;
+              if (recurEnd && orig > recurEnd) return;
+              items.push(mkOcc(orig, moved));
+            });
           } else if (st.allocMonth) {
             const recurEnd = st.recurrence.endDate ? st.recurrence.endDate.slice(0, 7) : null;
             let ym = st.allocMonth; let iters = 0;
@@ -11520,7 +11593,9 @@ function _capPickManualSet() {
 function findNextFitDay(needHours, opts = {}) {
   const need = Math.max(needHours || 0, 0.25);
   const from = opts.from && opts.from > today() ? opts.from : today();
-  const to = opts.before && opts.before < addDays(from, 180) ? opts.before : addDays(from, 70);
+  // With a deadline: search up to it, capped at 180 days out. Without: 70 days.
+  const horizon = addDays(from, 180);
+  const to = opts.before ? (opts.before < horizon ? opts.before : horizon) : addDays(from, 70);
   if (to < from) return null;
   const planned = plannedItems(from, to).filter(p => !p._allocHold)
     .filter(p => !opts.excludeId || (p.id !== opts.excludeId && !(p.id || '').startsWith(opts.excludeId + '_')));
@@ -12169,6 +12244,9 @@ function capMoveItem(type, ...ids) {
     if (t.due) {
       t.due = newMonth + '-15';
     }
+    // Placement everywhere is workDate || due — a stale work date would keep
+    // the hours planned in the old month despite the move.
+    t.workDate = null;
     t.allocMonth = newMonth;
     save('wt_tasks', tasks);
   } else if (type === 'session') {
@@ -12177,6 +12255,7 @@ function capMoveItem(type, ...ids) {
     const s = proj.sessions.find(s => s.id === ids[1]);
     if (!s) return;
     if (s.date) s.date = newMonth + '-15';
+    s.workDate = null;
     s.allocMonth = newMonth;
     save('wt_bigprojs', bigProjs);
   } else if (type === 'subtask') {
@@ -12187,6 +12266,7 @@ function capMoveItem(type, ...ids) {
     const st = (s.subtasks || []).find(st => st.id === ids[2]);
     if (!st) return;
     if (st.date) st.date = newMonth + '-15';
+    st.workDate = null;
     st.allocMonth = newMonth;
     save('wt_bigprojs', bigProjs);
   }
@@ -12430,11 +12510,16 @@ function _rollProjectAllSubsForward(projKey, fromYM) {
   // Include project-level (no sub-code) bucket too
   const buckets = scs.map(s => s.id);
   buckets.push('');
+  // Allocations parked on deleted (orphaned) sub-codes must roll as well —
+  // they'd otherwise be stranded in the source month forever.
+  _getOrphanedSubCodes(projKey, fromYM.slice(0, 4)).forEach(id => { if (!buckets.includes(id)) buckets.push(id); });
 
   buckets.forEach(scId => {
     const aKey = allocKey(projKey, scId, fromYM);
     const allocated = allocations[aKey] || 0;
-    const actual = scId ? allocGetActuals(projKey, scId, fromYM) : 0;
+    // The '' bucket's spend is the hours logged WITHOUT a sub-code — not zero
+    // (which rolled the full allocation even when unassigned hours were logged).
+    const actual = allocGetActuals(projKey, scId, fromYM);
     const remaining = allocated - actual;
     if (remaining === 0) return;
 
