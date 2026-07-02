@@ -78,6 +78,46 @@ A dedicated main tab called **Capacity** for forward-looking workload planning:
 - This is distinct from the existing Allocations tab (which tracks budgeted vs actual by project). Capacity is about personal workload headroom.
 - Key functions: `renderCapacity()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()`
 
+## Math Invariants (July 2026 audit)
+
+`docs/math-audit-2026-07.md` is the full audit record — 11 verified findings,
+what was fixed and how, and which behaviors are intentional. **Read it before
+changing any calculation.** The fixes established invariants later work must
+preserve:
+
+1. **Recurrence must strictly advance.** `nextRecurrenceAfter` wraps
+   `_nextRecurrenceAfterRaw` with a monotonic guard (non-advancing result →
+   `null`) — never call the raw function directly. When advancing a stored
+   anchor (completion, skip, reschedule) use `nextActiveRecurrenceAfter`,
+   which also steps past `recurrence.skips`; expansion loops use
+   `nextRecurrenceAfter` and filter skips themselves.
+2. **`plannedItems(from, to)` only returns items dated inside the window.**
+   Rescheduled occurrences are windowed by their override date, and
+   occurrences moved INTO the window are picked up from the overrides map.
+   Aggregate callers rely on this and sum without re-filtering. Exception:
+   month holds (`_allocHold`) carry a placeholder `allocMonth + '-15'` date
+   and are filtered/handled specially by every consumer.
+3. **Placement = `workDate || due` everywhere.** Anything that moves or
+   schedules an item must go through `_capAssignOne` / `_applyWorkPick` (or
+   explicitly clear `workDate`); writing `due`/`date` directly strands the
+   hours on the old work date.
+4. **Billing is quarter-hours.** `enforceQuarter` guards every saved hours
+   value. `roundToQuarter` has a 0.25 FLOOR — never use it on a
+   possibly-zero quantity (use `snapQuarter` clamped at 0, as
+   `packIntoFreeDays` does).
+5. **Cockpit gauge = remaining relay legs** (`_relayPersonRemainingEst`,
+   stages at/after the baton — the meter drains as legs complete); card
+   badges show the person's total (`_relayPersonEst`). Don't unify them.
+6. **Timesheet month-view week rows use the true Sun–Sat week** for logged,
+   planned, AND capacity. Boundary weeks intentionally pull from the adjacent
+   month and appear under both months — week bars don't sum to the month bar.
+
+Known-open minor items (deliberate — see the audit's Minor section): rounded
+percent color thresholds hide sub-0.5% overruns; `fmtQ` snaps legacy
+non-quarter values for display only (sums use raw values); an import merging
+a negative rollover can store a ≤0 allocation; `capMoveItem` targets the 15th
+even when it falls on a weekend.
+
 ## Conventions
 - **IDs**: `uid()` = `'_' + Math.random().toString(36).slice(2, 11)`
 - **Statuses**: `need-delegate`, `in-progress`, `ready-review`, `in-review`, `blocked`, `complete`
