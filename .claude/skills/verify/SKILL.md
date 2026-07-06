@@ -22,7 +22,10 @@ screenshots.
    ```
 3. Seed state BEFORE load with `page.addInitScript` writing `wt_*` localStorage
    keys (arrays JSON-stringified; set `wt_onboarded: '1'` to skip the welcome
-   tour). Then `page.goto('file:///home/user/workload-tracker/index.html')` —
+   tour). Gotcha: `load()` JSON.parses and silently falls back on failure, so
+   string values must be JSON-encoded — seed `wt_team_view` as `'"board"'`,
+   not `'board'` (a bare string reads as the fallback, e.g. list view).
+   Then `page.goto('file:///home/user/workload-tracker/index.html')` —
    `file://` works fine, no server needed. Wait ~2.5s for init.
 4. The app runs in offline mode when CDN/Supabase are unreachable — everything
    except cloud sync still works.

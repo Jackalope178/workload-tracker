@@ -9591,7 +9591,7 @@ let _teamSortDir = 'asc';
 // View mode: 'list' (flat) | 'person' (grouped) | 'board' (kanban). Migrate legacy group flag.
 let _teamViewMode = load('wt_team_view', null) || (load('wt_team_group_person', false) ? 'person' : 'list');
 let _teamBoardPerson = load('wt_team_board_person', null); // null → default to first team member
-let _teamBoardFilter = 'all'; // 'all' | 'overdue' | 'soon' | 'blocked' | 'waiting'
+let _teamBoardFilter = 'all'; // 'all' | 'overdue' | 'soon' | 'waiting' | 'mine'
 // Month the person-board allocation meters show ("period of interest")
 let _teamAllocMonth = today().slice(0, 7);
 function _teamAllocShift(n) {
@@ -9732,7 +9732,7 @@ function renderTeam() {
         id: s.id + '_delegated',
         name: s.desc, owners: people, owner: people.join(', '), project: proj.project,
         due: s.date, status: s.status || (s.done ? 'complete' : 'need-delegate'), ownerStatus: s.ownerStatus,
-        priority: s.priority || 'med', est: s.hours || 0,
+        priority: s.priority || 'med', est: s.hours || 0, waiting: s.waiting || '',
         _delegated: true, _projId: proj.id, _sessionId: s.id
       });
       // Also include subtasks with delegation
@@ -9743,7 +9743,7 @@ function renderTeam() {
           id: st.id + '_delegated',
           name: st.desc, owners: stPeople, owner: stPeople.join(', '), project: proj.project,
           due: st.date, status: st.done ? 'complete' : (st.status || 'not-started'), ownerStatus: st.ownerStatus,
-          priority: st.priority || 'med', est: st.hours || 0,
+          priority: st.priority || 'med', est: st.hours || 0, waiting: st.waiting || '',
           _delegated: true, _projId: proj.id, _sessionId: s.id, _subtaskId: st.id, _isSubtask: true
         });
       });
@@ -9759,7 +9759,7 @@ function renderTeam() {
       id: t.id + '_taskdel',
       name: t.name, owners: people, owner: people.join(', '), project: t.project,
       due: t.due, status: t.completed ? 'complete' : (t.status || 'need-delegate'), ownerStatus: t.ownerStatus,
-      priority: t.priority || 'med', est: t.est || 0,
+      priority: t.priority || 'med', est: t.est || 0, waiting: t.waiting || '',
       _taskDelegated: true, _taskId: t.id
     });
   });
@@ -9919,7 +9919,7 @@ function renderTeam() {
         `;
     } else if (item._taskDelegated) {
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditModal('${item._taskId}')">${escHtml(item.name)}</div>
+        <div class="team-task-name" onclick="openEditModal('${item._taskId}')">${escHtml(item.name)}${item.waiting ? `<span class="task-waiting">⏳ ${escHtml(item.waiting)}</span>` : ''}</div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(projLabel(item.project))}</span>
         <div class="project-dot" style="background:${escHtml(projColor(item.project))};"></div>
@@ -10053,7 +10053,6 @@ function renderTeamBoard(visible, boardPerson, container) {
     const active = items.filter(i => statusOf(i) !== 'complete');
     const overdue = active.filter(_teamItemOverdue);
     const soon = active.filter(i => _teamItemSoon(i));
-    const blocked = active.filter(i => statusOf(i) === 'blocked');
     const waiting = active.filter(i => i.waiting && i.waiting.trim());
     const onMe = active.filter(i => !i._delegated && !i._taskDelegated && _batonOwner(i) === 'Me');
     const doneCount = items.length - active.length;
@@ -10151,7 +10150,6 @@ function renderTeamBoard(visible, boardPerson, container) {
         ${chip('all', 'All active', active.length, '')}
         ${chip('overdue', '⚠️ Overdue', overdue.length, 'chip-danger')}
         ${chip('soon', '📅 Due ≤7d', soon.length, 'chip-warn')}
-        ${chip('blocked', '🚫 Blocked', blocked.length, 'chip-blocked')}
         ${chip('waiting', '⏳ Waiting', waiting.length, 'chip-wait')}
         ${chip('mine', '🟢 Waiting on KME', onMe.length, 'chip-mine')}
       </div>
@@ -10163,7 +10161,6 @@ function renderTeamBoard(visible, boardPerson, container) {
         if (statusOf(i) === 'complete') return false;
         if (_teamBoardFilter === 'overdue') return _teamItemOverdue(i);
         if (_teamBoardFilter === 'soon') return _teamItemSoon(i);
-        if (_teamBoardFilter === 'blocked') return statusOf(i) === 'blocked';
         if (_teamBoardFilter === 'waiting') return i.waiting && i.waiting.trim();
         if (_teamBoardFilter === 'mine') return !i._delegated && !i._taskDelegated && _batonOwner(i) === 'Me';
         return true;

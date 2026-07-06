@@ -222,3 +222,12 @@ Chronological; newest last. Keeps the *why* across threads.
     pills as tagged items, next to the 👤 icon) — and `ti.name`/`ti.waiting`
     are now `escHtml`-escaped there (pre-existing XSS sink, newly reachable
     via hand-off, since arbitrary task names flow into `wt_team`).
+26. **Cockpit chips: Blocked removed, Waiting wired to every row type** — the
+    per-person board's 🚫 Blocked filter chip is gone (blocked cards already
+    fold into In Progress with their 🚫 badge, and the toolbar status filter
+    still has a Blocked option for isolating them). The ⏳ Waiting chip's
+    count/filter read `i.waiting`, but the composite rows `renderTeam()`
+    builds for delegated tasks, sessions, and subtasks didn't carry the
+    field — their waiting-on notes were invisible to the chip, the board
+    cards, and the list rows. All three composites now pass `waiting`
+    through, so the chip counts them and the ⏳ badge shows on their cards.
