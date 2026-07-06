@@ -103,7 +103,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 | Personal tasks, recurrence, timers | `function renderTasks`, `renderWeekPlanner`, `confirmComplete` |
 | Team board, statuses, relay/hand-offs | `renderTeamBoard`, `relayStatusInfo`, `_relaySync`, `relayAdvance` |
 | KME mirror tasks / My-Tasks ↔ Team link | `_syncBatonMirror`, `_closeBatonMirror`, `_taskRelayPassBtn`, `_deliverableId` |
-| Task → deliverable hand-off (delegation) | `handoffTaskAsDeliverable`, `showTaskHandoffDropdown`, `delegatedTo`, `capDelegateItem` |
+| Task/session → deliverable hand-off (delegation) | `_handoffCreateDeliverable`, `handoffTaskAsDeliverable`, `handoffSessionAsDeliverable`, `delegatedTo`, `capDelegateItem` |
 | Billing / logged hours | `_logRelayLeg`, `wt_completed`, `roundToQuarter` |
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls` |
 | Capacity planner / drill-down | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold` |
@@ -122,6 +122,16 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 - **New persistent state?** Add the key to `SYNC_KEYS` if it should follow the user across devices; use the `load`/`save` wrappers, never raw `localStorage` calls.
 - **Verify by opening `index.html` in a browser** — there is no test suite, linter, or build to run.
 - **Touching any calculation?** Read `docs/math-audit-2026-07.md` first — it records the July 2026 audit's findings, fixes, and the invariants they established.
+- **SOP — delegation surfaces stay mirrored across tabs.** Every entry modal
+  for personal work (task modal on My Tasks/Projects, work-item/subtask modal
+  on Projects) offers BOTH delegation weights side by side: **Assign-to pills**
+  (lightweight tag — item stays put, right for recurring involvement) and
+  **⇄ Hand off as deliverable** (item converts to a `wt_team` relay via the
+  shared `_handoffCreateDeliverable`/`_handoffOpenPicker` helpers — never
+  reimplement the conversion inline). Anywhere items render with people
+  attached, use the same pill language: `delegateTagsHtml` for tagged items
+  AND deliverable owners (👤 rows). Adding a new entry surface or item list =
+  add both affordances and the pills in the same change.
 - **SOP — keep the in-app orientation current:** feature work isn't done until the ⓘ popover copy (`INFO_COPY`), the welcome tour (`welcomeOverlay` + `_WELCOME_STEPS`), and the per-tab help panel (`_TAB_TIPS`) reflect the change.
 - **Touching relay, the My-Tasks mirror, or team-board status?** Read `docs/team-relay-and-kme-flow.md` first and append to its intent log.
 - **`CLAUDE.md`** holds operating instructions for AI agents (branch policy, environment notes); this README is the architectural map. Keep both in sync when structure changes.

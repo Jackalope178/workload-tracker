@@ -228,7 +228,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Team board, statuses, relay/hand-offs | `renderTeamBoard`, `relayStatusInfo`, `_relaySync`, `relayAdvance` |
 | Person-board allocation meters / meetings column | `personAllocKey`, `_personCompletedHoursByCode`, `openPersonAllocModal`, `BOARD_COLS` |
 | KME mirror tasks / My-Tasks ↔ Team link | `_syncBatonMirror`, `_closeBatonMirror`, `_taskRelayPassBtn`, `_deliverableId` |
-| Task → deliverable hand-off (delegation) | `handoffTaskAsDeliverable`, `showTaskHandoffDropdown`, `delegatedTo`, `capDelegateItem` |
+| Task/session → deliverable hand-off (delegation) | `_handoffCreateDeliverable`, `handoffTaskAsDeliverable`, `handoffSessionAsDeliverable`, `delegatedTo`, `capDelegateItem` |
 | Billing / logged hours | `_logRelayLeg`, `wt_completed`, `roundToQuarter`, `enforceQuarter` |
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls`, `payPeriodOf` |
 | Capacity planner / drill-down / scheduler | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold`, `_capAssignOne` |
@@ -252,6 +252,16 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
   `docs/team-relay-and-kme-flow.md` first and append to its intent log.
 - **Touching any calculation?** Read `docs/math-audit-2026-07.md` first and
   preserve the invariants above.
+- **SOP — delegation surfaces stay mirrored across tabs.** Every entry modal
+  for personal work (task modal on My Tasks/Projects, work-item/subtask modal
+  on Projects) offers BOTH delegation weights side by side: **Assign-to pills**
+  (lightweight tag — item stays put, right for recurring involvement) and
+  **⇄ Hand off as deliverable** (item converts to a `wt_team` relay via the
+  shared `_handoffCreateDeliverable`/`_handoffOpenPicker` helpers — never
+  reimplement the conversion inline). Anywhere items render with people
+  attached, use the same pill language: `delegateTagsHtml` for tagged items
+  AND deliverable owners (👤 rows). Adding a new entry surface or item list =
+  add both affordances and the pills in the same change.
 - **SOP — keep the in-app orientation current.** Whenever a feature is added
   or a meter/board changes what it counts, update all three help surfaces as
   part of the same change: (1) the ⓘ popover copy (`INFO_COPY` — one entry

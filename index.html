@@ -3864,6 +3864,10 @@ if (typeof XLSX === 'undefined') {
         <div id="editSessionDelegateWrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
         <div id="editSessionDelegateNote" style="font-size:11px;color:var(--text3);display:none;">No persons yet — add them from the Team Deliverables tab.</div>
       </div>
+      <div class="edit-form-group full" id="editSessionHandoffRow" style="margin-top:-4px;">
+        <button type="button" class="btn" data-assign-btn onclick="showSessionHandoffDropdown(event)" style="font-size:11px;">⇄ Hand off as deliverable…</button>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Moves this item to Team Deliverables with a relay: their work leg, then your review. Recurring items can't move — assign above instead and they're tagged on every occurrence.</div>
+      </div>
       <div class="edit-form-group full" id="editSessionTimerRow" style="display:none;">
         <label class="edit-label">Logged Time</label>
         <div style="display:flex;align-items:center;gap:10px;">
@@ -4303,7 +4307,7 @@ if (typeof XLSX === 'undefined') {
       <p>A deliverable can carry a <strong>relay</strong>: ordered stages (work ✎ / review 👁 / send ✉), each with a person, estimate, and due date. Whoever holds the current stage has the <strong>baton</strong>.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">🟢</span><span>When it's <strong>your turn</strong>, the leg appears in My Tasks (↩ team badge) and counts in your Capacity. <strong>Pass →</strong> logs your hours to the deliverable's billing code exactly once and hands it on.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">👥</span><span>Each person's board opens with <strong>allocation meters</strong> — the monthly hours you've budgeted them per billing code, drained by completed work — plus backlog and filter chips.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">⇄</span><span>Delegating one of your tasks? <strong>Hand off as deliverable</strong> in the task edit modal moves it here with the relay pre-seeded — their work, then your review.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">⇄</span><span>Delegating your own work? <strong>Hand off as deliverable</strong> in a task or work-item edit modal moves it here with the relay pre-seeded — their work, then your review.</span></div>
     </div>
 
     <div class="welcome-step" data-step="6">
@@ -9085,18 +9089,14 @@ function renderProjItemRow(item, projKey, scId) {
   if (item._type === 'team') {
     const ti = item.team;
     const isDone = ti.status === 'complete';
-    const owners = ti.owners || [ti.owner];
-    const ownerTags = owners.map(o => {
-      const pc = personColor(o || '—');
-      return `<span style="color:${pc.text};background:${pc.bg};border:1px solid ${pc.border};padding:1px 5px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;">${escHtml(o)}</span>`;
-    }).join('');
+    const owners = (ti.owners && ti.owners.length ? ti.owners : [ti.owner]).filter(Boolean);
     return `<div class="proj-item-row">
       <div class="bulk-select-check${_selectedProjItems.has('team:'+ti.id) ? ' selected' : ''}" onclick="event.stopPropagation();_toggleProjItemSelect('team','${ti.id}')" title="Select for bulk action">${_selectedProjItems.has('team:'+ti.id) ? '<span style="color:#fff;font-size:10px;">✓</span>' : ''}</div>
       <div style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;opacity:0.6;" title="Team deliverable">👤</div>
       <div class="session-desc" style="${isDone ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditTeamModal('${ti.id}')">
-        ${ti.name}
-        <span style="display:inline-flex;gap:3px;margin-left:4px;">${ownerTags}</span>
-        ${ti.waiting ? `<span class="task-waiting">⏳ ${ti.waiting}</span>` : ''}
+        ${escHtml(ti.name)}
+        ${delegateTagsHtml(owners)}
+        ${ti.waiting ? `<span class="task-waiting">⏳ ${escHtml(ti.waiting)}</span>` : ''}
         ${ti.notes ? '<span class="notes-icon" title="Has notes">📝</span>' : ''}
       </div>
       <div></div>
@@ -15865,7 +15865,7 @@ const INFO_COPY = {
   },
   relay: {
     title: 'Relays — pass the baton through stages',
-    body: 'A relay moves one deliverable through ordered stages (<strong>work ✎ / review 👁 / send ✉</strong>), each with an assignee, estimate, and due date. The current stage\'s assignee <strong>holds the baton</strong>; everyone else sees "Waiting on …". When a stage is yours (KME), a mirror task appears in <strong>My Tasks</strong> and counts in Capacity; passing it logs your hours to the deliverable\'s billing code <strong>exactly once</strong>. You can also start a relay straight from a task: <strong>⇄ Hand off as deliverable</strong> in the task edit modal moves it here pre-seeded with their work leg and your review leg.'
+    body: 'A relay moves one deliverable through ordered stages (<strong>work ✎ / review 👁 / send ✉</strong>), each with an assignee, estimate, and due date. The current stage\'s assignee <strong>holds the baton</strong>; everyone else sees "Waiting on …". When a stage is yours (KME), a mirror task appears in <strong>My Tasks</strong> and counts in Capacity; passing it logs your hours to the deliverable\'s billing code <strong>exactly once</strong>. You can also start a relay straight from a task or a project work item: <strong>⇄ Hand off as deliverable</strong> in its edit modal moves it here pre-seeded with their work leg and your review leg.'
   },
   allocGrid: {
     title: 'Reading the allocation grid',
@@ -15940,6 +15940,8 @@ const _TAB_TIPS = {
       'Click a <strong>project card</strong> to expand it and see sessions/subtasks.',
       'Use <strong>+ Add Session</strong> to create work items within a project.',
       'Sessions can have <strong>subtasks</strong>, timers, and be delegated to team members.',
+      'Person pills mark who\'s involved: <strong>↗ Name</strong> = tagged via Assign-to (item stays yours to track), <strong>👤 rows</strong> = Team deliverables billed to this code — including items you handed off.',
+      '<strong>⇄ Hand off as deliverable</strong> (work-item edit modal) moves a session or subtask to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves this project\'s planning; a handed-off subtask\'s hours also leave its parent so nothing counts twice.',
       '<strong>Hide</strong> inactive projects to keep the view clean.',
       'Manage project codes, billing codes, and colors in <strong>Settings → Manage Projects</strong>.'
     ]
@@ -16357,12 +16359,65 @@ function toggleTaskPersonAssignment(name) {
   renderTasks();
 }
 
-// ── Hand off: task → Team deliverable with a pre-seeded relay ──────────────
-// The lightweight "Assign to" tag keeps the task in wt_tasks (right for
+// ── Hand off: task / work item → Team deliverable with a pre-seeded relay ──
+// The lightweight "Assign to" tag keeps the item where it lives (right for
 // recurring involvement like standing check-ins). Hand-off is the heavy path:
-// the task MOVES to wt_team as a relay — their work leg, then a Me review leg
-// — so the hours change homes exactly once (Capacity drops the task, the
-// person's board gains the leg, and the Me leg re-enters via the baton mirror).
+// the item MOVES to wt_team as a relay — their work leg, then a Me review leg
+// — so the hours change homes exactly once (Capacity drops the source item,
+// the person's board gains the leg, and the Me leg re-enters via the baton
+// mirror). SOP: My Tasks and Projects entry modals stay mirrored — both offer
+// Assign-to (tag) AND ⇄ Hand off, through these shared helpers.
+function _handoffCreateDeliverable(f, person) {
+  const item = {
+    id: uid(), name: f.name, owner: person, owners: [person],
+    project: f.project || 'overhead', subCode: f.subCode || '',
+    due: f.due || '', allocMonth: f.allocMonth || null,
+    status: 'in-progress', priority: f.priority || 'med', est: f.est || 0,
+    waiting: f.waiting || '', notes: f.notes || '',
+    relay: [
+      { id: uid(), kind: 'work',   who: person, est: f.est || 0, due: f.due || '', note: '' },
+      { id: uid(), kind: 'review', who: 'Me',   est: 0.25,       due: '',          note: '' }
+    ],
+    relayStage: 0, relayStarted: false,
+    // Provenance only — the allocation meters read 'pass' entries and skip this.
+    relayLog: [{ from: 'Me', at: today(), action: 'handoff' }]
+  };
+  teamItems.push(item);
+  _relaySync(item, null);   // derive owners/baton/status; stage 0 isn't Me, so no mirror yet
+  save('wt_team', teamItems);
+  return item;
+}
+
+function _handoffOpenPicker(e, persons, onPickFn) {
+  const menu = document.getElementById('assignDropdown');
+  const rect = e.currentTarget.getBoundingClientRect();
+  menu.style.top  = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+  menu.innerHTML = `<div style="padding:6px 10px 4px;font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text3);">Hand off to…</div>` +
+    persons.map(name => `<div class="assign-dd-item" onclick="${onPickFn}('${name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
+      <span class="assign-dd-check">→</span>
+      <span>${escHtml(name)}</span>
+    </div>`).join('');
+  if (!persons.length) {
+    menu.innerHTML += `<div class="assign-dd-empty">No team members yet. <a href="#" onclick="event.preventDefault();document.getElementById('assignDropdown').classList.remove('open');openManagePersonsModal();">Add people →</a></div>`;
+  }
+  menu.classList.add('open');
+  _clampPopupToViewport(menu);
+}
+
+function _handoffTimerOk(target, label) {
+  const secs = (target.timer || 0) + (target.timerStart ? Math.floor((Date.now() - target.timerStart) / 1000) : 0);
+  return secs < 60 || confirm(`This ${label} has ${fmtSecs(secs)} on its timer, which won't carry over to the deliverable. Hand it off anyway?`);
+}
+
+function _handoffFinish(item, person) {
+  renderTasks(); renderTeam(); renderProjects(); updateHeaderMeta();
+  const teamTab = document.querySelector('.tab[data-tab="team"]');
+  if (teamTab) _switchTab(teamTab);
+  openEditTeamModal(item.id);
+  showSyncToast(`Handed off to ${person} — relay: ${person} works → you review. Adjust the stages and save.`, 'success');
+}
+
 function showTaskHandoffDropdown(e) {
   e.stopPropagation();
   const task = editingTaskId && editingTaskId !== '__new__' ? tasks.find(t => t.id === editingTaskId) : null;
@@ -16372,66 +16427,97 @@ function showTaskHandoffDropdown(e) {
     showSyncToast('Recurring tasks stay in My Tasks — use "Assign to" instead so they\'re tagged on every occurrence.', 'warn');
     return;
   }
-  const menu = document.getElementById('assignDropdown');
-  const rect = e.currentTarget.getBoundingClientRect();
-  menu.style.top  = (rect.bottom + 4) + 'px';
-  menu.style.left = rect.left + 'px';
-  menu.innerHTML = `<div style="padding:6px 10px 4px;font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text3);">Hand off to…</div>` +
-    PERSONS.map(name => `<div class="assign-dd-item" onclick="handoffTaskAsDeliverable('${name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
-      <span class="assign-dd-check">→</span>
-      <span>${escHtml(name)}</span>
-    </div>`).join('');
-  if (!PERSONS.length) {
-    menu.innerHTML += `<div class="assign-dd-empty">No team members yet. <a href="#" onclick="event.preventDefault();document.getElementById('assignDropdown').classList.remove('open');openManagePersonsModal();">Add people →</a></div>`;
-  }
-  menu.classList.add('open');
-  _clampPopupToViewport(menu);
+  _handoffOpenPicker(e, PERSONS, 'handoffTaskAsDeliverable');
 }
 
 function handoffTaskAsDeliverable(person) {
   document.getElementById('assignDropdown').classList.remove('open');
   const task = editingTaskId && editingTaskId !== '__new__' ? tasks.find(t => t.id === editingTaskId) : null;
   if (!task || !person) return;
-  // Timer time is personal pre-work; it has nowhere to live on a deliverable.
-  const timerSecs = (task.timer || 0) + (task.timerStart ? Math.floor((Date.now() - task.timerStart) / 1000) : 0);
-  if (timerSecs >= 60 && !confirm(`This task has ${fmtSecs(timerSecs)} on its timer, which won't carry over to the deliverable. Hand it off anyway?`)) return;
+  if (!_handoffTimerOk(task, 'task')) return;
 
-  // Snapshot the open modal — what you see is what hands off.
-  const name     = document.getElementById('editName').value.trim() || task.name;
-  const due      = document.getElementById('editDue').value || '';
-  const est      = enforceQuarter(parseFloat(document.getElementById('editEst').value) || 0, 'estimate');
-  const item = {
-    id: uid(), name, owner: person, owners: [person],
+  // Snapshot the open modal — what you see is what hands off. Done work blocks
+  // were already billed when ticked, so they don't ride into the estimate.
+  let est = enforceQuarter(parseFloat(document.getElementById('editEst').value) || 0, 'estimate');
+  const doneBlockH = (task.blocks || []).filter(b => b.done).reduce((a, b) => a + (b.hours || 0), 0);
+  est = Math.max(0, est - doneBlockH);
+  const item = _handoffCreateDeliverable({
+    name: document.getElementById('editName').value.trim() || task.name,
     project: document.getElementById('editProject').value || task.project || 'overhead',
     subCode: document.getElementById('editSubCode').value || '',
-    due, allocMonth: document.getElementById('editAllocMonth').value || null,
-    status: 'in-progress',
-    priority: document.getElementById('editPriority').value || 'med',
+    due: document.getElementById('editDue').value || '',
     est,
+    priority: document.getElementById('editPriority').value || 'med',
     waiting: document.getElementById('editWaiting').value.trim(),
     notes: document.getElementById('editNotes').value.trim(),
-    relay: [
-      { id: uid(), kind: 'work',   who: person, est: est,  due: due, note: '' },
-      { id: uid(), kind: 'review', who: 'Me',   est: 0.25, due: '',  note: '' }
-    ],
-    relayStage: 0, relayStarted: false,
-    // Provenance only — the allocation meters read 'pass' entries and skip this.
-    relayLog: [{ from: 'Me', at: today(), action: 'handoff' }]
-  };
-  teamItems.push(item);
-  _relaySync(item, null);   // derive owners/baton/status; stage 0 isn't Me, so no mirror yet
-  save('wt_team', teamItems);
+    allocMonth: document.getElementById('editAllocMonth').value || null
+  }, person);
 
   // The deliverable replaces the task — one home for the hours.
   tasks = tasks.filter(t => t.id !== task.id);
   save('wt_tasks', tasks);
 
   closeEditModal();
-  renderTasks(); renderTeam(); renderProjects(); updateHeaderMeta();
-  const teamTab = document.querySelector('.tab[data-tab="team"]');
-  if (teamTab) _switchTab(teamTab);
-  openEditTeamModal(item.id);
-  showSyncToast(`Handed off to ${person} — relay: ${person} works → you review. Adjust the stages and save.`, 'success');
+  _handoffFinish(item, person);
+}
+
+// Sessions & subtasks (Projects tab work items) — same flow, same guards.
+function showSessionHandoffDropdown(e) {
+  e.stopPropagation();
+  const target = _getEditingSessionTarget();
+  if (!target) { showSyncToast('Save the work item first, then hand it off.', 'warn'); return; }
+  const label = editingSubtaskMode ? 'subtask' : 'work item';
+  if (target.recurrence || document.getElementById('editSessionRecurType').value) {
+    showSyncToast(`Recurring ${label}s stay on the project — use "Assign to" instead so they're tagged on every occurrence.`, 'warn');
+    return;
+  }
+  if (!editingSubtaskMode && (target.subtasks || []).some(st => !st.done)) {
+    showSyncToast('This work item has open subtasks — hand those off individually (or complete them) first.', 'warn');
+    return;
+  }
+  _handoffOpenPicker(e, getPersonsForProject(editingSessionProjId), 'handoffSessionAsDeliverable');
+}
+
+function handoffSessionAsDeliverable(person) {
+  document.getElementById('assignDropdown').classList.remove('open');
+  const target = _getEditingSessionTarget();
+  const proj = bigProjs.find(p => p.id === editingSessionProjId);
+  if (!target || !proj || !person) return;
+  if (!_handoffTimerOk(target, editingSubtaskMode ? 'subtask' : 'work item')) return;
+
+  // Done subtasks were billed at completion — only the live remainder hands off.
+  let est = enforceQuarter(parseFloat(document.getElementById('editSessionHours').value) || 0, 'hours');
+  if (!editingSubtaskMode && (target.subtasks || []).length) {
+    est = Math.max(0, est - _childPlannedHours(target));
+  }
+  const item = _handoffCreateDeliverable({
+    name: document.getElementById('editSessionDesc').value.trim() || target.desc,
+    project: proj.project || 'overhead',
+    subCode: document.getElementById('editSessionSubCode')?.value || '',
+    due: document.getElementById('editSessionDate').value || '',
+    est,
+    priority: document.getElementById('editSessionPriority')?.value || 'med',
+    waiting: document.getElementById('editSessionWaiting').value.trim(),
+    notes: target.notes || '',
+    allocMonth: document.getElementById('editSessionAllocMonth').value || null
+  }, person);
+
+  // Remove the source. A handed-off subtask's hours also leave the parent's
+  // total — otherwise the parent's un-subtasked remainder would grow back by
+  // the same amount and the hours would count twice.
+  if (editingSubtaskMode) {
+    const parentS = proj.sessions.find(s => s.id === editingSubtaskParentSessionId);
+    if (parentS) {
+      parentS.subtasks = (parentS.subtasks || []).filter(st => st.id !== target.id);
+      parentS.hours = Math.max(0, (parentS.hours || 0) - (target.hours || 0));
+    }
+  } else {
+    proj.sessions = proj.sessions.filter(s => s.id !== target.id);
+  }
+  save('wt_bigprojs', bigProjs);
+
+  closeEditSessionModal();
+  _handoffFinish(item, person);
 }
 
 function togglePersonAssignment(name) {
@@ -16789,6 +16875,8 @@ function _openSessionModal(projId, sessionId, title, desc, date, hours, waiting,
   // Show delete button only when editing an existing item
   const delBtn = document.getElementById('editSessionDeleteBtn');
   delBtn.style.display = sessionId ? '' : 'none';
+  const hoRow = document.getElementById('editSessionHandoffRow');
+  if (hoRow) hoRow.style.display = sessionId ? '' : 'none';   // nothing to hand off until the item exists
   _syncEditSessionTimerRow(_getEditingSessionTarget());
   document.getElementById('editSessionModal').classList.add('open');
 }

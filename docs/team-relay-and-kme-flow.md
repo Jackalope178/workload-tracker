@@ -206,3 +206,19 @@ Chronological; newest last. Keeps the *why* across threads.
     allocation-meter math ignores (it only reads `pass` entries). The
     conversion snapshots the open modal's fields, so unsaved edits hand off
     as shown.
+25. **Hand-off mirrored on the Projects tab (+ cohesion & escaping)** — the
+    work-item/subtask modal grew the same **⇄ Hand off as deliverable…**
+    button (`showSessionHandoffDropdown` / `handoffSessionAsDeliverable`),
+    sharing `_handoffCreateDeliverable` / `_handoffOpenPicker` /
+    `_handoffTimerOk` / `_handoffFinish` with the task path — SOP: never
+    reimplement the conversion inline; new entry surfaces call the helpers.
+    Hours math extras beyond the task path: **a handed-off subtask's hours
+    are subtracted from its parent session's total** (else the parent's
+    un-subtasked remainder grows back and the hours count twice), a session
+    with **open subtasks refuses** (hand them off individually first), and
+    **done subtasks / done work blocks are excluded** from the deliverable's
+    est (they were billed at completion). Projects-tab cohesion: `_type:
+    'team'` rows now render owners with `delegateTagsHtml` (same ↗/📌 person
+    pills as tagged items, next to the 👤 icon) — and `ti.name`/`ti.waiting`
+    are now `escHtml`-escaped there (pre-existing XSS sink, newly reachable
+    via hand-off, since arbitrary task names flow into `wt_team`).
