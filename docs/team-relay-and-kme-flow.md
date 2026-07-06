@@ -189,3 +189,20 @@ Chronological; newest last. Keeps the *why* across threads.
     exact matches first; the project-level bar sweeps the rest, so "20h of
     Project X however it splits" works alongside carved-out codes. The bar is
     labeled "· catch-all".
+24. **Hand off as deliverable (task → relay)** — the task edit modal grew a
+    **⇄ Hand off as deliverable…** button (`showTaskHandoffDropdown` /
+    `handoffTaskAsDeliverable`): pick a person and the task converts into a
+    `wt_team` deliverable pre-seeded `Work — <person>` (task's est + due) →
+    `Review — Me` (0.25h), then the deliverable modal opens so stages can be
+    adjusted before saving. The source task is **deleted** — one home for the
+    hours: Capacity drops it (task gone from `wt_tasks`), the person's board
+    gains the work leg, and the Me review leg re-enters My Tasks/Capacity
+    later via the normal baton mirror. Guards: **recurring tasks refuse**
+    (recurring involvement — e.g. Jordan on biweekly check-ins — is what the
+    lightweight `delegatedTo` tag is for; it keeps her on every occurrence),
+    **mirror tasks refuse** (already a relay leg; the button is hidden), and
+    **timer time warns** before discarding (it can't follow the task).
+    Provenance: `relayLog` gets `{ action: 'handoff' }`, which the
+    allocation-meter math ignores (it only reads `pass` entries). The
+    conversion snapshots the open modal's fields, so unsaved edits hand off
+    as shown.

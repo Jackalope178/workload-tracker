@@ -3501,6 +3501,10 @@ if (typeof XLSX === 'undefined') {
         <label class="edit-label">Assign to <span style="font-weight:400;color:var(--text3);">(optional — appears in Team tab)</span></label>
         <div id="editTaskDelegateWrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
       </div>
+      <div class="edit-form-group full" id="editTaskHandoffRow" style="margin-top:-4px;">
+        <button type="button" class="btn" data-assign-btn onclick="showTaskHandoffDropdown(event)" style="font-size:11px;">⇄ Hand off as deliverable…</button>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Moves this task to Team Deliverables with a relay: their work leg, then your review. Recurring tasks can't move — assign above instead and they're tagged on every occurrence.</div>
+      </div>
       <div class="edit-form-group full" id="editTimerRow" style="display:none;">
         <label class="edit-label">Logged Time</label>
         <div style="display:flex;align-items:center;gap:10px;">
@@ -4299,6 +4303,7 @@ if (typeof XLSX === 'undefined') {
       <p>A deliverable can carry a <strong>relay</strong>: ordered stages (work ✎ / review 👁 / send ✉), each with a person, estimate, and due date. Whoever holds the current stage has the <strong>baton</strong>.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">🟢</span><span>When it's <strong>your turn</strong>, the leg appears in My Tasks (↩ team badge) and counts in your Capacity. <strong>Pass →</strong> logs your hours to the deliverable's billing code exactly once and hands it on.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">👥</span><span>Each person's board opens with <strong>allocation meters</strong> — the monthly hours you've budgeted them per billing code, drained by completed work — plus backlog and filter chips.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">⇄</span><span>Delegating one of your tasks? <strong>Hand off as deliverable</strong> in the task edit modal moves it here with the relay pre-seeded — their work, then your review.</span></div>
     </div>
 
     <div class="welcome-step" data-step="6">
@@ -7584,6 +7589,9 @@ function openEditModal(taskId) {
   document.getElementById('editNotes').value = task.notes || '';
   // Assign-to pills
   populateSessionDelegatePills(PERSONS, task.delegatedTo, 'editTaskDelegateWrap');
+  // Hand-off — mirror tasks are already a relay leg of a deliverable
+  const handoffRow = document.getElementById('editTaskHandoffRow');
+  if (handoffRow) handoffRow.style.display = task._deliverableId ? 'none' : '';
   // Recurrence
   const r = task.recurrence || {};
   document.getElementById('editRecurType').value        = r.type || '';
@@ -9457,6 +9465,8 @@ function openAddTaskForProject(projKey, scId) {
   document.getElementById('editRecurType').value = '';
   onRecurTypeChange();
   populateSessionDelegatePills(PERSONS, null, 'editTaskDelegateWrap');
+  const _hoRow = document.getElementById('editTaskHandoffRow');
+  if (_hoRow) _hoRow.style.display = 'none';   // nothing to hand off until the task exists
   document.getElementById('editDeleteBtn').style.display = 'none';
   document.getElementById('editTaskModal').classList.add('open');
   setTimeout(() => document.getElementById('editName').focus(), 80);
@@ -15855,7 +15865,7 @@ const INFO_COPY = {
   },
   relay: {
     title: 'Relays — pass the baton through stages',
-    body: 'A relay moves one deliverable through ordered stages (<strong>work ✎ / review 👁 / send ✉</strong>), each with an assignee, estimate, and due date. The current stage\'s assignee <strong>holds the baton</strong>; everyone else sees "Waiting on …". When a stage is yours (KME), a mirror task appears in <strong>My Tasks</strong> and counts in Capacity; passing it logs your hours to the deliverable\'s billing code <strong>exactly once</strong>.'
+    body: 'A relay moves one deliverable through ordered stages (<strong>work ✎ / review 👁 / send ✉</strong>), each with an assignee, estimate, and due date. The current stage\'s assignee <strong>holds the baton</strong>; everyone else sees "Waiting on …". When a stage is yours (KME), a mirror task appears in <strong>My Tasks</strong> and counts in Capacity; passing it logs your hours to the deliverable\'s billing code <strong>exactly once</strong>. You can also start a relay straight from a task: <strong>⇄ Hand off as deliverable</strong> in the task edit modal moves it here pre-seeded with their work leg and your review leg.'
   },
   allocGrid: {
     title: 'Reading the allocation grid',
@@ -15919,6 +15929,7 @@ const _TAB_TIPS = {
       '<strong>⇶ Spread</strong> (in the edit modal) splits a big task\'s hours evenly across weekdays from work date to deadline.',
       '<strong>▣ Work blocks</strong> (edit modal) break a big task into dated sessions under one deadline — ⚡ Auto-fill packs the remaining hours into days with free capacity. Tick a block to log its time; the parent counts only the un-blocked remainder.',
       'Set up <strong>recurring tasks</strong> (weekly, monthly) in the edit modal.',
+      '<strong>⇄ Hand off as deliverable</strong> (edit modal) moves a task to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves your list and Capacity; your review leg mirrors back in when the baton reaches you. Recurring tasks can\'t move — <strong>Assign to</strong> tags them on every occurrence instead.',
       'Use the <strong>priority filter</strong> to focus on urgent work.',
       'Drag tasks to <strong>reorder</strong> within each section.'
     ]
@@ -15939,6 +15950,7 @@ const _TAB_TIPS = {
       'Track <strong>cross-team assignments</strong> — who owns what and its status.',
       '<strong>Relays</strong> pass a deliverable through ordered stages (work ✎ / review 👁 / send ✉) — the current stage\'s person holds the baton; everyone else sees "Waiting on …".',
       'When a relay leg is <strong>yours (KME)</strong>, it mirrors into My Tasks, counts in Capacity, and bills once when you pass it on.',
+      'Delegating your own task? <strong>⇄ Hand off as deliverable</strong> in its edit modal moves it here as a relay — their work leg, then your review — and removes it from My Tasks.',
       'Pick a <strong>person\'s board</strong> to see their allocation meters: hours you\'ve budgeted them per billing code for the month, drained by completed work with planned overlaid. <strong>+ Allocation</strong> adds a code; click a bar to edit it. A no-sub-code bar is a <strong>catch-all</strong> for the whole project.',
       '<strong>Meetings</strong> have their own board column — tag teammates on a meeting task and it (and its hours) shows on their board.',
       'Hover a relay stage row in the editor to add a <strong>📝 note</strong> — it shows on the card in yellow while that leg is active, so "Work" can say what the work actually is.',
@@ -16343,6 +16355,83 @@ function toggleTaskPersonAssignment(name) {
   save('wt_tasks', tasks);
   _renderAssignDropdownItems();
   renderTasks();
+}
+
+// ── Hand off: task → Team deliverable with a pre-seeded relay ──────────────
+// The lightweight "Assign to" tag keeps the task in wt_tasks (right for
+// recurring involvement like standing check-ins). Hand-off is the heavy path:
+// the task MOVES to wt_team as a relay — their work leg, then a Me review leg
+// — so the hours change homes exactly once (Capacity drops the task, the
+// person's board gains the leg, and the Me leg re-enters via the baton mirror).
+function showTaskHandoffDropdown(e) {
+  e.stopPropagation();
+  const task = editingTaskId && editingTaskId !== '__new__' ? tasks.find(t => t.id === editingTaskId) : null;
+  if (!task) { showSyncToast('Save the task first, then hand it off.', 'warn'); return; }
+  if (task._deliverableId) { showSyncToast('This task is a relay leg of an existing deliverable — pass it on instead.', 'warn'); return; }
+  if (task.recurrence || document.getElementById('editRecurType').value) {
+    showSyncToast('Recurring tasks stay in My Tasks — use "Assign to" instead so they\'re tagged on every occurrence.', 'warn');
+    return;
+  }
+  const menu = document.getElementById('assignDropdown');
+  const rect = e.currentTarget.getBoundingClientRect();
+  menu.style.top  = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+  menu.innerHTML = `<div style="padding:6px 10px 4px;font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text3);">Hand off to…</div>` +
+    PERSONS.map(name => `<div class="assign-dd-item" onclick="handoffTaskAsDeliverable('${name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
+      <span class="assign-dd-check">→</span>
+      <span>${escHtml(name)}</span>
+    </div>`).join('');
+  if (!PERSONS.length) {
+    menu.innerHTML += `<div class="assign-dd-empty">No team members yet. <a href="#" onclick="event.preventDefault();document.getElementById('assignDropdown').classList.remove('open');openManagePersonsModal();">Add people →</a></div>`;
+  }
+  menu.classList.add('open');
+  _clampPopupToViewport(menu);
+}
+
+function handoffTaskAsDeliverable(person) {
+  document.getElementById('assignDropdown').classList.remove('open');
+  const task = editingTaskId && editingTaskId !== '__new__' ? tasks.find(t => t.id === editingTaskId) : null;
+  if (!task || !person) return;
+  // Timer time is personal pre-work; it has nowhere to live on a deliverable.
+  const timerSecs = (task.timer || 0) + (task.timerStart ? Math.floor((Date.now() - task.timerStart) / 1000) : 0);
+  if (timerSecs >= 60 && !confirm(`This task has ${fmtSecs(timerSecs)} on its timer, which won't carry over to the deliverable. Hand it off anyway?`)) return;
+
+  // Snapshot the open modal — what you see is what hands off.
+  const name     = document.getElementById('editName').value.trim() || task.name;
+  const due      = document.getElementById('editDue').value || '';
+  const est      = enforceQuarter(parseFloat(document.getElementById('editEst').value) || 0, 'estimate');
+  const item = {
+    id: uid(), name, owner: person, owners: [person],
+    project: document.getElementById('editProject').value || task.project || 'overhead',
+    subCode: document.getElementById('editSubCode').value || '',
+    due, allocMonth: document.getElementById('editAllocMonth').value || null,
+    status: 'in-progress',
+    priority: document.getElementById('editPriority').value || 'med',
+    est,
+    waiting: document.getElementById('editWaiting').value.trim(),
+    notes: document.getElementById('editNotes').value.trim(),
+    relay: [
+      { id: uid(), kind: 'work',   who: person, est: est,  due: due, note: '' },
+      { id: uid(), kind: 'review', who: 'Me',   est: 0.25, due: '',  note: '' }
+    ],
+    relayStage: 0, relayStarted: false,
+    // Provenance only — the allocation meters read 'pass' entries and skip this.
+    relayLog: [{ from: 'Me', at: today(), action: 'handoff' }]
+  };
+  teamItems.push(item);
+  _relaySync(item, null);   // derive owners/baton/status; stage 0 isn't Me, so no mirror yet
+  save('wt_team', teamItems);
+
+  // The deliverable replaces the task — one home for the hours.
+  tasks = tasks.filter(t => t.id !== task.id);
+  save('wt_tasks', tasks);
+
+  closeEditModal();
+  renderTasks(); renderTeam(); renderProjects(); updateHeaderMeta();
+  const teamTab = document.querySelector('.tab[data-tab="team"]');
+  if (teamTab) _switchTab(teamTab);
+  openEditTeamModal(item.id);
+  showSyncToast(`Handed off to ${person} — relay: ${person} works → you review. Adjust the stages and save.`, 'success');
 }
 
 function togglePersonAssignment(name) {

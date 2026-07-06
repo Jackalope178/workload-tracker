@@ -103,6 +103,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 | Personal tasks, recurrence, timers | `function renderTasks`, `renderWeekPlanner`, `confirmComplete` |
 | Team board, statuses, relay/hand-offs | `renderTeamBoard`, `relayStatusInfo`, `_relaySync`, `relayAdvance` |
 | KME mirror tasks / My-Tasks ↔ Team link | `_syncBatonMirror`, `_closeBatonMirror`, `_taskRelayPassBtn`, `_deliverableId` |
+| Task → deliverable hand-off (delegation) | `handoffTaskAsDeliverable`, `showTaskHandoffDropdown`, `delegatedTo`, `capDelegateItem` |
 | Billing / logged hours | `_logRelayLeg`, `wt_completed`, `roundToQuarter` |
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls` |
 | Capacity planner / drill-down | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold` |
