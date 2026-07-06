@@ -9602,6 +9602,7 @@ function _teamAllocShift(n) {
 }
 let _personCapacity = load('wt_person_capacity', {}); // { personName: weeklyHours }
 let _teamHideDelegatedTasks = load('wt_team_hide_tasks', false); // hide delegated personal 'task' cards on the board
+let _teamBoardSort = load('wt_team_board_sort', 'project'); // board card order: 'project' (grouped) | 'due' (nearest first)
 const _collapsedTeamPersons = new Set();
 
 const PRIORITY_RANK = { urgent: 0, high: 1, med: 2, low: 3 };
@@ -9613,6 +9614,7 @@ function setPersonWeeklyCap(p, h) {
   renderTeam();
 }
 function _setTeamBoardFilter(f) { _teamBoardFilter = (_teamBoardFilter === f ? 'all' : f); renderTeam(); }
+function _setTeamBoardSort(m) { _teamBoardSort = m; save('wt_team_board_sort', m); renderTeam(); }
 function _toggleTeamHideTasks() { _teamHideDelegatedTasks = !_teamHideDelegatedTasks; save('wt_team_hide_tasks', _teamHideDelegatedTasks); renderTeam(); }
 function _teamItemOverdue(i) { const d = _effTeamDue(i); return !!(d && d < today()); }
 function _teamItemSoon(i) { const dd = _effTeamDue(i); const t = today(); const d = new Date(t + 'T00:00:00'); d.setDate(d.getDate() + 7); const wk = localDateStr(d); return !!(dd && dd >= t && dd <= wk); }
@@ -10187,25 +10189,46 @@ function renderTeamBoard(visible, boardPerson, container) {
     { key: 'meeting', src: ['meeting'], label: 'Meetings' },
     { key: 'complete', src: ['complete'] }
   ];
-  let html = panel + `<div class="team-board">`;
+  const byDue = _teamBoardSort === 'due';
+  const sortBtn = (key, label, title) => `<button class="btn${_teamBoardSort === key ? ' primary' : ''}" style="font-size:10px;padding:3px 10px;" onclick="_setTeamBoardSort('${key}')" title="${title}">${label}</button>`;
+  let html = panel + `<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin:0 0 8px;">
+    <span style="font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text3);">Sort</span>
+    ${sortBtn('project', '🗂 Project', 'Group cards under project headers')}
+    ${sortBtn('due', '📅 Due date', 'Flat list, nearest due first (undated last)')}
+  </div><div class="team-board">`;
   BOARD_COLS.forEach(col => {
     const list = col.src.flatMap(s => buckets[s] || []);
-    // Keep project grouping, but float overdue + higher-priority work to the top within each project.
-    list.sort((a, b) => {
-      const pa = projLabel(a.project), pb = projLabel(b.project);
-      if (pa < pb) return -1;
-      if (pa > pb) return 1;
-      const ao = _teamItemOverdue(a) ? 0 : 1, bo = _teamItemOverdue(b) ? 0 : 1;
-      if (ao !== bo) return ao - bo;
-      const pr = (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2);
-      if (pr) return pr;
-      return (a.due || '9999').localeCompare(b.due || '9999');
-    });
+    if (byDue) {
+      // Nearest effective due first (stage-aware for relays), undated last;
+      // priority then project break ties.
+      list.sort((a, b) => {
+        const da = _effTeamDue(a) || '9999-12-31', db = _effTeamDue(b) || '9999-12-31';
+        if (da !== db) return da.localeCompare(db);
+        const pr = (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2);
+        if (pr) return pr;
+        return projLabel(a.project).localeCompare(projLabel(b.project));
+      });
+    } else {
+      // Keep project grouping, but float overdue + higher-priority work to the top within each project.
+      list.sort((a, b) => {
+        const pa = projLabel(a.project), pb = projLabel(b.project);
+        if (pa < pb) return -1;
+        if (pa > pb) return 1;
+        const ao = _teamItemOverdue(a) ? 0 : 1, bo = _teamItemOverdue(b) ? 0 : 1;
+        if (ao !== bo) return ao - bo;
+        const pr = (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2);
+        if (pr) return pr;
+        return (a.due || '9999').localeCompare(b.due || '9999');
+      });
+    }
     html += `<div class="team-board-col">
       <div class="team-board-col-head"><span class="status-badge ${STATUS_CLS[col.key] || ''}" style="font-size:9px;">${col.label || STATUS_LABELS[col.key] || col.key}</span><span class="team-board-count">${list.length}</span></div>
       <div class="team-board-col-body">`;
     if (!list.length) {
       html += '<div class="team-board-empty">—</div>';
+    } else if (byDue) {
+      // Flat list — each card carries its own project dot for context instead of headers.
+      list.forEach(item => { html += teamBoardCard(item, perPerson ? boardPerson : null, true); });
     } else {
       let lastProj = null;
       list.forEach(item => {
@@ -10223,7 +10246,7 @@ function renderTeamBoard(visible, boardPerson, container) {
   container.innerHTML = html;
 }
 
-function teamBoardCard(item, forPerson) {
+function teamBoardCard(item, forPerson, showProj) {
   const owners = item.owners || [item.owner];
   const effDue = _effTeamDue(item);
   const dc = dueCls(effDue);
@@ -10279,7 +10302,11 @@ function teamBoardCard(item, forPerson) {
   } else if (isNative && pStatus !== 'complete') {
     const holder = _batonOwner(item);
     const mine = holder === 'Me';
-    batonHtml = `<div class="team-baton${mine ? ' mine' : ''}" title="Ball in court — whose turn it is now">${mine ? '🟢 Your turn' : '◖ ' + escHtml(holder) + "'s turn"}</div>`;
+    // On a person's board, a solo card they hold needs no baton line — "Solo"
+    // plus "X's turn" on X's own board is the same fact twice.
+    if (!(forPerson && holder === forPerson && !tagOwners.length)) {
+      batonHtml = `<div class="team-baton${mine ? ' mine' : ''}" title="Ball in court — whose turn it is now">${mine ? '🟢 Your turn' : '◖ ' + escHtml(holder) + "'s turn"}</div>`;
+    }
     handoffBtn = `<button class="team-board-reassign" onclick="event.stopPropagation();showHandoffDropdown(event,'${item.id}')" title="Hand off — move the ball to the next person (keeps everyone involved)">⇢</button>`;
   }
   // Relay items show one shared status; the badge is informational (not a manual dropdown).
@@ -10293,8 +10320,9 @@ function teamBoardCard(item, forPerson) {
     ? `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" style="${relayBadgeStyle}" title="Set by the relay stage">${escHtml(pLabel)}</span>`
     : `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="event.stopPropagation();${statusFn}" style="cursor:pointer;" title="Change status">${escHtml(pLabel)}</span>`;
 
+  const projDot = showProj ? `<span class="project-dot" style="background:${escHtml(projColor(item.project))};flex-shrink:0;" title="${escHtml(projLabel(item.project))}"></span>` : '';
   return `<div class="team-board-card${overdue ? ' overdue' : ''}" onclick="${editFn}">
-    <div class="team-board-card-name">${prioDot}${escHtml(item.name)}${srcBadge}</div>
+    <div class="team-board-card-name">${prioDot}${projDot}${escHtml(item.name)}${srcBadge}</div>
     <div class="team-board-card-meta">
       <span class="team-board-card-owners">${ownerTags || '<span style="font-size:9px;color:var(--text3);">Solo</span>'}</span>
       <span style="display:inline-flex;align-items:center;gap:6px;">${estHtml}${dueHtml}</span>
@@ -15952,6 +15980,7 @@ const _TAB_TIPS = {
       '<strong>Relays</strong> pass a deliverable through ordered stages (work ✎ / review 👁 / send ✉) — the current stage\'s person holds the baton; everyone else sees "Waiting on …".',
       'When a relay leg is <strong>yours (KME)</strong>, it mirrors into My Tasks, counts in Capacity, and bills once when you pass it on.',
       'Delegating your own task? <strong>⇄ Hand off as deliverable</strong> in its edit modal moves it here as a relay — their work leg, then your review — and removes it from My Tasks.',
+      'The board\'s <strong>Sort toggle</strong> orders each column by 🗂 <strong>Project</strong> (grouped under headers) or 📅 <strong>Due date</strong> (flat, nearest first — each card keeps a project color dot).',
       'Pick a <strong>person\'s board</strong> to see their allocation meters: hours you\'ve budgeted them per billing code for the month, drained by completed work with planned overlaid. <strong>+ Allocation</strong> adds a code; click a bar to edit it. A no-sub-code bar is a <strong>catch-all</strong> for the whole project.',
       '<strong>Meetings</strong> have their own board column — tag teammates on a meeting task and it (and its hours) shows on their board.',
       'Hover a relay stage row in the editor to add a <strong>📝 note</strong> — it shows on the card in yellow while that leg is active, so "Work" can say what the work actually is.',
