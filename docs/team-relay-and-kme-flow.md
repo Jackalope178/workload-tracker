@@ -231,3 +231,10 @@ Chronological; newest last. Keeps the *why* across threads.
     field — their waiting-on notes were invisible to the chip, the board
     cards, and the list rows. All three composites now pass `waiting`
     through, so the chip counts them and the ⏳ badge shows on their cards.
+27. **Pass-modal "Bills to" fixed** — it always showed "—" because the code
+    set `.textContent` on an `<input>` (only `.value` renders), and when it
+    would have shown something it joined the raw sub-code **id** instead of
+    the label. Now: `projLabel(project) · getSubCodeLabel(...)`, set via
+    `.value`. Still read-only by design (invariant: one billing code per
+    deliverable — legs bill to the deliverable's project+subCode, changed in
+    its edit modal, never per-pass).

@@ -10603,10 +10603,12 @@ let _relayPassCtx = null;
 function _openRelayPass(item, mode) {
   _relayPassCtx = { id: item.id, mode };
   const st = relayStage(item);
-  const bill = [item.project ? projLabel(item.project) : '', item.subCode].filter(Boolean).join(' · ') || '—';
+  const scLbl = item.subCode ? (getSubCodeLabel(item.project, item.subCode) || item.subCode) : '';
+  const bill = [item.project ? projLabel(item.project) : '', scLbl].filter(Boolean).join(' · ') || '—';
   const nm = document.getElementById('relayPassName'); if (nm) nm.textContent = item.name;
   const lbl = document.getElementById('relayPassLeg'); if (lbl) lbl.textContent = st ? (st.label || RELAY_KINDS[st.kind]?.label || 'your leg') : 'your leg';
-  const bl = document.getElementById('relayPassBill'); if (bl) bl.textContent = bill;
+  // #relayPassBill is an <input> — .value, not .textContent (which leaves the placeholder "—" forever)
+  const bl = document.getElementById('relayPassBill'); if (bl) bl.value = bill;
   const hrs = document.getElementById('relayPassHours');
   if (hrs) { hrs.value = (st && Number(st.est) > 0) ? st.est : ''; hrs.placeholder = 'e.g. 0.5'; }
   // Next link on the chain — prefill its due so you can set the deadline as you hand off.
