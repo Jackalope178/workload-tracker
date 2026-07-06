@@ -10333,7 +10333,7 @@ function teamBoardCard(item, forPerson, showProj) {
     ${(relay && !_relayDone(item) && relayStage(item)?.note) ? `<div class="team-board-card-wait" style="color:var(--warn);" title="Note on the current leg">📝 ${escHtml(relayStage(item).note)}</div>` : ''}
     ${item.waiting ? `<div class="team-board-card-wait">⏳ ${escHtml(item.waiting)}</div>` : ''}
     <div class="team-board-card-foot">
-      ${statusBadge}
+      ${(item.priority === 'meeting' && pStatus === 'need-delegate') ? '' : statusBadge}
       ${relay
         ? relayActions
         : `<span style="display:inline-flex;gap:5px;">${handoffBtn}<button class="team-board-reassign" onclick="event.stopPropagation();showReassignDropdown(event,'${rowKey}','${fromPerson.replace(/'/g, "\\'").replace(/"/g,'&quot;')}')" title="Reassign / delegate to another team member">⇄</button></span>`}

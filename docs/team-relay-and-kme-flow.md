@@ -248,3 +248,10 @@ Chronological; newest last. Keeps the *why* across threads.
     baton line — "Solo" plus "X's turn" on X's board was the same fact twice
     (the line still shows when co-owners exist or the holder is someone
     else; the Everyone board is unchanged).
+29. **Meetings column: no default status badge** — meeting cards routed to
+    the Meetings column carried their underlying `need-delegate` status as a
+    "Delegate" pill, which is noise (the column is priority-routed; the pill
+    said nothing). The badge is suppressed on meeting-priority cards when
+    the status is the `need-delegate` default; a deliberately-set status
+    (blocked, in-progress, complete-for-person) still renders and stays
+    clickable.
