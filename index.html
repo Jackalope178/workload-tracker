@@ -10320,9 +10320,10 @@ function teamBoardCard(item, forPerson, showProj) {
     ? `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" style="${relayBadgeStyle}" title="Set by the relay stage">${escHtml(pLabel)}</span>`
     : `<span class="status-badge ${STATUS_CLS[pStatus] || ''}" onclick="event.stopPropagation();${statusFn}" style="cursor:pointer;" title="Change status">${escHtml(pLabel)}</span>`;
 
-  const projDot = showProj ? `<span class="project-dot" style="background:${escHtml(projColor(item.project))};flex-shrink:0;" title="${escHtml(projLabel(item.project))}"></span>` : '';
+  const projLine = showProj ? `<div style="display:flex;align-items:center;gap:5px;font-size:9px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--text3);margin:-2px 0 3px;"><span class="project-dot" style="background:${escHtml(projColor(item.project))};flex-shrink:0;"></span>${escHtml(projLabel(item.project))}</div>` : '';
   return `<div class="team-board-card${overdue ? ' overdue' : ''}" onclick="${editFn}">
-    <div class="team-board-card-name">${prioDot}${projDot}${escHtml(item.name)}${srcBadge}</div>
+    <div class="team-board-card-name">${prioDot}${escHtml(item.name)}${srcBadge}</div>
+    ${projLine}
     <div class="team-board-card-meta">
       <span class="team-board-card-owners">${ownerTags || '<span style="font-size:9px;color:var(--text3);">Solo</span>'}</span>
       <span style="display:inline-flex;align-items:center;gap:6px;">${estHtml}${dueHtml}</span>
@@ -15980,7 +15981,7 @@ const _TAB_TIPS = {
       '<strong>Relays</strong> pass a deliverable through ordered stages (work ✎ / review 👁 / send ✉) — the current stage\'s person holds the baton; everyone else sees "Waiting on …".',
       'When a relay leg is <strong>yours (KME)</strong>, it mirrors into My Tasks, counts in Capacity, and bills once when you pass it on.',
       'Delegating your own task? <strong>⇄ Hand off as deliverable</strong> in its edit modal moves it here as a relay — their work leg, then your review — and removes it from My Tasks.',
-      'The board\'s <strong>Sort toggle</strong> orders each column by 🗂 <strong>Project</strong> (grouped under headers) or 📅 <strong>Due date</strong> (flat, nearest first — each card keeps a project color dot).',
+      'The board\'s <strong>Sort toggle</strong> orders each column by 🗂 <strong>Project</strong> (grouped under headers) or 📅 <strong>Due date</strong> (flat, nearest first — each card keeps its project name and color dot).',
       'Pick a <strong>person\'s board</strong> to see their allocation meters: hours you\'ve budgeted them per billing code for the month, drained by completed work with planned overlaid. <strong>+ Allocation</strong> adds a code; click a bar to edit it. A no-sub-code bar is a <strong>catch-all</strong> for the whole project.',
       '<strong>Meetings</strong> have their own board column — tag teammates on a meeting task and it (and its hours) shows on their board.',
       'Hover a relay stage row in the editor to add a <strong>📝 note</strong> — it shows on the card in yellow while that leg is active, so "Work" can say what the work actually is.',

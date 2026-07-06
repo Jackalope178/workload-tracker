@@ -242,8 +242,8 @@ Chronological; newest last. Keeps the *why* across threads.
     control (`_teamBoardSort`, `wt_team_board_sort`, device-local like
     `wt_team_view`): 🗂 **Project** keeps the existing grouped-with-headers
     order; 📅 **Due date** renders each column flat, nearest `_effTeamDue`
-    first (stage-aware, undated last, priority tie-break), with a project
-    color dot on every card replacing the headers. Also: on a person's own
+    first (stage-aware, undated last, priority tie-break), with a small
+    project name + color dot line on every card replacing the headers. Also: on a person's own
     board, a non-relay card they solely own no longer shows the "◖ X's turn"
     baton line — "Solo" plus "X's turn" on X's board was the same fact twice
     (the line still shows when co-owners exist or the holder is someone
