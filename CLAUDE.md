@@ -20,7 +20,11 @@ environment setup script — never add dependencies to it. The environment
 setup script (claude.ai/code settings) should be empty or `exit 0`.
 
 **Verify by opening `index.html` in a browser** — there is no test suite,
-linter, or build to run. For pure calculation changes, extracting the touched
+linter, or build to run. For end-to-end checks in a headless environment,
+`.claude/skills/verify/SKILL.md` records a working Playwright + Chromium
+recipe (seed `wt_*` localStorage, drive the real UI, assert on state) —
+including the gotcha that `load()` JSON-parses, so seeded string values must
+be JSON-encoded. For pure calculation changes, extracting the touched
 functions into a Node harness and simulating them is an effective check (see
 `docs/math-audit-2026-07.md` for worked examples).
 
@@ -78,7 +82,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 
 | Key | Contents |
 |---|---|
-| `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }`. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). |
+| `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }`. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). Delegation fields: `delegatedTo[]` (lightweight tag — task stays here but renders on the Team tab and leaves your Capacity) and `_deliverableId` (this task IS a relay-mirror leg of that `wt_team` item). |
 | `wt_team` | Team deliverables: `{ id, name, owner, owners[], project, subCode, due, status, waiting, notes }` + relay fields (`relay[]`, `relayStage`, `activeOwner`, `reviewTaskId`, `relayLog[]`) |
 | `wt_bigprojs` | Big projects (multi-session/subtask structures) |
 | `wt_completed` | Archive of completed items — also the **billing ledger** (Timesheet/Allocations actuals read from here) |
@@ -95,7 +99,7 @@ states, …). Anything that must survive across devices belongs in `SYNC_KEYS`.
 - **Statuses:** `need-delegate`, `in-progress`, `ready-review`, `in-review`, `blocked`, `complete`
 - **Priorities:** `urgent`, `high`, `med`, `low` (+ `meeting` in My Tasks)
 - **Billing codes:** `T-21-010`, `W-24-022` style; sub-codes live under projects
-- **Internal composite objects** (used by planners): `_type` (`task` | `session` | `team`) with `_date`, `_src`, `_delegated`
+- **Internal composite objects** (used by planners): `_type` (`task` | `session` | `team`) with `_date`, `_src`, `_delegated`, `_taskDelegated`. The Team tab builds composite rows for delegated tasks/sessions/subtasks — any field the board/list/chips read (e.g. `waiting`, `est`, `priority`) must be copied into those composites in `renderTeam()` or it silently vanishes from the Team tab.
 - **The `'Me'` sentinel:** the app owner is stored as `'Me'` everywhere, displayed as **"KME"** on the Team tab
 - **Render pattern:** after mutating state, call the owning tab's `render*()`; don't patch DOM incrementally
 
@@ -107,6 +111,11 @@ with an assignee, estimate, and due date. When the baton reaches a `'Me'`
 stage, the app creates a **mirror task** in `wt_tasks` so the owner's leg
 shows in My Tasks, counts in Capacity, and bills once (never twice) to
 `wt_completed` on pass or checkbox-complete.
+
+The bridge runs both ways: **⇄ Hand off as deliverable** (task and work-item
+edit modals) converts a personal item INTO a `wt_team` relay pre-seeded
+`Work — <person>` → `Review — Me`, deleting the source so the hours have
+exactly one home (see Math invariant #7 and the delegation SOP below).
 
 **Full documentation and design-intent log: `docs/team-relay-and-kme-flow.md`.**
 Keep its intent log updated when changing relay behavior.
@@ -161,6 +170,23 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    deliverable's `project`+`subCode`; stages don't carry their own code.
 7. **Month holds** (`allocMonth` set, no date) count in month totals but are
    deliberately excluded from period/week/day bars and never pin to a day.
+8. **Meetings are priority-routed and status-less on the board** (July 2026).
+   Anything meeting-priority routes to the board's **Meetings** column;
+   active meeting cards render **no status badge** at all (a meeting has no
+   settable status — completed ones show Complete in the Complete column).
+   The Blocked column is gone (blocked cards fold into In Progress with a 🚫
+   badge) and the person-cockpit deliberately has **no Blocked chip** — the
+   toolbar status filter is how you isolate blocked. Don't "restore" any of
+   these.
+9. **Person-board solo cards show no baton line.** On X's board, a non-relay
+   card X solely owns renders "Solo" without "◖ X's turn" — the missing
+   baton is deliberate de-duplication, not a bug. It still shows with
+   co-owners, when the ball is elsewhere, and on the Everyone board.
+10. **Board view preferences are device-local**, never in `SYNC_KEYS` — same
+   rule as `wt_focus_mode`/`wt_task_view`: `wt_team_view`,
+   `wt_team_board_person`, and `wt_team_board_sort` (🗂 project-grouped with
+   headers vs 📅 nearest-due flat, where each card carries a project
+   dot + name line instead).
 
 ## Math Invariants (July 2026 audit)
 
@@ -202,6 +228,18 @@ preserve:
 6. **Timesheet month-view week rows use the true Sun–Sat week** for logged,
    planned, AND capacity. Boundary weeks intentionally pull from the adjacent
    month and appear under both months — week bars don't sum to the month bar.
+7. **Hand-off moves hours exactly once** (July 2026). Converting a
+   task/session/subtask into a deliverable (`_handoffCreateDeliverable`
+   callers) **deletes the source item** — Capacity drops it, the person's
+   board gains the work leg, and the Me review leg re-enters later via the
+   baton mirror. Three guards keep the totals honest: a handed-off
+   **subtask's hours are subtracted from its parent session's total**
+   (otherwise the parent's un-subtasked remainder grows back and the hours
+   count twice); **done work blocks / done subtasks are excluded** from the
+   deliverable's est (they were billed at completion); a session with
+   **open subtasks refuses** to convert. Recurring items never convert —
+   recurring involvement is the `delegatedTo` tag, which keeps the person
+   on every occurrence.
 
 Known-open minor item (deliberate — see the audit's Minor section): `fmtQ`
 snaps legacy non-quarter values for display only (sums use raw values). The
@@ -243,6 +281,14 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 
 ## Working on this codebase
 
+- **SOP — updating CLAUDE.md is part of the change.** This file is the
+  contract for every future session; one that describes the previous version
+  of the app is a bug. When a change adds or alters an invariant, a
+  deliberate "looks wrong, isn't" behavior, an SOP, a data-model field, a
+  preference key, or a subsystem entry point, update the matching section
+  here **in the same commit** — new grep-worthy functions go in the anchor
+  table, new quirks go in the invariants lists — and mirror the substance in
+  `README.md`.
 - **Single-file discipline:** all HTML/CSS/JS changes go in `index.html`. Docs go in `docs/`.
 - **`README.md` is the human-facing mirror of this file** (for GitHub
   visitors). When structure changes here, keep it in sync.
