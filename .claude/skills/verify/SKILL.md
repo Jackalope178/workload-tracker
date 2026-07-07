@@ -1,13 +1,24 @@
 ---
 name: verify
-description: Drive the single-file app in headless Chromium to verify a change end-to-end (no test suite exists — runtime observation is the only check).
+description: Run the invariant suite (run.sh) and drive the single-file app in headless Chromium to verify changes end-to-end.
 ---
 
 # Verifying workload-tracker changes
 
-There is no build, test suite, or server — `index.html` IS the app. Verify by
-driving it in headless Chromium via Playwright and asserting on localStorage +
-screenshots.
+There is no build or server — `index.html` IS the app. Verify by driving it
+in headless Chromium via Playwright and asserting on localStorage + DOM.
+
+## Invariant suite — run this first
+
+`.claude/skills/verify/run.sh` runs the repo's invariant suite (`suite/*.js`):
+quarter-hour billing, recurrence advancement, plannedItems windowing, relay
+bill-once + mirror, hand-off hours-move-once, team-board invariants, the
+timesheet two-lenses rule, and an XSS scenario that seeds hostile strings
+into every store. **Run it after any change to calculations, rendering, or
+the relay/hand-off flow** — it installs its own playwright-core outside the
+repo and finds the preinstalled Chromium automatically. Filter with an
+argument: `run.sh 05` runs the hand-off scenario only. Add a scenario when
+you add an invariant.
 
 ## Recipe that works (Claude Code on the web environment)
 

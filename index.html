@@ -4586,6 +4586,37 @@ function importBackup(event) {
         return;
       }
 
+      // Project KEYS are interpolated into inline handlers throughout the app.
+      // The app only ever generates [a-z0-9_-] keys, so force restored keys
+      // into the same alphabet (remapping references) instead of trusting the
+      // file — a crafted key like  x');alert(1)//  would otherwise break out
+      // of onclick attributes. Legit backups already match, so this is a no-op
+      // outside the hostile case.
+      const meta = backup.wt_projects_meta;
+      if (meta && typeof meta === 'object') {
+        Object.keys(meta).forEach(k => {
+          const safe = String(k).toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+          if (safe === k) return;
+          const uniq = (safe && !meta[safe]) ? safe : (safe || 'proj') + '_' + Math.random().toString(36).slice(2, 6);
+          meta[uniq] = meta[k];
+          delete meta[k];
+          ['wt_tasks', 'wt_completed', 'wt_team', 'wt_bigprojs'].forEach(sk => {
+            (Array.isArray(backup[sk]) ? backup[sk] : []).forEach(o => { if (o && o.project === k) o.project = uniq; });
+          });
+          // Keyed maps: wt_allocations = projKey|scId|ym; wt_person_allocs = person|projKey|scId|ym
+          [['wt_allocations', mk => mk.startsWith(k + '|') ? uniq + mk.slice(k.length) : mk],
+           ['wt_person_allocs', mk => mk.split('|').length >= 4 ? mk.replace('|' + k + '|', '|' + uniq + '|') : mk]
+          ].forEach(([sk, fix]) => {
+            const m = backup[sk];
+            if (!m || typeof m !== 'object') return;
+            Object.keys(m).forEach(mk => {
+              const nk = fix(mk);
+              if (nk !== mk) { m[nk] = m[mk]; delete m[mk]; }
+            });
+          });
+        });
+      }
+
       SYNC_KEYS.forEach(key => {
         if (backup[key] !== undefined) {
           localStorage.setItem(key, JSON.stringify(backup[key]));
@@ -8788,8 +8819,8 @@ function renderProjCodeContent(projKey) {
   // Header
   let html = `<div class="proj-right-header">
     <div class="proj-code-dot" style="background:${color};width:12px;height:12px;border-radius:50%;"></div>
-    <span class="proj-right-title">${proj.label || projKey}</span>
-    <span class="proj-right-code">${proj.billingCode || ''}</span>
+    <span class="proj-right-title">${escHtml(proj.label || projKey)}</span>
+    <span class="proj-right-code">${escHtml(proj.billingCode || '')}</span>
     <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
       <div style="display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:10px;">
         <button onclick="_setProjHorizon('all')" style="padding:3px 10px;border:none;cursor:pointer;font-size:10px;font-weight:600;${_projHorizon === 'all' ? 'background:var(--accent);color:#fff;' : 'background:var(--bg2);color:var(--text3);'}">All Tasks</button>
@@ -8915,7 +8946,7 @@ function renderProjCodeContent(projKey) {
         items.forEach(item => {
           const src = (item._type === 'task' || item._type === 'team') ? null : item._src;
           if (src && src !== lastSrc) {
-            html += `<div class="proj-group-label">${src}</div>`;
+            html += `<div class="proj-group-label">${escHtml(src)}</div>`;
             lastSrc = src;
           }
           html += renderProjItemRow(item, projKey, sec.scId);
@@ -9974,10 +10005,10 @@ function renderTeam() {
       const group = document.createElement('div');
       group.className = 'team-person-group';
 
-      let html = `<div class="team-person-header" onclick="_toggleTeamPersonCollapse('${person.replace(/'/g,"\\'")}')">
+      let html = `<div class="team-person-header" onclick="_toggleTeamPersonCollapse('${person.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
         <span class="team-person-chevron${isCollapsed ? '' : ' open'}">›</span>
         <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${pc.bg};border:1px solid ${pc.border};"></span>
-        <span class="team-person-name">${person}</span>
+        <span class="team-person-name">${escHtml(person)}</span>
         <span class="team-person-count">${activeItems.length} active${completedItems.length ? ' · ' + completedItems.length + ' done' : ''}</span>
       </div>`;
 
@@ -10280,7 +10311,7 @@ function teamBoardCard(item, forPerson, showProj) {
   const prio = item.priority || 'med';
   const prioDot = `<span class="prio-dot prio-${prio}" title="Priority: ${prio}"></span>`;
   const estVal = relay ? (forPerson ? _relayPersonEst(item, forPerson) : _relayTotalEst(item)) : (Number(item.est) || 0);
-  const estHtml = (estVal > 0) ? `<span class="team-board-card-est" title="${relay && forPerson ? forPerson + "'s legs" : 'Estimated hours'}">${estVal}h</span>` : '';
+  const estHtml = (estVal > 0) ? `<span class="team-board-card-est" title="${escHtml(relay && forPerson ? forPerson + "'s legs" : 'Estimated hours')}">${estVal}h</span>` : '';
   const dueHtml = `<span class="team-due ${dc}">${overdue ? '⚠️ ' : ''}${effDue ? fmtDate(effDue) : '—'}</span>`;
 
   // Baton / hand-off relay — native deliverables only (sessions/tasks keep their own home).
@@ -10820,8 +10851,8 @@ function populateTeamOwnerPills(containerId, selected) {
     const sel = current.includes(m);
     const style = sel ? `background:${c.bg};border-color:${c.border};color:${c.text};font-weight:600;` : '';
     return `<span class="delegate-pill${sel ? ' selected' : ''}" style="${style}"
-      onclick="toggleTeamOwnerPill(this,'${m.replace(/'/g,"\\'")}','${c.bg}','${c.text}','${c.border}')"
-    >${sel ? '✓ ' : ''}${m}</span>`;
+      onclick="toggleTeamOwnerPill(this,'${m.replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${c.bg}','${c.text}','${c.border}')"
+    >${sel ? '✓ ' : ''}${escHtml(m)}</span>`;
   }).join('');
 }
 
@@ -12261,7 +12292,7 @@ function _renderSchedCalendar(ym, opts = {}) {
 
     const labels = [];
     (plannedByDay[dateStr] || []).forEach(p => labels.push(escHtml(p.name)));
-    (loggedByDay[dateStr] || []).forEach(e => labels.push(projBillingCode(e.project) || projLabel(e.project) || 'logged'));
+    (loggedByDay[dateStr] || []).forEach(e => labels.push(escHtml(projBillingCode(e.project) || projLabel(e.project) || 'logged')));
     const preview = labels.length ? labels.slice(0, 2).join(', ') + (labels.length > 2 ? ` +${labels.length - 2} more` : '') : '';
 
     let hrsHtml;
@@ -12858,7 +12889,7 @@ function _renderCapMonthDetail(container, ym, ms, me, entries, planned, cap) {
     projRow.innerHTML = `
       <span class="ts-month-chevron${isExpanded ? ' open' : ''}">›</span>
       <span class="cap-proj-color" style="background:${escHtml(proj.color)};"></span>
-      <span class="cap-proj-name">${escHtml(proj.label)}${proj.billingCode ? ' <span style="font-size:10px;color:var(--text3);font-weight:400;font-family:monospace;">' + proj.billingCode + '</span>' : ''}</span>
+      <span class="cap-proj-name">${escHtml(proj.label)}${proj.billingCode ? ' <span style="font-size:10px;color:var(--text3);font-weight:400;font-family:monospace;">' + escHtml(proj.billingCode) + '</span>' : ''}</span>
       <div style="display:flex;align-items:center;gap:4px;">
         <div class="ts-cap-bar-wrap" style="flex:1;margin-top:0;">
           <div class="ts-cap-bar-fill" style="width:${projPct}%;background:${escHtml(proj.color)};opacity:0.7;"></div>
@@ -12958,7 +12989,7 @@ function _renderCapItemList(container, projKey, ym, data) {
 
     hdr.innerHTML = `
       <div>
-        <span class="cap-sc-label">${fullCode}</span>
+        <span class="cap-sc-label">${escHtml(fullCode)}</span>
         <div style="font-size:9px;color:var(--text3);margin-top:1px;">${escHtml(scLabel)}</div>
       </div>
       <div>
@@ -14904,34 +14935,34 @@ function _commitAllocImportPlan() {
     }
     if (newProjectNames.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;">New Projects:</div>`;
-      detailHtml += newProjectNames.map(n => `<div style="padding:1px 0;color:var(--text2);">+ ${n}</div>`).join('');
+      detailHtml += newProjectNames.map(n => `<div style="padding:1px 0;color:var(--text2);">+ ${escHtml(n)}</div>`).join('');
     }
     if (newSubCodeNames.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;">New Sub-codes:</div>`;
-      detailHtml += newSubCodeNames.map(n => `<div style="padding:1px 0;color:var(--text2);">+ ${n}</div>`).join('');
+      detailHtml += newSubCodeNames.map(n => `<div style="padding:1px 0;color:var(--text2);">+ ${escHtml(n)}</div>`).join('');
     }
     if (renamedProjects.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--warn);">Renamed Projects:</div>`;
-      detailHtml += renamedProjects.map(r => `<div style="padding:1px 0;color:var(--text2);">✎ "${r.from}" → "${r.to}"</div>`).join('');
+      detailHtml += renamedProjects.map(r => `<div style="padding:1px 0;color:var(--text2);">✎ "${escHtml(r.from)}" → "${escHtml(r.to)}"</div>`).join('');
     }
     if (renamedSubCodes.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--warn);">Renamed Sub-codes:</div>`;
-      detailHtml += renamedSubCodes.map(r => `<div style="padding:1px 0;color:var(--text2);">✎ ${PROJECTS[r.projKey]?.label || r.projKey} → "${r.from}" → "${r.to}"</div>`).join('');
+      detailHtml += renamedSubCodes.map(r => `<div style="padding:1px 0;color:var(--text2);">✎ ${escHtml(PROJECTS[r.projKey]?.label || r.projKey)} → "${escHtml(r.from)}" → "${escHtml(r.to)}"</div>`).join('');
     }
     if (deactivatedSubCodes.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--warn);">Deactivated Sub-codes:</div>`;
       detailHtml += `<div style="padding:2px 0;color:var(--text3);font-style:italic;margin-bottom:4px;">Allocations cleared and sub-code marked inactive — toggle back via Manage Sub-Codes.</div>`;
-      detailHtml += deactivatedSubCodes.map(d => `<div style="padding:1px 0;color:var(--text2);">⊘ ${PROJECTS[d.projKey]?.label || d.projKey} → ${d.label}</div>`).join('');
+      detailHtml += deactivatedSubCodes.map(d => `<div style="padding:1px 0;color:var(--text2);">⊘ ${escHtml(PROJECTS[d.projKey]?.label || d.projKey)} → ${escHtml(d.label)}</div>`).join('');
     }
     if (archivedProjects.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--danger);">Archived Projects:</div>`;
       detailHtml += `<div style="padding:2px 0;color:var(--text3);font-style:italic;margin-bottom:4px;">Closed-out — historical data preserved, future planning views drop these. Revive from the Projects tab.</div>`;
-      detailHtml += archivedProjects.map(a => `<div style="padding:1px 0;color:var(--text2);">📦 ${a.label}</div>`).join('');
+      detailHtml += archivedProjects.map(a => `<div style="padding:1px 0;color:var(--text2);">📦 ${escHtml(a.label)}</div>`).join('');
     }
     if (staleNames.length) {
       detailHtml += `<div style="font-weight:700;margin:8px 0 4px;color:var(--danger);">Zeroed by Import:</div>`;
       detailHtml += `<div style="padding:2px 0;color:var(--text3);font-style:italic;margin-bottom:4px;">These sub-codes were in the import but BigTime set their hours to zero for all imported months. Manual allocations for sub-codes NOT in this spreadsheet were preserved.</div>`;
-      detailHtml += staleNames.map(n => `<div style="padding:1px 0;color:var(--danger);">− ${n}</div>`).join('');
+      detailHtml += staleNames.map(n => `<div style="padding:1px 0;color:var(--danger);">− ${escHtml(n)}</div>`).join('');
     }
     detailHtml += `</div>`;
   }
@@ -15134,8 +15165,8 @@ function _renderAllocReconcile(grid, projEntries) {
     const { t, committed } = r;
     const scale = Math.max(t.alloc, committed, 1);
     const tickPct = t.alloc > 0 ? Math.min((t.alloc / scale) * 100, 100) : null;
-    const codeStr = r.proj.billingCode ? ` <span class="code">${r.proj.billingCode}</span>` : '';
-    const tip = `${r.proj.label} — ${MONTH_NAMES[_allocReconM - 1]}: ` +
+    const codeStr = r.proj.billingCode ? ` <span class="code">${escHtml(r.proj.billingCode)}</span>` : '';
+    const tip = `${escHtml(r.proj.label)} — ${MONTH_NAMES[_allocReconM - 1]}: ` +
       `${fmtQ(t.actual)}h logged, ${fmtQ(t.planned)}h planned, ${t.alloc}h budgeted. Click for task breakdown.`;
     // Exact calc widths keep the committed edge honest against the budget
     // tick; the 2px surface gap between segments comes out of planned's width.
@@ -15150,7 +15181,7 @@ function _renderAllocReconcile(grid, projEntries) {
       segs += `<div class="alloc-recon-seg-planned last" style="width:${w};"></div>`;
     }
     html += `<div class="alloc-recon-row${r.quiet ? ' quiet' : ''}" onclick="openAllocDrill('${r.projKey}','','${ym}')" title="${tip}">
-      <div class="alloc-recon-name"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${r.proj.color};margin-right:6px;"></span>${r.proj.label}${codeStr}</div>
+      <div class="alloc-recon-name"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${escHtml(r.proj.color)};margin-right:6px;"></span>${escHtml(r.proj.label)}${codeStr}</div>
       <div class="alloc-recon-barouter">
         <div class="alloc-recon-track">${segs}</div>
         ${tickPct !== null ? `<div class="alloc-recon-tick" style="left:calc(${tickPct}% - 1px);"></div>` : ''}
@@ -16257,8 +16288,11 @@ let _ddCallback = null;
 function showDropdown(anchorEl, items, currentVal, callback) {
   const menu = document.getElementById('dropdownMenu');
   const rect = anchorEl.getBoundingClientRect();
-  menu.innerHTML = items.map(it =>
-    `<div class="dropdown-item${it.value === currentVal ? ' current' : ''}" onclick="_ddSelect('${it.value}')">
+  // Items are referenced by INDEX, never by interpolating the value into the
+  // handler — values can be free text (person names with quotes).
+  _ddItems = items;
+  menu.innerHTML = items.map((it, i) =>
+    `<div class="dropdown-item${it.value === currentVal ? ' current' : ''}" onclick="_ddSelect(${i})">
       ${it.swatch ? `<span class="dd-swatch" style="background:${escHtml(it.swatch)}"></span>` : ''}${escHtml(it.label)}
     </div>`
   ).join('');
@@ -16279,14 +16313,17 @@ function showDropdown(anchorEl, items, currentVal, callback) {
   });
 }
 
-function _ddSelect(value) {
-  if (_ddCallback) _ddCallback(value);
+let _ddItems = null;
+function _ddSelect(i) {
+  const it = _ddItems && _ddItems[i];
+  if (_ddCallback && it) _ddCallback(it.value);
   closeDropdown();
 }
 
 function closeDropdown() {
   document.getElementById('dropdownMenu').classList.remove('open');
   _ddCallback = null;
+  _ddItems = null;
 }
 
 document.addEventListener('click', e => {
@@ -16813,8 +16850,8 @@ function populateSessionDelegatePills(members, selected, containerId) {
     const label = m === 'Me' ? '📌 Me' : m;
     const style = sel ? `background:${c.bg};border-color:${c.border};color:${c.text};font-weight:600;` : '';
     return `<span class="delegate-pill${sel ? ' selected' : ''}" style="${style}"
-      onclick="toggleDelegatePill(this,'${m.replace(/'/g,"\\'")}','${c.bg}','${c.text}','${c.border}')"
-    >${sel ? '✓ ' : ''}${label}</span>`;
+      onclick="toggleDelegatePill(this,'${m.replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${c.bg}','${c.text}','${c.border}')"
+    >${sel ? '✓ ' : ''}${escHtml(label)}</span>`;
   }).join('');
 }
 
@@ -17325,7 +17362,7 @@ function renderProjectMetaList() {
       <input class="proj-meta-input" type="text" value="${escHtml(proj.label)}"
              onblur="updateProjectLabel('${key}', this.value)"
              onkeydown="if(event.key==='Enter') this.blur()">
-      <input class="proj-meta-input" type="text" value="${proj.billingCode || ''}"
+      <input class="proj-meta-input" type="text" value="${escHtml(proj.billingCode || '')}"
              placeholder="Billing code"
              style="width:100px;flex:none;"
              onblur="updateProjectBillingCode('${key}', this.value)"
@@ -17336,7 +17373,7 @@ function renderProjectMetaList() {
       <div class="proj-tags-row">
         <span style="font-size:10px;color:var(--text3);font-weight:600;min-width:60px;">Tags:</span>
         <div class="proj-tags-wrap" id="projTags-${key}">
-          ${(proj.tags || []).map(tag => `<span class="proj-tag-chip">${tag}<button onclick="removeProjTag('${key}','${tag.replace(/'/g,"\\'")}')" title="Remove">×</button></span>`).join('')}
+          ${(proj.tags || []).map(tag => `<span class="proj-tag-chip">${escHtml(tag)}<button onclick="removeProjTag('${key}','${tag.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" title="Remove">×</button></span>`).join('')}
           <input class="proj-tag-input" type="text" placeholder="+ add tag" id="projTagInput-${key}"
             onkeydown="if(event.key==='Enter'){event.preventDefault();addProjTag('${key}');}">
         </div>
@@ -17584,7 +17621,7 @@ function openSettingsModal() {
       acctInfo.innerHTML = '<div style="margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:6px;">' +
         '<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Signed in as</div>' +
         '<div style="font-size:13px;font-weight:600;">' + escHtml(_currentUser.user_metadata?.display_name || '') + '</div>' +
-        '<div style="font-size:11px;color:var(--text3);">' + _currentUser.email + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);">' + escHtml(_currentUser.email || '') + '</div>' +
         '<div style="font-size:10px;color:var(--success);margin-top:4px;">Cloud sync enabled</div>' +
         '</div>';
     } else {
@@ -17883,12 +17920,12 @@ function renderReviewContent() {
 
   makeSection('New Tasks', new_tasks, 'new', item => {
     const tags = [
-      item.project ? `<span class="review-tag">${PROJECTS[item.project]?.label || item.project}</span>` : '',
-      item.priority ? `<span class="review-tag">${item.priority}</span>` : '',
+      item.project ? `<span class="review-tag">${escHtml(PROJECTS[item.project]?.label || item.project)}</span>` : '',
+      item.priority ? `<span class="review-tag">${escHtml(item.priority)}</span>` : '',
       item.due      ? `<span class="review-tag">Due ${fmtDate(item.due)}</span>` : '',
-      item.est      ? `<span class="review-tag">${item.est}h</span>` : '',
-      item.category ? `<span class="review-tag">${item.category}</span>` : '',
-      item.waiting  ? `<span class="review-tag">⏳ ${item.waiting}</span>` : ''
+      item.est      ? `<span class="review-tag">${escHtml(String(item.est))}h</span>` : '',
+      item.category ? `<span class="review-tag">${escHtml(item.category)}</span>` : '',
+      item.waiting  ? `<span class="review-tag">⏳ ${escHtml(item.waiting)}</span>` : ''
     ].filter(Boolean).join('');
     return `<div class="review-item-name">${escHtml(item.name || '(unnamed)')}</div>
             <div class="review-item-meta">${tags}</div>
@@ -17902,7 +17939,7 @@ function renderReviewContent() {
       .filter(([k]) => k !== 'id')
       .map(([k, v]) => {
         const old = existing ? (existing[k] ?? '—') : '?';
-        return `<div class="review-change"><span class="review-field">${k}:</span> <span class="review-old">${escHtml(String(old))}</span> → <span class="review-new">${escHtml(String(v))}</span></div>`;
+        return `<div class="review-change"><span class="review-field">${escHtml(k)}:</span> <span class="review-old">${escHtml(String(old))}</span> → <span class="review-new">${escHtml(String(v))}</span></div>`;
       }).join('');
     return `<div class="review-item-name">${escHtml(taskName)}</div>
             <div style="margin-top:4px;">${changes || '<span style="color:var(--text3);font-size:11px;">(no field changes)</span>'}</div>`;

@@ -178,3 +178,51 @@ billing code, sub-code, task field, owner, and board-person name produced **zero
 injected elements and zero script execution** across every tab and all three
 team views, while ordinary labels containing `'` and `&` still render correctly
 (no double-escaping). The full inline script also passes a `node --check` parse.
+
+---
+
+## Second-pass sweep (July 2026, post-delegation work)
+
+A systematic re-audit of every `innerHTML`/`outerHTML`/inline-handler sink
+(four parallel region scans over the full file) found and fixed a second
+batch of missed escapes:
+
+**Stored-XSS sinks (type a/c — `escHtml` added):**
+- Projects tab header: `proj.label` / `proj.billingCode` (`renderProjCodeContent`).
+- Projects tab group label: big-project name (`_src`).
+- By-Person view: person name in group header text.
+- Team board card: person name in the est `title=""` attribute.
+- Week planner day preview: `projBillingCode`/`projLabel` for logged entries.
+- Capacity month detail: `proj.billingCode`; sub-code header `fullCode`.
+- BigTime import status banner: every detail list (new/renamed/deactivated/
+  archived/zeroed names) rendered import-controlled labels raw.
+- Reconcile rows: `billingCode`, `label`, and the row `title="${tip}"`.
+- Manage Projects: billing-code `value=""` attribute; project tag chips.
+- Account panel: `_currentUser.email`.
+- Brain-dump review cards: AI-returned `project label/priority/est/category/
+  waiting` tags and update-row field keys rendered raw (AI output is untrusted).
+
+**Handler-context sinks (type b — dual-escape completed):**
+- `toggleTeamOwnerPill` / `toggleDelegatePill` / `_toggleTeamPersonCollapse` /
+  `removeProjTag` interpolations escaped only `'`, not `"` — a double quote in
+  a person name or tag broke out of the `onclick` attribute.
+- **`showDropdown` redesigned:** the generic dropdown interpolated `it.value`
+  raw into `onclick="_ddSelect('…')"`, and reassign/delegate flows pass person
+  names as values. Items are now referenced **by index** (`_ddItems` array) —
+  never interpolate a dropdown value into its handler.
+
+**Data-source hardening:**
+- `importBackup` sanitizes restored `wt_projects_meta` KEYS to `[a-z0-9_-]`
+  (remapping references in tasks/team/bigprojs/completed and both allocation
+  maps). Project keys are interpolated into dozens of inline handlers on the
+  assumption the app generated them; a crafted backup could smuggle a
+  quote-breaking key.
+
+### Regression net
+
+`.claude/skills/verify/run.sh` now runs an invariant suite whose scenario
+`08-escaping.js` seeds hostile payloads into every store (persons, project
+meta incl. sub-codes/tags, tasks, deliverables, big projects, completed) and
+asserts zero injected elements / zero execution across all six tabs and the
+board view. It failed before this batch and passes after — run it before
+shipping any render-path change.

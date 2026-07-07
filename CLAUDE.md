@@ -19,8 +19,12 @@ install. The `package.json` exists only to satisfy the Claude Code on the web
 environment setup script — never add dependencies to it. The environment
 setup script (claude.ai/code settings) should be empty or `exit 0`.
 
-**Verify by opening `index.html` in a browser** — there is no test suite,
-linter, or build to run. For end-to-end checks in a headless environment,
+**Run the invariant suite before shipping:** `.claude/skills/verify/run.sh`
+drives the app in headless Chromium and asserts the documented invariants
+(billing/recurrence/capacity math, relay bill-once, hand-off hours-move-once,
+board rules, XSS escaping). Add a scenario under
+`.claude/skills/verify/suite/` when you add an invariant. There is no other
+test suite, linter, or build. For ad-hoc end-to-end checks,
 `.claude/skills/verify/SKILL.md` records a working Playwright + Chromium
 recipe (seed `wt_*` localStorage, drive the real UI, assert on state) —
 including the gotcha that `load()` JSON-parses, so seeded string values must
@@ -347,6 +351,13 @@ A change that "cleans up" or "simplifies" any of them reintroduces a real bug.
    `openssl dgst -sha384 -binary <file> | openssl base64 -A`. The supabase tag
    points at `dist/umd/supabase.js` (not `.min.js`) on purpose — jsDelivr can't
    give a stable hash for its on-the-fly-minified `.min.js`.
-5. **RLS is the security boundary.** Data is per-user (`auth.uid() = user_id`);
+5. **Dropdown values never ride in handlers.** The generic dropdown
+   (`showDropdown`/`_ddSelect`) references items **by index** — values can be
+   free text (person names). Don't reintroduce `_ddSelect('${it.value}')`.
+   Same family: person names in any inline handler need the dual-escape
+   (invariant #2), and restored-backup project KEYS are sanitized to
+   `[a-z0-9_-]` in `importBackup` because keys are interpolated into handlers
+   app-wide.
+6. **RLS is the security boundary.** Data is per-user (`auth.uid() = user_id`);
    the baked-in anon key is public and safe *only* because RLS is enforced.
    Don't add tables/queries that bypass it.

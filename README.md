@@ -125,7 +125,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 - **Single-file discipline:** all HTML/CSS/JS changes go in `index.html`. Docs go in `docs/`.
 - **Rebuild-from-state pattern:** after mutating state, call the owning tab's `render*()`; don't patch DOM incrementally.
 - **New persistent state?** Add the key to `SYNC_KEYS` if it should follow the user across devices; use the `load`/`save` wrappers, never raw `localStorage` calls.
-- **Verify by opening `index.html` in a browser** — there is no test suite, linter, or build to run. For headless end-to-end checks, `.claude/skills/verify/SKILL.md` records a working Playwright + Chromium recipe (seed `wt_*` localStorage — JSON-encode string values, `load()` JSON-parses — then drive the real UI).
+- **Run the invariant suite before shipping:** `.claude/skills/verify/run.sh` drives the app in headless Chromium and asserts the documented invariants (math, relay billing, hand-off, board rules, XSS escaping). Add a scenario when you add an invariant. For headless end-to-end checks, `.claude/skills/verify/SKILL.md` records a working Playwright + Chromium recipe (seed `wt_*` localStorage — JSON-encode string values, `load()` JSON-parses — then drive the real UI).
 - **Touching any calculation?** Read `docs/math-audit-2026-07.md` first — it records the July 2026 audit's findings, fixes, and the invariants they established.
 - **SOP — delegation surfaces stay mirrored across tabs.** Every entry modal
   for personal work (task modal on My Tasks/Projects, work-item/subtask modal
