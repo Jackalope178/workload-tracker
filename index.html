@@ -9462,8 +9462,10 @@ function openAddTaskForProject(projKey, scId) {
   document.getElementById('editEst').value = '';
   document.getElementById('editWaiting').value = '';
   document.getElementById('editNotes').value = '';
+  document.getElementById('editAllocMonth').value = '';
   document.getElementById('editRecurType').value = '';
   onRecurTypeChange();
+  _syncEditTaskTimerRow(null);   // hide any stale timer row from a previously-edited task
   populateSessionDelegatePills(PERSONS, null, 'editTaskDelegateWrap');
   const _hoRow = document.getElementById('editTaskHandoffRow');
   if (_hoRow) _hoRow.style.display = 'none';   // nothing to hand off until the task exists
@@ -12981,20 +12983,20 @@ function _renderCapItemList(container, projKey, ym, data) {
         const taskObj = tasks.find(t => t.id === item.id || (item.id || '').startsWith(t.id + '_'));
         if (taskObj) {
           editFn = `openEditModal('${taskObj.id}')`;
-          delegateFn = `capDelegateItem('task','${taskObj.id}')`;
+          delegateFn = `capDelegateItem(event,'task','${taskObj.id}')`;
           moveFn = `capMoveItem('task','${taskObj.id}')`;
           doneFn = `openCompletionModal('${taskObj.id}')`;
         }
       } else if (item._src === 'session' && item._projId) {
         const srcId = _capResolveId(item.id, item._projId, 'session');
         editFn = `openEditSessionModal('${item._projId}','${srcId}')`;
-        delegateFn = `capDelegateItem('session','${item._projId}','${srcId}')`;
+        delegateFn = `capDelegateItem(event,'session','${item._projId}','${srcId}')`;
         moveFn = `capMoveItem('session','${item._projId}','${srcId}')`;
         doneFn = `openSessionCompletionModal('${item._projId}','${srcId}')`;
       } else if (item._src === 'subtask' && item._projId) {
         const srcId = _capResolveId(item.id, item._projId, 'subtask', item._sessionId);
         editFn = `openEditSubtaskModal('${item._projId}','${item._sessionId}','${srcId}')`;
-        delegateFn = `capDelegateItem('subtask','${item._projId}','${item._sessionId}','${srcId}')`;
+        delegateFn = `capDelegateItem(event,'subtask','${item._projId}','${item._sessionId}','${srcId}')`;
         moveFn = `capMoveItem('subtask','${item._projId}','${item._sessionId}','${srcId}')`;
         doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${srcId}')`;
       }
@@ -13084,11 +13086,14 @@ function capMoveItem(type, ...ids) {
   showSyncToast(`Moved to ${newMonth}`, 'success');
 }
 
-function capDelegateItem(type, ...ids) {
-  const personList = PERSONS.length ? PERSONS.join(', ') : 'no team members defined';
-  const name = prompt(`Delegate to whom? (${personList})`, '');
-  if (!name || !name.trim()) return;
+function capDelegateItem(e, type, ...ids) {
+  if (!PERSONS.length) { showSyncToast('No team members yet — add people on the Team Deliverables tab first.', 'warn'); return; }
+  const opts = PERSONS.map(p => ({ value: p, label: '→ ' + p, swatch: personColor(p).bg }));
+  showDropdown(e.currentTarget, opts, '', name => _capDelegateApply(type, ids, name));
+}
 
+function _capDelegateApply(type, ids, name) {
+  if (!name || !name.trim()) return;
   if (type === 'task') {
     const t = tasks.find(t => t.id === ids[0]);
     if (!t) return;
@@ -13112,7 +13117,7 @@ function capDelegateItem(type, ...ids) {
     save('wt_bigprojs', bigProjs);
   }
   renderCapacity();
-  showSyncToast(`Delegated to ${name.trim()}`, 'success');
+  showSyncToast(`Delegated to ${name.trim()} — moved off your plate (tag). For stages + review, open Edit → ⇄ Hand off.`, 'success');
 }
 
 // =============================================
@@ -16100,7 +16105,9 @@ document.addEventListener('keydown', e => {
     const activeTab = document.querySelector('.tab.active')?.dataset.tab;
     if (activeTab === 'tasks') {
       e.preventDefault();
-      if (e.key === 'N') openEditModal('__new__');
+      // openEditModal can't open in add-mode (it bails when no task matches) —
+      // the project-preset add path is the real "full form" opener.
+      if (e.key === 'N') openAddTaskForProject('overhead', '');
       else document.getElementById('quickCapture')?.focus();
     }
     else if (activeTab === 'team') { e.preventDefault(); openAddTeamModal(); }
