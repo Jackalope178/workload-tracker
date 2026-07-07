@@ -258,14 +258,29 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 
 ## Sync architecture
 
-- `save(key, data)` → localStorage + `cloudSave(key, data)` (upsert into
-  Supabase `user_data`, conflict key `user_id,key`, payload `{ value: <blob> }`).
-  `save()` also invalidates the actuals/planned caches — raw `localStorage`
-  writes bypass both sync and cache invalidation; never use them.
-- On sign-in, `loadFromSupabase()` pulls all keys and overwrites local state.
+- `save(key, data)` → localStorage + `_setLocalTimestamp(key)` +
+  `cloudSave(key, data)` (upsert into Supabase `user_data`, conflict key
+  `user_id,key`, payload `{ value: <blob> }`). `save()` also invalidates the
+  actuals/planned caches — raw `localStorage` writes bypass sync, timestamps,
+  AND cache invalidation; never use them.
+- **Sign-in is a per-key timestamped merge, not an overwrite.**
+  `loadFromSupabase()` takes the cloud value only when `cloudTime >=
+  localTime` (so offline local edits survive), then fires
+  `migrateLocalToSupabase()` to push local-newer keys up. `_syncGuardUser`
+  runs first: if the device last belonged to a **different account**, local
+  `_ts_` stamps are dropped (cloud wins everywhere) after stashing a
+  device-local `wt_local_snapshot` — otherwise foreign/junk local data would
+  shadow the real cloud data and get pushed over it. `wt_last_user`,
+  `wt_local_snapshot`, and `_ts_*` are device-local; never add them to
+  `SYNC_KEYS`.
+- A `window 'online'` listener flushes pending local changes
+  (`syncToCloud()`) when connectivity returns — background `cloudSave`
+  failures otherwise leave the cloud stale until that key's next save.
 - Offline / signed-out mode works fully on localStorage; header shows "Offline".
 - Supabase URL/key default to the baked-in project but can be overridden via
-  the settings modal (`wt_supabase_config`).
+  the settings modal (`wt_supabase_config`). Conflict semantics are per-key
+  last-writer-wins on client clocks — fine for a single user across devices,
+  not a merge of concurrent edits to the same key.
 
 ## Task → grep anchor quick reference
 

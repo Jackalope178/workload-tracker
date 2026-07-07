@@ -4804,7 +4804,35 @@ async function cloudLoad(key) {
   }
 }
 
+// ── Device ↔ account guard ─────────────────────────────────────────────────
+// localStorage is shared by every account (and signed-out use) on a browser
+// profile, and the per-key timestamps defend local data as "newer". That is
+// only correct when the local data BELONGS to the account signing in —
+// otherwise another account's (or junk) data shadows the real cloud data at
+// sign-in and the next save pushes it over the cloud. On a true account
+// switch: stash a device-local snapshot (recovery hatch, never synced), then
+// drop the _ts_ stamps so the cloud wins every key. First-ever sign-in on a
+// device (no recorded user) keeps the existing merge semantics — that's the
+// legit "bring my local data" path.
+function _syncGuardUser() {
+  if (!_currentUser) return;
+  let last = null;
+  try { last = localStorage.getItem('wt_last_user'); } catch (e) { /* ignore */ }
+  if (last !== null && last !== _currentUser.id) {
+    try {
+      const snap = {};
+      SYNC_KEYS.forEach(k => { const v = localStorage.getItem(k); if (v !== null) snap[k] = v; });
+      const payload = JSON.stringify({ user: last, at: new Date().toISOString(), data: snap });
+      if (payload.length < 2000000) localStorage.setItem('wt_local_snapshot', payload);
+    } catch (e) { /* quota — snapshot is best-effort */ }
+    SYNC_KEYS.forEach(k => { try { localStorage.removeItem('_ts_' + k); } catch (e) { /* ignore */ } });
+    showSyncToast('This device had data from a different account — it was set aside and your cloud data loaded.', 'warn');
+  }
+  try { localStorage.setItem('wt_last_user', _currentUser.id); } catch (e) { /* ignore */ }
+}
+
 async function loadFromSupabase() {
+  _syncGuardUser();
   if (!_supabase || !_currentUser) return;
   try {
     const { data, error } = await _supabase
@@ -4827,6 +4855,10 @@ async function loadFromSupabase() {
         } catch (e) { /* localStorage full or unavailable */ }
       });
     }
+    // Flush the other direction too: keys where LOCAL is newer (offline work,
+    // failed background saves) would otherwise sit unpushed until each key's
+    // next save. Non-blocking — sign-in isn't delayed.
+    migrateLocalToSupabase().catch(e => console.warn('Post-load flush failed:', e));
   } catch (e) {
     console.warn('Failed to load from Supabase, using localStorage fallback:', e);
     showSyncToast('Could not load cloud data — using local data.', 'warn');
@@ -4887,6 +4919,13 @@ async function syncToCloud() {
     showSyncToast('Cloud sync failed — changes saved locally only. Click ☁ to retry.', 'error');
   }
 }
+
+// Reconnect flush — a background cloudSave that failed while offline leaves
+// the cloud stale until that key happens to be saved again. Push local-newer
+// keys as soon as the browser regains connectivity.
+window.addEventListener('online', () => {
+  if (_supabase && _currentUser) syncToCloud();
+});
 
 // ── Boot ──
 
