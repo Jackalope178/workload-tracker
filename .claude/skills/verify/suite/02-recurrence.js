@@ -57,5 +57,38 @@ const { launch, step, done } = require('./_lib');
     r.day31.every(d => !d.endsWith('-02-31') && !d.endsWith('-04-31') && !d.endsWith('-06-31')), r.day31.slice(0, 4));
   step('nextActiveRecurrenceAfter steps past skips (Jul 13 + 20 skipped → Jul 27)', r.afterSkips === '2026-07-27', r.afterSkips);
 
+  // Plain 'monthly' month-end intent: builders stamp dayOfMonth so one short
+  // month doesn't drift the anchor forever (Jan 31 → Feb 28 → Mar 31).
+  const r2 = await page.evaluate(() => {
+    const walk = (task, start, n) => {
+      const out = []; let d = start;
+      for (let i = 0; i < n; i++) { d = nextRecurrenceAfter(task, d); if (!d) break; out.push(d); }
+      return out;
+    };
+    const out = {
+      stamped: walk({ recurrence: { type: 'monthly', dayOfMonth: 31 } }, '2026-01-31', 4),
+      legacy: walk({ recurrence: { type: 'monthly' } }, '2026-01-31', 2)
+    };
+    // Builder stamps intent from the anchor date; a later save while the
+    // display shows the CLAMPED occurrence must keep the original intent.
+    openAddTaskForProject('overhead', '');
+    document.getElementById('editName').value = 'Monthly EOM';
+    document.getElementById('editDue').value = '2027-01-31';
+    document.getElementById('editRecurType').value = 'monthly';
+    saveEditTask();
+    const t = tasks.find(x => x.name === 'Monthly EOM');
+    out.stampedOnSave = t.recurrence.dayOfMonth;
+    openEditModal(t.id);
+    document.getElementById('editDue').value = '2027-02-28';   // the clamped display
+    saveEditTask();
+    out.intentKept = tasks.find(x => x.name === 'Monthly EOM').recurrence.dayOfMonth;
+    return out;
+  });
+  step('stamped monthly intent survives short months (Feb 28 → Mar 31, not Mar 28)',
+    JSON.stringify(r2.stamped) === JSON.stringify(['2026-02-28', '2026-03-31', '2026-04-30', '2026-05-31']), r2.stamped);
+  step('legacy unstamped monthly keeps documented clamp behavior', r2.legacy[1] === '2026-03-28', r2.legacy);
+  step('builder stamps dayOfMonth=31 from the anchor date', r2.stampedOnSave === 31, r2.stampedOnSave);
+  step('re-saving while the display shows the clamped date keeps intent 31', r2.intentKept === 31, r2.intentKept);
+
   await done(browser);
 })().catch(e => { console.error('FATAL:', e); process.exit(1); });

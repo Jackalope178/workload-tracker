@@ -253,3 +253,59 @@ Expansion loops keep the raw function since they filter skips themselves.
 - `roundToQuarter`'s "round down when ≤5min over a quarter" is documented
   billing behavior.
 - Pay-period capacity = weekdays × h/day with weekend overtime as flex signal.
+
+---
+
+## Addendum — recurrence & billing edge-case audit (July 2026, second pass)
+
+Systematic probes of the recurrence engine, pay periods, quarter-hour guards,
+and date arithmetic in the running app. Full probe set: month-end anchors
+(day 29/30/31, last-day), leap years, weekday-adjust on weekend month-ends,
+last-weekday patterns across 4/5-week months, biweekly multi-day, DST spring/
+fall transitions, pay-period boundaries, negative/zero hour inputs.
+
+### Fixed
+
+1. **Plain "Monthly" month-end drift.** `type: 'monthly'` derived the target
+   day from `from.getDate()`, so one short month clamped the anchor forever:
+   Jan 31 → Feb 28 → **Mar 28 → Apr 28 …**. The three recurrence builders now
+   stamp `dayOfMonth` (the intended day) via `_monthlyIntentDay`, and
+   `_nextRecurrenceAfterRaw` clamps per-month from that intent instead:
+   Jan 31 → Feb 28 → **Mar 31**. The helper is clamp-aware on re-save — a
+   modal displaying the clamped Feb 28 for a "31st" intent keeps 31; moving
+   the anchor to a genuinely different day re-stamps. Legacy items without
+   the stamp keep the old behavior until re-saved (predictable, no surprise
+   jumps).
+
+2. **`enforceQuarter` accepted negative hours.** A typed `-2` estimate
+   snapped to −2 and stored, silently SUBTRACTING from capacity/billing
+   sums (HTML `min="0"` doesn't stop typed negatives). Now clamps at 0.
+
+### Verified clean (probes, no change)
+
+- DST: `addDays`/weekly stepping across 2026-03-08 and 2026-11-01 — no
+  skips or repeats (calendar math on `T00:00:00` local Dates).
+- Leap years: monthly-last-day lands 2028-02-29; `payPeriodOf` gives
+  16–29 for leap Februaries.
+- Weekday-adjust: Oct 31 2026 (Sat) → Oct 30; Jan 31 2027 (Sun) → Jan 29;
+  sequences stay strictly increasing (the monotonic wrapper's month-step
+  loop handles adjusted results landing before `from`).
+- Last-weekday (`weekOfMonth: -1`) across 4- and 5-Friday months.
+- `roundToQuarter(-2) → 0.25` is the documented 0.25-floor behavior; its
+  callers guard with `Math.max(0, …)` first (see invariant #4).
+
+### Contract notes (latent, documented — not live bugs)
+
+- **`nextRecurrenceAfter(task, from)` assumes `from` is an occurrence** for
+  `monthly`/`monthly-weekday` (it starts at the NEXT month, so a mid-month
+  non-occurrence `from` skips that month's occurrence) and for `biweekly`
+  (parity anchors to `from`'s week). Every current caller walks
+  occurrence-to-occurrence from the stored anchor, so this holds today —
+  keep it true: don't call these with arbitrary dates.
+- `today()` is pinned to America/New_York while `localDateStr` uses the
+  browser's zone — consistent for the app's single ET user; a non-ET device
+  could disagree near midnight. Known constraint, not worth the complexity
+  to change.
+
+Regression coverage: `.claude/skills/verify/run.sh` scenarios 01–03 encode
+the fixes and the clean behaviors above.

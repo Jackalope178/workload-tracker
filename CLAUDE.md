@@ -204,7 +204,12 @@ preserve:
    `null`) — never call the raw function directly. When advancing a stored
    anchor (completion, skip, reschedule) use `nextActiveRecurrenceAfter`,
    which also steps past `recurrence.skips`; expansion loops use
-   `nextRecurrenceAfter` and filter skips themselves.
+   `nextRecurrenceAfter` and filter skips themselves. Two follow-on rules:
+   **always call it with an occurrence as `from`** (monthly/monthly-weekday
+   start at the next month; biweekly parity anchors to `from`'s week), and
+   **plain-monthly builders stamp `dayOfMonth`** via `_monthlyIntentDay` so
+   a short month's clamp doesn't drift the anchor (Jan 31 → Feb 28 → Mar 31,
+   not Mar 28 forever).
 2. **`plannedItems(from, to)` only returns items dated inside the window.**
    Rescheduled occurrences are windowed by their override date, and
    occurrences moved INTO the window are picked up from the overrides map.
@@ -215,10 +220,11 @@ preserve:
    schedules an item must go through `_capAssignOne` / `_applyWorkPick` (or
    explicitly clear `workDate`); writing `due`/`date` directly strands the
    hours on the old work date.
-4. **Billing is quarter-hours.** `enforceQuarter` guards every saved hours
-   value. `roundToQuarter` has a 0.25 FLOOR — never use it on a
-   possibly-zero quantity (use `snapQuarter` clamped at 0, as
-   `packIntoFreeDays` does).
+4. **Billing is quarter-hours, never negative.** `enforceQuarter` guards
+   every saved hours value and clamps at 0 (typed negatives would silently
+   subtract from capacity/billing sums). `roundToQuarter` has a 0.25 FLOOR —
+   never use it on a possibly-zero quantity (use `snapQuarter` clamped at 0,
+   as `packIntoFreeDays` does).
 5. **Person-board meters are allocation meters** (July 2026 — replaced the
    weekly-capacity gauge): bar = `wt_person_allocs` for the selected month,
    solid fill = `_personCompletedHoursByCode` (relay `relayLog` pass hours —

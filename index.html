@@ -5900,7 +5900,9 @@ function snapQuarter(h) { return Math.round(h / 0.25) * 0.25; }
 // Snaps to the nearest 0.25 and toasts when the typed value was corrected.
 function enforceQuarter(h, label) {
   if (h == null || isNaN(h)) return h;
-  const s = snapQuarter(h);
+  // Hours are never negative in this app — a typed "-2" estimate would
+  // otherwise store and SUBTRACT from capacity/billing math.
+  const s = Math.max(0, snapQuarter(h));
   if (Math.abs(s - h) > 0.0001) {
     showSyncToast(`Rounded ${label || 'hours'} to ${fmtQ(s)}h — quarter-hour increments`, 'warn');
   }
@@ -5999,6 +6001,22 @@ function getNthWeekdayOfMonth(year, month, dayOfWeek, weekOfMonth) {
   }
 }
 
+// Preserve a plain-monthly recurrence's intended day-of-month across saves.
+// The visible date may be the CLAMPED occurrence (Feb 28 displaying for a
+// "31st of the month" intent), so only re-stamp when the user actually moved
+// the anchor to a day that isn't the old intent's clamp.
+function _monthlyIntentDay(prevRecur, dateStr) {
+  const day = +(dateStr || '').slice(8, 10) || null;
+  if (!day) return (prevRecur && +prevRecur.dayOfMonth) || null;
+  const prev = prevRecur && prevRecur.type === 'monthly' && +prevRecur.dayOfMonth;
+  if (prev) {
+    const [y, m] = dateStr.split('-').map(Number);
+    const clamped = Math.min(prev, new Date(y, m, 0).getDate());
+    if (day === clamped) return prev;   // same display the old intent produces — keep it
+  }
+  return day;
+}
+
 function normDows(r) {
   if (r.daysOfWeek && r.daysOfWeek.length) return [...r.daysOfWeek].map(Number).sort((a,b)=>a-b);
   if (r.dayOfWeek !== undefined) return [+r.dayOfWeek];
@@ -6068,7 +6086,11 @@ function _nextRecurrenceAfterRaw(task, fromDateStr) {
     // and drift (Jan 31 via setMonth would land on Mar 3, skipping February).
     let m = from.getMonth() + 1, y = from.getFullYear();
     if (m > 11) { m = 0; y++; }
-    const day = Math.min(from.getDate(), new Date(y, m + 1, 0).getDate());
+    // The recurrence carries the INTENDED day (stamped by the builders) so a
+    // clamp doesn't become permanent: Jan 31 → Feb 28 → Mar 31, not Mar 28.
+    // Legacy items without the stamp keep the old from-date behavior.
+    const intent = +task.recurrence.dayOfMonth || from.getDate();
+    const day = Math.min(intent, new Date(y, m + 1, 0).getDate());
     return `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
   }
   if (type === 'monthly-date' || type === 'monthly-last-day') {
@@ -7370,6 +7392,8 @@ function addTask() {
     } else if (rType === 'monthly-weekday') {
       recurrence.weekOfMonth = +document.getElementById('nrWofM').value;
       recurrence.dayOfWeek   = +document.getElementById('nrMwday').value;
+    } else if (rType === 'monthly') {
+      recurrence.dayOfMonth = _monthlyIntentDay(null, document.getElementById('newTaskDue').value);
     }
   }
 
@@ -7807,6 +7831,8 @@ function saveEditTask() {
     } else if (rType === 'monthly-weekday') {
       task.recurrence.weekOfMonth = +document.getElementById('editRecurWeekOfMonth').value;
       task.recurrence.dayOfWeek   = +document.getElementById('editRecurMonthWeekday').value;
+    } else if (rType === 'monthly') {
+      task.recurrence.dayOfMonth = _monthlyIntentDay(prevRecur, task.due);
     }
   } else {
     task.recurrence = null;
@@ -16885,10 +16911,13 @@ function onSessionRecurTypeChange() {
   document.getElementById('editSessionRecurEndGroup').style.display = type ? '' : 'none';
 }
 
-function _getSessionRecurrence() {
+function _getSessionRecurrence(prevRecur) {
   const type = document.getElementById('editSessionRecurType').value;
   if (!type) return null;
   const recurrence = { type, endDate: document.getElementById('editSessionRecurEnd').value || null };
+  if (type === 'monthly') {
+    recurrence.dayOfMonth = _monthlyIntentDay(prevRecur, document.getElementById('editSessionDate').value);
+  }
   if (type === 'weekly' || type === 'biweekly') {
     const checked = Array.from(document.querySelectorAll('.edit-session-recur-dow:checked')).map(cb => +cb.value);
     recurrence.daysOfWeek = checked.length ? checked : [1];
@@ -17045,7 +17074,7 @@ function saveSession() {
   const priority    = document.getElementById('editSessionPriority')?.value || 'med';
   const waiting     = document.getElementById('editSessionWaiting').value.trim() || null;
   const delegatedTo = getSelectedDelegatees();
-  const recurrence = _getSessionRecurrence();
+  const recurrence = _getSessionRecurrence(_getEditingSessionTarget()?.recurrence || null);
   if (!desc) return _formError('editSessionName', 'Description is required.');
 
   if (editingSubtaskMode) {
