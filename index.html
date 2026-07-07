@@ -4105,6 +4105,7 @@ if (typeof XLSX === 'undefined') {
       <select class="edit-input" id="paSubCode" onchange="_paFillMonths()" style="max-width:180px;"></select>
     </div>
     <div id="paMonths"></div>
+    <button type="button" class="btn" onclick="_paMoreMonths()" style="width:100%;margin-top:8px;font-size:11px;color:var(--text3);">+ 6 more months</button>
     <div class="modal-actions" style="margin-top:12px;">
       <button class="btn" onclick="closePersonAllocModal()">Cancel</button>
       <button class="btn primary" onclick="savePersonAllocModal()">Save</button>
@@ -5503,12 +5504,36 @@ function _parsePersonAllocKey(k) {
 // ── Person allocation modal (the + Allocation popup on a person's board) ──
 let _paPerson = null;
 
+let _paMonthsExtra = 0;   // "+ 6 more months" extensions this open (resets per open)
 function _paMonthList() {
-  // Current month + the next 6 — the editing horizon for forward allocations
-  const [y, m] = today().slice(0, 7).split('-').map(Number);
-  return Array.from({ length: 7 }, (_, i) => {
+  // Editing horizon: current month + the next 11 (a rolling year), extendable
+  // in 6-month steps — next year's schedule and beyond stay budgetable. Any
+  // FUTURE month that already holds an allocation for this person is always
+  // included, so extending, saving, and reopening can never strand a value
+  // out of view.
+  const todayYM = today().slice(0, 7);
+  const [y, m] = todayYM.split('-').map(Number);
+  const months = new Set(Array.from({ length: 12 + _paMonthsExtra }, (_, i) => {
     const d = new Date(y, m - 1 + i, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }));
+  if (_paPerson != null) {
+    Object.keys(PERSON_ALLOCS).forEach(k => {
+      const p = _parsePersonAllocKey(k);
+      if (p.person === _paPerson && p.ym >= todayYM) months.add(p.ym);
+    });
+  }
+  return [...months].sort();
+}
+
+function _paMoreMonths() {
+  _paMonthsExtra += 6;
+  // Preserve anything typed but not yet saved before re-rendering the list
+  const typed = {};
+  document.querySelectorAll('.pa-month-input').forEach(inp => { typed[inp.dataset.ym] = inp.value; });
+  _paFillMonths();
+  document.querySelectorAll('.pa-month-input').forEach(inp => {
+    if (typed[inp.dataset.ym] !== undefined) inp.value = typed[inp.dataset.ym];
   });
 }
 
@@ -5525,6 +5550,7 @@ function openPersonAllocModal(person, projKey, scId) {
   // A bar click passes scId explicitly ('' = no sub-code) — honor it even when
   // populateSubCodeSelect would auto-select a lone sub-code.
   if (scId != null) document.getElementById('paSubCode').value = scId || '';
+  _paMonthsExtra = 0;
   _paFillMonths();
   document.getElementById('personAllocModal').classList.add('open');
 }
@@ -15990,7 +16016,7 @@ const INFO_COPY = {
   },
   cockpitGauge: {
     title: 'What these allocation meters count',
-    body: 'One bar per billing code you\'ve <strong>allocated hours to this person</strong> for the selected month (‹ › changes the month). The <strong>solid fill</strong> (project color) = their completed work that month — finished relay legs at the stage\'s hours, plus completed deliverables and delegated tasks at their estimate. The <strong>lighter overlay</strong> = still-planned work eating the rest of the allocation. A bar with no sub-code is a <strong>catch-all</strong>: it absorbs all of that project\'s work not claimed by a sub-code-specific bar. <strong>+ Allocation</strong> budgets a code for the current + next 6 months; click any bar to edit it. <strong>Backlog</strong> below = remaining hours across all their active items, any code, any month.'
+    body: 'One bar per billing code you\'ve <strong>allocated hours to this person</strong> for the selected month (‹ › changes the month). The <strong>solid fill</strong> (project color) = their completed work that month — finished relay legs at the stage\'s hours, plus completed deliverables and delegated tasks at their estimate. The <strong>lighter overlay</strong> = still-planned work eating the rest of the allocation. A bar with no sub-code is a <strong>catch-all</strong>: it absorbs all of that project\'s work not claimed by a sub-code-specific bar. <strong>+ Allocation</strong> budgets a code for the next 12 months — <strong>+ 6 more months</strong> extends into next year and beyond, and any future month you\'ve already budgeted always stays listed; click any bar to edit it. <strong>Backlog</strong> below = remaining hours across all their active items, any code, any month.'
   },
   relay: {
     title: 'Relays — pass the baton through stages',

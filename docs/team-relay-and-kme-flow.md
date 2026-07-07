@@ -256,3 +256,13 @@ Chronological; newest last. Keeps the *why* across threads.
     was hidden; per follow-up, blocked etc. are hidden too — a meeting has
     no status). A completed meeting sits in the Complete column with its
     Complete badge like any other card.
+30. **Allocation horizon opened up** — the person-allocation modal was
+    hard-capped at current + 6 months (2027 planning dead-ended in
+    mid-2026). Now: rolling 12 months by default, a repeatable **+ 6 more
+    months** extender (`_paMonthsExtra`, reset per open, typed values
+    preserved across extends), and `_paMonthList` always unions in any
+    FUTURE month that already holds an allocation for the person — so an
+    allocation budgeted 20 months out can never fall out of the editable
+    list. Everything else already reached 2027+: Capacity and Allocations
+    have unbounded year nav, the cockpit ‹ › month nav and the Timesheet
+    anchor are unbounded.
