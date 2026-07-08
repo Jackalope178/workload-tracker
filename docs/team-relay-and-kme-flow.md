@@ -266,3 +266,19 @@ Chronological; newest last. Keeps the *why* across threads.
     list. Everything else already reached 2027+: Capacity and Allocations
     have unbounded year nav, the cockpit ‹ › month nav and the Timesheet
     anchor are unbounded.
+31. **Future Me legs hold in Capacity** — staged baton passes used to be
+    invisible to personal planning until each leg became current (real
+    pickle: three reviews landed at once with no time saved for them).
+    `plannedItems()` now emits a synthetic entry (`_relayFuture: true`,
+    `_src: 'relayleg'`, `_teamId`) for every Me stage STRICTLY AFTER the
+    baton on an in-flight relay, dated `stage.due || item.due` (undated
+    legs stay uncounted until active, when the mirror's current-month hold
+    picks them up). Exactly-once accounting holds because those legs have
+    no mirror yet — as each becomes current, `_syncBatonMirror` creates the
+    mirror and the synthetic entry retires (`i <= relayIdx` exclusion).
+    Consequence: hand-offs now reserve your review time the moment they're
+    created. `save('wt_team')` invalidates the planned cache (it didn't
+    before — wt_team never fed plannedItems). Capacity drill-down renders
+    these rows with a ◖ "upcoming leg" chip; the only action is opening the
+    deliverable (dates/hours live on the relay stage). Suite scenarios
+    04/05 pin the before/after and the mirror-takeover no-double-count.

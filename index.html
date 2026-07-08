@@ -4306,7 +4306,7 @@ if (typeof XLSX === 'undefined') {
     <div class="welcome-step" data-step="5">
       <h3>Team Relays & Your Turn</h3>
       <p>A deliverable can carry a <strong>relay</strong>: ordered stages (work ✎ / review 👁 / send ✉), each with a person, estimate, and due date. Whoever holds the current stage has the <strong>baton</strong>.</p>
-      <div class="welcome-tip"><span class="welcome-tip-icon">🟢</span><span>When it's <strong>your turn</strong>, the leg appears in My Tasks (↩ team badge) and counts in your Capacity. <strong>Pass →</strong> logs your hours to the deliverable's billing code exactly once and hands it on.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">🟢</span><span>When it's <strong>your turn</strong>, the leg appears in My Tasks (↩ team badge) — and your upcoming legs already hold their dates in Capacity, so review time is reserved from day one. <strong>Pass →</strong> logs your hours to the deliverable's billing code exactly once and hands it on.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">👥</span><span>Each person's board opens with <strong>allocation meters</strong> — the monthly hours you've budgeted them per billing code, drained by completed work — plus backlog and filter chips.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">⇄</span><span>Delegating your own work? <strong>Hand off as deliverable</strong> in a task or work-item edit modal moves it here with the relay pre-seeded — their work, then your review.</span></div>
     </div>
@@ -5667,7 +5667,7 @@ function save(key, data) {
   }
   // Invalidate caches when underlying data changes
   try {
-    if (key === 'wt_tasks' || key === 'wt_bigprojs') _invalidatePlannedCache();
+    if (key === 'wt_tasks' || key === 'wt_bigprojs' || key === 'wt_team') _invalidatePlannedCache();
     if (key === 'wt_completed') _invalidateActualsCache();
   } catch(e) { /* caches not yet initialized during early bootstrap */ }
   // Fire-and-forget cloud sync (non-blocking) with failure notification
@@ -11348,6 +11348,33 @@ function plannedItems(fromDate, toDate) {
       });
     });
   });
+
+  // FUTURE Me legs of in-flight relays — committed review/send time whose
+  // mirror task doesn't exist yet. Only stages STRICTLY AFTER the baton
+  // count here: the CURRENT Me leg is covered by its mirror (created by
+  // _relaySync), and as each leg becomes current the mirror takes over and
+  // this synthetic entry retires — so the hours are always counted exactly
+  // once. Undated legs (no stage due, no deliverable due) stay uncounted
+  // until active, when the mirror's current-month hold picks them up.
+  teamItems.forEach(ti => {
+    if (!_isRelay(ti) || _relayDone(ti)) return;
+    if (isProjArchived(ti.project)) return;
+    const cur = relayIdx(ti);
+    ti.relay.forEach((st, i) => {
+      if (i <= cur || st.who !== 'Me') return;
+      const h = Number(st.est) || 0;
+      if (h <= 0) return;
+      const date = st.due || ti.due || '';
+      if (!date || date < fromDate || date > toDate) return;
+      items.push({
+        id: ti.id + '_leg_' + (st.id || i),
+        name: `${RELAY_KINDS[st.kind]?.label || 'Leg'} — ${ti.name}`,
+        project: ti.project || 'overhead', date, hours: h, subCode: ti.subCode || '',
+        _planned: true, _src: 'relayleg', _relayFuture: true, _teamId: ti.id
+      });
+    });
+  });
+
   return items;
 }
 
@@ -13121,15 +13148,19 @@ function _renderCapItemList(container, projKey, ym, data) {
         delegateFn = `capDelegateItem(event,'subtask','${item._projId}','${item._sessionId}','${srcId}')`;
         moveFn = `capMoveItem('subtask','${item._projId}','${item._sessionId}','${srcId}')`;
         doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${srcId}')`;
+      } else if (item._relayFuture && item._teamId) {
+        // Upcoming relay leg — its date/est live on the relay stage, so the
+        // only action is opening the deliverable.
+        editFn = `openEditTeamModal('${item._teamId}')`;
       }
 
       const row = document.createElement('div');
       row.className = 'cap-item-row';
       const displayName = item._allocHold ? item.name.replace(/ \(hold\)$/, '') : item.name;
       row.innerHTML = `
-        <span style="font-size:10px;color:var(--accent);">${item._recur ? '↻' : item._allocHold ? '◇' : item._spread ? '⇶' : item._block ? '▣' : '○'}</span>
+        <span style="font-size:10px;color:var(--accent);">${item._recur ? '↻' : item._allocHold ? '◇' : item._relayFuture ? '◖' : item._spread ? '⇶' : item._block ? '▣' : '○'}</span>
         <span style="font-size:10px;color:var(--text3);">${item._allocHold ? '<span style="color:var(--warn);font-style:italic;">Hold</span>' : fmtDate(item.date)}</span>
-        <span class="cap-item-name${item._recur ? ' recur' : ''}" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(displayName)}${item._allocHold ? ' <span style="color:var(--warn);font-size:9px;font-weight:600;">⟡ month hold</span>' : ''}</span>
+        <span class="cap-item-name${item._recur ? ' recur' : ''}" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(displayName)}${item._allocHold ? ' <span style="color:var(--warn);font-size:9px;font-weight:600;">⟡ month hold</span>' : ''}${item._relayFuture ? ' <span style="color:var(--accent);font-size:9px;font-weight:600;" title="Upcoming relay leg — the baton has not reached you yet; date/hours live on the relay stage">◖ upcoming leg</span>' : ''}</span>
         <span class="cap-item-hours" style="color:var(--text3);">${item.hours > 0 ? fmtQ(item.hours) + 'h' : '—'}</span>
         <span class="cap-item-actions">
           ${doneFn ? `<button class="btn primary" onclick="event.stopPropagation();${doneFn}" title="Log time / Mark complete" style="background:var(--success);border-color:var(--success);">✓ Done</button>` : ''}
@@ -16008,7 +16039,7 @@ const INFO_COPY = {
   },
   capacityMeters: {
     title: 'What a Capacity month counts',
-    body: 'Each bar = <strong>logged + planned hours vs weekdays × hours/day</strong>. Recurring items are expanded into every future occurrence so the load is real, and an item sits on its <strong>work date</strong> when one is set (its deadline otherwise). <strong>Month holds</strong> — items parked in a month with no date — count in the month total but never pin to a day. Different job than Allocations: Capacity is your personal headroom, Allocations is project budget tracking.'
+    body: 'Each bar = <strong>logged + planned hours vs weekdays × hours/day</strong>. Recurring items are expanded into every future occurrence so the load is real, <strong>upcoming relay legs</strong> (review/send stages that haven\'t reached you yet) hold their stage due dates (◖ in the drill-down), and an item sits on its <strong>work date</strong> when one is set (its deadline otherwise). <strong>Month holds</strong> — items parked in a month with no date — count in the month total but never pin to a day. Different job than Allocations: Capacity is your personal headroom, Allocations is project budget tracking.'
   },
   schedBacklog: {
     title: 'The backlog — everything needing a home',
@@ -16020,7 +16051,7 @@ const INFO_COPY = {
   },
   relay: {
     title: 'Relays — pass the baton through stages',
-    body: 'A relay moves one deliverable through ordered stages (<strong>work ✎ / review 👁 / send ✉</strong>), each with an assignee, estimate, and due date. The current stage\'s assignee <strong>holds the baton</strong>; everyone else sees "Waiting on …". When a stage is yours (KME), a mirror task appears in <strong>My Tasks</strong> and counts in Capacity; passing it logs your hours to the deliverable\'s billing code <strong>exactly once</strong>. You can also start a relay straight from a task or a project work item: <strong>⇄ Hand off as deliverable</strong> in its edit modal moves it here pre-seeded with their work leg and your review leg.'
+    body: 'A relay moves one deliverable through ordered stages (<strong>work ✎ / review 👁 / send ✉</strong>), each with an assignee, estimate, and due date. The current stage\'s assignee <strong>holds the baton</strong>; everyone else sees "Waiting on …". When a stage is yours (KME), a mirror task appears in <strong>My Tasks</strong> and counts in Capacity; passing it logs your hours to the deliverable\'s billing code <strong>exactly once</strong>. Your <strong>upcoming</strong> legs already hold their dates in Capacity before the baton arrives, so accepting review work always reserves the time. You can also start a relay straight from a task or a project work item: <strong>⇄ Hand off as deliverable</strong> in its edit modal moves it here pre-seeded with their work leg and your review leg.'
   },
   allocGrid: {
     title: 'Reading the allocation grid',

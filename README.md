@@ -84,7 +84,7 @@ The bridge runs both ways: **⇄ Hand off as deliverable** (task and work-item e
 These look like inconsistencies or bugs but are intentional. Violating them is a regression:
 
 1. **Timesheet pay-period view ≠ month view math.** Period bars = **logged only** vs capacity (backward-looking record). Month/year bars = **logged + planned** vs capacity (forward-looking headroom), with class-based green/yellow/red coloring (`mCls`/`wCls`) that differs from period view's inline color logic. Never unify them.
-2. **A KME relay item appears twice by design** — on the team board (using stage `est` via `_relayPersonEst`) and as a My-Tasks mirror (which is what Capacity counts). The two meters are intentionally non-additive; `plannedItems()` excludes `wt_team` items to prevent double-counting.
+2. **A KME relay item appears twice by design** — on the team board (using stage `est` via `_relayPersonEst`) and as a My-Tasks mirror (which is what Capacity counts). The two meters are intentionally non-additive; `plannedItems()` excludes `wt_team` items to prevent double-counting — except **future Me legs of in-flight relays**, which emit synthetic `_relayFuture` entries so upcoming review/send time holds its dates in Capacity; the mirror takes over (and the synthetic entry retires) as each leg becomes current.
 3. **Checkbox-completing a relay mirror advances the relay with 0 extra hours** — the completion modal already logged them; the 0 prevents double-billing.
 4. **Relay stages have no label field** and the `ready-review` + `in-review` statuses share one merged board column (`BOARD_COLS` in `renderTeamBoard`) — removed/merged by design.
 5. **Relay → mirror sync is one-way.** Editing the mirror task never updates the relay stage.

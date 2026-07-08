@@ -31,13 +31,14 @@ const { launch, step, done } = require('./_lib');
     return {
       taskGone: !tasks.some(t => t.id === '_t1'),
       relay: item && item.relay.map(s => ({ kind: s.kind, who: s.who, est: s.est })),
-      plannedJul: plannedItems('2026-07-01', '2026-07-31').filter(i => i.name.includes('Hand me off')).length
+      plannedJul: plannedItems('2026-07-01', '2026-07-31').filter(i => i.name.includes('Hand me off')).map(i => ({ h: i.hours, fut: !!i._relayFuture }))
     };
   });
   step('task hand-off deletes the source', r.taskGone);
   step('relay pre-seeded Work(Jordan, 2h) → Review(Me)',
     r.relay && r.relay[0].who === 'Jordan K' && r.relay[0].est === 2 && r.relay[1].who === 'Me', r.relay);
-  step('handed-off hours leave my Capacity (0 planned entries)', r.plannedJul === 0, r.plannedJul);
+  step('their 2h leaves my Capacity; MY 0.25h future review leg holds (exactly one entry)',
+    r.plannedJul.length === 1 && r.plannedJul[0].h === 0.25 && r.plannedJul[0].fut, r.plannedJul);
   await page.evaluate(() => { document.getElementById('editTeamModal').classList.remove('open'); });
 
   // 2. Recurring task refuses

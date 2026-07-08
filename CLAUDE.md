@@ -162,7 +162,12 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 2. **A KME relay item appears twice by design** — on the team board (stage
    `est` rollups) and as a My-Tasks mirror (which is what Capacity counts).
    The two meters are intentionally non-additive; `plannedItems()` excludes
-   `wt_team` items to prevent double-counting.
+   `wt_team` items to prevent double-counting, with ONE deliberate
+   exception: **future Me legs of in-flight relays** (stages strictly after
+   the baton) emit synthetic `_relayFuture` entries so committed review/send
+   time holds its dates in Capacity before the baton arrives. No double
+   count: those legs have no mirror yet, and as each becomes current the
+   mirror takes over and the synthetic entry retires.
 3. **Checkbox-completing a relay mirror advances the relay with 0 extra
    hours** — the completion modal already logged them; the 0 prevents
    double-billing.
