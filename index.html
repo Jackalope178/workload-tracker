@@ -1745,12 +1745,18 @@
   .wk-track { display: flex; flex-direction: column; gap: 3px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 4px; }
   .wk-col.today .wk-track { border-color: var(--accent); }
   .wk-track.drag-over-day { border-color: var(--accent); background: rgba(79,156,249,0.08); }
-  .wk-item { border-left: 3px solid var(--accent); border-radius: 5px; padding: 3px 6px; font-size: 10px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; box-sizing: border-box; }
+  .wk-item { position: relative; border-left: 3px solid var(--accent); border-radius: 5px; padding: 3px 6px; font-size: 10px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; box-sizing: border-box; }
   .wk-item:hover { filter: brightness(1.25); }
   .wk-item.fixed { cursor: pointer; opacity: 0.8; }
   .wk-item-name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .wk-item-hrs { color: var(--text3); font-size: 9px; flex-shrink: 0; }
-  .wk-item.wk-meeting { border: 1px solid; }
+  /* Meetings = fixed anchors, not movable work: muted grey card, the project
+     color only as the left edge (set inline), never the full wash/outline. */
+  .wk-item.wk-meeting { border: 1px solid var(--border); }
+  .wk-item.wk-meeting .wk-item-name { color: var(--text2); }
+  .wk-item-log { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; line-height: 13px; text-align: center; border: 1px solid var(--success); background: var(--bg); color: var(--success); border-radius: 4px; font-size: 10px; cursor: pointer; opacity: 0; padding: 0; transition: opacity 0.12s; }
+  .wk-item:hover .wk-item-log { opacity: 1; }
+  .wk-item-log:hover { background: var(--success); color: #fff; }
   .wk-item.wk-item-sm { flex-direction: row; align-items: center; gap: 4px; padding: 0 6px; }
   .wk-item.wk-item-sm .wk-item-name { display: block; -webkit-line-clamp: 1; white-space: nowrap; flex: 1; min-width: 0; font-size: 9px; line-height: 1; }
   .wk-item.wk-logged { background: var(--border); border-left-color: var(--success); color: var(--text3); cursor: default; justify-content: center; font-size: 9px; }
@@ -6632,6 +6638,8 @@ function _wkResolve(id, src, projId, sessionId) {
 }
 
 function _wkOpenItem(id, src, projId, sessionId) {
+  // Upcoming relay legs live on the deliverable, not in tasks/bigProjs
+  if (src === 'relayleg') { openEditTeamModal(id.split('_leg_')[0]); return; }
   const r = _wkResolve(id, src, projId, sessionId);
   if (!r) return;
   if (r.src === 'task') openEditModal(r.t.id);
@@ -6701,7 +6709,7 @@ function renderWeekPlanner(container) {
     <span class="wk-range">${rangeLbl}</span>
     <button class="btn" onclick="wkShift(1)" style="padding:3px 10px;">›</button>
     ${monday <= todayStr && todayStr <= sunday ? '' : `<button class="btn" onclick="wkToday()" style="padding:3px 10px;font-size:10px;">Today</button>`}
-    <span class="wk-cap-note">box height = planned hours · ${fmtQ(tsCapacity)}h day · drag to move work · click to edit</span>
+    <span class="wk-cap-note">box height = planned hours · ${fmtQ(tsCapacity)}h day · drag to move work · click to edit · hover ✓ logs time</span>
   </div><div class="wk-board">`;
 
   days.forEach(d => {
@@ -6729,20 +6737,34 @@ function renderWeekPlanner(container) {
       const h = Math.max(18, (p.hours || 0.25) * PXH - 3);
       // Short boxes can't fit two lines — go single-row: icon + title + hours
       const small = h < 34;
-      // Meetings are fixed points in the day — outline them fully so they
-      // read as anchors the movable work flows around.
+      // Meetings are fixed anchors, not movable work: grey card with the
+      // project color only on the left edge, so they can't be mistaken for
+      // the color-washed work blocks around them.
       const src = _wkResolve(p.id, p._src, p._projId, p._sessionId);
       const pri = src ? (src.src === 'task' ? src.t.priority : src.src === 'session' ? src.s.priority : src.st.priority) : 'med';
       const isMeeting = pri === 'meeting';
-      const draggable = !p._recur && !p._spread;
-      const marker = p._recur ? '↻ ' : p._spread ? '⇶ ' : p._block ? '▣ ' : '';
+      const draggable = !p._recur && !p._spread && !p._relayFuture;
+      const marker = p._recur ? '↻ ' : p._spread ? '⇶ ' : p._block ? '▣ ' : p._relayFuture ? '◖ ' : '';
       const args = `'${p.id}','${p._src}','${p._projId || ''}','${p._sessionId || ''}'`;
-      html += `<div class="wk-item${draggable ? '' : ' fixed'}${small ? ' wk-item-sm' : ''}${isMeeting ? ' wk-meeting' : ''}" draggable="${draggable}" style="height:${h}px;border-left-color:${col};background:${col}26;${isMeeting ? `border-color:${col};border-left-width:3px;` : ''}"
+      // ✓ logs time right from the card — the same completion modals as the
+      // list view. Blocks/spread slices log through their parent's plan, and
+      // upcoming relay legs aren't yours to log yet.
+      let logFn = '';
+      if (!p._spread && !p._block && !p._relayFuture && src) {
+        if (src.src === 'task') logFn = `openCompletionModal('${src.t.id}')`;
+        else if (src.src === 'session') logFn = `openSessionCompletionModal('${p._projId}','${src.s.id}')`;
+        else if (src.src === 'subtask') logFn = `openSubtaskCompletionModal('${p._projId}','${p._sessionId}','${src.st.id}')`;
+      }
+      const cardStyle = isMeeting
+        ? `height:${h}px;background:var(--bg3);border-left:4px solid ${col};`
+        : `height:${h}px;border-left-color:${col};background:${col}26;`;
+      html += `<div class="wk-item${draggable ? '' : ' fixed'}${small ? ' wk-item-sm' : ''}${isMeeting ? ' wk-meeting' : ''}" draggable="${draggable}" style="${cardStyle}"
         ondragstart="_wkDragStart(event,${args})"
         onclick="_wkOpenItem(${args})"
-        title="${escHtml(p.name)} — ${fmtQ(p.hours || 0)}h · ${escHtml(projLabel(p.project))}${isMeeting ? ' · meeting' : ''}${p._recur ? ' · recurring (drag from list view)' : ''}${p._spread ? ' · spread slice (edit the plan instead)' : ''}${p._block ? ' · work block' : ''}. Click to edit.">
+        title="${escHtml(p.name)} — ${fmtQ(p.hours || 0)}h · ${escHtml(projLabel(p.project))}${isMeeting ? ' · meeting (fixed)' : ''}${p._recur ? ' · recurring (drag from list view)' : ''}${p._spread ? ' · spread slice (edit the plan instead)' : ''}${p._block ? ' · work block' : ''}${p._relayFuture ? ' · upcoming relay leg' : ''}. Click to edit.">
         <span class="wk-item-name">${isMeeting ? '◷ ' : ''}${marker}${escHtml(p.name)}</span>
         <span class="wk-item-hrs">${fmtQ(p.hours || 0)}h</span>
+        ${logFn ? `<button class="wk-item-log" onclick="event.stopPropagation();${logFn}" title="Log time / mark complete">✓</button>` : ''}
       </div>`;
     });
     if (free >= 0.25) {
@@ -16115,6 +16137,7 @@ const _TAB_TIPS = {
       '<strong>⇶ Spread</strong> (in the edit modal) splits a big task\'s hours evenly across weekdays from work date to deadline.',
       '<strong>▣ Work blocks</strong> (edit modal) break a big task into dated sessions under one deadline — ⚡ Auto-fill packs the remaining hours into days with free capacity. Tick a block to log its time; the parent counts only the un-blocked remainder.',
       'Set up <strong>recurring tasks</strong> (weekly, monthly) in the edit modal.',
+      '<strong>📅 Week view:</strong> hover any card and hit <strong>✓</strong> to log time on the spot. <strong>Meetings render grey</strong> with the project color only on their left edge — fixed anchors, not work you can shuffle; ◖ marks upcoming relay legs (open the deliverable to move those).',
       '<strong>⇄ Hand off as deliverable</strong> (edit modal) moves a task to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves your list and Capacity; your review leg mirrors back in when the baton reaches you. Recurring tasks can\'t move — <strong>Assign to</strong> tags them on every occurrence instead.',
       'Use the <strong>priority filter</strong> to focus on urgent work.',
       'Drag tasks to <strong>reorder</strong> within each section.'
