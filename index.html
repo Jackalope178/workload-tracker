@@ -1759,7 +1759,9 @@
   .wk-item-log:hover { background: var(--success); color: #fff; }
   .wk-item.wk-item-sm { flex-direction: row; align-items: center; gap: 4px; padding: 0 6px; }
   .wk-item.wk-item-sm .wk-item-name { display: block; -webkit-line-clamp: 1; white-space: nowrap; flex: 1; min-width: 0; font-size: 9px; line-height: 1; }
-  .wk-item.wk-logged { background: var(--border); border-left-color: var(--success); color: var(--text3); cursor: default; justify-content: center; font-size: 9px; }
+  /* Logged time = spent, done: green-tinted hatching so it can't be confused
+     with the flat-grey meeting anchors. */
+  .wk-item.wk-logged { background: repeating-linear-gradient(-45deg, rgba(34,197,94,0.18) 0 6px, rgba(34,197,94,0.05) 6px 12px); border-left-color: var(--success); color: var(--success); font-weight: 600; cursor: default; justify-content: center; font-size: 9px; }
   .wk-free { border: 1px dashed var(--border2); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--text3); flex-shrink: 0; }
   .wk-over-line { font-size: 9px; color: var(--danger); font-weight: 700; text-align: center; flex-shrink: 0; }
   .wk-wknd { margin-top: 8px; font-size: 10px; color: var(--text3); }
