@@ -8874,11 +8874,15 @@ function renderProjCodeContent(projKey) {
   // Group items by subCode
   function getItemsForSubCode(scId) {
     const items = [];
-    // Tasks
+    // Tasks (+ their open work blocks as indented child rows, like My Tasks)
     projTasks.forEach(t => {
       const tsc = t.subCode || '';
       if (tsc === (scId || '')) {
         items.push({ _type: 'task', task: t, _date: t.due || (t.allocMonth ? t.allocMonth + '-01' : null), _src: 'task' });
+        (t.blocks || []).forEach(b => {
+          if (b.done) return;
+          items.push({ _type: 'block', task: t, block: b, _date: b.date || null, _src: 'task' });
+        });
       }
     });
     // Sessions & subtasks from big projects
@@ -8919,15 +8923,20 @@ function renderProjCodeContent(projKey) {
         if (d && d > horizon) items.splice(i, 1);
       }
     }
-    // Sort: incomplete first, then by manual order if set, then date, then priority
+    // Sort: incomplete first, then by manual order if set, then date, then
+    // priority. Block rows sort by their PARENT task's keys so they stay
+    // glued beneath it (stable sort keeps their push order within the tie).
     const po = { urgent: 0, high: 1, med: 2, low: 3 };
-    const pri = i => i._type === 'task' ? po[i.task.priority] : i._type === 'session' ? (po[i.s.priority] ?? 2) : i._type === 'team' ? 2 : (po[i.st.priority] ?? 2);
-    const done = i => i._type === 'task' ? !!i.task.completed : i._type === 'session' ? !!i.s.done : i._type === 'team' ? (i.team.status === 'complete') : !!i.st?.done;
+    const pri = i => (i._type === 'task' || i._type === 'block') ? (po[i.task.priority] ?? 2) : i._type === 'session' ? (po[i.s.priority] ?? 2) : i._type === 'team' ? 2 : (po[i.st.priority] ?? 2);
+    const done = i => (i._type === 'task' || i._type === 'block') ? !!i.task.completed : i._type === 'session' ? !!i.s.done : i._type === 'team' ? (i.team.status === 'complete') : !!i.st?.done;
     const ord = i => {
-      const obj = i._type === 'task' ? i.task : i._type === 'session' ? i.s : i._type === 'team' ? i.team : i.st;
+      const obj = (i._type === 'task' || i._type === 'block') ? i.task : i._type === 'session' ? i.s : i._type === 'team' ? i.team : i.st;
       return obj?.projSortOrder ?? 999999;
     };
-    items.sort((a, b) => (done(a) - done(b)) || (ord(a) - ord(b)) || (a._date || 'zzz').localeCompare(b._date || 'zzz') || pri(a) - pri(b));
+    const sd = i => i._type === 'block'
+      ? (i.task.due || (i.task.allocMonth ? i.task.allocMonth + '-01' : null) || i._date)
+      : i._date;
+    items.sort((a, b) => (done(a) - done(b)) || (ord(a) - ord(b)) || (sd(a) || 'zzz').localeCompare(sd(b) || 'zzz') || pri(a) - pri(b));
     return items;
   }
 
@@ -8976,8 +8985,10 @@ function renderProjCodeContent(projKey) {
 
   sections.forEach(sec => {
     const items = getItemsForSubCode(sec.scId);
-    const openCount = items.filter(i => !(i._type === 'task' ? i.task.completed : i._type === 'session' ? i.s.done : i._type === 'team' ? (i.team.status === 'complete') : i.st?.done)).length;
-    const totalCount = items.length;
+    // Blocks are slices of their parent task — the parent already counts once
+    const countable = items.filter(i => i._type !== 'block');
+    const openCount = countable.filter(i => !(i._type === 'task' ? i.task.completed : i._type === 'session' ? i.s.done : i._type === 'team' ? (i.team.status === 'complete') : i.st?.done)).length;
+    const totalCount = countable.length;
     const sectionKey = projKey + '|' + sec.scId;
     const isCollapsed = collapsedSubSections.has(sectionKey);
 
@@ -9155,6 +9166,22 @@ function renderProjItemRow(item, projKey, scId) {
       </div>
       <div class="session-row-actions" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
         <button class="row-edit-btn" onclick="deleteTaskFromProjects('${t.id}')" title="Delete" style="color:var(--danger);">×</button>
+      </div>
+    </div>`;
+  }
+
+  if (item._type === 'block') {
+    const bt = item.task, b = item.block;
+    return `<div class="proj-item-row" style="padding-left:44px;font-size:11px;">
+      <div></div>
+      <div class="session-check" onclick="openBlockCompletionModal('${bt.id}','${b.id}')" title="Log this block as done" style="cursor:pointer;"></div>
+      <div class="session-desc" onclick="openEditModal('${bt.id}')">╰ ${escHtml(bt.name)}${b.desc ? ` <span style="color:var(--text3);">· ${escHtml(b.desc)}</span>` : ''} <span class="recur-badge" title="Work block — part of ${fmtQ(bt.est || 0)}h total">▣ block</span></div>
+      <div>${priorityBadge(bt.priority || 'med')}</div>
+      <div class="session-date" style="cursor:pointer;" onclick="event.stopPropagation();openBlockDatePicker(this,'${bt.id}','${b.id}')" title="Click to move this block">${fmtDate(b.date)}</div>
+      <div class="session-hours">${b.hours ? fmtQ(b.hours) + 'h' : '—'}</div>
+      <div></div>
+      <div class="session-row-actions" onclick="event.stopPropagation()">
+        <button class="row-edit-btn" onclick="deleteTaskBlock('${bt.id}','${b.id}')" title="Delete block" style="color:var(--danger);">×</button>
       </div>
     </div>`;
   }
