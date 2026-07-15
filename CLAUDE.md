@@ -229,7 +229,14 @@ preserve:
    every saved hours value and clamps at 0 (typed negatives would silently
    subtract from capacity/billing sums). `roundToQuarter` has a 0.25 FLOOR —
    never use it on a possibly-zero quantity (use `snapQuarter` clamped at 0,
-   as `packIntoFreeDays` does).
+   as `packIntoFreeDays` and the completion-modal remainder prefill do).
+   **Zero means "bill nothing", never a forced 0.25** (July 2026 —
+   `confirmComplete` used to clamp typed 0 to 0.25, planting phantom
+   quarter-hours in `wt_completed` that skewed Allocations actuals): a work
+   block closed at 0h is cancelled with NO ledger entry; a task/session/
+   subtask closed at 0h archives a 0h entry (the archive row survives,
+   sums are untouched); `_logRelayLeg` at 0 writes nothing. The 0.25 floor
+   applies only to hours actually > 0. Don't reintroduce the minimum.
 5. **Person-board meters are allocation meters** (July 2026 — replaced the
    weekly-capacity gauge): bar = `wt_person_allocs` for the selected month,
    solid fill = `_personCompletedHoursByCode` (relay `relayLog` pass hours —

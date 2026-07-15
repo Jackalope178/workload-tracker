@@ -309,3 +309,39 @@ fall transitions, pay-period boundaries, negative/zero hour inputs.
 
 Regression coverage: `.claude/skills/verify/run.sh` scenarios 01–03 encode
 the fixes and the clean behaviors above.
+
+## Addendum — zero-billable close-out (2026-07-15)
+
+**Symptom (user report):** hours logged through work blocks didn't reconcile
+with Allocations actuals. Root cause: `confirmComplete` clamped the billable
+field with `Math.max(0.25, …)`, so typing **0** at close-out (to decline
+billing the prefilled remainder) still wrote a **phantom 0.25h entry** to
+`wt_completed` — which Allocations, Timesheet, and the pay-period bars all
+sum. Compounding it, `openCompletionModal` prefilled the remainder of a
+blocked task with `roundToQuarter(_ownPlannedHours(task))`; the 0.25 floor
+turned a fully-blocked task's true 0h remainder into a suggested 0.25 —
+exactly the invariant-#4 misuse this audit documented.
+
+### Fixed
+
+1. **Typed 0 now bills 0.** `confirmComplete` uses
+   `Math.max(0, enforceQuarter(…))`; an emptied field counts as 0 too.
+   Semantics by item kind:
+   - **Work block at 0h** → block marked done, **no ledger entry** (the
+     planned time is cancelled; earlier logged blocks keep their entries).
+     Matches `_logRelayLeg`, which already skipped the entry at 0.
+   - **Task / session / subtask at 0h** → archived with `actualHours: 0`
+     (the archive row survives for history/wins; billing sums unchanged).
+2. **Remainder prefill is zero-safe.** The blocked-task branch of
+   `openCompletionModal` now uses `Math.max(0, snapQuarter(…))`.
+3. **UI makes 0 a first-class action:** a 0h shortcut button beside the
+   billable input, a context hint (`compZeroHint`) spelling out what 0 does,
+   and the confirm button relabels live ("Complete — bill 0h") so a no-bill
+   close is never a surprise.
+
+The 0.25 floor still applies to any hours > 0. Regression coverage:
+`.claude/skills/verify/suite/11-zero-close.js`.
+
+**Cleanup note for existing data:** phantom 0.25h entries created before
+this fix remain in `wt_completed`; edit or delete them from the Timesheet
+day view (the entry editor accepts 0h).

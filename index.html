@@ -3426,15 +3426,19 @@ if (typeof XLSX === 'undefined') {
     </div>
     <div class="modal-row" style="margin-top:8px;">
       <span class="modal-label">Billable hours</span>
-      <input class="bill-input" type="number" id="compBillable" step="0.25" min="0">
+      <span style="display:flex;align-items:center;gap:6px;">
+        <input class="bill-input" type="number" id="compBillable" step="0.25" min="0" oninput="_compBillInput()">
+        <button type="button" class="btn" onclick="_compSetZero()" style="padding:3px 8px;font-size:10px;white-space:nowrap;" title="Bill nothing — keep what's already logged and cancel the remaining plan.">0h</button>
+      </span>
     </div>
+    <div id="compZeroHint" style="font-size:10px;color:var(--text3);line-height:1.5;padding:5px 0 0;"></div>
     <div class="modal-row" style="border-bottom:none;">
       <span class="modal-label">Date completed</span>
       <input class="bill-input" type="date" id="compDate" style="width:auto;min-width:140px;">
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeCompletionModal()">Cancel</button>
-      <button class="btn primary" onclick="confirmComplete()">Mark Complete</button>
+      <button class="btn primary" id="compConfirmBtn" onclick="confirmComplete()">Mark Complete</button>
     </div>
   </div>
 </div>
@@ -7787,7 +7791,8 @@ function clearEditingTaskTimer() {
 
 // ── Work-block editor (task modal) ──
 // Edits happen on a draft; nothing persists until Save. Done blocks are
-// shown locked — their time entries already exist.
+// shown locked — logged ones already have their time entries (a block
+// closed at 0h was cancelled and has none).
 let _blockDraft = [];
 
 function _renderBlockEditor() {
@@ -7798,7 +7803,7 @@ function _renderBlockEditor() {
       <input class="edit-input" type="date" value="${b.date || ''}" onchange="_blkUpd(${i},'date',this.value)" style="flex:0 0 132px;" ${b.done ? 'disabled' : ''}>
       <input class="edit-input" type="number" step="0.25" min="0.25" value="${b.hours ?? ''}" onchange="_blkUpd(${i},'hours',this.value)" placeholder="h" style="flex:0 0 64px;" ${b.done ? 'disabled' : ''}>
       <input class="edit-input" type="text" value="${escHtml(b.desc || '')}" onchange="_blkUpd(${i},'desc',this.value)" placeholder="label (optional)" style="flex:1;min-width:0;" ${b.done ? 'disabled' : ''}>
-      ${b.done ? '<span style="font-size:9px;color:var(--success,#4ade80);white-space:nowrap;">✓ logged</span>' : `<button type="button" class="btn" onclick="_blkDel(${i})" style="padding:2px 8px;flex-shrink:0;">×</button>`}
+      ${b.done ? '<span style="font-size:9px;color:var(--success,#4ade80);white-space:nowrap;">✓ done</span>' : `<button type="button" class="btn" onclick="_blkDel(${i})" style="padding:2px 8px;flex-shrink:0;">×</button>`}
     </div>`).join('');
   const sum = document.getElementById('editBlocksSummary');
   if (sum) {
@@ -8157,6 +8162,35 @@ let completingTaskId = null;
 // Context for session/subtask completion: { type: 'session'|'subtask', projId, sessionId, subtaskId? }
 let _completingCtx = null;
 
+// ── Zero-billable close-out ──
+// 0 in the billable field (typed, or via the 0h button) is a deliberate
+// "close without billing": everything already logged keeps its ledger
+// entries and the remaining planned hours are cancelled — no forced 0.25
+// minimum (that used to plant phantom quarter-hours in wt_completed and
+// skew the Allocations actuals). Same convention as _logRelayLeg.
+function _compSetHint(text) {
+  const el = document.getElementById('compZeroHint');
+  if (el) { el.innerHTML = text || ''; el.style.display = text ? '' : 'none'; }
+  _compBillInput();
+}
+
+// Live label on the confirm button so 0 never bills by surprise.
+function _compBillInput() {
+  const v = parseFloat(document.getElementById('compBillable')?.value);
+  const zero = isNaN(v) || v <= 0;
+  const isBlock = _completingCtx && _completingCtx.type === 'block';
+  const btn = document.getElementById('compConfirmBtn');
+  if (btn) btn.textContent = zero
+    ? (isBlock ? 'Close Block — bill 0h' : 'Complete — bill 0h')
+    : (isBlock ? 'Log Block' : 'Mark Complete');
+}
+
+function _compSetZero() {
+  const inp = document.getElementById('compBillable');
+  if (inp) inp.value = 0;
+  _compBillInput();
+}
+
 // Log a single work block: writes a time entry on the block's day and marks
 // the block done — the parent task stays open until its own checkbox is hit.
 function openBlockCompletionModal(taskId, blockId) {
@@ -8175,6 +8209,7 @@ function openBlockCompletionModal(taskId, blockId) {
   varEl.textContent = '—'; varEl.className = 'modal-value';
   populateSubCodeSelect('compSubCode', task.project, task.subCode || '');
   document.getElementById('compDate').value = b.date || today();
+  _compSetHint('Logging bills these hours now and marks the block done. <strong>0h</strong> cancels the block instead — nothing is billed and its planned time is removed; blocks you already logged keep their entries.');
   document.getElementById('completionModal').classList.add('open');
 }
 
@@ -8242,8 +8277,12 @@ function openCompletionModal(taskId) {
   _completingCtx = null;
   const secs = task.timer;
   const rawHours = secsToHours(secs);
+  // Blocked tasks prefill the un-blocked remainder, which is legitimately 0
+  // when blocks cover the estimate — snapQuarter, NOT roundToQuarter (its
+  // 0.25 floor would invent a quarter-hour to bill; math invariant #4).
   const billable = rawHours > 0 ? roundToQuarter(rawHours)
-    : roundToQuarter((task.blocks || []).length ? _ownPlannedHours(task) : (task.est || 0));
+    : (task.blocks || []).length ? Math.max(0, snapQuarter(_ownPlannedHours(task)))
+    : roundToQuarter(task.est || 0);
 
   if (task.recurrence) {
     const nextDate = nextActiveRecurrenceAfter(task, task.due || today());
@@ -8261,10 +8300,12 @@ function openCompletionModal(taskId) {
   document.getElementById('compTimer').textContent = secs > 0 ? `${fmtSecs(secs)} (${rawHours.toFixed(2)}h)` : 'No timer data';
   document.getElementById('compBillable').value = billable;
 
-  // Variance
+  // Variance — for a blocked task, compare against the un-blocked remainder
+  // (the blocks' hours billed with their own entries), not the full est.
   const varEl = document.getElementById('compVariance');
-  if (task.est && task.est > 0) {
-    const pct = ((billable - task.est) / task.est) * 100;
+  const varBase = (task.blocks || []).length ? Math.max(0, snapQuarter(_ownPlannedHours(task))) : (task.est || 0);
+  if (varBase > 0) {
+    const pct = ((billable - varBase) / varBase) * 100;
     const sign = pct >= 0 ? '+' : '';
     varEl.textContent = `${sign}${pct.toFixed(0)}% vs estimate`;
     varEl.className = 'modal-value ' + (Math.abs(pct) <= 5 ? 'good' : pct > 5 ? 'over' : 'under');
@@ -8275,6 +8316,13 @@ function openCompletionModal(taskId) {
 
   populateSubCodeSelect('compSubCode', task.project, task.subCode || '');
   document.getElementById('compDate').value = task.workDate || task.due || today();
+
+  if ((task.blocks || []).length) {
+    const blks = task.blocks, doneN = blks.filter(x => x.done).length;
+    _compSetHint(`${doneN} of ${blks.length} block${blks.length > 1 ? 's' : ''} already logged — those entries are kept; this bills only the final remainder. <strong>0h</strong> closes the task without billing anything more.`);
+  } else {
+    _compSetHint('<strong>0h</strong> completes the task without logging any time.');
+  }
 
   document.getElementById('completionModal').classList.add('open');
 }
@@ -8322,6 +8370,7 @@ function openSessionCompletionModal(projId, sessionId) {
   populateSubCodeSelect('compSubCode', proj.project, s.subCode || '');
   document.getElementById('compDate').value = s.workDate || s.date || today();
 
+  _compSetHint('<strong>0h</strong> completes it without logging any time.');
   document.getElementById('completionModal').classList.add('open');
 }
 
@@ -8370,6 +8419,7 @@ function openSubtaskCompletionModal(projId, sessionId, subtaskId) {
   populateSubCodeSelect('compSubCode', proj.project, st.subCode || '');
   document.getElementById('compDate').value = st.workDate || st.date || today();
 
+  _compSetHint('<strong>0h</strong> completes it without logging any time.');
   document.getElementById('completionModal').classList.add('open');
 }
 
@@ -8381,36 +8431,46 @@ function closeCompletionModal() {
 
 function confirmComplete() {
   const rawBillable = parseFloat(document.getElementById('compBillable')?.value);
-  const billable = isNaN(rawBillable) ? 0.25 : Math.max(0.25, enforceQuarter(rawBillable, 'billable hours'));
+  // 0 (or an emptied field) = deliberate close-without-billing — see the
+  // zero-billable close-out note above. The old forced 0.25 minimum turned
+  // every typed 0 into a phantom quarter-hour in the billing ledger.
+  const billable = isNaN(rawBillable) ? 0 : Math.max(0, enforceQuarter(rawBillable, 'billable hours'));
   const subCode = document.getElementById('compSubCode')?.value || '';
   const dateCompleted = document.getElementById('compDate')?.value || today();
 
   if (_completingCtx) {
     const ctx = _completingCtx;
 
-    // Work block: log time, mark the block done, leave the parent task open
+    // Work block: log time, mark the block done, leave the parent task open.
+    // 0h = cancel: the block closes with NO ledger entry (its planned time
+    // simply leaves the plan), matching _logRelayLeg's zero → no billing.
     if (ctx.type === 'block') {
       const task = tasks.find(t => t.id === ctx.taskId);
       const b = task && (task.blocks || []).find(b => b.id === ctx.blockId);
       if (!b) return;
-      completed.unshift({
-        id: uid(),
-        name: task.name + (b.desc ? ' — ' + b.desc : ' — work block'),
-        project: task.project,
-        subCode: subCode,
-        dateCompleted: dateCompleted,
-        estHours: b.hours || 0,
-        actualHours: billable,
-        category: task.category || ''
-      });
+      if (billable > 0) {
+        completed.unshift({
+          id: uid(),
+          name: task.name + (b.desc ? ' — ' + b.desc : ' — work block'),
+          project: task.project,
+          subCode: subCode,
+          dateCompleted: dateCompleted,
+          estHours: b.hours || 0,
+          actualHours: billable,
+          category: task.category || ''
+        });
+        save('wt_completed', completed);
+      }
       b.done = true;
-      save('wt_completed', completed);
       save('wt_tasks', tasks);
       closeCompletionModal();
-      if ((task.blocks || []).every(x => x.done) && _ownPlannedHours(task) <= 0) {
-        showSyncToast('All blocks logged — tick the task itself to close it out.', 'success');
+      const allDone = (task.blocks || []).every(x => x.done) && _ownPlannedHours(task) <= 0;
+      if (billable <= 0) {
+        showSyncToast('Block closed — nothing billed, planned time cancelled.' + (allDone ? ' Tick the task itself to close it out.' : ''), 'success');
+      } else {
+        if (allDone) showSyncToast('All blocks logged — tick the task itself to close it out.', 'success');
+        _celebrateWin();
       }
-      _celebrateWin();
       renderTasks(); renderProjects(); renderTimesheet(); renderCapacity();
       return;
     }
@@ -8538,6 +8598,8 @@ function confirmComplete() {
   }
 
   closeCompletionModal();
+  // Archived with 0h: the item leaves the plan, nothing hits the billing sums.
+  if (billable <= 0) showSyncToast('Completed — nothing billed; time already logged keeps its entries.', 'success');
   _celebrateWin();
   renderTasks();
   renderProjects();
@@ -10783,7 +10845,8 @@ function relayBack(itemId) {
 
 // Log my leg's hours to the billing archive (project + sub-code) and close the mirror.
 function _logRelayLeg(item, stage, hours) {
-  // Same billing convention as the completion modal: quarter-hours, 0.25 floor.
+  // Same billing convention as the completion modal: quarter-hours, 0.25
+  // floor for real time, zero → bill nothing (no ledger entry).
   let h = Math.max(0, Number(hours) || 0);
   if (h > 0) h = Math.max(0.25, roundToQuarter(h));
   if (h > 0) {
@@ -16164,7 +16227,7 @@ const _TAB_TIPS = {
       'Click a <strong>date</strong> to open the capacity picker — every day shows its free hours, and ⚡ Next fit jumps to the first day with room before the deadline.',
       '<strong>Work date vs deadline:</strong> pick a day other than the due date and it becomes your work date — the ⚑ chip keeps the deadline (red = at risk). Capacity and allocations follow the work date.',
       '<strong>⇶ Spread</strong> (in the edit modal) splits a big task\'s hours evenly across weekdays from work date to deadline.',
-      '<strong>▣ Work blocks</strong> (edit modal) break a big task into dated sessions under one deadline — ⚡ Auto-fill packs the remaining hours into days with free capacity. Tick a block to log its time; the parent counts only the un-blocked remainder.',
+      '<strong>▣ Work blocks</strong> (edit modal) break a big task into dated sessions under one deadline — ⚡ Auto-fill packs the remaining hours into days with free capacity. Tick a block to log its time; the parent counts only the un-blocked remainder. <strong>0h always means "bill nothing"</strong>: log a block at 0h to cancel it, and close the task itself at 0h to keep everything the blocks logged without billing another minute.',
       'Set up <strong>recurring tasks</strong> (weekly, monthly) in the edit modal.',
       '<strong>📅 Week view:</strong> hover any card and hit <strong>✓</strong> to log time on the spot. <strong>Meetings render grey</strong> with the project color only on their left edge — fixed anchors, not work you can shuffle; ◖ marks upcoming relay legs (open the deliverable to move those).',
       '<strong>⇄ Hand off as deliverable</strong> (edit modal) moves a task to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves your list and Capacity; your review leg mirrors back in when the baton reaches you. Recurring tasks can\'t move — <strong>Assign to</strong> tags them on every occurrence instead.',
