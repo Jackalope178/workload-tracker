@@ -345,3 +345,52 @@ The 0.25 floor still applies to any hours > 0. Regression coverage:
 **Cleanup note for existing data:** phantom 0.25h entries created before
 this fix remain in `wt_completed`; edit or delete them from the Timesheet
 day view (the entry editor accepts 0h).
+
+## Addendum — work-block lifecycle audit (2026-07-15, follow-up pass)
+
+A targeted audit of how block-logged hours survive later actions, prompted
+by the same Allocations mismatch. Seven verified findings, all fixed:
+
+1. **Timesheet outstanding ▣ rows completed the PARENT.** The planned-row
+   checkbox called `openCompletionModal(parent)` for block rows — one click
+   on what looks like a 2h block opened "Complete Task", billed only the
+   un-blocked remainder, deleted the task, and silently cancelled every
+   sibling block (hours neither billed nor planned). Likely the original
+   incident. Now routes to `openBlockCompletionModal`.
+2. **Capacity drill-down ▣ rows: same mis-route on ✓ Done**, plus **Move
+   moved the parent** (cleared its `workDate`, re-dated `due`) while the
+   block stayed put — the wrong hours moved in every planned meter. ✓/Move
+   now act on the block (`capMoveItem('block', …)`); Delegate (a whole-task
+   action) no longer renders on block rows.
+3. **Un-ticking a done block resurrected its planned hours but left its
+   ledger entry** — hours counted twice (logged + planned), and re-logging
+   billed twice. Entries are now linked (`_blockRef` on the entry,
+   `entryId` on the block); un-ticking retracts the entry with an undo
+   toast. Entry-less done blocks (0h cancels, pre-link data) just re-open,
+   with a toast noting any old entry stays on the Timesheet.
+4. **`saveEditTask` re-rounded done blocks' hours** through `roundToQuarter`
+   on every save — a billed block's plan-side hours could drift (and a 0
+   would floor to 0.25), silently changing the remainder. Done blocks are
+   now frozen; only open blocks quarter-snap.
+5. **Recurrence conversion dropped LOGGED blocks.** Picking a recurrence
+   wiped `blocks[]` including done ones — est re-grew into the plan while
+   the block hours sat billed in the ledger (double count). Conversion now
+   refuses while logged blocks exist (guard runs before any mutation).
+6. **Closing a parent with open blocks silently discarded their hours**
+   (not billed, not planned, no notice). Still allowed — cancelling planned
+   work is legitimate — but the modal hint now warns with the block count
+   and hours, and the close toasts what was cancelled.
+7. **Week planner block cards had no ✓** (comment claimed blocks "log
+   through their parent's plan" — untrue). Block cards now log their own
+   block, consistent with My Tasks/Projects/Timesheet.
+
+Verified clean in the same pass: `plannedItems` block expansion (done
+blocks excluded, parent carries `max(0, est − Σblocks)` remainder, blocks
+land on their own dates → Capacity/Timesheet/Allocations planned all agree);
+week-planner drag moves `b.date`; `capRebalanceDay` deliberately never
+auto-moves blocks; hand-off subtracts done-block hours; My Tasks/Projects
+child-row checkboxes and date pickers were already block-scoped; block
+child rows only render for open blocks, and the block editor locks done
+rows (no delete ×).
+
+Regression coverage: `.claude/skills/verify/suite/12-block-locking.js`.

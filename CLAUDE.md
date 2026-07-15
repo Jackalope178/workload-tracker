@@ -86,7 +86,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 
 | Key | Contents |
 |---|---|
-| `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }`. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). Delegation fields: `delegatedTo[]` (lightweight tag — task stays here but renders on the Team tab and leaves your Capacity) and `_deliverableId` (this task IS a relay-mirror leg of that `wt_team` item). |
+| `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }`. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). Delegation fields: `delegatedTo[]` (lightweight tag — task stays here but renders on the Team tab and leaves your Capacity) and `_deliverableId` (this task IS a relay-mirror leg of that `wt_team` item). Work blocks: `blocks[]` = `{ id, date, hours, desc, done, entryId? }` — dated sessions under the task's deadline; the parent plans only the un-blocked remainder. A logged block's `wt_completed` entry carries `_blockRef` (`taskId_blockId`) and the block stores `entryId` — the linkage that lets un-ticking retract the entry (see Math invariant #8). |
 | `wt_team` | Team deliverables: `{ id, name, owner, owners[], project, subCode, due, status, waiting, notes }` + relay fields (`relay[]`, `relayStage`, `activeOwner`, `reviewTaskId`, `relayLog[]`) |
 | `wt_bigprojs` | Big projects (multi-session/subtask structures) |
 | `wt_completed` | Archive of completed items — also the **billing ledger** (Timesheet/Allocations actuals read from here) |
@@ -262,6 +262,19 @@ preserve:
    **open subtasks refuses** to convert. Recurring items never convert —
    recurring involvement is the `delegatedTo` tag, which keeps the person
    on every occurrence.
+8. **Work blocks bill exactly once and stay locked** (July 2026). A logged
+   block's ledger entry is linked to it (`_blockRef` on the entry,
+   `entryId` on the block); **un-ticking a done block retracts the entry**
+   (undo toast) so hours are never simultaneously logged AND planned.
+   `saveEditTask` never re-rounds a done block's hours (billed = frozen)
+   and **refuses recurrence conversion while logged blocks exist**. Every
+   surface that renders a ▣ block row (Timesheet outstanding, Capacity
+   drill-down, week planner, My Tasks/Projects child rows) routes ✓ to
+   `openBlockCompletionModal` and Move to the block's own date — routing to
+   the PARENT completion modal from a block row was the bug that closed the
+   whole task and silently cancelled sibling blocks. Closing a parent with
+   open blocks is allowed but warns and toasts that their hours are
+   cancelled unbilled.
 
 Known-open minor item (deliberate — see the audit's Minor section): `fmtQ`
 snaps legacy non-quarter values for display only (sums use raw values). The
@@ -299,6 +312,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | If the task touches… | Start by grepping… |
 |---|---|
 | Personal tasks, recurrence, timers | `function renderTasks`, `renderWeekPlanner`, `confirmComplete`, `nextRecurrenceAfter` |
+| Work blocks (▣): logging, lock-in, block rows | `openBlockCompletionModal`, `_renderBlockEditor`, `_blockRef`, `blkAutoFill` |
 | ADHD ergonomics (capture/inbox, wins, focus, day-fit) | `quickCaptureAdd`, `_celebrateWin`, `_focusMode`, `_fitStatus`, `_startNextQueue` |
 | Team board, statuses, relay/hand-offs | `renderTeamBoard`, `relayStatusInfo`, `_relaySync`, `relayAdvance` |
 | Person-board allocation meters / meetings column | `personAllocKey`, `_personCompletedHoursByCode`, `openPersonAllocModal`, `BOARD_COLS` |
