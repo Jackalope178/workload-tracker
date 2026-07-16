@@ -121,6 +121,16 @@ edit modals) converts a personal item INTO a `wt_team` relay pre-seeded
 `Work — <person>` → `Review — Me`, deleting the source so the hours have
 exactly one home (see Math invariant #7 and the delegation SOP below).
 
+**Mirror lifecycle rules (July 2026):** every path that completes or deletes
+a deliverable closes/removes its Me-leg mirror (status dropdown, person-status
+roll-up, edit-modal save, project close-out, `deleteTeamItem`); completing a
+NON-relay baton mirror stamps `ownerStatus/ownerStatusAt['Me']` on the
+deliverable (and completes it when all owners resolve complete); and
+`_auditBatonMirrors()` self-heals any drift at every app init — missing
+mirrors for in-flight Me legs are re-created, stale mirrors are closed. A new
+complete/delete path for team items MUST call `_closeBatonMirror` (or delete
+the mirror) — scenario 14 enforces this.
+
 **Full documentation and design-intent log: `docs/team-relay-and-kme-flow.md`.**
 Keep its intent log updated when changing relay behavior.
 
@@ -326,7 +336,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | ADHD ergonomics (capture/inbox, wins, focus, day-fit) | `quickCaptureAdd`, `_celebrateWin`, `_focusMode`, `_fitStatus`, `_startNextQueue` |
 | Team board, statuses, relay/hand-offs | `renderTeamBoard`, `relayStatusInfo`, `_relaySync`, `relayAdvance` |
 | Person-board allocation meters / meetings column | `personAllocKey`, `_personCompletedHoursByCode`, `openPersonAllocModal`, `BOARD_COLS` |
-| KME mirror tasks / My-Tasks ↔ Team link | `_syncBatonMirror`, `_closeBatonMirror`, `_taskRelayPassBtn`, `_deliverableId` |
+| KME mirror tasks / My-Tasks ↔ Team link | `_syncBatonMirror`, `_closeBatonMirror`, `_auditBatonMirrors`, `_taskRelayPassBtn`, `_deliverableId` |
 | Task/session → deliverable hand-off (delegation) | `_handoffCreateDeliverable`, `handoffTaskAsDeliverable`, `handoffSessionAsDeliverable`, `delegatedTo`, `capDelegateItem` |
 | Billing / logged hours | `_logRelayLeg`, `wt_completed`, `roundToQuarter`, `enforceQuarter` |
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls`, `payPeriodOf` |
