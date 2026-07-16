@@ -34,11 +34,15 @@ const task = (id, name, dId) => ({
         due: '2027-02-22', status: 'in-progress', priority: 'med', est: 1, waiting: '', notes: '',
         activeOwner: 'Me', reviewTaskId: '_m3'
       },
-      // _d4: in-flight relay with a live mirror — will be deleted
+      // _d4: in-flight relay with a live mirror, Me leg mid-chain — used for
+      // the pass-chip/edit-routing checks, then deleted
       {
-        id: '_d4', name: 'DoomedRelay', owner: 'Me', owners: ['Me'], project: 'overhead', subCode: '',
+        id: '_d4', name: 'DoomedRelay', owner: 'Me', owners: ['Me', 'Jordan K'], project: 'overhead', subCode: '',
         due: '2027-02-23', status: 'in-progress', priority: 'med', est: 1, waiting: '', notes: '',
-        relay: [{ id: 'r4', kind: 'work', who: 'Me', est: 1, due: '', note: '' }],
+        relay: [
+          { id: 'r4', kind: 'work', who: 'Me', est: 1, due: '', note: '' },
+          { id: 'r4b', kind: 'review', who: 'Jordan K', est: 0.5, due: '', note: '' }
+        ],
         relayStage: 0, relayStarted: false, activeOwner: 'Me', relayLog: [], reviewTaskId: '_m4'
       }
     ],
@@ -59,6 +63,25 @@ const task = (id, name, dId) => ({
   step('audit re-creates the missing mirror for an in-flight Me leg (leg est, linked)', !!r.m1 && r.m1.est === 1.5 && r.m1.linked, r.m1);
   step('audit closes the orphan mirror of a completed deliverable', r.m2Closed, r.m2Closed);
   step('audit leaves legitimate mirrors alone (non-relay baton + live relay)', r.m3Open && r.m4Open, r);
+
+  // 1b. Mirror UX: edit routes to the DELIVERABLE modal; the Pass chip only
+  //     renders when someone is next in the chain (final leg → no pass).
+  r = await page.evaluate(() => {
+    const finalChip = _taskRelayPassBtn(tasks.find(t => t._deliverableId === '_d1' && !t.completed));
+    const midChip = _taskRelayPassBtn(tasks.find(t => t.id === '_m4'));
+    openEditModal('_m4');
+    const routed = {
+      team: document.getElementById('editTeamModal').classList.contains('open'),
+      task: document.getElementById('editTaskModal').classList.contains('open'),
+      target: editingTeamId
+    };
+    closeEditTeamModal();
+    return { finalChip, midHasPass: midChip.includes('Pass'), midNamesNext: midChip.includes('Jordan'), routed };
+  });
+  step('final-leg mirror renders NO Pass chip (✓ closes the relay)', r.finalChip === '', r.finalChip);
+  step('mid-chain mirror renders Pass chip naming the next person', r.midHasPass && r.midNamesNext, r.midHasPass);
+  step('clicking a mirror opens the DELIVERABLE editor, not the task modal',
+    r.routed.team && !r.routed.task && r.routed.target === '_d4', r.routed);
 
   // 2. Deleting a deliverable removes its live mirror; undo restores both.
   r = await page.evaluate(() => {

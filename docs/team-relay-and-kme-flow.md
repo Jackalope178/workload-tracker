@@ -311,3 +311,18 @@ Chronological; newest last. Keeps the *why* across threads.
   with a current Me leg toast that the leg is in My Tasks (hours + due);
   deleting a mirror task warns that the baton is still on the deliverable
   and re-mirrors on next load. Suite scenario 14 pins all of it.
+
+- **2026-07-15 — mirror edit routing + end-of-chain pass affordances (user
+  report: "clicking a deliverable in My Tasks doesn't give the modal with
+  the correct edits; no pass option at the end of the line").**
+  `openEditModal` on a task with `_deliverableId` now redirects to
+  `openEditTeamModal` — the mirror's meaningful fields (stage est/due/
+  assignees, billing code) live on the relay, and one-way sync means task-
+  modal edits were silently overwritten. This applies everywhere a mirror's
+  name/Edit is clicked (My Tasks, week planner, Timesheet, Capacity,
+  Projects); inline pickers on the row still handle personal placement.
+  End-of-chain: the My Tasks **Pass → chip renders only when a next stage
+  exists** (title names the recipient); the board card and edit-modal strip
+  relabel to **✓ Finish**; and the pass prompt becomes "Finish the relay /
+  Log & finish ✓" with the last-leg explanation. The ✓ checkbox remains the
+  canonical way to log-and-close the final leg (invariant #3 unchanged).
