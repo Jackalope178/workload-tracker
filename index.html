@@ -9284,7 +9284,7 @@ function renderProjItemRow(item, projKey, scId) {
       </div>
       <div class="session-desc" style="${isDone ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditModal('${t.id}')">
         ${escHtml(t.name)}
-        ${delegateTagsHtml(t.delegatedTo)}
+        <span id="task-tags-${t.id}">${delegateTagsHtml(t.delegatedTo)}</span>
         ${t.waiting ? `<span class="task-waiting">⏳ ${escHtml(t.waiting)}</span>` : ''}
         ${t.notes ? '<span class="notes-icon" title="Has notes">📝</span>' : ''}
         ${t.recurrence ? `<span class="recur-badge">${recurLabel(t)}</span>` : ''}
@@ -16702,6 +16702,9 @@ let _assignSubtaskId = null; // null = session, else = subtask id
 
 function showAssignDropdown(e, projId, sessionId, subtaskId) {
   e.stopPropagation();
+  // Clear the task-mode id: _renderAssignDropdownItems branches on it first,
+  // so a stale value would silently retarget this dropdown at the old task.
+  _assignTaskId = null;
   _assignProjId = projId;
   _assignSessionId = sessionId;
   _assignSubtaskId = subtaskId || null;
@@ -16743,7 +16746,7 @@ function _renderAssignOptions(menu, current, personsList, onClickFn) {
     const c = personColor(name);
     const checked = current.includes(name);
     const label = name === 'Me' ? '📌 Me' : name;
-    return `<div class="assign-dd-item" onclick="${onClickFn}('${name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="${checked ? `background:${c.bg};` : ''}">
+    return `<div class="assign-dd-item" onclick="${onClickFn}('${name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="${checked ? `background:${c.bg};` : ''}" title="${name === 'Me' ? 'Tag yourself too — the item then STAYS on My Tasks (co-assigned)' : 'Click to toggle; the item leaves My Tasks unless 📌 Me is also tagged'}">
       <span class="assign-dd-check" style="${checked ? `color:${c.text};` : ''}">${checked ? '✓' : ''}</span>
       <span style="${checked ? `color:${c.text};font-weight:600;` : ''}">${escHtml(label)}</span>
     </div>`;
@@ -16770,6 +16773,8 @@ function showTaskAssignDropdown(e, taskId) {
   e.stopPropagation();
   _assignTaskId = taskId;
   _assignProjId = null;
+  _assignSessionId = null;
+  _assignSubtaskId = null;
   const menu = document.getElementById('assignDropdown');
   const rect = e.currentTarget.getBoundingClientRect();
   menu.style.top  = (rect.bottom + 4) + 'px';
@@ -16777,6 +16782,16 @@ function showTaskAssignDropdown(e, taskId) {
   _renderAssignDropdownItems();
   menu.classList.add('open');
   _clampPopupToViewport(menu);
+}
+
+// Toast the OUTCOME of an assignment toggle. The dropdown stays open for
+// multi-select, so without this the only feedback was its checkmark — a
+// second "did that work?" click just toggled the delegation back OFF.
+function _assignToast(itemName, del) {
+  const d = normDelegated(del);
+  if (!d.length) showSyncToast(`${itemName}: assignment cleared — it's fully yours again (My Tasks).`, 'success');
+  else if (d.includes('Me')) showSyncToast(`${itemName}: co-assigned with you — stays on My Tasks. Un-tag 📌 Me to hand it fully off.`, 'success');
+  else showSyncToast(`${itemName} → ${d.join(', ')} — now on Team Deliverables, off My Tasks and your Capacity.`, 'success');
 }
 
 function toggleTaskPersonAssignment(name) {
@@ -16790,8 +16805,12 @@ function toggleTaskPersonAssignment(name) {
   }
   task.delegatedTo = current.length ? current : null;
   save('wt_tasks', tasks);
+  // Live feedback on the Projects-tab row (same convention as sessions)
+  const tagsEl = document.getElementById('task-tags-' + task.id);
+  if (tagsEl) tagsEl.innerHTML = delegateTagsHtml(task.delegatedTo);
   _renderAssignDropdownItems();
   renderTasks();
+  _assignToast(task.name, task.delegatedTo);
 }
 
 // ── Hand off: task / work item → Team deliverable with a pre-seeded relay ──
@@ -16985,6 +17004,8 @@ function togglePersonAssignment(name) {
   }
   renderTasks();
   _renderAssignDropdownItems();
+  const target = _assignSubtaskId ? (s.subtasks || []).find(st => st.id === _assignSubtaskId) : s;
+  if (target) _assignToast(target.desc || target.name || 'Item', target.delegatedTo);
 }
 
 document.addEventListener('click', e => {
@@ -17213,6 +17234,7 @@ function populateSessionDelegatePills(members, selected, containerId) {
     const style = sel ? `background:${c.bg};border-color:${c.border};color:${c.text};font-weight:600;` : '';
     return `<span class="delegate-pill${sel ? ' selected' : ''}" style="${style}"
       onclick="toggleDelegatePill(this,'${m.replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${c.bg}','${c.text}','${c.border}')"
+      title="${m === 'Me' ? 'Tag yourself too — the item then STAYS on My Tasks (co-assigned)' : 'The item leaves My Tasks unless 📌 Me is also tagged'}"
     >${sel ? '✓ ' : ''}${escHtml(label)}</span>`;
   }).join('');
 }
