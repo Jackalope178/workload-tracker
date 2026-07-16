@@ -8064,6 +8064,7 @@ function deleteEditTask() {
     tasks = tasks.filter(t => t.id !== id);
     save('wt_tasks', tasks);
     renderTasks(); renderProjects(); renderTimesheet(); updateHeaderMeta();
+    _mirrorDeleteNote(deleted);
   }, () => {
     tasks.push(deleted);
     save('wt_tasks', tasks);
@@ -8131,6 +8132,7 @@ function deleteTaskInline(taskId, occurrenceDate) {
     _performDelete('Task deleted', () => {
       tasks = tasks.filter(t => t.id !== taskId);
       save('wt_tasks', tasks); renderTasks(); renderProjects(); updateHeaderMeta();
+      _mirrorDeleteNote(deleted);
     }, () => {
       tasks.push(deleted);
       save('wt_tasks', tasks); renderTasks(); renderProjects(); updateHeaderMeta();
@@ -8643,6 +8645,21 @@ function confirmComplete() {
       const d = teamItems.find(t => t.id === task._deliverableId);
       if (d && _isRelay(d) && !_relayDone(d) && relayStage(d) && relayStage(d).who === 'Me') {
         relayAdvance(task._deliverableId, 0);
+      } else if (d && !_isRelay(d) && d.status !== 'complete') {
+        // Non-relay baton mirror: completing it records MY part on the
+        // deliverable (per-person status + meter stamp). The deliverable
+        // completes only when every owner's status resolves complete.
+        d.ownerStatus = d.ownerStatus || {}; d.ownerStatus['Me'] = 'complete';
+        d.ownerStatusAt = d.ownerStatusAt || {}; d.ownerStatusAt['Me'] = d.ownerStatusAt['Me'] || today();
+        if (d.reviewTaskId === task.id) d.reviewTaskId = null;
+        const dOwners = (d.owners && d.owners.length ? d.owners : [d.owner]).filter(Boolean);
+        const dAllDone = dOwners.length > 0 && dOwners.every(o => (d.ownerStatus[o] || d.status) === 'complete');
+        if (dAllDone) {
+          d.status = 'complete'; d.completedAt = d.completedAt || today();
+        } else {
+          showSyncToast(`Your part of “${d.name}” logged — the deliverable stays open on Team Deliverables.`, 'success');
+        }
+        save('wt_team', teamItems);
       }
     }
 
@@ -9567,7 +9584,11 @@ function _commitArchive(projKey, action) {
       else session.recurrence.endDate = todayStr;
     });
     work.subtasks.forEach(({ subtask }) => { subtask.done = true; });
-    work.teamItems.forEach(ti => { ti.status = 'complete'; });
+    work.teamItems.forEach(ti => {
+      ti.status = 'complete';
+      ti.completedAt = ti.completedAt || todayStr;
+      _closeBatonMirror(ti);   // a live Me leg must not survive its deliverable's close-out
+    });
     save('wt_tasks', tasks);
     save('wt_bigprojs', bigProjs);
     if (Array.isArray(teamItems)) save('wt_team', teamItems);
@@ -9804,6 +9825,7 @@ function deleteTaskFromProjects(taskId) {
   _performDelete('Task deleted', () => {
     tasks = tasks.filter(t => t.id !== taskId);
     save('wt_tasks', tasks); renderProjects(); renderTasks(); updateHeaderMeta();
+    _mirrorDeleteNote(snap);
   }, () => {
     tasks.push(snap);
     save('wt_tasks', tasks); renderProjects(); renderTasks(); updateHeaderMeta();
@@ -10017,7 +10039,10 @@ function _teamObjFromKey(key) {
   return {
     obj, owners: (obj.owners && obj.owners.length ? obj.owners : [obj.owner]).filter(Boolean), save: () => save('wt_team', teamItems),
     overall: () => obj.status,
-    applyOverall: (allDone) => { obj.status = allDone ? 'complete' : (obj.status === 'complete' ? 'in-progress' : obj.status); }
+    applyOverall: (allDone) => {
+      obj.status = allDone ? 'complete' : (obj.status === 'complete' ? 'in-progress' : obj.status);
+      if (allDone) _closeBatonMirror(obj);   // every complete-path must close the Me leg's mirror
+    }
   };
 }
 function showPersonStatusDropdown(e, key, person) {
@@ -10796,6 +10821,39 @@ function _closeBatonMirror(item) {
   if (mt && !mt.completed) { mt.completed = true; mt.completedAt = today(); save('wt_tasks', tasks); }
 }
 
+// Self-healing pass, run at app init: the deliverable↔mirror linkage can
+// drift (a deleted mirror, a deliverable completed by an older code path,
+// cross-device sync races). Rules enforced: every in-flight relay whose
+// CURRENT stage is Me has exactly one open mirror in My Tasks; every open
+// mirror task points at a live deliverable that still needs it.
+function _auditBatonMirrors() {
+  if (typeof teamItems === 'undefined' || !Array.isArray(teamItems)) return;
+  let created = 0, closed = 0;
+  teamItems.forEach(item => {
+    if (!_isRelay(item) || _relayDone(item) || item.status === 'complete') return;
+    const cur = relayStage(item);
+    if (!cur || cur.who !== 'Me') return;
+    const mt = item.reviewTaskId ? tasks.find(t => t.id === item.reviewTaskId) : null;
+    if (!mt || mt.completed) { _relaySync(item, null); created++; }
+  });
+  tasks.forEach(t => {
+    if (!t._deliverableId || t.completed) return;
+    const d = teamItems.find(x => x.id === t._deliverableId);
+    const relayMine = d && _isRelay(d) && !_relayDone(d) && d.status !== 'complete'
+      && relayStage(d) && relayStage(d).who === 'Me' && d.reviewTaskId === t.id;
+    const batonMine = d && !_isRelay(d) && d.activeOwner === 'Me' && d.status !== 'complete' && d.reviewTaskId === t.id;
+    if (!relayMine && !batonMine) { t.completed = true; t.completedAt = t.completedAt || today(); closed++; }
+  });
+  if (created || closed) {
+    save('wt_tasks', tasks);
+    save('wt_team', teamItems);
+    const bits = [];
+    if (created) bits.push(`${created} of your relay leg${created > 1 ? 's' : ''} restored to My Tasks`);
+    if (closed) bits.push(`${closed} stale mirror task${closed > 1 ? 's' : ''} cleared`);
+    showSyncToast('Baton sync: ' + bits.join(' · ') + '.', 'success');
+  }
+}
+
 // ── Multi-stage relay (pass-around) ─────────────────────────────────────
 // A deliverable can carry an ordered list of stages, each { id, kind, label, who }.
 // kind ∈ work | review | send. The *current* stage defines the baton holder and
@@ -10924,7 +10982,16 @@ function relayAdvance(itemId, loggedHours) {
   if (typeof renderTimesheet === 'function') renderTimesheet();
   if (typeof renderCapacity === 'function') renderCapacity();
   const ns = relayStage(item);
-  if (typeof showSyncToast === 'function') showSyncToast(ns ? `Passed → ${_relayWho(ns.who)}` : '✓ Relay complete', 'success');
+  if (typeof showSyncToast === 'function') {
+    // Baton arriving at Me is the moment the mirror lands in My Tasks — say
+    // so explicitly, or the new task appears with no visible cause.
+    if (ns && ns.who === 'Me') {
+      const h = Number(ns.est) || 0;
+      showSyncToast(`Passed → KME — your ${_relayVerb(ns.kind)} leg is now in My Tasks${h ? ` (${fmtQ(h)}h${ns.due ? ', due ' + fmtDate(ns.due) : ''})` : ''}.`, 'success');
+    } else {
+      showSyncToast(ns ? `Passed → ${_relayWho(ns.who)}` : '✓ Relay complete', 'success');
+    }
+  }
 }
 
 function relayBack(itemId) {
@@ -11003,6 +11070,19 @@ function _confirmRelayPass(skip) {
 function _closeRelayPass() { _relayPassCtx = null; const m = document.getElementById('relayPassModal'); if (m) m.classList.remove('open'); }
 
 // "Pass →" shown on a My-Tasks mirror task when it's actively your relay leg.
+// Deleting a mirror task doesn't move the baton — the leg still sits with
+// KME on the deliverable, and the startup audit re-mirrors it next load.
+// Warn so the deletion isn't mistaken for passing or finishing the leg.
+function _mirrorDeleteNote(task) {
+  if (!task || !task._deliverableId || typeof teamItems === 'undefined') return;
+  const d = teamItems.find(x => x.id === task._deliverableId);
+  if (!d || d.status === 'complete') return;
+  const mine = _isRelay(d)
+    ? (!_relayDone(d) && relayStage(d) && relayStage(d).who === 'Me')
+    : d.activeOwner === 'Me';
+  if (mine) showSyncToast(`That was your leg of “${d.name}” — the baton is still with you on Team Deliverables, and the leg re-mirrors on the next app load. Pass it there to actually move it.`, 'warn');
+}
+
 function _taskRelayPassBtn(task) {
   if (!task || !task._deliverableId || typeof teamItems === 'undefined') return '';
   const d = teamItems.find(t => t.id === task._deliverableId);
@@ -16288,7 +16368,7 @@ const INFO_COPY = {
   },
   relay: {
     title: 'Relays — pass the baton through stages',
-    body: 'A relay moves one deliverable through ordered stages (<strong>work ✎ / review 👁 / send ✉</strong>), each with an assignee, estimate, and due date. The current stage\'s assignee <strong>holds the baton</strong>; everyone else sees "Waiting on …". When a stage is yours (KME), a mirror task appears in <strong>My Tasks</strong> and counts in Capacity; passing it logs your hours to the deliverable\'s billing code <strong>exactly once</strong>. Your <strong>upcoming</strong> legs already hold their dates in Capacity before the baton arrives, so accepting review work always reserves the time. You can also start a relay straight from a task or a project work item: <strong>⇄ Hand off as deliverable</strong> in its edit modal moves it here pre-seeded with their work leg and your review leg.'
+    body: 'A relay moves one deliverable through ordered stages (<strong>work ✎ / review 👁 / send ✉</strong>), each with an assignee, estimate, and due date. The current stage\'s assignee <strong>holds the baton</strong>; everyone else sees "Waiting on …". When a stage is yours (KME), a mirror task appears in <strong>My Tasks</strong> and counts in Capacity; passing it logs your hours to the deliverable\'s billing code <strong>exactly once</strong>. Your <strong>upcoming</strong> legs already hold their dates in Capacity before the baton arrives, so accepting review work always reserves the time. If the deliverable ↔ My Tasks link ever drifts, the app <strong>re-syncs every mirror on load</strong> ("Baton sync" toast). You can also start a relay straight from a task or a project work item: <strong>⇄ Hand off as deliverable</strong> in its edit modal moves it here pre-seeded with their work leg and your review leg.'
   },
   allocGrid: {
     title: 'Reading the allocation grid',
@@ -16376,7 +16456,7 @@ const _TAB_TIPS = {
     tips: [
       'Track <strong>cross-team assignments</strong> — who owns what and its status.',
       '<strong>Relays</strong> pass a deliverable through ordered stages (work ✎ / review 👁 / send ✉) — the current stage\'s person holds the baton; everyone else sees "Waiting on …".',
-      'When a relay leg is <strong>yours (KME)</strong>, it mirrors into My Tasks, counts in Capacity, and bills once when you pass it on.',
+      'When a relay leg is <strong>yours (KME)</strong>, it mirrors into My Tasks, counts in Capacity, and bills once when you pass it on. A toast announces every baton arrival, and the app re-syncs all mirrors on load ("Baton sync") — completing or deleting a deliverable always retires its My Tasks leg.',
       'Delegating your own task? <strong>⇄ Hand off as deliverable</strong> in its edit modal moves it here as a relay — their work leg, then your review — and removes it from My Tasks.',
       'The board\'s <strong>Sort toggle</strong> orders each column by 🗂 <strong>Project</strong> (grouped under headers) or 📅 <strong>Due date</strong> (flat, nearest first — each card keeps its project name and color dot).',
       'Pick a <strong>person\'s board</strong> to see their allocation meters: hours you\'ve budgeted them per billing code for the month, drained by completed work with planned overlaid. <strong>+ Allocation</strong> adds a code; click a bar to edit it. A no-sub-code bar is a <strong>catch-all</strong> for the whole project.',
@@ -16574,6 +16654,7 @@ function initApp() {
       reloadStateFromLocalStorage();
     }
     _appInitialized = true;
+    _auditBatonMirrors();   // heal any deliverable↔mirror drift before first render
 
     populateProjectSelects();
     _restoreFilters();
@@ -17641,6 +17722,10 @@ function saveEditTeamItem() {
     closeEditTeamModal();
     renderTeam(); renderProjects();
     if (typeof renderTasks === 'function') renderTasks();
+    const curLeg = relayStage(item);
+    if (curLeg && curLeg.who === 'Me') {
+      showSyncToast(`Your ${_relayVerb(curLeg.kind)} leg of “${item.name}” is in My Tasks${Number(curLeg.est) ? ` (${fmtQ(Number(curLeg.est))}h)` : ''}.`, 'success');
+    }
     return;
   } else if (wasRelay) {
     // Relay cleared — revert to a plain single-owner deliverable.
@@ -17658,6 +17743,12 @@ function saveEditTeamItem() {
     item.activeOwner = newHolder;
     _syncBatonMirror(item, prevHolder, newHolder);
   }
+  // Completing from the modal must close a live Me-leg mirror (same rule as
+  // the status dropdown) — otherwise the leg lives on in My Tasks.
+  if (item.status === 'complete') {
+    item.completedAt = item.completedAt || today();
+    _closeBatonMirror(item);
+  }
   save('wt_team', teamItems);
   closeEditTeamModal();
   renderTeam();
@@ -17670,13 +17761,21 @@ function deleteTeamItem() {
   const deleted = teamItems.find(t => t.id === id);
   if (!deleted) return;
   const snap = JSON.parse(JSON.stringify(deleted));
+  // The My Tasks mirror dies with its deliverable — leaving it would strand
+  // an orphan task that plans (and could bill) a leg that no longer exists.
+  const mirror = deleted.reviewTaskId ? tasks.find(t => t.id === deleted.reviewTaskId && !t.completed) : null;
+  const mirrorSnap = mirror ? JSON.parse(JSON.stringify(mirror)) : null;
   closeEditTeamModal();
-  _performDelete('Deliverable deleted', () => {
+  _performDelete(mirrorSnap ? 'Deliverable deleted — its My Tasks leg too' : 'Deliverable deleted', () => {
     teamItems = teamItems.filter(t => t.id !== id);
-    save('wt_team', teamItems); renderTeam(); renderProjects(); updateHeaderMeta();
+    if (mirrorSnap) tasks = tasks.filter(t => t.id !== mirrorSnap.id);
+    save('wt_team', teamItems); if (mirrorSnap) save('wt_tasks', tasks);
+    renderTeam(); renderProjects(); renderTasks(); renderCapacity(); updateHeaderMeta();
   }, () => {
     teamItems.push(snap);
-    save('wt_team', teamItems); renderTeam(); renderProjects(); updateHeaderMeta();
+    if (mirrorSnap) tasks.push(mirrorSnap);
+    save('wt_team', teamItems); if (mirrorSnap) save('wt_tasks', tasks);
+    renderTeam(); renderProjects(); renderTasks(); renderCapacity(); updateHeaderMeta();
   });
 }
 

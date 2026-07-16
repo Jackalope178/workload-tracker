@@ -291,3 +291,23 @@ Chronological; newest last. Keeps the *why* across threads.
   a 0h entry and still advances the relay with 0 extra hours (invariant
   unchanged); relayLog pass hours record whatever was actually billed,
   including 0. The 0.25 floor still applies to hours > 0. Suite scenario 11.
+
+- **2026-07-15 — baton↔mirror lifecycle audit (user report: "baton pass not
+  showing up in My Tasks").** Passing/advancing was correct; the drift came
+  from lifecycle paths that bypassed the mirror rules, and once linkage
+  drifted nothing ever repaired it. Fixed on both sides:
+  (1) every complete-path now closes the Me-leg mirror — `deleteTeamItem`
+  (removes the open mirror outright, undo restores both), the project
+  close-out bulk complete, the person-status roll-up (`applyOverall`), and
+  `saveEditTeamItem`'s non-relay status save (the status dropdown already
+  did); (2) completing a NON-relay baton mirror in My Tasks now records
+  `ownerStatus/ownerStatusAt['Me']` on the deliverable and completes it when
+  every owner resolves complete (it previously left the deliverable stuck
+  on "Me"); (3) `_auditBatonMirrors()` runs at every app init: an in-flight
+  relay whose current stage is Me gets its missing/closed mirror re-created,
+  and any open mirror whose deliverable is gone, complete, or no longer on a
+  Me leg is closed — with a "Baton sync" toast naming what moved; (4) baton
+  arrival is now announced — `relayAdvance` to a Me leg and a relay saved
+  with a current Me leg toast that the leg is in My Tasks (hours + due);
+  deleting a mirror task warns that the baton is still on the deliverable
+  and re-mirrors on next load. Suite scenario 14 pins all of it.

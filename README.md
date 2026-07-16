@@ -77,6 +77,8 @@ The single most interconnected subsystem. A Team deliverable can carry a **relay
 
 The bridge runs both ways: **⇄ Hand off as deliverable** (task and work-item edit modals) converts a personal item INTO a `wt_team` relay pre-seeded `Work — <person>` → `Review — Me`, deleting the source so the hours have exactly one home (invariant 8 below).
 
+**Mirror lifecycle rules:** every path that completes or deletes a deliverable closes/removes its Me-leg mirror; completing a non-relay baton mirror stamps `ownerStatus['Me']` on the deliverable; and `_auditBatonMirrors()` self-heals any drift at every app init (missing mirrors re-created, stale mirrors closed, with a "Baton sync" toast). A new complete/delete path for team items must call `_closeBatonMirror`.
+
 **Full documentation and design-intent log: [`docs/team-relay-and-kme-flow.md`](docs/team-relay-and-kme-flow.md).** It covers the data model, perspective-based status derivation (`relayStatusInfo`), the four subsystem connections, deliberate decisions (one billing code per deliverable, one-way relay→mirror sync, double-count guards), and a chronological intent log of every relay-related ask. Keep that log updated when changing relay behavior.
 
 ## Invariants — deliberate design, do NOT "fix"
