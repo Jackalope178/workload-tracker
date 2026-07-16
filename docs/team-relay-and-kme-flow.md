@@ -282,3 +282,12 @@ Chronological; newest last. Keeps the *why* across threads.
     these rows with a ◖ "upcoming leg" chip; the only action is opening the
     deliverable (dates/hours live on the relay stage). Suite scenarios
     04/05 pin the before/after and the mirror-takeover no-double-count.
+
+- **2026-07-15 — zero-billable close-out (billing convention, not a relay
+  change).** The completion modal no longer clamps a typed 0 up to 0.25h
+  (`confirmComplete` was planting phantom quarter-hour entries in
+  `wt_completed`). Zero now means "bill nothing" everywhere, matching what
+  `_logRelayLeg` always did: a KME mirror checkbox-completed at 0h archives
+  a 0h entry and still advances the relay with 0 extra hours (invariant
+  unchanged); relayLog pass hours record whatever was actually billed,
+  including 0. The 0.25 floor still applies to hours > 0. Suite scenario 11.

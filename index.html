@@ -3426,15 +3426,19 @@ if (typeof XLSX === 'undefined') {
     </div>
     <div class="modal-row" style="margin-top:8px;">
       <span class="modal-label">Billable hours</span>
-      <input class="bill-input" type="number" id="compBillable" step="0.25" min="0">
+      <span style="display:flex;align-items:center;gap:6px;">
+        <input class="bill-input" type="number" id="compBillable" step="0.25" min="0" oninput="_compBillInput()">
+        <button type="button" class="btn" onclick="_compSetZero()" style="padding:3px 8px;font-size:10px;white-space:nowrap;" title="Bill nothing — keep what's already logged and cancel the remaining plan.">0h</button>
+      </span>
     </div>
+    <div id="compZeroHint" style="font-size:10px;color:var(--text3);line-height:1.5;padding:5px 0 0;"></div>
     <div class="modal-row" style="border-bottom:none;">
       <span class="modal-label">Date completed</span>
       <input class="bill-input" type="date" id="compDate" style="width:auto;min-width:140px;">
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeCompletionModal()">Cancel</button>
-      <button class="btn primary" onclick="confirmComplete()">Mark Complete</button>
+      <button class="btn primary" id="compConfirmBtn" onclick="confirmComplete()">Mark Complete</button>
     </div>
   </div>
 </div>
@@ -6749,11 +6753,14 @@ function renderWeekPlanner(container) {
       const marker = p._recur ? '↻ ' : p._spread ? '⇶ ' : p._block ? '▣ ' : p._relayFuture ? '◖ ' : '';
       const args = `'${p.id}','${p._src}','${p._projId || ''}','${p._sessionId || ''}'`;
       // ✓ logs time right from the card — the same completion modals as the
-      // list view. Blocks/spread slices log through their parent's plan, and
-      // upcoming relay legs aren't yours to log yet.
+      // list view. A ▣ block card logs ITS block (parent stays open); spread
+      // slices log through the parent's plan, and upcoming relay legs aren't
+      // yours to log yet.
       let logFn = '';
-      if (!p._spread && !p._block && !p._relayFuture && src) {
-        if (src.src === 'task') logFn = `openCompletionModal('${src.t.id}')`;
+      if (!p._spread && !p._relayFuture && src) {
+        if (src.src === 'task') logFn = src.b
+          ? `openBlockCompletionModal('${src.t.id}','${src.b.id}')`
+          : `openCompletionModal('${src.t.id}')`;
         else if (src.src === 'session') logFn = `openSessionCompletionModal('${p._projId}','${src.s.id}')`;
         else if (src.src === 'subtask') logFn = `openSubtaskCompletionModal('${p._projId}','${p._sessionId}','${src.st.id}')`;
       }
@@ -7787,7 +7794,8 @@ function clearEditingTaskTimer() {
 
 // ── Work-block editor (task modal) ──
 // Edits happen on a draft; nothing persists until Save. Done blocks are
-// shown locked — their time entries already exist.
+// shown locked — logged ones already have their time entries (a block
+// closed at 0h was cancelled and has none).
 let _blockDraft = [];
 
 function _renderBlockEditor() {
@@ -7798,7 +7806,7 @@ function _renderBlockEditor() {
       <input class="edit-input" type="date" value="${b.date || ''}" onchange="_blkUpd(${i},'date',this.value)" style="flex:0 0 132px;" ${b.done ? 'disabled' : ''}>
       <input class="edit-input" type="number" step="0.25" min="0.25" value="${b.hours ?? ''}" onchange="_blkUpd(${i},'hours',this.value)" placeholder="h" style="flex:0 0 64px;" ${b.done ? 'disabled' : ''}>
       <input class="edit-input" type="text" value="${escHtml(b.desc || '')}" onchange="_blkUpd(${i},'desc',this.value)" placeholder="label (optional)" style="flex:1;min-width:0;" ${b.done ? 'disabled' : ''}>
-      ${b.done ? '<span style="font-size:9px;color:var(--success,#4ade80);white-space:nowrap;">✓ logged</span>' : `<button type="button" class="btn" onclick="_blkDel(${i})" style="padding:2px 8px;flex-shrink:0;">×</button>`}
+      ${b.done ? '<span style="font-size:9px;color:var(--success,#4ade80);white-space:nowrap;">✓ done</span>' : `<button type="button" class="btn" onclick="_blkDel(${i})" style="padding:2px 8px;flex-shrink:0;">×</button>`}
     </div>`).join('');
   const sum = document.getElementById('editBlocksSummary');
   if (sum) {
@@ -7852,6 +7860,13 @@ function closeEditModal() {
 }
 
 function saveEditTask() {
+  // Guard BEFORE any mutation: converting to recurring drops all blocks, but
+  // a LOGGED block's hours are already billed — dropping it re-grows the est
+  // into the plan and double-counts against the ledger.
+  if (document.getElementById('editRecurType').value && _blockDraft.some(b => b.done)) {
+    showSyncToast('This task has logged work blocks — it can\'t become recurring. Finish it as-is, or clear the recurrence.', 'warn');
+    return;
+  }
   let task;
   const isNew = editingTaskId === '__new__';
   if (isNew) {
@@ -7881,7 +7896,10 @@ function saveEditTask() {
     const recurPicked = !!document.getElementById('editRecurType').value;
     const kept = recurPicked ? [] : _blockDraft.filter(b => b.done || (b.date && (parseFloat(b.hours) || 0) >= 0.25));
     const dropped = (recurPicked ? _blockDraft.length : _blockDraft.length - kept.length);
-    task.blocks = kept.map(b => ({ ...b, hours: roundToQuarter(parseFloat(b.hours) || 0) }));
+    // Done blocks are locked: their hours are already billed, so re-rounding
+    // them here (roundToQuarter floors 0 → 0.25) would silently shift the
+    // remainder after the fact. Only open blocks get quarter-snapped.
+    task.blocks = kept.map(b => b.done ? { ...b } : ({ ...b, hours: roundToQuarter(parseFloat(b.hours) || 0) }));
     if (!task.blocks.length) delete task.blocks;
     if (dropped > 0) showSyncToast(recurPicked
       ? 'Recurring tasks can\'t have work blocks — blocks removed.'
@@ -8157,13 +8175,70 @@ let completingTaskId = null;
 // Context for session/subtask completion: { type: 'session'|'subtask', projId, sessionId, subtaskId? }
 let _completingCtx = null;
 
+// ── Zero-billable close-out ──
+// 0 in the billable field (typed, or via the 0h button) is a deliberate
+// "close without billing": everything already logged keeps its ledger
+// entries and the remaining planned hours are cancelled — no forced 0.25
+// minimum (that used to plant phantom quarter-hours in wt_completed and
+// skew the Allocations actuals). Same convention as _logRelayLeg.
+function _compSetHint(text) {
+  const el = document.getElementById('compZeroHint');
+  if (el) { el.innerHTML = text || ''; el.style.display = text ? '' : 'none'; }
+  _compBillInput();
+}
+
+// Live label on the confirm button so 0 never bills by surprise.
+function _compBillInput() {
+  const v = parseFloat(document.getElementById('compBillable')?.value);
+  const zero = isNaN(v) || v <= 0;
+  const isBlock = _completingCtx && _completingCtx.type === 'block';
+  const btn = document.getElementById('compConfirmBtn');
+  if (btn) btn.textContent = zero
+    ? (isBlock ? 'Close Block — bill 0h' : 'Complete — bill 0h')
+    : (isBlock ? 'Log Block' : 'Mark Complete');
+}
+
+function _compSetZero() {
+  const inp = document.getElementById('compBillable');
+  if (inp) inp.value = 0;
+  _compBillInput();
+}
+
 // Log a single work block: writes a time entry on the block's day and marks
 // the block done — the parent task stays open until its own checkbox is hit.
 function openBlockCompletionModal(taskId, blockId) {
   const task = tasks.find(t => t.id === taskId);
   const b = task && (task.blocks || []).find(b => b.id === blockId);
   if (!b) return;
-  if (b.done) { b.done = false; save('wt_tasks', tasks); renderTasks(); return; }
+  if (b.done) {
+    // Un-tick = re-open the block. Its hours return to the plan, so the
+    // logged entry MUST come back out of the ledger — leaving it would
+    // count the hours twice (logged + planned) and re-logging would
+    // double-bill. Entries are found via b.entryId/_blockRef (stamped at
+    // log time); an entry-less done block was a 0h cancel — just re-open.
+    const ref = taskId + '_' + blockId;
+    const entry = completed.find(c => c.id === b.entryId || c._blockRef === ref);
+    if (entry) {
+      const snap = JSON.parse(JSON.stringify(entry));
+      _performDelete(`Block re-opened — its ${fmtQ(entry.actualHours || 0)}h entry was removed`, () => {
+        completed = completed.filter(c => c.id !== entry.id);
+        b.done = false; delete b.entryId;
+        save('wt_completed', completed); save('wt_tasks', tasks);
+        renderTasks(); renderProjects(); renderTimesheet(); renderCapacity();
+      }, () => {
+        completed.unshift(snap);
+        b.done = true; b.entryId = snap.id;
+        save('wt_completed', completed); save('wt_tasks', tasks);
+        renderTasks(); renderProjects(); renderTimesheet(); renderCapacity();
+      });
+    } else {
+      b.done = false;
+      save('wt_tasks', tasks);
+      showSyncToast('Block re-opened — its hours are back in your plan. If its time was logged before, that Timesheet entry still stands.', 'warn');
+      renderTasks(); renderProjects(); renderTimesheet(); renderCapacity();
+    }
+    return;
+  }
   completingTaskId = null;
   _completingCtx = { type: 'block', taskId, blockId };
   document.getElementById('compModalTitle').textContent = 'Log Work Block';
@@ -8175,6 +8250,7 @@ function openBlockCompletionModal(taskId, blockId) {
   varEl.textContent = '—'; varEl.className = 'modal-value';
   populateSubCodeSelect('compSubCode', task.project, task.subCode || '');
   document.getElementById('compDate').value = b.date || today();
+  _compSetHint('Logging bills these hours now and marks the block done. <strong>0h</strong> cancels the block instead — nothing is billed and its planned time is removed; blocks you already logged keep their entries.');
   document.getElementById('completionModal').classList.add('open');
 }
 
@@ -8228,6 +8304,11 @@ function autoPlanSessionRemainder(projId, sessionId) {
 function deleteTaskBlock(taskId, blockId) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
+  // A done block is billed: deleting it would re-grow the parent's remainder
+  // while its entry stays in the ledger (double count). Un-tick first — that
+  // retracts the entry and unlocks the block.
+  const b = (task.blocks || []).find(b => b.id === blockId);
+  if (b && b.done) { showSyncToast('This block is logged — un-tick it first (that retracts its time entry), then delete.', 'warn'); return; }
   task.blocks = (task.blocks || []).filter(b => b.id !== blockId);
   save('wt_tasks', tasks);
   renderTasks(); renderProjects(); renderTimesheet(); renderCapacity();
@@ -8242,8 +8323,12 @@ function openCompletionModal(taskId) {
   _completingCtx = null;
   const secs = task.timer;
   const rawHours = secsToHours(secs);
+  // Blocked tasks prefill the un-blocked remainder, which is legitimately 0
+  // when blocks cover the estimate — snapQuarter, NOT roundToQuarter (its
+  // 0.25 floor would invent a quarter-hour to bill; math invariant #4).
   const billable = rawHours > 0 ? roundToQuarter(rawHours)
-    : roundToQuarter((task.blocks || []).length ? _ownPlannedHours(task) : (task.est || 0));
+    : (task.blocks || []).length ? Math.max(0, snapQuarter(_ownPlannedHours(task)))
+    : roundToQuarter(task.est || 0);
 
   if (task.recurrence) {
     const nextDate = nextActiveRecurrenceAfter(task, task.due || today());
@@ -8261,10 +8346,12 @@ function openCompletionModal(taskId) {
   document.getElementById('compTimer').textContent = secs > 0 ? `${fmtSecs(secs)} (${rawHours.toFixed(2)}h)` : 'No timer data';
   document.getElementById('compBillable').value = billable;
 
-  // Variance
+  // Variance — for a blocked task, compare against the un-blocked remainder
+  // (the blocks' hours billed with their own entries), not the full est.
   const varEl = document.getElementById('compVariance');
-  if (task.est && task.est > 0) {
-    const pct = ((billable - task.est) / task.est) * 100;
+  const varBase = (task.blocks || []).length ? Math.max(0, snapQuarter(_ownPlannedHours(task))) : (task.est || 0);
+  if (varBase > 0) {
+    const pct = ((billable - varBase) / varBase) * 100;
     const sign = pct >= 0 ? '+' : '';
     varEl.textContent = `${sign}${pct.toFixed(0)}% vs estimate`;
     varEl.className = 'modal-value ' + (Math.abs(pct) <= 5 ? 'good' : pct > 5 ? 'over' : 'under');
@@ -8275,6 +8362,19 @@ function openCompletionModal(taskId) {
 
   populateSubCodeSelect('compSubCode', task.project, task.subCode || '');
   document.getElementById('compDate').value = task.workDate || task.due || today();
+
+  if ((task.blocks || []).length) {
+    const blks = task.blocks, doneN = blks.filter(x => x.done).length;
+    const open = blks.filter(x => !x.done);
+    const openH = open.reduce((a, x) => a + (x.hours || 0), 0);
+    if (open.length) {
+      _compSetHint(`<strong style="color:var(--warn);">⚠ ${open.length} un-logged block${open.length > 1 ? 's' : ''} (${fmtQ(openH)}h) still open</strong> — completing the task cancels them <strong>without billing</strong>. If that time was worked, cancel and log each block first (✓ on its row). This field bills only the un-blocked remainder; <strong>0h</strong> bills nothing more.`);
+    } else {
+      _compSetHint(`${doneN} of ${blks.length} block${blks.length > 1 ? 's' : ''} already logged — those entries are kept; this bills only the final remainder. <strong>0h</strong> closes the task without billing anything more.`);
+    }
+  } else {
+    _compSetHint('<strong>0h</strong> completes the task without logging any time.');
+  }
 
   document.getElementById('completionModal').classList.add('open');
 }
@@ -8322,6 +8422,7 @@ function openSessionCompletionModal(projId, sessionId) {
   populateSubCodeSelect('compSubCode', proj.project, s.subCode || '');
   document.getElementById('compDate').value = s.workDate || s.date || today();
 
+  _compSetHint('<strong>0h</strong> completes it without logging any time.');
   document.getElementById('completionModal').classList.add('open');
 }
 
@@ -8370,6 +8471,7 @@ function openSubtaskCompletionModal(projId, sessionId, subtaskId) {
   populateSubCodeSelect('compSubCode', proj.project, st.subCode || '');
   document.getElementById('compDate').value = st.workDate || st.date || today();
 
+  _compSetHint('<strong>0h</strong> completes it without logging any time.');
   document.getElementById('completionModal').classList.add('open');
 }
 
@@ -8380,37 +8482,55 @@ function closeCompletionModal() {
 }
 
 function confirmComplete() {
+  let _confirmCancelledNote = '';
   const rawBillable = parseFloat(document.getElementById('compBillable')?.value);
-  const billable = isNaN(rawBillable) ? 0.25 : Math.max(0.25, enforceQuarter(rawBillable, 'billable hours'));
+  // 0 (or an emptied field) = deliberate close-without-billing — see the
+  // zero-billable close-out note above. The old forced 0.25 minimum turned
+  // every typed 0 into a phantom quarter-hour in the billing ledger.
+  const billable = isNaN(rawBillable) ? 0 : Math.max(0, enforceQuarter(rawBillable, 'billable hours'));
   const subCode = document.getElementById('compSubCode')?.value || '';
   const dateCompleted = document.getElementById('compDate')?.value || today();
 
   if (_completingCtx) {
     const ctx = _completingCtx;
 
-    // Work block: log time, mark the block done, leave the parent task open
+    // Work block: log time, mark the block done, leave the parent task open.
+    // 0h = cancel: the block closes with NO ledger entry (its planned time
+    // simply leaves the plan), matching _logRelayLeg's zero → no billing.
     if (ctx.type === 'block') {
       const task = tasks.find(t => t.id === ctx.taskId);
       const b = task && (task.blocks || []).find(b => b.id === ctx.blockId);
       if (!b) return;
-      completed.unshift({
-        id: uid(),
-        name: task.name + (b.desc ? ' — ' + b.desc : ' — work block'),
-        project: task.project,
-        subCode: subCode,
-        dateCompleted: dateCompleted,
-        estHours: b.hours || 0,
-        actualHours: billable,
-        category: task.category || ''
-      });
+      if (billable > 0) {
+        // _blockRef + b.entryId link the entry to its block so un-ticking
+        // the block can retract the entry instead of double-counting.
+        const entry = {
+          id: uid(),
+          name: task.name + (b.desc ? ' — ' + b.desc : ' — work block'),
+          project: task.project,
+          subCode: subCode,
+          dateCompleted: dateCompleted,
+          estHours: b.hours || 0,
+          actualHours: billable,
+          category: task.category || '',
+          _blockRef: ctx.taskId + '_' + ctx.blockId
+        };
+        completed.unshift(entry);
+        b.entryId = entry.id;
+        save('wt_completed', completed);
+      } else {
+        delete b.entryId; // cancelled block — no entry to point at
+      }
       b.done = true;
-      save('wt_completed', completed);
       save('wt_tasks', tasks);
       closeCompletionModal();
-      if ((task.blocks || []).every(x => x.done) && _ownPlannedHours(task) <= 0) {
-        showSyncToast('All blocks logged — tick the task itself to close it out.', 'success');
+      const allDone = (task.blocks || []).every(x => x.done) && _ownPlannedHours(task) <= 0;
+      if (billable <= 0) {
+        showSyncToast('Block closed — nothing billed, planned time cancelled.' + (allDone ? ' Tick the task itself to close it out.' : ''), 'success');
+      } else {
+        if (allDone) showSyncToast('All blocks logged — tick the task itself to close it out.', 'success');
+        _celebrateWin();
       }
-      _celebrateWin();
       renderTasks(); renderProjects(); renderTimesheet(); renderCapacity();
       return;
     }
@@ -8422,6 +8542,8 @@ function confirmComplete() {
     if (!s) return;
 
     if (ctx.type === 'session') {
+      // _srcRef/entryId link the entry to the record it closed, so un-ticking
+      // can retract it (same lock-in convention as work blocks).
       const entry = {
         id: uid(),
         name: `${proj.name}: ${s.desc || 'Session'}`,
@@ -8430,7 +8552,8 @@ function confirmComplete() {
         dateCompleted: dateCompleted,
         estHours: s.hours || 0,
         actualHours: billable,
-        category: ''
+        category: '',
+        _srcRef: 'sess_' + ctx.projId + '_' + ctx.sessionId
       };
       completed.unshift(entry);
       save('wt_completed', completed);
@@ -8445,10 +8568,10 @@ function confirmComplete() {
           s.date = nextDate;
           s.timer = 0; s.timerStart = null;
         } else {
-          s.done = true;
+          s.done = true; s.entryId = entry.id;
         }
       } else {
-        s.done = true;
+        s.done = true; s.entryId = entry.id;
       }
       save('wt_bigprojs', bigProjs);
     } else if (ctx.type === 'subtask') {
@@ -8462,7 +8585,8 @@ function confirmComplete() {
         dateCompleted: dateCompleted,
         estHours: st.hours || 0,
         actualHours: billable,
-        category: ''
+        category: '',
+        _srcRef: 'sub_' + ctx.projId + '_' + ctx.sessionId + '_' + ctx.subtaskId
       };
       completed.unshift(entry);
       save('wt_completed', completed);
@@ -8477,10 +8601,10 @@ function confirmComplete() {
           st.date = nextDate;
           st.timer = 0; st.timerStart = null;
         } else {
-          st.done = true;
+          st.done = true; st.entryId = entry.id;
         }
       } else {
-        st.done = true;
+        st.done = true; st.entryId = entry.id;
       }
       save('wt_bigprojs', bigProjs);
     }
@@ -8488,6 +8612,13 @@ function confirmComplete() {
     // Regular task completion
     const task = tasks.find(t => t.id === completingTaskId);
     if (!task) return;
+
+    // Open blocks die with the task — say so out loud (they bill nothing).
+    const openBlks = (task.blocks || []).filter(b => !b.done);
+    if (openBlks.length) {
+      const openH = openBlks.reduce((a, b) => a + (b.hours || 0), 0);
+      _confirmCancelledNote = `${openBlks.length} un-logged block${openBlks.length > 1 ? 's' : ''} (${fmtQ(openH)}h) cancelled — not billed.`;
+    }
 
     const entry = {
       id: uid(),
@@ -8538,6 +8669,9 @@ function confirmComplete() {
   }
 
   closeCompletionModal();
+  // Archived with 0h: the item leaves the plan, nothing hits the billing sums.
+  if (_confirmCancelledNote) showSyncToast('Task closed — ' + _confirmCancelledNote, 'warn');
+  else if (billable <= 0) showSyncToast('Completed — nothing billed; time already logged keeps its entries.', 'success');
   _celebrateWin();
   renderTasks();
   renderProjects();
@@ -9688,7 +9822,33 @@ function toggleSession(projId, sessionId) {
   const proj = bigProjs.find(p => p.id === projId);
   if (!proj) return;
   const s = proj.sessions.find(s => s.id === sessionId);
-  if (s) s.done = !s.done;
+  if (!s) return;
+  // Un-tick = re-open: the hours return to the plan, so the linked ledger
+  // entry must come back out (else logged + planned double count; see the
+  // work-block lock-in convention). Entry-less done items just re-open.
+  if (s.done) {
+    const entry = completed.find(c => c.id === s.entryId || c._srcRef === 'sess_' + projId + '_' + sessionId);
+    const rerender = () => { renderProjects(); renderTeam(); renderTasks(); renderTimesheet(); renderCapacity(); };
+    if (entry) {
+      const snap = JSON.parse(JSON.stringify(entry));
+      _performDelete(`Re-opened — its ${fmtQ(entry.actualHours || 0)}h entry was removed`, () => {
+        completed = completed.filter(c => c.id !== entry.id);
+        s.done = false; delete s.entryId;
+        save('wt_completed', completed); save('wt_bigprojs', bigProjs); rerender();
+      }, () => {
+        completed.unshift(snap);
+        s.done = true; s.entryId = snap.id;
+        save('wt_completed', completed); save('wt_bigprojs', bigProjs); rerender();
+      });
+    } else {
+      s.done = false;
+      save('wt_bigprojs', bigProjs);
+      showSyncToast('Re-opened — its hours are back in your plan. If its time was logged before, that Timesheet entry still stands.', 'warn');
+      rerender();
+    }
+    return;
+  }
+  s.done = true;
   save('wt_bigprojs', bigProjs);
   renderProjects();
   renderTeam();
@@ -10783,7 +10943,8 @@ function relayBack(itemId) {
 
 // Log my leg's hours to the billing archive (project + sub-code) and close the mirror.
 function _logRelayLeg(item, stage, hours) {
-  // Same billing convention as the completion modal: quarter-hours, 0.25 floor.
+  // Same billing convention as the completion modal: quarter-hours, 0.25
+  // floor for real time, zero → bill nothing (no ledger entry).
   let h = Math.max(0, Number(hours) || 0);
   if (h > 0) h = Math.max(0.25, roundToQuarter(h));
   if (h > 0) {
@@ -11747,7 +11908,11 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
       else if (item._src === 'session' && item._projId) editFn = `openEditSessionModal('${item._projId}','${item.id}')`;
       else if (item._src === 'subtask' && item._projId) editFn = `openEditSubtaskModal('${item._projId}','${item._sessionId}','${item.id}')`;
       let doneFn = '';
-      if (item._src === 'task' && taskObj) doneFn = `openCompletionModal('${taskObj.id}')`;
+      // A ▣ block row must log ITS block — routing to the parent's modal
+      // would complete the whole task and silently cancel the other blocks.
+      if (item._src === 'task' && taskObj) doneFn = item._block
+        ? `openBlockCompletionModal('${taskObj.id}','${(item.id || '').slice(taskObj.id.length + 1)}')`
+        : `openCompletionModal('${taskObj.id}')`;
       else if (item._src === 'session') doneFn = `openSessionCompletionModal('${item._projId}','${item.id}')`;
       else if (item._src === 'subtask') doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${item.id}')`;
       // Recurrence actions (skip / reschedule)
@@ -11762,7 +11927,7 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
         <span class="ts-entry-name ts-entry-planned" ${editFn ? `onclick="${editFn}" style="cursor:pointer;"` : ''}>${escHtml(item.name)}${item._recur ? ' <span class="recur-badge">↻</span>' : ''}${item._spread ? ' <span class="recur-badge" title="Part of a spread plan — hours split across weekdays until the deadline">⇶</span>' : ''}${item._block ? ' <span class="recur-badge" title="Work block — bite-sized session under the parent\'s deadline">▣</span>' : ''}</span>
         ${recurActions ? `<span class="ts-entry-hours" style="color:var(--text3);display:flex;align-items:center;gap:3px;justify-content:flex-end;">${recurActions}<span>${item.hours}h</span></span>` : `<span class="ts-entry-hours" style="color:var(--text3);">${item.hours}h</span>`}
         <div class="ts-entry-actions" style="opacity:1;">
-          ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="Mark as done" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
+          ${doneFn ? `<div onclick="event.stopPropagation();${doneFn}" title="${item._block ? 'Log this block (parent task stays open)' : 'Mark as done'}" style="cursor:pointer;width:16px;height:16px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>` : ''}
         </div>
       `;
       wrap.appendChild(row);
@@ -13183,9 +13348,19 @@ function _renderCapItemList(container, projKey, ym, data) {
         const taskObj = tasks.find(t => t.id === item.id || (item.id || '').startsWith(t.id + '_'));
         if (taskObj) {
           editFn = `openEditModal('${taskObj.id}')`;
-          delegateFn = `capDelegateItem(event,'task','${taskObj.id}')`;
-          moveFn = `capMoveItem('task','${taskObj.id}')`;
-          doneFn = `openCompletionModal('${taskObj.id}')`;
+          if (item._block) {
+            // ▣ block row: every action targets THE BLOCK. Routing ✓/Move to
+            // the parent completed the whole task (cancelling sibling blocks
+            // unbilled) / moved the parent while the block stayed put.
+            // Delegate stays parent-level, so it lives on the parent row only.
+            const bId = (item.id || '').slice(taskObj.id.length + 1);
+            doneFn = `openBlockCompletionModal('${taskObj.id}','${bId}')`;
+            moveFn = `capMoveItem('block','${taskObj.id}','${bId}')`;
+          } else {
+            delegateFn = `capDelegateItem(event,'task','${taskObj.id}')`;
+            moveFn = `capMoveItem('task','${taskObj.id}')`;
+            doneFn = `openCompletionModal('${taskObj.id}')`;
+          }
         }
       } else if (item._src === 'session' && item._projId) {
         const srcId = _capResolveId(item.id, item._projId, 'session');
@@ -13285,6 +13460,17 @@ function capMoveItem(type, ...ids) {
     st.workDate = null;
     st.allocMonth = newMonth;
     save('wt_bigprojs', bigProjs);
+  } else if (type === 'block') {
+    // Move ONE work block — the parent (and its other blocks) stay put.
+    const t = tasks.find(t => t.id === ids[0]);
+    const b = t && (t.blocks || []).find(b => b.id === ids[1]);
+    if (!b || b.done) return;
+    b.date = adjustToWeekday(newMonth + '-15');
+    save('wt_tasks', tasks);
+    renderCapacity();
+    const late = t.due && b.date > t.due;
+    showSyncToast(late ? `Block moved to ${newMonth} — after the deadline, ⚑ flagged red.` : `Block moved to ${newMonth}`, late ? 'warn' : 'success');
+    return;
   }
   renderCapacity();
   showSyncToast(`Moved to ${newMonth}`, 'success');
@@ -16164,7 +16350,7 @@ const _TAB_TIPS = {
       'Click a <strong>date</strong> to open the capacity picker — every day shows its free hours, and ⚡ Next fit jumps to the first day with room before the deadline.',
       '<strong>Work date vs deadline:</strong> pick a day other than the due date and it becomes your work date — the ⚑ chip keeps the deadline (red = at risk). Capacity and allocations follow the work date.',
       '<strong>⇶ Spread</strong> (in the edit modal) splits a big task\'s hours evenly across weekdays from work date to deadline.',
-      '<strong>▣ Work blocks</strong> (edit modal) break a big task into dated sessions under one deadline — ⚡ Auto-fill packs the remaining hours into days with free capacity. Tick a block to log its time; the parent counts only the un-blocked remainder.',
+      '<strong>▣ Work blocks</strong> (edit modal) break a big task into dated sessions under one deadline — ⚡ Auto-fill packs the remaining hours into days with free capacity. Tick a block to log its time; the parent counts only the un-blocked remainder. <strong>0h always means "bill nothing"</strong>: log a block at 0h to cancel it, and close the task itself at 0h to keep everything the blocks logged without billing another minute. Un-ticking a logged block re-opens it <strong>and pulls its time entry back out</strong> (undo toast if that wasn\'t intended), so hours are never counted twice.',
       'Set up <strong>recurring tasks</strong> (weekly, monthly) in the edit modal.',
       '<strong>📅 Week view:</strong> hover any card and hit <strong>✓</strong> to log time on the spot. <strong>Meetings render grey</strong> with the project color only on their left edge — fixed anchors, not work you can shuffle; ◖ marks upcoming relay legs (open the deliverable to move those).',
       '<strong>⇄ Hand off as deliverable</strong> (edit modal) moves a task to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves your list and Capacity; your review leg mirrors back in when the baton reaches you. Recurring tasks can\'t move — <strong>Assign to</strong> tags them on every occurrence instead.',
@@ -16178,6 +16364,7 @@ const _TAB_TIPS = {
       'Click a <strong>project card</strong> to expand it and see sessions/subtasks.',
       'Use <strong>+ Add Session</strong> to create work items within a project.',
       'Sessions can have <strong>subtasks</strong>, timers, and be delegated to team members.',
+      'Un-ticking a completed item <strong>retracts its logged time entry</strong> (undo toast) so hours never count twice — and a logged subtask or block must be un-ticked before it can be deleted.',
       'Person pills mark who\'s involved: <strong>↗ Name</strong> = tagged via Assign-to (item stays yours to track), <strong>👤 rows</strong> = Team deliverables billed to this code — including items you handed off.',
       '<strong>⇄ Hand off as deliverable</strong> (work-item edit modal) moves a session or subtask to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves this project\'s planning; a handed-off subtask\'s hours also leave its parent so nothing counts twice.',
       '<strong>Hide</strong> inactive projects to keep the view clean.',
@@ -16208,6 +16395,7 @@ const _TAB_TIPS = {
       'Each period\'s target is <strong>weekdays × your h/day</strong> (80h or 88h). Weekend overtime counts as logged — running over flags flex time.',
       'All hours snap to <strong>quarter-hour increments</strong> automatically.',
       '<strong>Unscheduled holds</strong> (items parked in a month with no date) count in the month total but not in any period or week bar — click the holds line to schedule them in Capacity.',
+      'Outstanding <strong>▣ block rows</strong> log just that block when ticked — the parent task stays open and only closes from its own row.',
       'Set your <strong>hours/day capacity</strong> in the toolbar.'
     ]
   },
@@ -16215,7 +16403,7 @@ const _TAB_TIPS = {
     title: 'Capacity — Tips',
     tips: [
       'Each month bar = <strong>logged + planned vs weekdays × h/day</strong> — your personal headroom, with all recurrences expanded.',
-      'Expand a month → <strong>projects → sub-codes → items</strong>, each with Done / Edit / Move / Delegate actions.',
+      'Expand a month → <strong>projects → sub-codes → items</strong>, each with Done / Edit / Move / Delegate actions. On a <strong>▣ block row</strong>, ✓ Done and Move act on that block alone — the parent task (and its other blocks) stay put; Delegate lives on the parent\'s row.',
       '<strong>◷ Schedule work</strong> opens the board: select overdue, held, or undated items and click a day to place them — or <strong>Park</strong> them in a month to decide later.',
       '<strong>⚖ Rebalance</strong> on an over-booked day moves the lowest-priority movable item to the next day with room, never past its deadline.',
       'Items sit on their <strong>work date</strong> when one is set (deadline otherwise) — moving work keeps the deadline flag ⚑ honest.',
@@ -17286,7 +17474,31 @@ function toggleSubtask(projId, sessionId, subtaskId) {
   if (!s) return;
   const st = (s.subtasks || []).find(st => st.id === subtaskId);
   if (!st) return;
-  st.done = !st.done;
+  // Un-tick = re-open — retract the linked entry (work-block convention);
+  // the parent session's remainder shrinks back as the subtask re-plans.
+  if (st.done) {
+    const entry = completed.find(c => c.id === st.entryId || c._srcRef === 'sub_' + projId + '_' + sessionId + '_' + subtaskId);
+    const rerender = () => { renderProjects(); renderTasks(); renderTimesheet(); renderCapacity(); };
+    if (entry) {
+      const snap = JSON.parse(JSON.stringify(entry));
+      _performDelete(`Re-opened — its ${fmtQ(entry.actualHours || 0)}h entry was removed`, () => {
+        completed = completed.filter(c => c.id !== entry.id);
+        st.done = false; delete st.entryId;
+        save('wt_completed', completed); save('wt_bigprojs', bigProjs); rerender();
+      }, () => {
+        completed.unshift(snap);
+        st.done = true; st.entryId = snap.id;
+        save('wt_completed', completed); save('wt_bigprojs', bigProjs); rerender();
+      });
+    } else {
+      st.done = false;
+      save('wt_bigprojs', bigProjs);
+      showSyncToast('Re-opened — its hours are back in your plan. If its time was logged before, that Timesheet entry still stands.', 'warn');
+      rerender();
+    }
+    return;
+  }
+  st.done = true;
   save('wt_bigprojs', bigProjs);
   renderProjects();
   renderTasks();
@@ -17299,6 +17511,9 @@ function deleteSubtask(projId, sessionId, subtaskId) {
   if (!s) return;
   const deleted = (s.subtasks || []).find(st => st.id === subtaskId);
   if (!deleted) return;
+  // A done subtask is billed: deleting it re-grows the parent session's
+  // remainder while its entry stays in the ledger (double count).
+  if (deleted.done) { showSyncToast('This subtask is logged — un-tick it first (that retracts its time entry), then delete.', 'warn'); return; }
   const snap = JSON.parse(JSON.stringify(deleted));
   _performDelete('Subtask deleted', () => {
     s.subtasks = (s.subtasks || []).filter(st => st.id !== subtaskId);

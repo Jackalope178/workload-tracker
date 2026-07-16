@@ -309,3 +309,110 @@ fall transitions, pay-period boundaries, negative/zero hour inputs.
 
 Regression coverage: `.claude/skills/verify/run.sh` scenarios 01–03 encode
 the fixes and the clean behaviors above.
+
+## Addendum — zero-billable close-out (2026-07-15)
+
+**Symptom (user report):** hours logged through work blocks didn't reconcile
+with Allocations actuals. Root cause: `confirmComplete` clamped the billable
+field with `Math.max(0.25, …)`, so typing **0** at close-out (to decline
+billing the prefilled remainder) still wrote a **phantom 0.25h entry** to
+`wt_completed` — which Allocations, Timesheet, and the pay-period bars all
+sum. Compounding it, `openCompletionModal` prefilled the remainder of a
+blocked task with `roundToQuarter(_ownPlannedHours(task))`; the 0.25 floor
+turned a fully-blocked task's true 0h remainder into a suggested 0.25 —
+exactly the invariant-#4 misuse this audit documented.
+
+### Fixed
+
+1. **Typed 0 now bills 0.** `confirmComplete` uses
+   `Math.max(0, enforceQuarter(…))`; an emptied field counts as 0 too.
+   Semantics by item kind:
+   - **Work block at 0h** → block marked done, **no ledger entry** (the
+     planned time is cancelled; earlier logged blocks keep their entries).
+     Matches `_logRelayLeg`, which already skipped the entry at 0.
+   - **Task / session / subtask at 0h** → archived with `actualHours: 0`
+     (the archive row survives for history/wins; billing sums unchanged).
+2. **Remainder prefill is zero-safe.** The blocked-task branch of
+   `openCompletionModal` now uses `Math.max(0, snapQuarter(…))`.
+3. **UI makes 0 a first-class action:** a 0h shortcut button beside the
+   billable input, a context hint (`compZeroHint`) spelling out what 0 does,
+   and the confirm button relabels live ("Complete — bill 0h") so a no-bill
+   close is never a surprise.
+
+The 0.25 floor still applies to any hours > 0. Regression coverage:
+`.claude/skills/verify/suite/11-zero-close.js`.
+
+**Cleanup note for existing data:** phantom 0.25h entries created before
+this fix remain in `wt_completed`; edit or delete them from the Timesheet
+day view (the entry editor accepts 0h).
+
+## Addendum — work-block lifecycle audit (2026-07-15, follow-up pass)
+
+A targeted audit of how block-logged hours survive later actions, prompted
+by the same Allocations mismatch. Seven verified findings, all fixed:
+
+1. **Timesheet outstanding ▣ rows completed the PARENT.** The planned-row
+   checkbox called `openCompletionModal(parent)` for block rows — one click
+   on what looks like a 2h block opened "Complete Task", billed only the
+   un-blocked remainder, deleted the task, and silently cancelled every
+   sibling block (hours neither billed nor planned). Likely the original
+   incident. Now routes to `openBlockCompletionModal`.
+2. **Capacity drill-down ▣ rows: same mis-route on ✓ Done**, plus **Move
+   moved the parent** (cleared its `workDate`, re-dated `due`) while the
+   block stayed put — the wrong hours moved in every planned meter. ✓/Move
+   now act on the block (`capMoveItem('block', …)`); Delegate (a whole-task
+   action) no longer renders on block rows.
+3. **Un-ticking a done block resurrected its planned hours but left its
+   ledger entry** — hours counted twice (logged + planned), and re-logging
+   billed twice. Entries are now linked (`_blockRef` on the entry,
+   `entryId` on the block); un-ticking retracts the entry with an undo
+   toast. Entry-less done blocks (0h cancels, pre-link data) just re-open,
+   with a toast noting any old entry stays on the Timesheet.
+4. **`saveEditTask` re-rounded done blocks' hours** through `roundToQuarter`
+   on every save — a billed block's plan-side hours could drift (and a 0
+   would floor to 0.25), silently changing the remainder. Done blocks are
+   now frozen; only open blocks quarter-snap.
+5. **Recurrence conversion dropped LOGGED blocks.** Picking a recurrence
+   wiped `blocks[]` including done ones — est re-grew into the plan while
+   the block hours sat billed in the ledger (double count). Conversion now
+   refuses while logged blocks exist (guard runs before any mutation).
+6. **Closing a parent with open blocks silently discarded their hours**
+   (not billed, not planned, no notice). Still allowed — cancelling planned
+   work is legitimate — but the modal hint now warns with the block count
+   and hours, and the close toasts what was cancelled.
+7. **Week planner block cards had no ✓** (comment claimed blocks "log
+   through their parent's plan" — untrue). Block cards now log their own
+   block, consistent with My Tasks/Projects/Timesheet.
+
+Verified clean in the same pass: `plannedItems` block expansion (done
+blocks excluded, parent carries `max(0, est − Σblocks)` remainder, blocks
+land on their own dates → Capacity/Timesheet/Allocations planned all agree);
+week-planner drag moves `b.date`; `capRebalanceDay` deliberately never
+auto-moves blocks; hand-off subtracts done-block hours; My Tasks/Projects
+child-row checkboxes and date pickers were already block-scoped; block
+child rows only render for open blocks, and the block editor locks done
+rows (no delete ×).
+
+Regression coverage: `.claude/skills/verify/suite/12-block-locking.js`.
+
+### Follow-up (same pass): sessions & subtasks had the identical un-tick hole
+
+8. **Un-ticking a completed session/subtask left its ledger entry** —
+   `toggleSession`/`toggleSubtask` just flipped `done`, so the hours
+   returned to the plan while the billed entry stayed (logged + planned
+   double count; re-completing double-billed). Both now use the block
+   convention: completion stamps `_srcRef` on the entry + `entryId` on the
+   record, and un-ticking retracts the entry with an undo toast (entry-less
+   records — pre-link data, recurring occurrences — just re-open with a
+   caveat toast).
+9. **Deleting a done subtask (Projects tab ×) or done block re-grew the
+   parent's remainder** while its entry stayed billed — `_childPlannedHours`
+   sums ALL children, so removing a billed child hands its hours back to
+   the parent's plan. Both deletes now refuse on done children ("un-tick
+   first — that retracts the entry"). Deleting a whole done session/task
+   re-grows nothing and stays allowed.
+
+Checked clean: Projects-tab bulk actions only move sub-codes (no bulk
+complete bypassing the modal); done blocks never render child rows on
+My Tasks/Projects (only the locked editor rows); handoff already excludes
+done children from a deliverable's est.
