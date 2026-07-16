@@ -196,6 +196,11 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    `wt_team_board_person`, and `wt_team_board_sort` (🗂 project-grouped with
    headers vs 📅 nearest-due flat, where each card carries a project
    dot + name line instead).
+11. **A co-assigned item (delegatedTo includes `'Me'` plus others) stays on
+   My Tasks and in Capacity.** Only items delegated entirely to others
+   leave. Every assignment toggle (dropdown or pills) fires `_assignToast`
+   naming the outcome — the dropdown stays open for multi-select, so the
+   toast is the primary feedback; don't remove it.
 
 ## Math Invariants (July 2026 audit)
 
