@@ -7,14 +7,15 @@
 const { launch, step, done } = require('./_lib');
 
 (async () => {
-  const now = new Date();
-  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const dayStr = `${ym}-${String(now.getDate()).padStart(2, '0')}`;
+  // The app's today() is pinned to America/New_York — compute seed dates in
+  // that zone, or a UTC-evening container drifts a day ahead of the app.
+  const [eyS, emS, edS] = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }).split('-');
+  const ey = parseInt(eyS, 10), em = parseInt(emS, 10);
+  const ym = `${eyS}-${emS}`;
+  const dayStr = `${ym}-${edS}`;
   const monthStart = ym + '-01';
-  const monthEnd = ym + '-' + String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0');
-  const nextYm = now.getMonth() === 11
-    ? `${now.getFullYear() + 1}-01`
-    : `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}`;
+  const monthEnd = ym + '-' + String(new Date(ey, em, 0).getDate()).padStart(2, '0');
+  const nextYm = em === 12 ? `${ey + 1}-01` : `${ey}-${String(em + 1).padStart(2, '0')}`;
   const dueStr = ym + '-28';
 
   const { browser, page } = await launch({
@@ -27,6 +28,13 @@ const { launch, step, done } = require('./_lib');
         { id: '_b1', date: dayStr, hours: 2, desc: 'draft', done: false },
         { id: '_b2', date: dayStr, hours: 2, desc: 'polish', done: false }
       ]
+    }],
+    wt_bigprojs: [{
+      id: '_bp1', name: 'Rollout', project: 'overhead', sessions: [{
+        id: '_s1', desc: 'Prep pack', date: dueStr, hours: 4, done: false, subCode: '', priority: 'med',
+        timer: 0, timerStart: null,
+        subtasks: [{ id: '_st1', desc: 'Outline', date: dayStr, hours: 1, done: false, subCode: '', priority: 'med', timer: 0, timerStart: null }]
+      }]
     }]
   });
 
@@ -121,6 +129,52 @@ const { launch, step, done } = require('./_lib');
   });
   step('done block hours frozen on save (1.9 stays 1.9, not re-rounded)', r.doneH === 1.9, r.doneH);
   step('open block still quarter-snaps on save', r.openH === 2, r.openH);
+
+  // 8. Sessions & subtasks share the lock-in: complete a subtask, then
+  //    un-tick it — the entry must retract (not double-count).
+  r = await page.evaluate(() => {
+    openSubtaskCompletionModal('_bp1', '_s1', '_st1');
+    confirmComplete(); // prefilled with the subtask's 1h
+    const st = bigProjs[0].sessions[0].subtasks[0];
+    const e = completed.find(c => c._srcRef === 'sub__bp1__s1__st1');
+    const after = { linked: !!e && st.entryId === e.id, h: e && e.actualHours };
+    openSubtaskCompletionModal('_bp1', '_s1', '_st1'); // done → un-tick path
+    const st2 = bigProjs[0].sessions[0].subtasks[0];
+    return { ...after, entriesLeft: completed.filter(c => c._srcRef === 'sub__bp1__s1__st1').length, reopened: !st2.done, entryId: st2.entryId || null };
+  });
+  step('subtask completion links entry (_srcRef/entryId) and bills 1h', r.linked && r.h === 1, r);
+  step('un-ticking the subtask retracts its entry', r.entriesLeft === 0 && r.reopened && !r.entryId, r);
+
+  // 9. Same for a session.
+  r = await page.evaluate(() => {
+    // close the open subtask first so the session completes cleanly
+    openSubtaskCompletionModal('_bp1', '_s1', '_st1');
+    confirmComplete();
+    openSessionCompletionModal('_bp1', '_s1');
+    confirmComplete();
+    const s = bigProjs[0].sessions[0];
+    const e = completed.find(c => c._srcRef === 'sess__bp1__s1');
+    const after = { done: s.done, linked: !!e && s.entryId === e.id };
+    openSessionCompletionModal('_bp1', '_s1'); // done → un-tick
+    const s2 = bigProjs[0].sessions[0];
+    return { ...after, entriesLeft: completed.filter(c => c._srcRef === 'sess__bp1__s1').length, reopened: !s2.done };
+  });
+  step('session completion links its entry', r.done && r.linked, r);
+  step('un-ticking the session retracts its entry', r.entriesLeft === 0 && r.reopened, r);
+
+  // 10. Deleting billed children is refused until un-ticked.
+  r = await page.evaluate(() => {
+    // subtask is done again (step 9 re-logged it); block _b1 is done from step 3
+    const before = bigProjs[0].sessions[0].subtasks.length;
+    deleteSubtask('_bp1', '_s1', '_st1');
+    const afterSub = bigProjs[0].sessions[0].subtasks.length;
+    const t = tasks.find(t => t.id === '_t1');
+    const beforeB = t.blocks.length;
+    deleteTaskBlock('_t1', '_b1');
+    return { subKept: afterSub === before, blockKept: tasks.find(t => t.id === '_t1').blocks.length === beforeB };
+  });
+  step('deleting a logged subtask is refused (un-tick first)', r.subKept, r.subKept);
+  step('deleting a logged block is refused (un-tick first)', r.blockKept, r.blockKept);
 
   await done(browser);
 })().catch(e => { console.error('FATAL:', e); process.exit(1); });

@@ -394,3 +394,25 @@ child rows only render for open blocks, and the block editor locks done
 rows (no delete ×).
 
 Regression coverage: `.claude/skills/verify/suite/12-block-locking.js`.
+
+### Follow-up (same pass): sessions & subtasks had the identical un-tick hole
+
+8. **Un-ticking a completed session/subtask left its ledger entry** —
+   `toggleSession`/`toggleSubtask` just flipped `done`, so the hours
+   returned to the plan while the billed entry stayed (logged + planned
+   double count; re-completing double-billed). Both now use the block
+   convention: completion stamps `_srcRef` on the entry + `entryId` on the
+   record, and un-ticking retracts the entry with an undo toast (entry-less
+   records — pre-link data, recurring occurrences — just re-open with a
+   caveat toast).
+9. **Deleting a done subtask (Projects tab ×) or done block re-grew the
+   parent's remainder** while its entry stayed billed — `_childPlannedHours`
+   sums ALL children, so removing a billed child hands its hours back to
+   the parent's plan. Both deletes now refuse on done children ("un-tick
+   first — that retracts the entry"). Deleting a whole done session/task
+   re-grows nothing and stays allowed.
+
+Checked clean: Projects-tab bulk actions only move sub-codes (no bulk
+complete bypassing the modal); done blocks never render child rows on
+My Tasks/Projects (only the locked editor rows); handoff already excludes
+done children from a deliverable's est.

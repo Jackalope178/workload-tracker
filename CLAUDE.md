@@ -88,7 +88,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 |---|---|
 | `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }`. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). Delegation fields: `delegatedTo[]` (lightweight tag — task stays here but renders on the Team tab and leaves your Capacity) and `_deliverableId` (this task IS a relay-mirror leg of that `wt_team` item). Work blocks: `blocks[]` = `{ id, date, hours, desc, done, entryId? }` — dated sessions under the task's deadline; the parent plans only the un-blocked remainder. A logged block's `wt_completed` entry carries `_blockRef` (`taskId_blockId`) and the block stores `entryId` — the linkage that lets un-ticking retract the entry (see Math invariant #8). |
 | `wt_team` | Team deliverables: `{ id, name, owner, owners[], project, subCode, due, status, waiting, notes }` + relay fields (`relay[]`, `relayStage`, `activeOwner`, `reviewTaskId`, `relayLog[]`) |
-| `wt_bigprojs` | Big projects (multi-session/subtask structures) |
+| `wt_bigprojs` | Big projects (multi-session/subtask structures). Completed sessions/subtasks carry `entryId`, and their ledger entries `_srcRef` — same un-tick-retracts-the-entry lock-in as work blocks (Math invariant #8). |
 | `wt_completed` | Archive of completed items — also the **billing ledger** (Timesheet/Allocations actuals read from here) |
 | `wt_projects_meta` | Project definitions: `{ label, color, billingCode, subCodes[], tags[] }` |
 | `wt_persons` | Team roster |
@@ -274,7 +274,12 @@ preserve:
    the PARENT completion modal from a block row was the bug that closed the
    whole task and silently cancelled sibling blocks. Closing a parent with
    open blocks is allowed but warns and toasts that their hours are
-   cancelled unbilled.
+   cancelled unbilled. **Sessions and subtasks follow the same lock-in**:
+   completion stamps `_srcRef` on the entry + `entryId` on the record,
+   un-ticking retracts the entry (undo toast), and deleting a done
+   block/subtask is refused (un-tick first) — deletion would re-grow the
+   parent's remainder while the entry stays billed. Deleting a whole done
+   session/task re-grows nothing, so it stays allowed.
 
 Known-open minor item (deliberate — see the audit's Minor section): `fmtQ`
 snaps legacy non-quarter values for display only (sums use raw values). The

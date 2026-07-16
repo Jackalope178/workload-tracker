@@ -8304,6 +8304,11 @@ function autoPlanSessionRemainder(projId, sessionId) {
 function deleteTaskBlock(taskId, blockId) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
+  // A done block is billed: deleting it would re-grow the parent's remainder
+  // while its entry stays in the ledger (double count). Un-tick first — that
+  // retracts the entry and unlocks the block.
+  const b = (task.blocks || []).find(b => b.id === blockId);
+  if (b && b.done) { showSyncToast('This block is logged — un-tick it first (that retracts its time entry), then delete.', 'warn'); return; }
   task.blocks = (task.blocks || []).filter(b => b.id !== blockId);
   save('wt_tasks', tasks);
   renderTasks(); renderProjects(); renderTimesheet(); renderCapacity();
@@ -8537,6 +8542,8 @@ function confirmComplete() {
     if (!s) return;
 
     if (ctx.type === 'session') {
+      // _srcRef/entryId link the entry to the record it closed, so un-ticking
+      // can retract it (same lock-in convention as work blocks).
       const entry = {
         id: uid(),
         name: `${proj.name}: ${s.desc || 'Session'}`,
@@ -8545,7 +8552,8 @@ function confirmComplete() {
         dateCompleted: dateCompleted,
         estHours: s.hours || 0,
         actualHours: billable,
-        category: ''
+        category: '',
+        _srcRef: 'sess_' + ctx.projId + '_' + ctx.sessionId
       };
       completed.unshift(entry);
       save('wt_completed', completed);
@@ -8560,10 +8568,10 @@ function confirmComplete() {
           s.date = nextDate;
           s.timer = 0; s.timerStart = null;
         } else {
-          s.done = true;
+          s.done = true; s.entryId = entry.id;
         }
       } else {
-        s.done = true;
+        s.done = true; s.entryId = entry.id;
       }
       save('wt_bigprojs', bigProjs);
     } else if (ctx.type === 'subtask') {
@@ -8577,7 +8585,8 @@ function confirmComplete() {
         dateCompleted: dateCompleted,
         estHours: st.hours || 0,
         actualHours: billable,
-        category: ''
+        category: '',
+        _srcRef: 'sub_' + ctx.projId + '_' + ctx.sessionId + '_' + ctx.subtaskId
       };
       completed.unshift(entry);
       save('wt_completed', completed);
@@ -8592,10 +8601,10 @@ function confirmComplete() {
           st.date = nextDate;
           st.timer = 0; st.timerStart = null;
         } else {
-          st.done = true;
+          st.done = true; st.entryId = entry.id;
         }
       } else {
-        st.done = true;
+        st.done = true; st.entryId = entry.id;
       }
       save('wt_bigprojs', bigProjs);
     }
@@ -9813,7 +9822,33 @@ function toggleSession(projId, sessionId) {
   const proj = bigProjs.find(p => p.id === projId);
   if (!proj) return;
   const s = proj.sessions.find(s => s.id === sessionId);
-  if (s) s.done = !s.done;
+  if (!s) return;
+  // Un-tick = re-open: the hours return to the plan, so the linked ledger
+  // entry must come back out (else logged + planned double count; see the
+  // work-block lock-in convention). Entry-less done items just re-open.
+  if (s.done) {
+    const entry = completed.find(c => c.id === s.entryId || c._srcRef === 'sess_' + projId + '_' + sessionId);
+    const rerender = () => { renderProjects(); renderTeam(); renderTasks(); renderTimesheet(); renderCapacity(); };
+    if (entry) {
+      const snap = JSON.parse(JSON.stringify(entry));
+      _performDelete(`Re-opened — its ${fmtQ(entry.actualHours || 0)}h entry was removed`, () => {
+        completed = completed.filter(c => c.id !== entry.id);
+        s.done = false; delete s.entryId;
+        save('wt_completed', completed); save('wt_bigprojs', bigProjs); rerender();
+      }, () => {
+        completed.unshift(snap);
+        s.done = true; s.entryId = snap.id;
+        save('wt_completed', completed); save('wt_bigprojs', bigProjs); rerender();
+      });
+    } else {
+      s.done = false;
+      save('wt_bigprojs', bigProjs);
+      showSyncToast('Re-opened — its hours are back in your plan. If its time was logged before, that Timesheet entry still stands.', 'warn');
+      rerender();
+    }
+    return;
+  }
+  s.done = true;
   save('wt_bigprojs', bigProjs);
   renderProjects();
   renderTeam();
@@ -16329,6 +16364,7 @@ const _TAB_TIPS = {
       'Click a <strong>project card</strong> to expand it and see sessions/subtasks.',
       'Use <strong>+ Add Session</strong> to create work items within a project.',
       'Sessions can have <strong>subtasks</strong>, timers, and be delegated to team members.',
+      'Un-ticking a completed item <strong>retracts its logged time entry</strong> (undo toast) so hours never count twice — and a logged subtask or block must be un-ticked before it can be deleted.',
       'Person pills mark who\'s involved: <strong>↗ Name</strong> = tagged via Assign-to (item stays yours to track), <strong>👤 rows</strong> = Team deliverables billed to this code — including items you handed off.',
       '<strong>⇄ Hand off as deliverable</strong> (work-item edit modal) moves a session or subtask to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves this project\'s planning; a handed-off subtask\'s hours also leave its parent so nothing counts twice.',
       '<strong>Hide</strong> inactive projects to keep the view clean.',
@@ -17438,7 +17474,31 @@ function toggleSubtask(projId, sessionId, subtaskId) {
   if (!s) return;
   const st = (s.subtasks || []).find(st => st.id === subtaskId);
   if (!st) return;
-  st.done = !st.done;
+  // Un-tick = re-open — retract the linked entry (work-block convention);
+  // the parent session's remainder shrinks back as the subtask re-plans.
+  if (st.done) {
+    const entry = completed.find(c => c.id === st.entryId || c._srcRef === 'sub_' + projId + '_' + sessionId + '_' + subtaskId);
+    const rerender = () => { renderProjects(); renderTasks(); renderTimesheet(); renderCapacity(); };
+    if (entry) {
+      const snap = JSON.parse(JSON.stringify(entry));
+      _performDelete(`Re-opened — its ${fmtQ(entry.actualHours || 0)}h entry was removed`, () => {
+        completed = completed.filter(c => c.id !== entry.id);
+        st.done = false; delete st.entryId;
+        save('wt_completed', completed); save('wt_bigprojs', bigProjs); rerender();
+      }, () => {
+        completed.unshift(snap);
+        st.done = true; st.entryId = snap.id;
+        save('wt_completed', completed); save('wt_bigprojs', bigProjs); rerender();
+      });
+    } else {
+      st.done = false;
+      save('wt_bigprojs', bigProjs);
+      showSyncToast('Re-opened — its hours are back in your plan. If its time was logged before, that Timesheet entry still stands.', 'warn');
+      rerender();
+    }
+    return;
+  }
+  st.done = true;
   save('wt_bigprojs', bigProjs);
   renderProjects();
   renderTasks();
@@ -17451,6 +17511,9 @@ function deleteSubtask(projId, sessionId, subtaskId) {
   if (!s) return;
   const deleted = (s.subtasks || []).find(st => st.id === subtaskId);
   if (!deleted) return;
+  // A done subtask is billed: deleting it re-grows the parent session's
+  // remainder while its entry stays in the ledger (double count).
+  if (deleted.done) { showSyncToast('This subtask is logged — un-tick it first (that retracts its time entry), then delete.', 'warn'); return; }
   const snap = JSON.parse(JSON.stringify(deleted));
   _performDelete('Subtask deleted', () => {
     s.subtasks = (s.subtasks || []).filter(st => st.id !== subtaskId);

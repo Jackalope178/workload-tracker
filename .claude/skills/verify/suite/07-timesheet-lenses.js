@@ -4,9 +4,11 @@
 const { launch, step, done } = require('./_lib');
 
 (async () => {
-  const today = new Date();
-  const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  const day = String(Math.min(today.getDate(), 28)).padStart(2, '0');
+  // The app's today() is pinned to America/New_York — compute seed dates in
+  // that zone, or a UTC-evening container lands entries in tomorrow's period.
+  const [ey, em, ed] = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }).split('-');
+  const ym = `${ey}-${em}`;
+  const day = String(Math.min(parseInt(ed, 10), 28)).padStart(2, '0');
   const { browser, page } = await launch({
     wt_tasks: [
       { id: '_p1', name: 'Planned only', project: 'overhead', subCode: '', priority: 'med',
