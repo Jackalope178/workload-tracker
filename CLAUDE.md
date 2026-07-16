@@ -184,7 +184,12 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 4. **Relay stages have no label field** and `ready-review` + `in-review`
    share one merged board column (`BOARD_COLS` in `renderTeamBoard`).
 5. **Relay → mirror sync is one-way.** Editing the mirror task never updates
-   the relay stage.
+   the relay stage. For that reason, opening a mirror for editing
+   (`openEditModal` on a task with `_deliverableId`) redirects to the
+   **deliverable** editor — stage hours/dates/assignees are edited there.
+   And the mirror's **Pass → chip renders only when a next stage exists**;
+   on the final leg the ✓ checkbox logs the hours and closes the relay
+   (all pass affordances relabel to "✓ Finish" at the end of the chain).
 6. **One billing code per deliverable.** All relay legs bill to the
    deliverable's `project`+`subCode`; stages don't carry their own code.
 7. **Month holds** (`allocMonth` set, no date) count in month totals but are

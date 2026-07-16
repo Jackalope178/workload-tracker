@@ -3665,8 +3665,8 @@ if (typeof XLSX === 'undefined') {
 <!-- RELAY PASS / LOG MODAL -->
 <div class="modal-overlay" id="relayPassModal">
   <div class="modal" style="max-width:380px;">
-    <div class="modal-title">Pass the baton</div>
-    <div style="font-size:12px;color:var(--text2);margin:6px 0 14px;">Log your time on <strong id="relayPassLeg">this leg</strong> for <strong id="relayPassName">—</strong> before it moves on.</div>
+    <div class="modal-title" id="relayPassTitle">Pass the baton</div>
+    <div style="font-size:12px;color:var(--text2);margin:6px 0 14px;">Log your time on <strong id="relayPassLeg">this leg</strong> for <strong id="relayPassName">—</strong> <span id="relayPassTail">before it moves on.</span></div>
     <div class="edit-form-grid">
       <div class="edit-form-group">
         <label class="edit-label">Hours</label>
@@ -3683,8 +3683,8 @@ if (typeof XLSX === 'undefined') {
     </div>
     <div class="modal-actions">
       <button class="btn" style="margin-right:auto;" onclick="_closeRelayPass()">Cancel</button>
-      <button class="btn" onclick="_confirmRelayPass(true)" title="Pass without logging time">Skip &amp; pass</button>
-      <button class="btn primary" onclick="_confirmRelayPass(false)">Log &amp; pass →</button>
+      <button class="btn" id="relayPassSkipBtn" onclick="_confirmRelayPass(true)" title="Continue without logging time">Skip &amp; pass</button>
+      <button class="btn primary" id="relayPassGoBtn" onclick="_confirmRelayPass(false)">Log &amp; pass →</button>
     </div>
   </div>
 </div>
@@ -7724,6 +7724,14 @@ function openTeamDueDatePicker(el, itemId) {
 let editingTaskId = null;
 
 function openEditModal(taskId) {
+  const _t0 = tasks.find(t => t.id === taskId);
+  // A baton mirror's real fields (stage hours/dates/assignees, billing code)
+  // live on the deliverable — relay→mirror sync is one-way, so edits made on
+  // the mirror would just be overwritten. Open the deliverable editor instead.
+  if (_t0 && _t0._deliverableId && typeof teamItems !== 'undefined') {
+    const d = teamItems.find(t => t.id === _t0._deliverableId);
+    if (d) { openEditTeamModal(d.id); return; }
+  }
   editingTaskId = taskId;
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
@@ -10655,8 +10663,8 @@ function teamBoardCard(item, forPerson, showProj) {
       if (isHolderView) {
         const backBtn = relayIdx(item) > 0 ? `<button class="relay-act" onclick="event.stopPropagation();relayBack('${item.id}')" title="Send back a stage">↩</button>` : '';
         const nx = item.relay[relayIdx(item) + 1];
-        const passTitle = nx ? `Pass to ${_relayWho(nx.who)}${nx.due ? ' · due ' + fmtDate(nx.due) : ''}` : 'Finish the relay';
-        relayActions = `<span style="display:inline-flex;gap:5px;">${backBtn}<button class="relay-act primary" onclick="event.stopPropagation();relayAdvance('${item.id}')" title="${escHtml(passTitle)}">Pass →</button></span>`;
+        const passTitle = nx ? `Pass to ${_relayWho(nx.who)}${nx.due ? ' · due ' + fmtDate(nx.due) : ''}` : 'Last leg — log time and close the relay';
+        relayActions = `<span style="display:inline-flex;gap:5px;">${backBtn}<button class="relay-act primary" onclick="event.stopPropagation();relayAdvance('${item.id}')" title="${escHtml(passTitle)}">${nx ? 'Pass →' : '✓ Finish'}</button></span>`;
       }
     }
   } else if (isNative && pStatus !== 'complete') {
@@ -11043,13 +11051,19 @@ function _openRelayPass(item, mode) {
   const bl = document.getElementById('relayPassBill'); if (bl) bl.value = bill;
   const hrs = document.getElementById('relayPassHours');
   if (hrs) { hrs.value = (st && Number(st.est) > 0) ? st.est : ''; hrs.placeholder = 'e.g. 0.5'; }
-  // Next link on the chain — prefill its due so you can set the deadline as you hand off.
+  // Next link on the chain — prefill its due so you can set the deadline as
+  // you hand off. No next stage = the FINAL leg: the copy must say "finish",
+  // not promise a pass that doesn't exist.
   const nx = item.relay[relayIdx(item) + 1] || null;
   const ndWrap = document.getElementById('relayPassNextWrap');
   const ndWho = document.getElementById('relayPassNextWho');
   const nd = document.getElementById('relayPassNextDue');
   if (ndWrap) ndWrap.style.display = nx ? '' : 'none';
   if (nx) { if (ndWho) ndWho.textContent = `(${_relayWho(nx.who)} · ${nx.label || RELAY_KINDS[nx.kind]?.label || ''})`; if (nd) nd.value = nx.due || ''; }
+  const ttl = document.getElementById('relayPassTitle'); if (ttl) ttl.textContent = nx ? 'Pass the baton' : 'Finish the relay';
+  const tail = document.getElementById('relayPassTail'); if (tail) tail.textContent = nx ? 'before it moves on.' : '— this is the last leg, so logging closes the relay.';
+  const sk = document.getElementById('relayPassSkipBtn'); if (sk) sk.textContent = nx ? 'Skip & pass' : 'Skip & finish';
+  const go = document.getElementById('relayPassGoBtn'); if (go) go.textContent = nx ? 'Log & pass →' : 'Log & finish ✓';
   const m = document.getElementById('relayPassModal'); if (m) m.classList.add('open');
 }
 function _confirmRelayPass(skip) {
@@ -11089,7 +11103,12 @@ function _taskRelayPassBtn(task) {
   if (!d || !_isRelay(d) || _relayDone(d)) return '';
   const cur = relayStage(d);
   if (!cur || cur.who !== 'Me') return '';
-  return `<span class="from-team-pass" onclick="event.stopPropagation();relayAdvance('${d.id}')" title="Pass this leg to the next person on the chain">Pass →</span>`;
+  // End of the line: no one to pass to — the ✓ checkbox logs the leg and
+  // closes the relay, so a Pass chip here would promise a hand-off that
+  // doesn't exist.
+  const nx = d.relay[relayIdx(d) + 1];
+  if (!nx) return '';
+  return `<span class="from-team-pass" onclick="event.stopPropagation();relayAdvance('${d.id}')" title="Pass this leg to ${escHtml(_relayWho(nx.who))}${nx.due ? ' · due ' + fmtDate(nx.due) : ''}">Pass →</span>`;
 }
 
 // ── Relay stage editor (inside the Edit Deliverable modal) ──
@@ -16434,6 +16453,7 @@ const _TAB_TIPS = {
       'Set up <strong>recurring tasks</strong> (weekly, monthly) in the edit modal.',
       '<strong>📅 Week view:</strong> hover any card and hit <strong>✓</strong> to log time on the spot. <strong>Meetings render grey</strong> with the project color only on their left edge — fixed anchors, not work you can shuffle; ◖ marks upcoming relay legs (open the deliverable to move those).',
       '<strong>⇄ Hand off as deliverable</strong> (edit modal) moves a task to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves your list and Capacity; your review leg mirrors back in when the baton reaches you. Recurring tasks can\'t move — <strong>Assign to</strong> tags them on every occurrence instead.',
+      'A <strong>↩ team</strong> task is your relay leg — clicking it opens the <strong>deliverable\'s</strong> editor, since stage hours/dates live on the relay. <strong>Pass →</strong> shows only when someone is next in the chain; on the final leg just tick ✓ — logging your time closes the relay.',
       'Use the <strong>priority filter</strong> to focus on urgent work.',
       'Drag tasks to <strong>reorder</strong> within each section.'
     ]
@@ -17675,7 +17695,7 @@ function openEditTeamModal(itemId) {
              <span>Stage <strong>${idx + 1}/${total}</strong> · ${RELAY_KINDS[cur.kind]?.icon || ''} <strong>${escHtml(info.label)}</strong></span>
              <span class="relay-cur-actions">
                ${idx > 0 ? `<button type="button" class="btn" onclick="relayBack('${item.id}');closeEditTeamModal();" title="Send back a stage">↩ Back</button>` : ''}
-               <button type="button" class="btn primary" onclick="closeEditTeamModal();relayAdvance('${item.id}');" title="Pass to the next stage">Pass →</button>
+               <button type="button" class="btn primary" onclick="closeEditTeamModal();relayAdvance('${item.id}');" title="${idx + 1 < total ? 'Pass to the next stage' : 'Last leg — log time and close the relay'}">${idx + 1 < total ? 'Pass →' : '✓ Finish'}</button>
              </span>
            </div>`;
     }
