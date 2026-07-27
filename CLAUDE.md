@@ -208,9 +208,11 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    co-owners, when the ball is elsewhere, and on the Everyone board.
 10. **Board view preferences are device-local**, never in `SYNC_KEYS` — same
    rule as `wt_focus_mode`/`wt_task_view`: `wt_team_view`,
-   `wt_team_board_person`, and `wt_team_board_sort` (🗂 project-grouped with
+   `wt_team_board_person`, `wt_team_board_sort` (🗂 project-grouped with
    headers vs 📅 nearest-due flat, where each card carries a project
-   dot + name line instead).
+   dot + name line instead), and `wt_proj_show_completed` (the Projects
+   tab's ✓ Completed toggle — hides done rows while the sub-code headers'
+   open/total counts still count everything).
 11. **A co-assigned item (delegatedTo includes `'Me'` plus others) stays on
    My Tasks and in Capacity.** Only items delegated entirely to others
    leave. Every assignment toggle (dropdown or pills) fires `_assignToast`

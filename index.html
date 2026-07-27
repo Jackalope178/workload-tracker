@@ -8839,6 +8839,14 @@ let _staleSubCodes = new Set(load('wt_stale_subcodes', [])); // "projKey|scId" e
 // Multi-select state for bulk actions in Projects tab
 const _selectedProjItems = new Set(); // Set of "type:id" strings e.g. "task:abc123"
 let _projHorizon = 'all'; // 'all' or '30d'
+// Device-local view pref (like wt_task_view) — save() won't cloud-sync it since it's not in SYNC_KEYS
+let _projShowCompleted = load('wt_proj_show_completed', true);
+
+function _toggleProjShowCompleted() {
+  _projShowCompleted = !_projShowCompleted;
+  save('wt_proj_show_completed', _projShowCompleted);
+  renderProjects();
+}
 
 function _toggleProjHorizon() {
   _projHorizon = _projHorizon === 'all' ? '30d' : 'all';
@@ -9109,6 +9117,7 @@ function renderProjCodeContent(projKey) {
         <button onclick="_setProjHorizon('all')" style="padding:3px 10px;border:none;cursor:pointer;font-size:10px;font-weight:600;${_projHorizon === 'all' ? 'background:var(--accent);color:#fff;' : 'background:var(--bg2);color:var(--text3);'}">All Tasks</button>
         <button onclick="_setProjHorizon('30d')" style="padding:3px 10px;border:none;border-left:1px solid var(--border);cursor:pointer;font-size:10px;font-weight:600;${_projHorizon === '30d' ? 'background:var(--accent);color:#fff;' : 'background:var(--bg2);color:var(--text3);'}">Next 30 Days</button>
       </div>
+      <button class="btn${_projShowCompleted ? ' primary' : ''}" onclick="_toggleProjShowCompleted()" style="font-size:11px;padding:3px 10px;" title="${_projShowCompleted ? 'Completed items are shown — click to hide them' : 'Completed items are hidden — click to show them'}">✓ Completed</button>
       <button class="btn${_projCapOpen ? ' primary' : ''}" onclick="toggleProjCap()" style="font-size:11px;padding:3px 10px;" title="Show capacity alongside the project to pick dates with headroom in view">◷ Capacity</button>
       <button class="btn" onclick="openManagePersonsModal()" style="font-size:11px;padding:3px 10px;">Manage Persons</button>
       ${subCodes.length > 0 ? `<button class="btn" onclick="openScManager('${projKey}')" style="font-size:11px;padding:3px 10px;" title="Manage sub-codes">✎ Sub-Codes</button>` : ''}
@@ -9144,10 +9153,13 @@ function renderProjCodeContent(projKey) {
 
   sections.forEach(sec => {
     const items = getItemsForSubCode(sec.scId);
+    const _isDone = i => (i._type === 'task' || i._type === 'block') ? !!i.task.completed : i._type === 'session' ? !!i.s.done : i._type === 'team' ? (i.team.status === 'complete') : !!i.st?.done;
     // Blocks are slices of their parent task — the parent already counts once
     const countable = items.filter(i => i._type !== 'block');
-    const openCount = countable.filter(i => !(i._type === 'task' ? i.task.completed : i._type === 'session' ? i.s.done : i._type === 'team' ? (i.team.status === 'complete') : i.st?.done)).length;
+    const openCount = countable.filter(i => !_isDone(i)).length;
     const totalCount = countable.length;
+    // ✓ Completed toggle hides done rows but the open/total count keeps the full picture
+    const visibleItems = _projShowCompleted ? items : items.filter(i => !_isDone(i));
     const sectionKey = projKey + '|' + sec.scId;
     const isCollapsed = collapsedSubSections.has(sectionKey);
 
@@ -9225,10 +9237,12 @@ function renderProjCodeContent(projKey) {
 
       if (!items.length) {
         html += '<div class="subcode-empty">No items yet</div>';
+      } else if (!visibleItems.length) {
+        html += `<div class="subcode-empty">All ${totalCount} item${totalCount === 1 ? '' : 's'} completed — hidden by the ✓ Completed toggle</div>`;
       } else {
         // Group by source (Big Project name or "My Tasks")
         let lastSrc = null;
-        items.forEach(item => {
+        visibleItems.forEach(item => {
           const src = (item._type === 'task' || item._type === 'team') ? null : item._src;
           if (src && src !== lastSrc) {
             html += `<div class="proj-group-label">${escHtml(src)}</div>`;
@@ -16504,6 +16518,7 @@ const _TAB_TIPS = {
       'Un-ticking a completed item <strong>retracts its logged time entry</strong> (undo toast) so hours never count twice — and a logged subtask or block must be un-ticked before it can be deleted.',
       'Person pills mark who\'s involved: <strong>↗ Name</strong> = tagged via Assign-to (item stays yours to track), <strong>👤 rows</strong> = Team deliverables billed to this code — including items you handed off.',
       '<strong>⇄ Hand off as deliverable</strong> (work-item edit modal) moves a session or subtask to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves this project\'s planning; a handed-off subtask\'s hours also leave its parent so nothing counts twice.',
+      'The <strong>✓ Completed</strong> toggle in the header hides or shows completed rows — the "open / total" counts on each sub-code header always count everything either way. The setting is per-device.',
       '<strong>Hide</strong> inactive projects to keep the view clean.',
       'Manage project codes, billing codes, and colors in <strong>Settings → Manage Projects</strong>.'
     ]
