@@ -13874,9 +13874,14 @@ function _parseMonthHeader(val) {
 // Parse billing code from "B12-345 Some Project Name" → "B12-345"
 function _parseBillingCode(jobStr) {
   if (!jobStr) return { code: '', label: '' };
-  const m = String(jobStr).trim().match(/^([A-Z]-?\d{2,3}-\d{3}[a-z]?)\s+(.*)$/i);
+  const s = String(jobStr).trim();
+  const m = s.match(/^([A-Z]-?\d{2,3}-\d{3}[a-z]?)\s+(.*)$/i);
   if (m) return { code: m[1], label: m[2].trim() };
-  return { code: '', label: String(jobStr).trim() };
+  // Bare code with no label ("T-26-051") — still a code; without this the
+  // row could never code-match a manually added project.
+  const bare = s.match(/^([A-Z]-?\d{2,3}-\d{3}[a-z]?)$/i);
+  if (bare) return { code: bare[1], label: '' };
+  return { code: '', label: s };
 }
 
 // Normalize a billing code for comparison: strip dashes, lowercase
@@ -13998,6 +14003,25 @@ function _matchProject(billingCode, jobLabel) {
     }
   }
   return null;
+}
+
+// Softer than _matchProject: for a row the matcher rejected, find the closest
+// existing project by shared label words so the import preview can point at a
+// likely merge target (e.g. a manually added project typed slightly
+// differently) instead of silently creating a duplicate.
+function _suggestProject(jobLabel) {
+  const toks = new Set(_normLabel(jobLabel).split(' ').filter(w => w && !_STOPWORDS.has(w)));
+  if (!toks.size) return null;
+  let best = null, bestScore = 0;
+  Object.entries(PROJECTS).forEach(([key, p]) => {
+    const ptoks = new Set(_normLabel(p.label).split(' ').filter(w => w && !_STOPWORDS.has(w)));
+    if (!ptoks.size) return;
+    let shared = 0;
+    toks.forEach(w => { if (ptoks.has(w)) shared++; });
+    const score = shared / Math.min(toks.size, ptoks.size);
+    if (score > bestScore) { bestScore = score; best = key; }
+  });
+  return bestScore >= 0.5 ? best : null;
 }
 
 // Pure match: find sub-code without creating, returns { scId, matchType }
@@ -15090,6 +15114,18 @@ function _aipRenderRow(row, idx) {
     ? `<span style="color:var(--text3);font-style:italic;font-size:11px;">imported: &ldquo;${_aipEsc(row.jobLabel)}&rdquo;</span>`
     : '';
 
+  // Unmatched row + a similar-looking existing project → surface the merge
+  // one click away instead of hiding it in the long dropdown (the usual case:
+  // a manually added project whose label doesn't quite match the import).
+  let suggestHtml = '';
+  if (proj.isNew && !row.userProjOverride) {
+    const sk = _suggestProject(row.jobLabel);
+    if (sk && PROJECTS[sk]) {
+      const sp = PROJECTS[sk];
+      suggestHtml = `<div style="margin-top:4px;padding-left:98px;font-size:11px;color:var(--warn);">↪ A similar project already exists: <strong>${_aipEsc(sp.label)}${sp.billingCode ? ' (' + _aipEsc(sp.billingCode) + ')' : ''}</strong> <button class="btn" onclick="_aipSetRowProj(${idx}, '${_aipEsc(sk)}')" style="font-size:10px;padding:2px 8px;margin-left:4px;">⇄ Merge into it</button></div>`;
+    }
+  }
+
   return `
     <div style="border:1px solid var(--border);border-left:3px solid ${badgeColor};border-radius:4px;padding:8px 10px;margin-bottom:6px;background:var(--bg);font-size:12px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -15099,6 +15135,7 @@ function _aipRenderRow(row, idx) {
         ${projControl}
         <span style="color:var(--text);font-weight:600;">${_aipEsc(proj.label)}${projSuffix}</span>
       </div>
+      ${suggestHtml}
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;padding-left:98px;">
         ${row.taskName ? `<span style="color:var(--text3);font-style:italic;font-size:11px;">imported task: &ldquo;${_aipEsc(row.taskName)}&rdquo;</span>` : ''}
         <span style="color:var(--text3);">→</span>
@@ -16517,7 +16554,8 @@ const _TAB_TIPS = {
       'Type in any cell to set its <strong>allocated hours</strong>; bars show logged and planned against it.',
       'Click a cell for the <strong>item breakdown</strong> and to <strong>roll unspent budget</strong> (or overspend) into next month.',
       'The <strong>Reconcile ⚖</strong> view shows one month, one row per project — committed bar vs budget tick, worst problems first.',
-      'Import from your <strong>BigTime spreadsheet</strong> — re-importing updates current and future months, preserves manual rollovers, and never touches past data.'
+      'Import from your <strong>BigTime spreadsheet</strong> — re-importing updates current and future months, preserves manual rollovers, and never touches past data.',
+      'In the import preview, every row has a <strong>⇄ merge dropdown</strong> listing all existing projects — and an unmatched row <strong>suggests a similar existing project</strong> (e.g. one you added manually) with a one-click Merge, so imports never have to create a duplicate.'
     ]
   }
 };
