@@ -3129,6 +3129,7 @@ if (typeof XLSX === 'undefined') {
       <button class="btn" id="focusModeBtn" onclick="toggleFocusMode()" title="Overdue + Today in full, urgent first — everything else parks below as one-line counts you can peek into">🎯 Focus</button>
       <button class="btn" id="taskViewToggle" onclick="toggleTaskView()" title="Switch between the task list and the week planner">📅 Week</button>
       <button class="btn primary" onclick="openAddTaskForProject('overhead','')">+ Add Task</button>
+      <button class="btn" onclick="openAddTsEntryModal()" style="background:var(--success);border-color:var(--success);color:#fff;" title="Skip the task list — log hours straight to the timesheet">Log</button>
       <button class="btn" id="clearFiltersBtn" onclick="_clearAllTaskFilters()" style="display:none;font-size:10px;padding:4px 10px;color:var(--text3);">✕ Clear filters</button>
     </div>
 
@@ -12211,6 +12212,7 @@ function saveTsEntry() {
   save('wt_completed', completed);
   closeTsEntryModal();
   renderTimesheet();
+  renderTasks();   // pay-period bar / week planner on My Tasks read wt_completed too
 }
 
 function deleteTsEntry(entryId) {
@@ -16334,7 +16336,7 @@ const _TAB_TIPS = {
   tasks: {
     title: 'My Tasks — Tips',
     tips: [
-      'Click <strong>+ Add Task</strong> (or press <strong>Shift+N</strong>) to open the full task form; plain <strong>N</strong> quick-captures straight to your Inbox.',
+      'Click <strong>+ Add Task</strong> (or press <strong>Shift+N</strong>) to open the full task form; plain <strong>N</strong> quick-captures straight to your Inbox. The green <strong>Log</strong> button skips the task list and logs hours straight to the timesheet.',
       'Click the <strong>play ▶ button</strong> to start a timer. It persists across refreshes.',
       'Click a <strong>date</strong> to open the capacity picker — every day shows its free hours, and ⚡ Next fit jumps to the first day with room before the deadline.',
       '<strong>Work date vs deadline:</strong> pick a day other than the due date and it becomes your work date — the ⚑ chip keeps the deadline (red = at risk). Capacity and allocations follow the work date.',
