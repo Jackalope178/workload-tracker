@@ -3128,67 +3128,8 @@ if (typeof XLSX === 'undefined') {
       <button class="btn" onclick="openBrainDumpModal()" style="display:none;border-color:#7c3aed;color:#a78bfa;" title="AI-powered task import from free text">⚡ Brain Dump</button>
       <button class="btn" id="focusModeBtn" onclick="toggleFocusMode()" title="Overdue + Today in full, urgent first — everything else parks below as one-line counts you can peek into">🎯 Focus</button>
       <button class="btn" id="taskViewToggle" onclick="toggleTaskView()" title="Switch between the task list and the week planner">📅 Week</button>
-      <button class="btn primary" onclick="toggleAddForm()">+ Add Task</button>
+      <button class="btn primary" onclick="openAddTaskForProject('overhead','')">+ Add Task</button>
       <button class="btn" id="clearFiltersBtn" onclick="_clearAllTaskFilters()" style="display:none;font-size:10px;padding:4px 10px;color:var(--text3);">✕ Clear filters</button>
-    </div>
-
-    <div class="add-form" id="addForm">
-      <div class="form-row">
-        <input class="form-input flex-1" type="text" id="newTaskName" placeholder="Task name">
-        <select class="form-input filter-select" id="newTaskProject" onchange="populateSubCodeSelect('newTaskSubCode', this.value)"></select>
-        <select class="form-input filter-select" id="newTaskSubCode" style="max-width:160px;"></select>
-        <select class="form-input filter-select" id="newTaskPriority">
-          <option value="meeting">Meeting</option>
-          <option value="urgent">Urgent</option>
-          <option value="high">High</option>
-          <option value="med" selected>Med</option>
-          <option value="low">Low</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <input class="form-input" type="date" id="newTaskDue">
-        <input class="form-input" type="number" id="newTaskEst" placeholder="Est hrs" step="0.25" min="0.25">
-        <input class="form-input flex-1" type="text" id="newTaskWaiting" placeholder="Waiting on (optional)">
-      </div>
-      <div class="form-row">
-        <select class="form-input" id="nrType" onchange="onNewRecurChange()" style="min-width:155px;">
-          <option value="">No repeat</option>
-          <option value="monthly">Monthly</option>
-          <option value="weekly">Weekly</option>
-          <option value="biweekly">Bi-weekly</option>
-          <option value="monthly-date">Monthly on a date</option>
-          <option value="monthly-last-day">Monthly on last day</option>
-          <option value="monthly-weekday">Monthly on a weekday</option>
-        </select>
-        <div id="nrDayWrap" style="display:none;gap:5px;flex-wrap:wrap;align-items:center;">
-          <label class="day-toggle"><input type="checkbox" name="nrDow" value="0"><span>Sun</span></label>
-          <label class="day-toggle"><input type="checkbox" name="nrDow" value="1" checked><span>Mon</span></label>
-          <label class="day-toggle"><input type="checkbox" name="nrDow" value="2"><span>Tue</span></label>
-          <label class="day-toggle"><input type="checkbox" name="nrDow" value="3"><span>Wed</span></label>
-          <label class="day-toggle"><input type="checkbox" name="nrDow" value="4"><span>Thu</span></label>
-          <label class="day-toggle"><input type="checkbox" name="nrDow" value="5"><span>Fri</span></label>
-          <label class="day-toggle"><input type="checkbox" name="nrDow" value="6"><span>Sat</span></label>
-        </div>
-        <label id="nrWeekdayAdjust" style="display:none;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:var(--text2);"><input type="checkbox" id="nrWeekdayAdjustCb" checked> Fri if weekend</label>
-        <input class="form-input" type="number" id="nrMday" min="1" max="31" placeholder="Day (1-31)" style="display:none;width:110px;">
-        <select class="form-input" id="nrWofM" style="display:none;">
-          <option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option><option value="4">4th</option><option value="-1">Last</option>
-        </select>
-        <select class="form-input" id="nrMwday" style="display:none;">
-          <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
-          <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
-        </select>
-        <span id="nrEndWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:var(--text3);">
-          <span>Ends</span>
-          <input class="form-input" type="date" id="nrEnd" style="width:130px;" title="Leave blank for never">
-        </span>
-      </div>
-      <div class="form-row">
-        <input class="form-input flex-1" type="text" id="newTaskNotes" placeholder="Notes (optional)">
-        <button class="btn primary" onclick="addTask()">Add</button>
-        <button class="btn" onclick="logTaskDirectly()" style="background:var(--success);border-color:var(--success);color:#fff;" title="Skip the task list — log these hours straight to the timesheet">Log</button>
-        <button class="btn" onclick="toggleAddForm()">Cancel</button>
-      </div>
     </div>
 
     <div id="tasksCapBar" style="margin-bottom:10px;display:none;">
@@ -3446,7 +3387,7 @@ if (typeof XLSX === 'undefined') {
 <!-- EDIT TASK MODAL -->
 <div class="modal-overlay" id="editTaskModal">
   <div class="modal">
-    <div class="modal-title">Edit Task</div>
+    <div class="modal-title" id="editTaskModalTitle">Edit Task</div>
     <div style="margin-bottom:14px;"></div>
     <div class="edit-form-grid">
       <div class="edit-form-group full">
@@ -6244,16 +6185,6 @@ function onRecurTypeChange() {
   document.getElementById('editRecurEndDateGroup').style.display      = type ? '' : 'none';
 }
 
-function onNewRecurChange() {
-  const type = document.getElementById('nrType').value;
-  document.getElementById('nrDayWrap').style.display       = (type === 'weekly' || type === 'biweekly') ? 'flex' : 'none';
-  document.getElementById('nrMday').style.display          = type === 'monthly-date' ? '' : 'none';
-  document.getElementById('nrWeekdayAdjust').style.display = (type === 'monthly-date' || type === 'monthly-last-day') ? 'flex' : 'none';
-  document.getElementById('nrWofM').style.display          = type === 'monthly-weekday' ? '' : 'none';
-  document.getElementById('nrMwday').style.display         = type === 'monthly-weekday' ? '' : 'none';
-  document.getElementById('nrEndWrap').style.display       = type ? 'flex' : 'none';
-}
-
 function fmtDate(d) {
   if (!d) return '—';
   const [y, m, day] = d.split('-');
@@ -6352,7 +6283,7 @@ function delegateTagsHtml(val) {
 }
 
 function populateProjectSelects() {
-  const ids = ['filterProject','newTaskProject','editProject','teamAddProject','projAddProject',
+  const ids = ['filterProject','editProject','teamAddProject','projAddProject',
                'teamFilterProject','tsFilterProject','editBigProjProject','editTeamProject','tsEntryProject'];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -6375,9 +6306,6 @@ function populateProjectSelects() {
       el.appendChild(opt);
     });
   });
-  // Initialize sub-code dropdowns for add/edit task forms
-  const newProjEl = document.getElementById('newTaskProject');
-  if (newProjEl) populateSubCodeSelect('newTaskSubCode', newProjEl.value);
 }
 
 // =============================================
@@ -7460,97 +7388,6 @@ function renderTasks() {
 // ADD TASK
 // =============================================
 
-function toggleAddForm() {
-  const f = document.getElementById('addForm');
-  f.classList.toggle('open');
-  if (f.classList.contains('open')) {
-    document.getElementById('newTaskDue').value = today();
-    document.getElementById('newTaskName').focus();
-  }
-}
-
-function addTask() {
-  const name = document.getElementById('newTaskName').value.trim();
-  if (!name) return _formError('newTaskName', 'Task name required.');
-  // Build recurrence from add-form fields
-  const rType = document.getElementById('nrType').value;
-  let recurrence = null;
-  if (rType) {
-    recurrence = { type: rType, endDate: document.getElementById('nrEnd').value || null };
-    if (rType === 'weekly' || rType === 'biweekly') {
-      const checked = Array.from(document.querySelectorAll('[name="nrDow"]:checked')).map(cb => +cb.value);
-      recurrence.daysOfWeek = checked.length ? checked : [1];
-    } else if (rType === 'monthly-date') {
-      recurrence.dayOfMonth = +document.getElementById('nrMday').value || 1;
-      recurrence.weekdayAdjust = document.getElementById('nrWeekdayAdjustCb').checked;
-    } else if (rType === 'monthly-last-day') {
-      recurrence.weekdayAdjust = document.getElementById('nrWeekdayAdjustCb').checked;
-    } else if (rType === 'monthly-weekday') {
-      recurrence.weekOfMonth = +document.getElementById('nrWofM').value;
-      recurrence.dayOfWeek   = +document.getElementById('nrMwday').value;
-    } else if (rType === 'monthly') {
-      recurrence.dayOfMonth = _monthlyIntentDay(null, document.getElementById('newTaskDue').value);
-    }
-  }
-
-  const task = {
-    id: uid(),
-    name,
-    project: document.getElementById('newTaskProject').value || 'overhead',
-    subCode: document.getElementById('newTaskSubCode').value || '',
-    priority: document.getElementById('newTaskPriority').value || 'med',
-    due: document.getElementById('newTaskDue').value || '',
-    est: enforceQuarter(parseFloat(document.getElementById('newTaskEst').value) || 0, 'estimate'),
-    category: '',
-    waiting: document.getElementById('newTaskWaiting').value.trim(),
-    notes: document.getElementById('newTaskNotes').value.trim(),
-    recurrence,
-    timer: 0, timerStart: null, completed: false
-  };
-  tasks.unshift(task);
-  save('wt_tasks', tasks);
-  // Reset
-  ['newTaskName','newTaskDue','newTaskEst','newTaskWaiting','newTaskNotes'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  document.getElementById('nrType').value = ''; document.getElementById('nrEnd').value = '';
-  document.querySelectorAll('[name="nrDow"]').forEach(cb => { cb.checked = cb.value === '1'; });
-  onNewRecurChange();
-  toggleAddForm();
-  renderTasks();
-}
-
-function logTaskDirectly() {
-  const name = document.getElementById('newTaskName').value.trim();
-  if (!name) return _formError('newTaskName', 'Task name required.');
-  let hours = parseFloat(document.getElementById('newTaskEst').value);
-  if (!hours || hours <= 0) return _formError('newTaskEst', 'Hours required to log.');
-  hours = Math.max(0.25, enforceQuarter(hours, 'logged time'));
-  const project = document.getElementById('newTaskProject').value || 'overhead';
-  const subCode = document.getElementById('newTaskSubCode').value || '';
-  const date = document.getElementById('newTaskDue').value || today();
-
-  completed.unshift({
-    id: uid(),
-    name, project, subCode,
-    dateCompleted: date,
-    estHours: 0, // direct log has no real estimate — don't pollute accuracy stats
-    actualHours: hours,
-    category: ''
-  });
-  save('wt_completed', completed);
-
-  ['newTaskName','newTaskDue','newTaskEst','newTaskWaiting','newTaskNotes'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  document.getElementById('nrType').value = ''; document.getElementById('nrEnd').value = '';
-  document.querySelectorAll('[name="nrDow"]').forEach(cb => { cb.checked = cb.value === '1'; });
-  onNewRecurChange();
-  toggleAddForm();
-  renderTasks();
-  renderTimesheet();
-}
-
 // =============================================
 // DUE DATE INLINE PICKER
 // =============================================
@@ -7735,6 +7572,7 @@ function openEditModal(taskId) {
   editingTaskId = taskId;
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
+  document.getElementById('editTaskModalTitle').textContent = 'Edit Task';
   document.getElementById('editName').value = task.name;
   document.getElementById('editProject').value = task.project;
   populateSubCodeSelect('editSubCode', task.project, task.subCode || '');
@@ -9799,6 +9637,7 @@ function inlineAddTask(projKey, scId) {
 function openAddTaskForProject(projKey, scId) {
   // Open edit modal in "add new" mode with project/subcode pre-set
   editingTaskId = '__new__';
+  document.getElementById('editTaskModalTitle').textContent = 'Add Task';
   _addTaskForProject = { project: projKey, subCode: scId || '' };
   document.getElementById('editName').value = '';
   document.getElementById('editProject').value = projKey;
@@ -16495,7 +16334,7 @@ const _TAB_TIPS = {
   tasks: {
     title: 'My Tasks — Tips',
     tips: [
-      'Click <strong>+ Add Task</strong> or press <strong>N</strong> to create a task.',
+      'Click <strong>+ Add Task</strong> (or press <strong>Shift+N</strong>) to open the full task form; plain <strong>N</strong> quick-captures straight to your Inbox.',
       'Click the <strong>play ▶ button</strong> to start a timer. It persists across refreshes.',
       'Click a <strong>date</strong> to open the capacity picker — every day shows its free hours, and ⚡ Next fit jumps to the first day with room before the deadline.',
       '<strong>Work date vs deadline:</strong> pick a day other than the due date and it becomes your work date — the ⚑ chip keeps the deadline (red = at risk). Capacity and allocations follow the work date.',
