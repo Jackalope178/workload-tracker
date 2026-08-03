@@ -6862,8 +6862,36 @@ function renderTasks() {
     });
   });
 
+  // FUTURE Me legs of in-flight relays — the baton hasn't reached you yet, but
+  // a dated leg holds its place on the list as a grey read-only ◖ row (click
+  // opens the deliverable; hours/dates live on the relay stage). Same rule as
+  // plannedItems' _relayFuture entries, so the list shows exactly what
+  // Capacity/allocations already count — the CURRENT Me leg is its mirror
+  // task, so each leg appears exactly once. Undated legs surface when the
+  // baton arrives.
+  teamItems.forEach(ti => {
+    if (!_isRelay(ti) || _relayDone(ti)) return;
+    if (isProjArchived(ti.project)) return;
+    if (fProj !== 'all' && (ti.project || 'overhead') !== fProj) return;
+    if (fPri !== 'all') return;      // relay legs carry no priority
+    if (fWait === 'active') return;  // a future leg is by definition waiting on others
+    if (search && !ti.name.toLowerCase().includes(search)) return;
+    const cur = relayIdx(ti);
+    ti.relay.forEach((st, i) => {
+      if (i <= cur || st.who !== 'Me') return;
+      const date = st.due || ti.due || '';
+      if (!date) return;
+      if (fDate !== 'all') {
+        const g = dateGroup(date);
+        const pass = fDate === 'today' ? g === 'today' : fDate === 'week' ? (g === 'today' || g === 'week') : fDate === 'soon' ? g === 'soon' : fDate === 'later' ? g === 'later' : true;
+        if (!pass) return;
+      }
+      allItems.push({ _type: 'relayleg', ti, st, _stageIdx: i, _date: date, _occurrenceDate: date });
+    });
+  });
+
   const priorityOrder = { meeting: -1, urgent: 0, high: 1, med: 2, low: 3 };
-  const itemPri = i => i._type === 'task' || i._type === 'block' ? (priorityOrder[i.task.priority] ?? 2) : i._type === 'session' ? (priorityOrder[i.s.priority] ?? 2) : (priorityOrder[i.st.priority] ?? 2);
+  const itemPri = i => i._type === 'task' || i._type === 'block' ? (priorityOrder[i.task.priority] ?? 2) : i._type === 'session' ? (priorityOrder[i.s.priority] ?? 2) : i._type === 'relayleg' ? 2 : (priorityOrder[i.st.priority] ?? 2);
   allItems.sort((a, b) => (a._date || 'zzz').localeCompare(b._date || 'zzz') || itemPri(a) - itemPri(b));
 
   // ── date helpers ──
@@ -7009,6 +7037,25 @@ function renderTasks() {
           <div class="timer-btn${stRunning ? ' running' : ''}" onclick="${stRunning ? `stopSubtaskTimer('${proj.id}','${s.id}','${st.id}')` : `startSubtaskTimer('${proj.id}','${s.id}','${st.id}')`}" title="${stRunning ? 'Stop' : 'Start'} timer">${stRunning ? '⏹' : '▶'}</div>
           <div class="row-del-btn" onclick="event.stopPropagation();deleteSubtask('${proj.id}','${s.id}','${st.id}')" title="Delete subtask">×</div>
         </div>`;
+    } else if (item._type === 'relayleg') {
+      const ti = item.ti, st = item.st;
+      const dc = dueCls(item._date);
+      const info = relayStatusInfo(ti, 'Me');           // holder ≠ Me → "Waiting on <who>"
+      const curSt = relayStage(ti);
+      const kindLbl = RELAY_KINDS[st.kind]?.label || 'Leg';
+      const batonLine = `${escHtml(info.label)} · ${RELAY_KINDS[curSt?.kind]?.icon || ''} ${escHtml(RELAY_KINDS[curSt?.kind]?.label || '')} in progress (stage ${relayIdx(ti) + 1}/${ti.relay.length})`;
+      row.className = 'task-row';
+      row.style.opacity = '0.55';
+      row.innerHTML = `
+        <div class="task-check" style="visibility:hidden;"></div>
+        <div class="project-dot" style="background:${escHtml(projColor(ti.project))};" title="${escHtml(projLabel(ti.project))}"></div>
+        <div class="task-name" onclick="openEditTeamModal('${ti.id}')" style="cursor:pointer;" title="Upcoming relay leg — the baton hasn't reached you yet. Hours/dates live on the relay stage; click to open the deliverable.">◖ ${kindLbl} — ${escHtml(ti.name)}<span class="task-waiting">⏳ ${batonLine}</span></div>
+        <div class="task-recur-actions"></div>
+        <span class="task-category">${escHtml(projLabel(ti.project))}</span>
+        <div style="color:var(--text3);font-size:10px;" title="Relay legs have no priority">—</div>
+        <div class="task-due ${dc}" onclick="openEditTeamModal('${ti.id}')" style="cursor:pointer;" title="This date lives on the relay stage — click to open the deliverable">${fmtDate(item._date)}</div>
+        <div class="task-est">${Number(st.est) ? fmtQ(Number(st.est)) + 'h' : '—'}</div>
+        <div></div>`;
     } else if (item._type === 'block') {
       const bt = item.task, b = item.block;
       const dc = dueCls(item._date);
@@ -7036,20 +7083,20 @@ function renderTasks() {
     sorted.sort((a, b) => {
       let va, vb;
       if (sortKey === 'priority') {
-        va = a._type === 'task' || a._type === 'block' ? (priorityOrder[a.task.priority] ?? 2) : a._type === 'session' ? (priorityOrder[a.s.priority] ?? 2) : (priorityOrder[a.st.priority] ?? 2);
-        vb = b._type === 'task' || b._type === 'block' ? (priorityOrder[b.task.priority] ?? 2) : b._type === 'session' ? (priorityOrder[b.s.priority] ?? 2) : (priorityOrder[b.st.priority] ?? 2);
+        va = a._type === 'task' || a._type === 'block' ? (priorityOrder[a.task.priority] ?? 2) : a._type === 'session' ? (priorityOrder[a.s.priority] ?? 2) : a._type === 'relayleg' ? 2 : (priorityOrder[a.st.priority] ?? 2);
+        vb = b._type === 'task' || b._type === 'block' ? (priorityOrder[b.task.priority] ?? 2) : b._type === 'session' ? (priorityOrder[b.s.priority] ?? 2) : b._type === 'relayleg' ? 2 : (priorityOrder[b.st.priority] ?? 2);
       } else if (sortKey === 'project') {
-        va = a._type === 'task' || a._type === 'block' ? (a.task.project || '') : (a.proj?.project || '');
-        vb = b._type === 'task' || b._type === 'block' ? (b.task.project || '') : (b.proj?.project || '');
+        va = a._type === 'task' || a._type === 'block' ? (a.task.project || '') : a._type === 'relayleg' ? (a.ti.project || '') : (a.proj?.project || '');
+        vb = b._type === 'task' || b._type === 'block' ? (b.task.project || '') : b._type === 'relayleg' ? (b.ti.project || '') : (b.proj?.project || '');
       } else if (sortKey === 'est') {
-        va = a._type === 'task' ? (a.task.est || 0) : a._type === 'block' ? (a.block.hours || 0) : a._type === 'session' ? (a.s.hours || 0) : (a.st.hours || 0);
-        vb = b._type === 'task' ? (b.task.est || 0) : b._type === 'block' ? (b.block.hours || 0) : b._type === 'session' ? (b.s.hours || 0) : (b.st.hours || 0);
+        va = a._type === 'task' ? (a.task.est || 0) : a._type === 'block' ? (a.block.hours || 0) : a._type === 'session' ? (a.s.hours || 0) : a._type === 'relayleg' ? (Number(a.st.est) || 0) : (a.st.hours || 0);
+        vb = b._type === 'task' ? (b.task.est || 0) : b._type === 'block' ? (b.block.hours || 0) : b._type === 'session' ? (b.s.hours || 0) : b._type === 'relayleg' ? (Number(b.st.est) || 0) : (b.st.hours || 0);
       } else if (sortKey === 'due') {
         va = a._date || 'zzz';
         vb = b._date || 'zzz';
       } else if (sortKey === 'name') {
-        va = (a._type === 'task' || a._type === 'block' ? a.task.name : a._type === 'session' ? a.s.desc : a.st.desc).toLowerCase();
-        vb = (b._type === 'task' || b._type === 'block' ? b.task.name : b._type === 'session' ? b.s.desc : b.st.desc).toLowerCase();
+        va = (a._type === 'task' || a._type === 'block' ? a.task.name : a._type === 'session' ? a.s.desc : a._type === 'relayleg' ? a.ti.name : a.st.desc).toLowerCase();
+        vb = (b._type === 'task' || b._type === 'block' ? b.task.name : b._type === 'session' ? b.s.desc : b._type === 'relayleg' ? b.ti.name : b.st.desc).toLowerCase();
       } else {
         return 0;
       }
@@ -7076,6 +7123,7 @@ function renderTasks() {
   // items contribute only their per-day share, not the whole estimate.
   function _itemEstFor(i) {
     if (i._type === 'block') return i.block.hours || 0;
+    if (i._type === 'relayleg') return Number(i.st.est) || 0;
     if (i._estShare != null) return i._estShare;
     return i._type === 'task' ? (i.task.est || 0) : i._type === 'session' ? (i.s.hours || 0) : (i.st.hours || 0);
   }
@@ -16346,6 +16394,7 @@ const _TAB_TIPS = {
       '<strong>📅 Week view:</strong> hover any card and hit <strong>✓</strong> to log time on the spot. <strong>Meetings render grey</strong> with the project color only on their left edge — fixed anchors, not work you can shuffle; ◖ marks upcoming relay legs (open the deliverable to move those).',
       '<strong>⇄ Hand off as deliverable</strong> (edit modal) moves a task to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves your list and Capacity; your review leg mirrors back in when the baton reaches you. Recurring tasks can\'t move — <strong>Assign to</strong> tags them on every occurrence instead.',
       'A <strong>↩ team</strong> task is your relay leg — clicking it opens the <strong>deliverable\'s</strong> editor, since stage hours/dates live on the relay. <strong>Pass →</strong> shows only when someone is next in the chain; on the final leg just tick ✓ — logging your time closes the relay.',
+      'Grey <strong>◖ rows</strong> are your <strong>upcoming</strong> relay legs — the baton is still with a teammate (the ⏳ badge names who and which stage is in progress). They hold their dates and hours in your day bars, Capacity, and allocations before the baton arrives; click one to open the deliverable.',
       'Use the <strong>priority filter</strong> to focus on urgent work.',
       'Drag tasks to <strong>reorder</strong> within each section.'
     ]
