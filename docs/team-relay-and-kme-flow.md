@@ -326,3 +326,24 @@ Chronological; newest last. Keeps the *why* across threads.
   relabel to **✓ Finish**; and the pass prompt becomes "Finish the relay /
   Log & finish ✓" with the last-leg explanation. The ✓ checkbox remains the
   canonical way to log-and-close the final leg (invariant #3 unchanged).
+
+- **2026-08-03 — future Me legs render in the My Tasks LIST (user report:
+  "my baton passes are not showing up in my task list … grey but clickable
+  so I know I'm waiting on other team members").** The list view previously
+  showed only the CURRENT Me leg (its mirror task); dated future legs held
+  their hours in Capacity/allocations/week planner via `_relayFuture`
+  synthetic entries but were invisible in the list. `renderTasks` now
+  gathers the same legs (stages strictly after the baton, `who === 'Me'`,
+  dated `stage.due || item.due`) as `_type: 'relayleg'` rows: grey
+  (opacity), no checkbox/timer/delete, a ⏳ badge naming who currently
+  holds the baton and which stage is in progress (via
+  `relayStatusInfo(ti,'Me')`), and click-through to the deliverable editor
+  (dates/hours live on the relay stage — same routing as mirrors). The
+  rows' stage est feeds the day-section fit bars via `_itemEstFor`, which
+  matches what `plannedItems` already counts — display parity, not a new
+  count; the exactly-once accounting of intent-log entry 31 is unchanged
+  (mirror covers the current leg, synthetic entries + these rows cover
+  future legs and retire on baton arrival). Undated legs stay invisible
+  until active, same as entry 31. Suite scenario 17 pins the row, its
+  baton line, the click routing, and the no-double-row guarantee after
+  `relayAdvance`.

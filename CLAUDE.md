@@ -177,7 +177,11 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    the baton) emit synthetic `_relayFuture` entries so committed review/send
    time holds its dates in Capacity before the baton arrives. No double
    count: those legs have no mirror yet, and as each becomes current the
-   mirror takes over and the synthetic entry retires.
+   mirror takes over and the synthetic entry retires. The My Tasks LIST
+   shows the same dated future legs as grey read-only ◖ rows (`relayleg`
+   items in `renderTasks`, naming who holds the baton; click opens the
+   deliverable editor) — display only, the hours still count via the
+   synthetic entries.
 3. **Checkbox-completing a relay mirror advances the relay with 0 extra
    hours** — the completion modal already logged them; the 0 prevents
    double-billing.
