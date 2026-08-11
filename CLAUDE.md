@@ -332,7 +332,10 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 - A `window 'online'` listener flushes pending local changes
   (`syncToCloud()`) when connectivity returns — background `cloudSave`
   failures otherwise leave the cloud stale until that key's next save.
-- Offline / signed-out mode works fully on localStorage; header shows "Offline".
+- Offline / signed-out mode works fully on localStorage; header shows "Offline"
+  AND a persistent red `#offlineBanner` under the header warns that nothing is
+  backed up (click → `backToSignIn()` → auth screen). Deliberate friction after
+  a real data-loss incident (Aug 2026) — never remove or soften it.
 - Supabase URL/key default to the baked-in project but can be overridden via
   the settings modal (`wt_supabase_config`). Conflict semantics are per-key
   last-writer-wins on client clocks — fine for a single user across devices,

@@ -3076,6 +3076,12 @@ if (typeof XLSX === 'undefined') {
   </div>
 </div>
 
+<!-- Offline warning banner: visible whenever the app runs signed-out, because
+     unsynced local-only data is one browser reset away from being lost. -->
+<div id="offlineBanner" style="display:none;background:var(--danger);color:#fff;padding:8px 16px;font-size:12px;font-weight:600;text-align:center;cursor:pointer;" onclick="backToSignIn()" title="Sign in to protect your data">
+  ⚠ Not backed up — you're working offline, so everything lives only in this browser and a reset can erase it. Click here to sign in and turn on cloud autosave.
+</div>
+
 <div class="active-timer-strip" id="activeStrip">
   <div class="active-timer-dot"></div>
   <span id="activeStripText">Timer running</span>
@@ -4700,18 +4706,29 @@ function showApp() {
 function updateAuthUI() {
   const userEl = document.getElementById('authUserDisplay');
   if (!userEl) return;
+  const banner = document.getElementById('offlineBanner');
   if (_currentUser) {
     const name = _currentUser.user_metadata?.display_name || _currentUser.email;
     userEl.textContent = name;
     userEl.title = _currentUser.email;
     document.getElementById('logoutBtn').style.display = '';
     document.getElementById('syncStatusBtn').style.display = '';
+    if (banner) banner.style.display = 'none';
   } else {
     userEl.textContent = 'Offline';
     userEl.title = 'Using localStorage only';
     document.getElementById('logoutBtn').style.display = 'none';
     document.getElementById('syncStatusBtn').style.display = 'none';
+    if (banner) banner.style.display = '';
   }
+}
+
+// Offline banner click-through: leave the app view and show the sign-in screen
+// (same screen handleLogout returns to; local data is untouched).
+function backToSignIn() {
+  document.getElementById('appWrapper').style.display = 'none';
+  document.getElementById('authScreen').style.display = '';
+  hideAuthMessages();
 }
 
 // ── Supabase Data Layer ──
