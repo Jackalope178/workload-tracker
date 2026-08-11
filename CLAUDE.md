@@ -6,7 +6,7 @@ planning — all in **one HTML file**.
 
 - **GitHub repo:** Jackalope178/workload-tracker — push all changes directly using git push. Develop on main branch unless otherwise specified.
 - **Live site:** https://jackalope178.github.io/workload-tracker/ (GitHub Pages deploys from `main` — work on unmerged branches is invisible in the app)
-- **Supabase project:** fkgmgpfbfoadgjllttjd (config baked into the app)
+- **Supabase project:** cgxqwgdtgxzegneasocx (user-owned; config baked into the app — the anon/publishable key is public by design, RLS is the boundary)
 
 **If you change only one habit:** navigate by grepping function names (there
 are ~520), not by line numbers — they drift. The grep-anchor table below maps

@@ -3,7 +3,7 @@
 A personal project-management cockpit for a PM ("KME") coordinating their own billable work, a team's deliverables, timesheets, and forward capacity planning — all in **one HTML file** (`index.html`, ~16,900 lines) with no build step, no framework, no tests, no package manager.
 
 - **Live site:** https://jackalope178.github.io/workload-tracker/ (GitHub Pages, `main` branch)
-- **Cloud sync:** Supabase project `fkgmgpfbfoadgjllttjd` (config baked into the app)
+- **Cloud sync:** Supabase project `cgxqwgdtgxzegneasocx` (user-owned; config baked into the app)
 - **Repo rule:** develop on `main` unless told otherwise; push directly.
 
 **If you change only one habit:** navigate by grepping function names (there are ~525), not by line numbers — they drift. Every subsystem below lists its grep anchors.
