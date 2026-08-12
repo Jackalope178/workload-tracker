@@ -306,6 +306,25 @@ preserve:
    block/subtask is refused (un-tick first) — deletion would re-grow the
    parent's remainder while the entry stays billed. Deleting a whole done
    session/task re-grows nothing, so it stays allowed.
+9. **Recurring anchors only move along natural occurrence dates** (Aug 2026 —
+   `docs/recurrence-audit-2026-08.md`). The stored anchor (`due`/`date`) is
+   the earliest unresolved occurrence; rewriting it to an arbitrary date
+   re-rolls the series (biweekly parity flips, stray off-pattern occurrences,
+   earlier occurrences vanish). One-off moves go in `recurrence.overrides`,
+   one-off cancels in `recurrence.skips` — both keyed by the ORIGINAL natural
+   date (occurrence rows carry it as `_occurrenceDate` in renderTasks /
+   `_occDate` in plannedItems; never pass the effective date). A missed
+   backlog resolves via `catchUpRecurrence` (⏩ — records skips, advances the
+   anchor skip-aware), and the edit modal's due prefill (next upcoming
+   occurrence) is display-only: `saveEditTask` writes it back only when the
+   user changed the field (`_editDuePrefill`). `capMoveItem`,
+   `_projCapDropAssign`, and every row date pick refuse or reroute dated
+   recurring items (task rows → `openRescheduleModal`; recurring work items
+   → toast, no per-occurrence tools yet). Exception: **recurring month
+   holds** (recurrence + `allocMonth`, no date) have no occurrence dates —
+   they never go overdue, skips/overrides don't apply, and moving one
+   re-parks the month the hold series starts (allowed). Scenario 18 enforces
+   all of this.
 
 Known-open minor item (deliberate — see the audit's Minor section): `fmtQ`
 snaps legacy non-quarter values for display only (sums use raw values). The
@@ -346,6 +365,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | If the task touches… | Start by grepping… |
 |---|---|
 | Personal tasks, recurrence, timers | `function renderTasks`, `renderWeekPlanner`, `confirmComplete`, `nextRecurrenceAfter` |
+| Per-occurrence recurrence actions (skip/move/catch-up) | `skipRecurOccurrence`, `openRescheduleModal`, `catchUpRecurrence`, `_recurMissedDates`, `_occDate` |
 | Work blocks (▣): logging, lock-in, block rows | `openBlockCompletionModal`, `_renderBlockEditor`, `_blockRef`, `blkAutoFill` |
 | ADHD ergonomics (capture/inbox, wins, focus, day-fit) | `quickCaptureAdd`, `_celebrateWin`, `_focusMode`, `_fitStatus`, `_startNextQueue` |
 | Team board, statuses, relay/hand-offs | `renderTeamBoard`, `relayStatusInfo`, `_relaySync`, `relayAdvance` |
