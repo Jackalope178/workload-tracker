@@ -347,3 +347,20 @@ Chronological; newest last. Keeps the *why* across threads.
   until active, same as entry 31. Suite scenario 17 pins the row, its
   baton line, the click routing, and the no-double-row guarantee after
   `relayAdvance`.
+
+- **2026-08-12 — the board is always a person's view; + Add Deliverable
+  defaults to them (user ask: "when i'm in a person's dashboard, make add
+  deliverable default to them. idk what the 'everyone' bucket is but it's
+  not needed").** The 👥 Everyone option left the board person picker — the
+  list view already provides the neutral all-items reading, so the neutral
+  board was a redundant third view. A stored `wt_team_board_person` of
+  `'all'` remaps to the first teammate on next render;
+  `renderTeamBoard`'s neutral branch (perspective `null` statuses, no
+  cockpit) is kept only as the empty-roster fallback, and the shared
+  neutral-perspective helpers (`relayStatusInfo(i, null)`) are untouched —
+  the list view depends on them. `openAddTeamModal` now pre-selects the
+  open board's person in the owner pills when invoked from board view
+  (guarded to real roster members; still a default, freely editable).
+  Solo-card baton de-dup (CLAUDE.md invariant #9) now simply reads: no
+  baton echo on your own solo cards — the Everyone-board caveat is gone
+  with the board. Suite scenario 06 pins both behaviors.

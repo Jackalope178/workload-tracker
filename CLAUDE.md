@@ -209,7 +209,11 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 9. **Person-board solo cards show no baton line.** On X's board, a non-relay
    card X solely owns renders "Solo" without "◖ X's turn" — the missing
    baton is deliberate de-duplication, not a bug. It still shows with
-   co-owners, when the ball is elsewhere, and on the Everyone board.
+   co-owners and when the ball is elsewhere. The board is always a
+   **person's** view (the 👥 Everyone board was retired Aug 2026 — the list
+   view is the neutral all-items reading; `renderTeamBoard`'s neutral branch
+   survives only as the empty-roster fallback), and **+ Add Deliverable from
+   a person's board pre-selects that person as owner** (editable default).
 10. **Board view preferences are device-local**, never in `SYNC_KEYS` — same
    rule as `wt_focus_mode`/`wt_task_view`: `wt_team_view`,
    `wt_team_board_person`, `wt_team_board_sort` (🗂 project-grouped with

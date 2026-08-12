@@ -10213,12 +10213,15 @@ function renderTeam() {
   if (boardSelect) {
     boardSelect.style.display = _teamViewMode === 'board' ? '' : 'none';
     const boardPeople = [...new Set([...(PERSONS || []), ...allItems.flatMap(t => t.owners || [t.owner])].filter(Boolean))].sort();
-    boardSelect.innerHTML = '<option value="all">👥 Everyone</option>';
+    // The board is always a PERSON's view (the 👥 Everyone board was retired
+    // Aug 2026 — the list view already covers the neutral all-items reading).
+    boardSelect.innerHTML = '';
     boardPeople.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = _relayWho(p); boardSelect.appendChild(o); });
-    // Default to a team member's board (not Everyone, not your own) unless explicitly picked.
+    // Default to a team member's board (not your own) unless explicitly
+    // picked; a stored 'all' from the retired Everyone board remaps too.
     let chosen;
-    if (_teamBoardPerson && (_teamBoardPerson === 'all' || boardPeople.includes(_teamBoardPerson))) chosen = _teamBoardPerson;
-    else chosen = boardPeople.find(p => p !== 'Me') || boardPeople[0] || 'all';
+    if (_teamBoardPerson && boardPeople.includes(_teamBoardPerson)) chosen = _teamBoardPerson;
+    else chosen = boardPeople.find(p => p !== 'Me') || boardPeople[0] || '';
     boardSelect.value = chosen;
     _teamBoardPerson = chosen;
   }
@@ -10448,6 +10451,8 @@ function renderTeam() {
 // When a single person is selected, columns reflect that person's per-person status
 // so completing a card moves it on their board without touching anyone else's.
 function renderTeamBoard(visible, boardPerson, container) {
+  // The neutral (non-per-person) branch survives only as the empty-roster
+  // fallback — the 👥 Everyone board left the picker Aug 2026.
   const perPerson = boardPerson && boardPerson !== 'all';
   let items, statusOf;
   if (perPerson) {
@@ -11329,7 +11334,12 @@ function getSelectedTeamOwners(containerId) {
 function openAddTeamModal() {
   populateProjectSelects();
   document.getElementById('teamAddName').value = '';
-  populateTeamOwnerPills('teamAddOwnerPills', []);
+  // From a person's board, default the new deliverable to that person —
+  // adding from someone's cockpit almost always means work for them. The
+  // pills stay editable, so it's a default, not a lock.
+  const _boardDefault = (_teamViewMode === 'board' && _teamBoardPerson && _teamBoardPerson !== 'all' && PERSONS.includes(_teamBoardPerson))
+    ? [_teamBoardPerson] : [];
+  populateTeamOwnerPills('teamAddOwnerPills', _boardDefault);
   populateSubCodeSelect('teamAddSubCode', document.getElementById('teamAddProject')?.value || '');
   document.getElementById('teamAddDue').value = '';
   document.getElementById('teamAddPriority').value = 'med';
@@ -16597,7 +16607,7 @@ const _TAB_TIPS = {
       'When a relay leg is <strong>yours (KME)</strong>, it mirrors into My Tasks, counts in Capacity, and bills once when you pass it on. A toast announces every baton arrival, and the app re-syncs all mirrors on load ("Baton sync") — completing or deleting a deliverable always retires its My Tasks leg.',
       'Delegating your own task? <strong>⇄ Hand off as deliverable</strong> in its edit modal moves it here as a relay — their work leg, then your review — and removes it from My Tasks.',
       'The board\'s <strong>Sort toggle</strong> orders each column by 🗂 <strong>Project</strong> (grouped under headers) or 📅 <strong>Due date</strong> (flat, nearest first — each card keeps its project name and color dot).',
-      'Pick a <strong>person\'s board</strong> to see their allocation meters: hours you\'ve budgeted them per billing code for the month, drained by completed work with planned overlaid. <strong>+ Allocation</strong> adds a code; click a bar to edit it. A no-sub-code bar is a <strong>catch-all</strong> for the whole project.',
+      'The board is always a <strong>person\'s board</strong> — pick who from the dropdown to see their cockpit and allocation meters: hours you\'ve budgeted them per billing code for the month, drained by completed work with planned overlaid. <strong>+ Allocation</strong> adds a code; click a bar to edit it. A no-sub-code bar is a <strong>catch-all</strong> for the whole project. <strong>+ Add Deliverable</strong> from someone\'s board pre-selects them as owner.',
       '<strong>Meetings</strong> have their own board column — tag teammates on a meeting task and it (and its hours) shows on their board.',
       'Hover a relay stage row in the editor to add a <strong>📝 note</strong> — it shows on the card in yellow while that leg is active, so "Work" can say what the work actually is.',
       'Click a deliverable to <strong>edit</strong> its stages, owner, status, and notes.',

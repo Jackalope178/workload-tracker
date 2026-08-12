@@ -64,5 +64,23 @@ const { launch, step, done } = require('./_lib');
   step('due mode: no project headers, nearest due first', r2.hdrsDue === 0 && r2.order[0].includes('Ready one'), r2.order);
   step('project mode: headers return', r2.hdrsProj > 0, r2.hdrsProj);
 
+  // Aug 2026: the board is always a person's view (no 👥 Everyone option),
+  // a stored 'all' pref remaps to a teammate, and + Add Deliverable from a
+  // person's board pre-selects that person in the owner pills.
+  const r3 = await page.evaluate(() => {
+    const opts = () => [...document.getElementById('teamBoardPerson').options].map(o => o.value);
+    const noAll = !opts().includes('all');
+    _setTeamBoardPerson('all');   // simulate the retired stored pref
+    const remapped = _teamBoardPerson;
+    _setTeamBoardPerson('Jordan K');
+    openAddTeamModal();
+    const preselected = getSelectedTeamOwners('teamAddOwnerPills');
+    closeAddTeamModal();
+    return { noAll, remapped, preselected, options: opts() };
+  });
+  step('board person picker has no Everyone option', r3.noAll, r3.options);
+  step("stored 'all' pref remaps to a real teammate", r3.remapped !== 'all' && r3.options.includes(r3.remapped), r3.remapped);
+  step("+ Add Deliverable from Jordan's board pre-selects Jordan", JSON.stringify(r3.preselected) === JSON.stringify(['Jordan K']), r3.preselected);
+
   await done(browser);
 })().catch(e => { console.error('FATAL:', e); process.exit(1); });
