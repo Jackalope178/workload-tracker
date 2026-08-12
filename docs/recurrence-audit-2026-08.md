@@ -10,6 +10,19 @@ Companion to `docs/math-audit-2026-07.md` (whose invariants #1/#2 govern the
 generator math — those all held; this audit is about the *affordance layer*
 on top of a sound engine).
 
+> **Resolution status (Aug 2026, same branch):** F1a, F2, F3, F5 (tasks),
+> and F6 are FIXED; ⏩ Catch up (recommendation 2) and honest-edit-modal
+> (recommendation 3, minus the one-off-vs-series prompt) are IMPLEMENTED.
+> Verify scenario `18-recur-occurrence-tools.js` enforces the new invariant
+> (CLAUDE.md math invariant #9: *anchors only move along natural occurrence
+> dates*). Still open, by design of the staged plan: the unified occurrence
+> menu (rec. 4), session/subtask per-occurrence tools (rec. 5 / F4 — their
+> date picks and month moves now refuse with an honest toast instead of
+> silently corrupting or no-op'ing), the one-off-vs-series question on an
+> explicit date change (still re-anchors the series, as before), and the
+> completion-flow "skip the other N missed" offer. See §6 for how the fixes
+> interact with allocation month holds.
+
 ---
 
 ## 1. How recurrence actually works (mechanics recap)
@@ -197,17 +210,44 @@ anchor advances to a natural date, skips recorded, parity preserved), and
 fold the new invariant ("anchors only ever move to natural occurrence dates;
 one-off moves are overrides") into `CLAUDE.md`.
 
-## 5. Immediate manual recovery (no code change)
+## 5. Recovery (updated for the shipped fixes)
 
-To fix a series that's already off today:
-
-- **One missed occurrence:** click ⏭ on the overdue row (My Tasks) — it
-  records the skip and advances the anchor along the *natural* schedule.
-  Never retype the date in the edit modal for this (F1b).
+- **Missed one or more occurrences:** click **⏩** on the overdue row (or
+  the ⏩ Catch up button in the edit modal's missed banner) — every missed
+  date is recorded as a skip and the series resumes on its own schedule.
+  Undoable. ⏭ still skips exactly one.
 - **Anchor already re-anchored wrong (e.g. biweekly off by a week):** open
   the edit modal and set the due date to any *correct* past-or-future
   occurrence date (the natural day-of-week/parity); the series regenerates
   from there. For plain-monthly, setting the date re-stamps the intended
-  day-of-month automatically.
+  day-of-month automatically. (An explicit date change in the modal is the
+  one remaining deliberate way to re-anchor a series.)
 - **Did the work late:** complete the overdue row and backdate the
-  completion date in the modal — then ⏭ any remaining missed occurrences.
+  completion date in the modal — then ⏩ catch up the rest.
+
+## 6. Allocation month holds — interaction analysis (Aug 2026)
+
+Checked while implementing, because holds share fields with recurrence:
+
+- **Dated recurring items ignore `allocMonth`** in every expansion
+  (`plannedItems`' date-based branch never reads it), so catch-up /
+  reschedule / skip never need to touch it. No change needed.
+- **Recurring month holds** (recurrence + `allocMonth`, no `due`) are a
+  separate expansion (`plannedItems`' hold branch): monthly emissions from
+  the start month, `skips`/`overrides` **not consulted**, and the walk
+  fast-forwards past old months — a hold can never go overdue. Therefore
+  catch-up doesn't apply (guarded on `!task.due`), and the ⏭/📅 row buttons
+  no longer render for them (previously ⏭ was a silent no-op and 📅 could
+  write a junk `overrides['']` entry — both guarded now).
+- **Moving a recurring hold stays allowed** (`capMoveItem`'s recurrence
+  guard checks for a date): the move re-parks `allocMonth`, i.e. the month
+  the hold series *starts*. That is the only month-level knob a hold series
+  has and it does not corrupt anything.
+- **A hold graduating to a dated series is preserved:** picking a date on a
+  recurring hold's row (or dragging it from the Projects capacity split)
+  still writes the anchor — that's how a hold acquires its first real
+  occurrence date. The new guards only refuse when a date already exists.
+- **Reschedule keeps `allocMonth` untouched** for dated recurring items
+  (inert per the first bullet), and `_applyWorkPick`'s hold-re-parking
+  branch is unreachable for them now that recurring rows route to the
+  occurrence reschedule.

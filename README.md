@@ -97,6 +97,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 10. **Person-board solo cards show no baton line** ("Solo" without "◖ X's turn" on X's own board), and board view preferences (`wt_team_view`, `wt_team_board_person`, `wt_team_board_sort` — project-grouped vs nearest-due flat — and the Projects tab's ✓ Completed toggle, `wt_proj_show_completed`) are device-local, never synced.
 11. **Work blocks bill exactly once and stay locked.** A logged block's ledger entry is linked to it (`_blockRef` on the entry, `entryId` on the block); un-ticking a done block retracts the entry (with undo) so hours are never logged and planned at once. Done blocks' hours are frozen on task save; a task with logged blocks refuses to become recurring. Every ▣ block row (Timesheet, Capacity drill-down, week planner, task lists) logs/moves **its block**, never the parent task; closing a parent with open blocks warns that they're cancelled unbilled. Sessions and subtasks follow the same lock-in (`_srcRef`/`entryId`): un-ticking retracts the entry, and a done block/subtask can't be deleted until it's un-ticked (deletion would re-grow the parent's remainder while the hours stay billed).
 12. **A co-assigned item (`delegatedTo` includes `'Me'` plus others) stays on My Tasks and in Capacity** — only items delegated entirely to others leave. Assignment toggles toast the outcome (`_assignToast`); the dropdown stays open for multi-select, so the toast is the primary feedback.
+13. **Recurring anchors only move along natural occurrence dates** (see [`docs/recurrence-audit-2026-08.md`](docs/recurrence-audit-2026-08.md)). One-off moves live in `recurrence.overrides`, one-off cancels in `recurrence.skips` — both keyed by the ORIGINAL occurrence date. A missed backlog resolves via **⏩ Catch up** (`catchUpRecurrence` — records skips, resumes on schedule, undoable); the edit modal's due field shows the next upcoming occurrence but writes it back only when actually changed. Month moves and drag-assigns refuse dated recurring items (task occurrence rows reroute to 📅 reschedule); recurring **month holds** (no date) are the exception — moving one re-parks the month the hold series starts.
 
 ## Sync architecture
 
@@ -111,6 +112,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 | If the task touches… | Start by grepping… |
 |---|---|
 | Personal tasks, recurrence, timers | `function renderTasks`, `renderWeekPlanner`, `confirmComplete` |
+| Per-occurrence recurrence actions (skip/move/catch-up) | `skipRecurOccurrence`, `openRescheduleModal`, `catchUpRecurrence`, `_recurMissedDates` |
 | Team board, statuses, relay/hand-offs | `renderTeamBoard`, `relayStatusInfo`, `_relaySync`, `relayAdvance` |
 | KME mirror tasks / My-Tasks ↔ Team link | `_syncBatonMirror`, `_closeBatonMirror`, `_taskRelayPassBtn`, `_deliverableId` |
 | Task/session → deliverable hand-off (delegation) | `_handoffCreateDeliverable`, `handoffTaskAsDeliverable`, `handoffSessionAsDeliverable`, `delegatedTo`, `capDelegateItem` |

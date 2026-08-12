@@ -3423,6 +3423,12 @@ if (typeof XLSX === 'undefined') {
         <label class="edit-label">Due Date</label>
         <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editDue" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editDue','editEst','Due date','editProject','editSubCode')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
       </div>
+      <div class="edit-form-group full" id="editRecurMissedRow" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--warn);border-radius:6px;background:rgba(230,160,50,0.08);">
+          <span id="editRecurMissedText" style="flex:1;font-size:11px;color:var(--text2);"></span>
+          <button type="button" class="btn" onclick="catchUpFromModal()" title="Skip all missed occurrences (recorded as skips, undoable) and resume from the next scheduled date" style="flex-shrink:0;font-size:11px;">⏩ Catch up</button>
+        </div>
+      </div>
       <div class="edit-form-group">
         <label class="edit-label">Work on <span style="font-weight:400;font-size:9px;color:var(--text3);">(optional — when you'll do it)</span></label>
         <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editWorkDate" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editWorkDate','editEst','Work date','editProject','editSubCode')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
@@ -4243,7 +4249,7 @@ if (typeof XLSX === 'undefined') {
       <p>Use <strong>+ Add Task</strong> for the full form, or just type into the <strong>⚡ Quick capture</strong> box (press <strong>N</strong>) — the thought lands in your Inbox and you fill in details when you're ready.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">⏱</span><span>Click the <strong>play button</strong> on any task to start a timer. When you complete the task, actual hours are logged to your timesheet automatically — always in <strong>quarter-hour increments</strong>.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">⚑</span><span><strong>Work date vs deadline:</strong> pick a day other than the due date to work on it — the ⚑ chip keeps the deadline in view (red = at risk), and Capacity follows the work date.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">↻</span><span>Tasks can <strong>recur</strong> weekly, biweekly, or monthly — set it up in the task edit modal. Skip or reschedule any single occurrence from its row.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">↻</span><span>Tasks can <strong>recur</strong> weekly, biweekly, or monthly — set it up in the task edit modal. Skip (⏭) or move (📅) any single occurrence from its row, and <strong>⏩ catch up</strong> an overdue series in one click — missed dates are skipped on record and the schedule resumes unchanged.</span></div>
     </div>
 
     <div class="welcome-step" data-step="3">
@@ -6614,18 +6620,18 @@ function _wkDrop(day) {
       r.b.date = day;
       if (r.t.due && day > r.t.due) showSyncToast('Block scheduled after the deadline — ⚑ flagged red.', 'warn');
     } else if (r.t.recurrence) {
-      showSyncToast('Recurring occurrence — use ⏭ skip or 📅 reschedule on its list row.', 'warn');
+      showSyncToast('Recurring occurrence — click its date (or ⏭ / 📅 on its row) to move or skip just this one.', 'warn');
       return;
     } else {
       _applyWorkPick(r.t, 'due', day);
     }
     save('wt_tasks', tasks);
   } else if (r.src === 'session') {
-    if (r.s.recurrence) { showSyncToast('Recurring occurrence — reschedule it from the Projects view.', 'warn'); return; }
+    if (r.s.recurrence) { showSyncToast('Recurring occurrence — per-occurrence moves for work items aren\'t supported yet. Edit the item from Projects to change the series.', 'warn'); return; }
     _applyWorkPick(r.s, 'date', day);
     save('wt_bigprojs', bigProjs);
   } else if (r.src === 'subtask') {
-    if (r.st.recurrence) { showSyncToast('Recurring occurrence — reschedule it from the Projects view.', 'warn'); return; }
+    if (r.st.recurrence) { showSyncToast('Recurring occurrence — per-occurrence moves for work items aren\'t supported yet. Edit the item from Projects to change the series.', 'warn'); return; }
     _applyWorkPick(r.st, 'date', day);
     save('wt_bigprojs', bigProjs);
   }
@@ -7000,10 +7006,10 @@ function renderTasks() {
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${escHtml(projColor(task.project))};" title="${escHtml(projLabel(task.project))}"></div>
         <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${task._deliverableId ? '<span class="from-team-badge" title="Your turn on a team deliverable — handed to you via the board">↩ team</span>' : ''}${_taskRelayPassBtn(task)}${delegateTagsHtml(task.delegatedTo)}${task.waiting ? `<span class="task-waiting">⏳ ${escHtml(task.waiting)}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}${spreadBadgeHtml(task, task.due)}${blocksBadgeHtml(task)}</div>
-        <div class="task-recur-actions"><button class="row-edit-btn" onclick="event.stopPropagation();showTaskAssignDropdown(event,'${task.id}')" title="Assign" style="font-size:11px;padding:2px 4px;">↗</button>${task.recurrence ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>` : ''}</div>
+        <div class="task-recur-actions"><button class="row-edit-btn" onclick="event.stopPropagation();showTaskAssignDropdown(event,'${task.id}')" title="Assign" style="font-size:11px;padding:2px 4px;">↗</button>${task.recurrence && task.due ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>${item._date && item._date < todayStr ? `<button class="row-edit-btn" onclick="event.stopPropagation();catchUpRecurrence('${task.id}')" title="Catch up — skip every missed occurrence (recorded, undoable) and resume from the next scheduled date" style="font-size:11px;padding:2px 4px;">⏩</button>` : ''}` : ''}</div>
         <span class="task-category">${escHtml(projLabel(task.project))}</span>
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
-        <div class="task-due ${dc}" onclick="openDueDatePicker(this, '${task.id}')">${fmtDate(item._date)}${deadlineChipHtml(item._deadline, task.workDate, `openTaskDeadlinePicker(this,'${task.id}')`)}</div>
+        <div class="task-due ${dc}" onclick="${task.recurrence && task.due ? `openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')` : `openDueDatePicker(this, '${task.id}')`}" ${task.recurrence && task.due ? 'title="Move just this occurrence — the rest of the series stays on schedule"' : ''}>${fmtDate(item._date)}${deadlineChipHtml(item._deadline, task.workDate, `openTaskDeadlinePicker(this,'${task.id}')`)}</div>
         <div class="task-est" onclick="event.stopPropagation();inlineEditEst(this,'task','${task.id}')" style="cursor:pointer;" title="Click to edit">${task.est ? task.est + 'h' : '—'}</div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="timer-display${isRunning ? ' running' : ''}" data-id="${task.id}">${timerStr}</span>
@@ -7493,6 +7499,12 @@ function _applyWorkClear(obj, deadlineField) {
 function openDueDatePicker(el, taskId) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
+  // A dated recurring task's row date is one OCCURRENCE — route to the
+  // occurrence reschedule (overrides map). _applyWorkPick would strand a
+  // workDate that every recurring expansion ignores (silent no-op), or worse
+  // re-anchor the series. Recurring HOLDS (allocMonth, no due) fall through
+  // on purpose: picking a date gives the hold series its anchor.
+  if (task.recurrence && task.due) { openRescheduleModal(taskId, task.due); return; }
   openCapacityDatePicker(el, {
     current: task.workDate || task.due || '',
     itemHours: task.est || 0,
@@ -7528,6 +7540,9 @@ function openSessionDatePicker(el, projId, sessionId) {
   const proj = bigProjs.find(p => p.id === projId);
   const s = proj && proj.sessions.find(s => s.id === sessionId);
   if (!s) return;
+  // Recurring work items have no per-occurrence reschedule yet — a pick here
+  // would set a workDate the recurring expansions ignore (silent no-op).
+  if (s.recurrence && s.date) { showSyncToast('Recurring series — per-occurrence moves for work items aren\'t supported yet. Edit the item to change the series schedule.', 'warn'); return; }
   openCapacityDatePicker(el, {
     current: s.workDate || s.date || '',
     itemHours: s.hours || 0,
@@ -7565,6 +7580,9 @@ function openSubtaskDatePicker(el, projId, sessionId, subtaskId) {
   const s = proj && proj.sessions.find(s => s.id === sessionId);
   const st = s && (s.subtasks || []).find(st => st.id === subtaskId);
   if (!st) return;
+  // Same guard as openSessionDatePicker — recurring work items have no
+  // per-occurrence reschedule, and workDate is ignored by their expansions.
+  if (st.recurrence && st.date) { showSyncToast('Recurring series — per-occurrence moves for work items aren\'t supported yet. Edit the item to change the series schedule.', 'warn'); return; }
   openCapacityDatePicker(el, {
     current: st.workDate || st.date || '',
     itemHours: st.hours || 0,
@@ -7625,6 +7643,11 @@ function openTeamDueDatePicker(el, itemId) {
 // =============================================
 
 let editingTaskId = null;
+// What openEditModal put in the due field (the NEXT UPCOMING occurrence for
+// recurring tasks — display, not the stored anchor). saveEditTask writes the
+// field back only when the user changed it, so saving an unrelated edit can't
+// silently re-anchor past missed occurrences.
+let _editDuePrefill = null;
 
 function openEditModal(taskId) {
   const _t0 = tasks.find(t => t.id === taskId);
@@ -7643,8 +7666,11 @@ function openEditModal(taskId) {
   document.getElementById('editProject').value = task.project;
   populateSubCodeSelect('editSubCode', task.project, task.subCode || '');
   document.getElementById('editPriority').value = task.priority;
-  // For recurring tasks, show the next upcoming occurrence instead of the stale seed date
-  document.getElementById('editDue').value = _nextUpcomingRecurrence(task);
+  // For recurring tasks, show the next upcoming occurrence instead of the
+  // stale seed date. Display only — see _editDuePrefill / saveEditTask.
+  _editDuePrefill = _nextUpcomingRecurrence(task);
+  document.getElementById('editDue').value = _editDuePrefill;
+  _syncEditRecurMissedRow(task);
   document.getElementById('editWorkDate').value = task.workDate || '';
   document.getElementById('editWorkSpread').checked = !!task.workSpread;
   _blockDraft = (task.blocks || []).map(b => ({ ...b }));
@@ -7673,6 +7699,29 @@ function openEditModal(taskId) {
   _syncEditTaskTimerRow(task);
   document.getElementById('editDeleteBtn').style.display = '';
   document.getElementById('editTaskModal').classList.add('open');
+}
+
+// Missed-backlog banner in the task edit modal: names how many occurrences
+// slipped past un-actioned and offers ⏩ catch-up, instead of the old silent
+// re-anchor on save (which discarded them with no record).
+function _syncEditRecurMissedRow(task) {
+  const row = document.getElementById('editRecurMissedRow');
+  if (!row) return;
+  const missed = task ? _recurMissedDates(task) : [];
+  if (!missed.length) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  document.getElementById('editRecurMissedText').innerHTML =
+    `<strong>${missed.length} missed occurrence${missed.length > 1 ? 's' : ''}</strong> since ${fmtDate(missed[0])} — saving leaves them overdue. ⏩ skips them and resumes on schedule.`;
+}
+
+function catchUpFromModal() {
+  if (!editingTaskId || editingTaskId === '__new__') return;
+  catchUpRecurrence(editingTaskId);
+  const task = tasks.find(t => t.id === editingTaskId);
+  if (!task) return;
+  _editDuePrefill = _nextUpcomingRecurrence(task);
+  document.getElementById('editDue').value = _editDuePrefill;
+  _syncEditRecurMissedRow(task);
 }
 
 function _syncEditTaskTimerRow(task) {
@@ -7800,7 +7849,13 @@ function saveEditTask() {
   task.project  = document.getElementById('editProject').value;
   task.subCode  = document.getElementById('editSubCode').value;
   task.priority = document.getElementById('editPriority').value;
-  task.due      = document.getElementById('editDue').value;
+  // Recurring tasks: the due field was prefilled with the next UPCOMING
+  // occurrence (display), not the stored anchor — write it back only if the
+  // user changed it. Silently absorbing the prefill was the old behavior and
+  // it discarded missed occurrences as a side effect of saving ANY edit;
+  // resolving them is now explicit (⏩ catch up / ⏭ skip / complete).
+  const _dueVal = document.getElementById('editDue').value;
+  if (isNew || !task.recurrence || _dueVal !== _editDuePrefill) task.due = _dueVal;
   task.workDate = task.recurrence || document.getElementById('editRecurType').value
     ? null : (document.getElementById('editWorkDate').value || null);
   task.workSpread = !!document.getElementById('editWorkSpread').checked;
@@ -7930,7 +7985,64 @@ function skipRecurOccurrence(taskId, occurrenceDate) {
   task.recurrence.skips = [...(task.recurrence.skips || []), orig];
   if (orig === task.due) task.due = nextActiveRecurrenceAfter(task, orig) || orig;
   save('wt_tasks', tasks);
-  renderTasks(); renderTimesheet();
+  renderTasks(); renderTimesheet(); renderCapacity();
+}
+
+// The natural occurrence dates of `task` that are effectively in the past and
+// unresolved: not skipped, and not rescheduled (override) to today-or-later.
+// Walks from the anchor, so it's exactly the backlog ⏩ catch-up would clear.
+function _recurMissedDates(task) {
+  if (!task || !task.recurrence || !task.due) return [];
+  const todayStr = today();
+  const skips = task.recurrence.skips || [];
+  const overrides = task.recurrence.overrides || {};
+  const endDate = task.recurrence.endDate || null;
+  const missed = [];
+  let cursor = task.due, guard = 0;
+  while (cursor && guard++ < 2000) {
+    if (endDate && cursor > endDate) break;
+    const eff = overrides[cursor] || cursor;
+    if (skips.includes(cursor)) { /* already resolved */ }
+    else if (eff < todayStr) missed.push(cursor);
+    else break;
+    cursor = nextRecurrenceAfter(task, cursor);
+  }
+  return missed;
+}
+
+// ⏩ Catch up: resolve every missed occurrence of an overdue recurring task by
+// recording them as skips (an audit trail — never a silent re-anchor) and
+// advance the anchor to the first occurrence whose EFFECTIVE date is today or
+// later. The anchor only ever lands on a natural occurrence date, so weekly/
+// biweekly parity and monthly day-of-month intent can't drift. Month holds
+// (recurrence + allocMonth, no due) never go overdue and aren't eligible.
+// Undoable via the shared recur-undo stack.
+function catchUpRecurrence(taskId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task || !task.recurrence || !task.due) return;
+  const overrides = task.recurrence.overrides || {};
+  const missed = _recurMissedDates(task);
+  if (!missed.length) {
+    showSyncToast('Already caught up — next occurrence ' + fmtDate(overrides[task.due] || task.due) + '.', 'success');
+    return;
+  }
+  // New anchor = first natural date past the missed backlog (skip-aware).
+  // If the walk stopped at a live occurrence it's exactly that date; deriving
+  // it from the last missed date also covers the walk-exhausted case cleanly.
+  const anchor = nextActiveRecurrenceAfter(task, missed[missed.length - 1]);
+  if (!anchor || (task.recurrence.endDate && anchor > task.recurrence.endDate)) {
+    showSyncToast('The series has ended — no upcoming occurrence. Complete or delete the task.', 'warn');
+    return;
+  }
+  pushRecurUndo(`Caught up — skipped ${missed.length} missed occurrence${missed.length > 1 ? 's' : ''}`, taskId, task.due, task.recurrence);
+  task.recurrence.skips = [...(task.recurrence.skips || []), ...missed];
+  // Overrides for the now-skipped dates are dead (skips win in expansion) —
+  // drop them so a future natural occurrence can't collide with the stale key.
+  if (task.recurrence.overrides) missed.forEach(d => delete task.recurrence.overrides[d]);
+  task.due = anchor;
+  save('wt_tasks', tasks);
+  renderTasks(); renderTimesheet(); renderCapacity(); updateHeaderMeta();
+  showSyncToast(`⏩ Skipped ${missed.length} missed — next: ${fmtDate((task.recurrence.overrides || {})[anchor] || anchor)}`, 'success');
 }
 
 // reschedule modal state
@@ -7938,7 +8050,9 @@ let _rescheduleTaskId = null, _rescheduleOccDate = null;
 
 function openRescheduleModal(taskId, occurrenceDate) {
   const task = tasks.find(t => t.id === taskId);
-  if (!task || !task.recurrence) return;
+  // Month holds (no due) have no occurrence dates to key overrides by — their
+  // month moves via Capacity Move / the date pick that anchors the series.
+  if (!task || !task.recurrence || !task.due) return;
   _rescheduleTaskId  = taskId;
   _rescheduleOccDate = occurrenceDate || task.due;
   document.getElementById('rescheduleInput').value = _rescheduleOccDate;
@@ -7964,7 +8078,7 @@ function confirmReschedule() {
   if (orig === task.due) task.due = nextActiveRecurrenceAfter(task, orig) || orig;
   save('wt_tasks', tasks);
   closeRescheduleModal();
-  renderTasks(); renderTimesheet();
+  renderTasks(); renderTimesheet(); renderCapacity();
 }
 
 function deleteEditTask() {
@@ -8076,7 +8190,9 @@ function _confirmDeleteRecur(choice) {
     const occ = occurrenceDate || task.due;
     pushRecurUndo(`Skipped occurrence on ${occ}`, taskId, task.due, task.recurrence);
     task.recurrence.skips = [...(task.recurrence.skips || []), occ];
-    if (occ === task.due) task.due = nextRecurrenceAfter(task, occ) || occ;
+    // Skip-aware advance (like skipRecurOccurrence) — the plain step could
+    // park the anchor on an already-skipped date.
+    if (occ === task.due) task.due = nextActiveRecurrenceAfter(task, occ) || occ;
     save('wt_tasks', tasks); renderTasks(); renderProjects(); updateHeaderMeta();
   }
 }
@@ -8875,9 +8991,20 @@ function _projCapDropAssign(dateStr) {
   // _capAssignOne owns the work-date/deadline semantics (live deadline kept,
   // pick becomes the work date; dead deadline replaced; workDate + allocMonth
   // kept consistent) — writing due/date directly here left stale workDates.
+  // Dated recurring items never day-assign — _capAssignOne rewrites the series
+  // anchor (or strands a workDate the recurring expansions ignore). Recurring
+  // HOLDS (no date yet) fall through: the drop gives the series its anchor.
+  const _recurBlocked = (obj, dateField) => {
+    if (obj.recurrence && obj[dateField]) {
+      showSyncToast('Recurring occurrence — use 📅 reschedule / ⏭ skip on its row instead of dragging.', 'warn');
+      return true;
+    }
+    return false;
+  };
   if (d.type === 'task') {
     const t = tasks.find(t => t.id === d.id);
     if (!t) return;
+    if (_recurBlocked(t, 'due')) return;
     _capAssignOne(t, 'due', dateStr);
     save('wt_tasks', tasks);
     name = t.name;
@@ -8885,6 +9012,7 @@ function _projCapDropAssign(dateStr) {
     const bp = bigProjs.find(p => p.id === d.projId);
     const s = bp && bp.sessions.find(s => s.id === d.id);
     if (!s) return;
+    if (_recurBlocked(s, 'date')) return;
     _capAssignOne(s, 'date', dateStr);
     save('wt_bigprojs', bigProjs);
     name = s.desc;
@@ -8893,6 +9021,7 @@ function _projCapDropAssign(dateStr) {
     const s = bp && bp.sessions.find(s => s.id === d.sessionId);
     const st = s && (s.subtasks || []).find(st => st.id === d.id);
     if (!st) return;
+    if (_recurBlocked(st, 'date')) return;
     _capAssignOne(st, 'date', dateStr);
     save('wt_bigprojs', bigProjs);
     name = st.desc;
@@ -9710,6 +9839,8 @@ function openAddTaskForProject(projKey, scId) {
   populateSubCodeSelect('editSubCode', projKey, scId || '');
   document.getElementById('editPriority').value = 'med';
   document.getElementById('editDue').value = '';
+  _editDuePrefill = null;
+  _syncEditRecurMissedRow(null);
   document.getElementById('editWorkDate').value = '';
   document.getElementById('editWorkSpread').checked = false;
   _blockDraft = [];
@@ -11438,7 +11569,7 @@ function plannedItems(fromDate, toDate) {
         const recurEnd  = t.recurrence.endDate || null;
         const skips     = t.recurrence.skips    || [];
         const overrides = t.recurrence.overrides || {};
-        const mkOcc = (orig, date) => ({ id: t.id + '_' + orig, name: t.name, project: t.project, date, hours: t.est || 0, subCode: t.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _src: 'task' });
+        const mkOcc = (orig, date) => ({ id: t.id + '_' + orig, name: t.name, project: t.project, date, hours: t.est || 0, subCode: t.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _occDate: orig, _src: 'task' });
         let d = t.due; let iters = 0;
         while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(t, d);
         iters = 0;
@@ -11497,7 +11628,7 @@ function plannedItems(fromDate, toDate) {
           const recurEnd = s.recurrence.endDate || null;
           const skips = s.recurrence.skips || [];
           const overrides = s.recurrence.overrides || {};
-          const mkOcc = (orig, date) => ({ id: s.id + '_' + orig, name: s.desc, project: proj.project, date, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _src: 'session', _projId: proj.id });
+          const mkOcc = (orig, date) => ({ id: s.id + '_' + orig, name: s.desc, project: proj.project, date, hours: s.hours || 0, subCode: s.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _occDate: orig, _src: 'session', _projId: proj.id });
           let d = s.date; let iters = 0;
           while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(s, d);
           iters = 0;
@@ -11544,7 +11675,7 @@ function plannedItems(fromDate, toDate) {
             const recurEnd = st.recurrence.endDate || null;
             const skips = st.recurrence.skips || [];
             const overrides = st.recurrence.overrides || {};
-            const mkOcc = (orig, date) => ({ id: st.id + '_' + orig, name: st.desc, project: proj.project, date, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _src: 'subtask', _projId: proj.id, _sessionId: s.id });
+            const mkOcc = (orig, date) => ({ id: st.id + '_' + orig, name: st.desc, project: proj.project, date, hours: st.hours || 0, subCode: st.subCode || '', _planned: true, _recur: true, _overridden: !!overrides[orig], _occDate: orig, _src: 'subtask', _projId: proj.id, _sessionId: s.id });
             let d = st.date; let iters = 0;
             while (d && d < fromDate && iters++ < 2000) d = nextRecurrenceAfter(st, d);
             iters = 0;
@@ -11935,9 +12066,12 @@ function renderWeekEntriesInline(container, wStart, wEnd, allEntries, wPlanned) 
       else if (item._src === 'subtask') doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${item.id}')`;
       // Recurrence actions (skip / reschedule)
       let recurActions = '';
-      if (item._recur && item._src === 'task' && taskObj) {
-        recurActions = `<span onclick="event.stopPropagation();skipRecurOccurrence('${taskObj.id}','${item.date}')" title="Skip this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">⊘</span>
-          <span onclick="event.stopPropagation();openRescheduleModal('${taskObj.id}','${item.date}')" title="Reschedule this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">📅</span>`;
+      if (item._recur && item._src === 'task' && taskObj && !item._allocHold) {
+        // skips/overrides are keyed by the ORIGINAL occurrence date — passing
+        // the effective (post-override) item.date silently broke skip/move on
+        // an already-rescheduled occurrence.
+        recurActions = `<span onclick="event.stopPropagation();skipRecurOccurrence('${taskObj.id}','${item._occDate || item.date}')" title="Skip this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">⊘</span>
+          <span onclick="event.stopPropagation();openRescheduleModal('${taskObj.id}','${item._occDate || item.date}')" title="Reschedule this occurrence" style="cursor:pointer;font-size:12px;opacity:0.6;padding:0 2px;">📅</span>`;
       }
       row.innerHTML = `
         <span class="ts-entry-code" title="${escHtml(projLabel(item.project))}">${escHtml(parentCode)}</span>
@@ -13362,7 +13496,7 @@ function _renderCapItemList(container, projKey, ym, data) {
     // Render items under this sub-code
     const sorted = [...items].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     sorted.forEach(item => {
-      let editFn = '', delegateFn = '', moveFn = '', doneFn = '';
+      let editFn = '', delegateFn = '', moveFn = '', doneFn = '', skipFn = '';
       if (item._src === 'task') {
         const taskObj = tasks.find(t => t.id === item.id || (item.id || '').startsWith(t.id + '_'));
         if (taskObj) {
@@ -13377,7 +13511,13 @@ function _renderCapItemList(container, projKey, ym, data) {
             moveFn = `capMoveItem('block','${taskObj.id}','${bId}')`;
           } else {
             delegateFn = `capDelegateItem(event,'task','${taskObj.id}')`;
-            moveFn = `capMoveItem('task','${taskObj.id}')`;
+            // A dated recurring occurrence row moves THAT occurrence
+            // (overrides) — capMoveItem would re-anchor the whole series.
+            // Hold rows (incl. recurring holds) keep the month move.
+            moveFn = (item._recur && !item._allocHold)
+              ? `openRescheduleModal('${taskObj.id}','${item._occDate || item.date}')`
+              : `capMoveItem('task','${taskObj.id}')`;
+            if (item._recur && !item._allocHold) skipFn = `skipRecurOccurrence('${taskObj.id}','${item._occDate || item.date}')`;
             doneFn = `openCompletionModal('${taskObj.id}')`;
           }
         }
@@ -13385,13 +13525,15 @@ function _renderCapItemList(container, projKey, ym, data) {
         const srcId = _capResolveId(item.id, item._projId, 'session');
         editFn = `openEditSessionModal('${item._projId}','${srcId}')`;
         delegateFn = `capDelegateItem(event,'session','${item._projId}','${srcId}')`;
-        moveFn = `capMoveItem('session','${item._projId}','${srcId}')`;
+        // No per-occurrence reschedule for work items yet — hide Move on
+        // dated recurring occurrence rows rather than re-anchor the series.
+        if (!item._recur || item._allocHold) moveFn = `capMoveItem('session','${item._projId}','${srcId}')`;
         doneFn = `openSessionCompletionModal('${item._projId}','${srcId}')`;
       } else if (item._src === 'subtask' && item._projId) {
         const srcId = _capResolveId(item.id, item._projId, 'subtask', item._sessionId);
         editFn = `openEditSubtaskModal('${item._projId}','${item._sessionId}','${srcId}')`;
         delegateFn = `capDelegateItem(event,'subtask','${item._projId}','${item._sessionId}','${srcId}')`;
-        moveFn = `capMoveItem('subtask','${item._projId}','${item._sessionId}','${srcId}')`;
+        if (!item._recur || item._allocHold) moveFn = `capMoveItem('subtask','${item._projId}','${item._sessionId}','${srcId}')`;
         doneFn = `openSubtaskCompletionModal('${item._projId}','${item._sessionId}','${srcId}')`;
       } else if (item._relayFuture && item._teamId) {
         // Upcoming relay leg — its date/est live on the relay stage, so the
@@ -13410,7 +13552,8 @@ function _renderCapItemList(container, projKey, ym, data) {
         <span class="cap-item-actions">
           ${doneFn ? `<button class="btn primary" onclick="event.stopPropagation();${doneFn}" title="Log time / Mark complete" style="background:var(--success);border-color:var(--success);">✓ Done</button>` : ''}
           ${editFn ? `<button class="btn" onclick="event.stopPropagation();${editFn}" title="Edit">Edit</button>` : ''}
-          ${moveFn ? `<button class="btn" onclick="event.stopPropagation();${moveFn}" title="Move to another month">Move</button>` : ''}
+          ${skipFn ? `<button class="btn" onclick="event.stopPropagation();${skipFn}" title="Skip just this occurrence">⏭ Skip</button>` : ''}
+          ${moveFn ? `<button class="btn" onclick="event.stopPropagation();${moveFn}" title="${item._recur && !item._allocHold ? 'Move just this occurrence — the series stays on schedule' : 'Move to another month'}">Move</button>` : ''}
           ${delegateFn ? `<button class="btn" onclick="event.stopPropagation();${delegateFn}" title="Delegate to free capacity">Delegate</button>` : ''}
         </span>
       `;
@@ -13442,6 +13585,22 @@ function _capResolveId(itemId, projId, type, sessionId) {
 // ── Capacity tab inline actions ──
 
 function capMoveItem(type, ...ids) {
+  // Dated recurring items never month-move: rewriting the anchor re-rolls the
+  // whole series (biweekly parity flips, stray off-pattern occurrences, every
+  // earlier occurrence vanishes). One occurrence moves via 📅 reschedule /
+  // ⏭ skip / ⏩ catch up. Recurring HOLDS (recurrence + allocMonth, no date)
+  // are fine to move — that re-parks the month the hold series starts.
+  let _mvTarget = null;
+  if (type === 'task') _mvTarget = tasks.find(t => t.id === ids[0]);
+  else if (type === 'session' || type === 'subtask') {
+    const p = bigProjs.find(p => p.id === ids[0]);
+    const s = p && p.sessions.find(s => s.id === ids[1]);
+    _mvTarget = type === 'session' ? s : s && (s.subtasks || []).find(st => st.id === ids[2]);
+  }
+  if (_mvTarget && _mvTarget.recurrence && (type === 'task' ? _mvTarget.due : _mvTarget.date)) {
+    showSyncToast('Recurring series — Move would re-anchor every occurrence. Use 📅 reschedule or ⏭ skip on the occurrence instead.', 'warn');
+    return;
+  }
   const newMonth = prompt('Move to which month? (YYYY-MM)', '');
   if (!newMonth || !/^\d{4}-\d{2}$/.test(newMonth)) return;
 
@@ -16407,7 +16566,7 @@ const _TAB_TIPS = {
       '<strong>Work date vs deadline:</strong> pick a day other than the due date and it becomes your work date — the ⚑ chip keeps the deadline (red = at risk). Capacity and allocations follow the work date.',
       '<strong>⇶ Spread</strong> (in the edit modal) splits a big task\'s hours evenly across weekdays from work date to deadline.',
       '<strong>▣ Work blocks</strong> (edit modal) break a big task into dated sessions under one deadline — ⚡ Auto-fill packs the remaining hours into days with free capacity. Tick a block to log its time; the parent counts only the un-blocked remainder. <strong>0h always means "bill nothing"</strong>: log a block at 0h to cancel it, and close the task itself at 0h to keep everything the blocks logged without billing another minute. Un-ticking a logged block re-opens it <strong>and pulls its time entry back out</strong> (undo toast if that wasn\'t intended), so hours are never counted twice.',
-      'Set up <strong>recurring tasks</strong> (weekly, monthly) in the edit modal.',
+      'Set up <strong>recurring tasks</strong> (weekly, monthly) in the edit modal. Each row is one occurrence: click its <strong>date</strong> (or 📅) to move just that one — the series stays on schedule — and <strong>⏭</strong> to skip it. Missed a few? <strong>⏩ Catch up</strong> on an overdue row (or in the edit modal) skips everything missed and resumes from the next date — recorded and undoable, never a silent reset.',
       '<strong>📅 Week view:</strong> hover any card and hit <strong>✓</strong> to log time on the spot. <strong>Meetings render grey</strong> with the project color only on their left edge — fixed anchors, not work you can shuffle; ◖ marks upcoming relay legs (open the deliverable to move those).',
       '<strong>⇄ Hand off as deliverable</strong> (edit modal) moves a task to Team Deliverables with a ready-made relay — their work leg, then your review. It leaves your list and Capacity; your review leg mirrors back in when the baton reaches you. Recurring tasks can\'t move — <strong>Assign to</strong> tags them on every occurrence instead.',
       'A <strong>↩ team</strong> task is your relay leg — clicking it opens the <strong>deliverable\'s</strong> editor, since stage hours/dates live on the relay. <strong>Pass →</strong> shows only when someone is next in the chain; on the final leg just tick ✓ — logging your time closes the relay.',
@@ -16462,7 +16621,7 @@ const _TAB_TIPS = {
     title: 'Capacity — Tips',
     tips: [
       'Each month bar = <strong>logged + planned vs weekdays × h/day</strong> — your personal headroom, with all recurrences expanded.',
-      'Expand a month → <strong>projects → sub-codes → items</strong>, each with Done / Edit / Move / Delegate actions. On a <strong>▣ block row</strong>, ✓ Done and Move act on that block alone — the parent task (and its other blocks) stay put; Delegate lives on the parent\'s row.',
+      'Expand a month → <strong>projects → sub-codes → items</strong>, each with Done / Edit / Move / Delegate actions. On a <strong>▣ block row</strong>, ✓ Done and Move act on that block alone — the parent task (and its other blocks) stay put; Delegate lives on the parent\'s row. On a <strong>↻ recurring row</strong>, Move and ⏭ Skip act on that occurrence only — the series never re-anchors; ◇ month holds still move whole months.',
       '<strong>◷ Schedule work</strong> opens the board: select overdue, held, or undated items and click a day to place them — or <strong>Park</strong> them in a month to decide later.',
       '<strong>⚖ Rebalance</strong> on an over-booked day moves the lowest-priority movable item to the next day with room, never past its deadline.',
       'Items sit on their <strong>work date</strong> when one is set (deadline otherwise) — moving work keeps the deadline flag ⚑ honest.',
