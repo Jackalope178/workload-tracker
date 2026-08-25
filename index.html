@@ -15660,20 +15660,33 @@ function _tsaParseDate(val) {
   return null;
 }
 
-// Header auto-detection. Every column is also user-overridable in the preview,
-// so a sheet this misses is remappable rather than rejected.
+// Header auto-detection, calibrated against a real BigTime "Timesheet Detail"
+// export (Project · Staff Member · Category · Date · Input · N/C · Notes) as
+// well as the generic shapes. `staff` and `nonCharge` are optional columns that
+// drive the preview's filters rather than the comparison itself.
 function _tsaDetectColumns(header) {
-  const cols = { date: -1, job: -1, task: -1, hours: -1, notes: -1 };
+  const cols = { date: -1, job: -1, task: -1, hours: -1, notes: -1, staff: -1, nonCharge: -1 };
   (header || []).forEach((val, idx) => {
     const s = String(val == null ? '' : val).trim();
     if (!s) return;
     if (cols.date === -1 && /^(date|day|work\s*date|entry\s*date|date\s*worked)$/i.test(s)) cols.date = idx;
     else if (cols.job === -1 && /^(job|project|client|job\s*name|job\s*code|engagement)$/i.test(s)) cols.job = idx;
-    else if (cols.task === -1 && /^(task(\s*name)?|activity|sub-?code|budget\s*category)$/i.test(s)) cols.task = idx;
-    else if (cols.hours === -1 && /^(hours?|hrs?\.?|time|duration|actual(\s*hours?)?|input\s*hours?|hours?\s*worked)$/i.test(s)) cols.hours = idx;
+    else if (cols.task === -1 && /^(task(\s*name)?|activity|sub-?code|category|budget\s*category)$/i.test(s)) cols.task = idx;
+    // "Input" is BigTime's hours column. Checked before the generic patterns so
+    // a sheet carrying both "Input" and "Input Hours" still lands on one column.
+    else if (cols.hours === -1 && /^(input|hours?|hrs?\.?|time|duration|actual(\s*hours?)?|input\s*hours?|hours?\s*worked|qty|quantity)$/i.test(s)) cols.hours = idx;
     else if (cols.notes === -1 && /^(notes?|description|memo|comments?|details|narrative)$/i.test(s)) cols.notes = idx;
+    else if (cols.staff === -1 && /^(staff(\s*member)?|employee|person|user|worker|resource|team\s*member)$/i.test(s)) cols.staff = idx;
+    // Only the non-chargeable family — never "Billable", whose sense is inverted.
+    else if (cols.nonCharge === -1 && /^(n\/?c|non-?chargeable|no\s*charge|non-?billable)$/i.test(s)) cols.nonCharge = idx;
   });
   return cols;
+}
+
+// A spreadsheet footer ("OVERALL TOTALS", "Grand Total") is not a broken row —
+// skip it silently rather than reporting it as an unreadable date.
+function _tsaIsTotalsRow(jobRaw) {
+  return /^\s*(overall|grand|sub)?\s*totals?\s*:?\s*$/i.test(String(jobRaw == null ? '' : jobRaw).trim());
 }
 
 // Pure plan builder: parses sheet rows, resolves each to a project/sub-code,
@@ -15684,7 +15697,10 @@ function _buildTsAuditPlan(rows, cols, header) {
     cols, header: header || [],
     rows: [], badRows: [],
     dateFrom: null, dateTo: null,
-    skipped: { noDate: 0, noHours: 0, zero: 0 },
+    skipped: { noDate: 0, noHours: 0, zero: 0, totals: 0, staff: 0, nonCharge: 0 },
+    staffList: [], staffFilter: null,   // set below when the sheet names more than one person
+    includeNonCharge: true,             // N/C time is still logged time — excluded only on request
+    ncCount: 0, ncHours: 0,
     collapsed: {}, actions: {}, groupsCache: null
   };
 
@@ -15694,7 +15710,8 @@ function _buildTsAuditPlan(rows, cols, header) {
     const dateRaw = cols.date === -1 ? null : row[cols.date];
     const hoursRaw = cols.hours === -1 ? null : row[cols.hours];
     const jobRaw = cols.job === -1 ? '' : row[cols.job];
-    if (!jobRaw && (dateRaw === null || dateRaw === undefined || dateRaw === '')) continue; // blank / totals row
+    if (!jobRaw && (dateRaw === null || dateRaw === undefined || dateRaw === '')) continue; // blank row
+    if (_tsaIsTotalsRow(jobRaw)) { plan.skipped.totals++; continue; }
 
     const date = _tsaParseDate(dateRaw);
     const hoursParsed = _tsaParseHours(hoursRaw);
@@ -15711,8 +15728,13 @@ function _buildTsAuditPlan(rows, cols, header) {
     const taskName = cols.task === -1 ? '' : String(row[cols.task] || '').trim();
     const notes = cols.notes === -1 ? '' : String(row[cols.notes] || '').trim();
     const matchedProjKey = _matchProject(billingCode, jobLabel);
+    const staff = cols.staff === -1 ? '' : String(row[cols.staff] || '').trim();
+    const nonCharge = cols.nonCharge === -1 ? false
+      : /^(y|yes|true|1|n\/?c)$/i.test(String(row[cols.nonCharge] || '').trim());
+    if (nonCharge) { plan.ncCount++; plan.ncHours += hours; }
 
     plan.rows.push({
+      staff, nonCharge,
       id: 'tsarow_' + counter,
       idx: counter,
       sheetRow: r + 1,
@@ -15734,7 +15756,23 @@ function _buildTsAuditPlan(rows, cols, header) {
     if (!plan.dateTo || date > plan.dateTo) plan.dateTo = date;
     counter++;
   }
+
+  // A team-wide export would otherwise pour colleagues' hours into a personal
+  // ledger. When the sheet names more than one person, default to the busiest
+  // and let the preview switch — never silently import everyone.
+  const staffTally = {};
+  plan.rows.forEach(r => { if (r.staff) staffTally[r.staff] = (staffTally[r.staff] || 0) + 1; });
+  plan.staffList = Object.keys(staffTally).sort((a, b) => staffTally[b] - staffTally[a]);
+  if (plan.staffList.length > 1) plan.staffFilter = plan.staffList[0];
+
   return plan;
+}
+
+// Rows the comparison actually sees, after the preview's staff / N-C filters.
+function _tsaActiveRows(plan) {
+  return plan.rows.filter(r =>
+    (!plan.staffFilter || r.staff === plan.staffFilter) &&
+    (plan.includeNonCharge || !r.nonCharge));
 }
 
 // A ledger entry linked to a work block, session, or subtask is frozen: its
@@ -15750,6 +15788,16 @@ function _tsaGroupKey(projKey, scId) { return (projKey || '') + '|' + (scId || '
 // Reconcile sheet against ledger, bucketed by code + date. Recomputed on every
 // preview render so remaps take effect immediately.
 function _tsaComputeGroups(plan) {
+  const active = _tsaActiveRows(plan);
+  // The window follows the rows actually in play, so filtering the sheet down
+  // to one person never leaves the comparison judging days they didn't work.
+  plan.dateFrom = active.reduce((a, r) => (!a || r.date < a) ? r.date : a, null);
+  plan.dateTo   = active.reduce((a, r) => (!a || r.date > a) ? r.date : a, null);
+  // Granularity follows what the sheet actually asserts. A BigTime export with
+  // an empty Category column says nothing about sub-codes, so comparing at
+  // sub-code level would flag every row as mismatched purely because the
+  // tracker knows more than the sheet does. Fall back to project totals.
+  plan.scLevel = active.some(r => r.taskName);
   const groups = new Map();
   const ensure = (key, meta) => {
     if (!groups.has(key)) {
@@ -15766,22 +15814,25 @@ function _tsaComputeGroups(plan) {
   };
 
   // ── sheet side ──
-  plan.rows.forEach(r => {
+  active.forEach(r => {
     const proj = _aipResolveProject(r);
-    const sc = _aipResolveRow(r);
+    const sc = plan.scLevel ? _aipResolveRow(r) : { scId: null, isNew: false, label: '' };
     let key, meta;
     if (proj.isNew) {
       key = '#newproj#' + (r.billingCode || r.jobLabel || r.id);
-      meta = { projKey: null, scId: null, projLabel: proj.label, scLabel: sc.label || r.taskName,
-               billingCode: proj.billingCode, isNewProj: true, isNewSc: !!(sc.label || r.taskName) };
-    } else if (sc.isNew || (!sc.scId && r.taskName)) {
+      meta = { projKey: null, scId: null, projLabel: proj.label,
+               scLabel: plan.scLevel ? (sc.label || r.taskName) : '(all sub-codes)',
+               billingCode: proj.billingCode, isNewProj: true,
+               isNewSc: plan.scLevel && !!(sc.label || r.taskName) };
+    } else if (plan.scLevel && (sc.isNew || (!sc.scId && r.taskName))) {
       key = proj.projKey + '|#newsc#' + _normTaskLabel(r.taskName || '');
       meta = { projKey: proj.projKey, scId: null, projLabel: proj.label, scLabel: sc.label || r.taskName,
                billingCode: proj.billingCode, isNewSc: true };
     } else {
-      key = _tsaGroupKey(proj.projKey, sc.scId);
-      meta = { projKey: proj.projKey, scId: sc.scId, projLabel: proj.label,
-               scLabel: sc.label || '(no sub-code)', billingCode: proj.billingCode };
+      key = plan.scLevel ? _tsaGroupKey(proj.projKey, sc.scId) : proj.projKey + '|*';
+      meta = { projKey: proj.projKey, scId: plan.scLevel ? sc.scId : null, projLabel: proj.label,
+               scLabel: plan.scLevel ? (sc.label || '(no sub-code)') : '(all sub-codes)',
+               billingCode: proj.billingCode };
     }
     const g = ensure(key, meta);
     g.rowIdxs.push(r.idx);
@@ -15799,13 +15850,13 @@ function _tsaComputeGroups(plan) {
       if (!date || date < plan.dateFrom || date > plan.dateTo) return;
       const pk = e.project || 'overhead';
       const scId = e.subCode || '';
-      const key = _tsaGroupKey(pk, scId);
+      const key = plan.scLevel ? _tsaGroupKey(pk, scId) : pk + '|*';
       const proj = PROJECTS[pk];
       const scRec = (proj?.subCodes || []).find(s => s.id === scId);
       const g = ensure(key, {
-        projKey: pk, scId,
+        projKey: pk, scId: plan.scLevel ? scId : null,
         projLabel: proj?.label || pk,
-        scLabel: scRec?.label || (scId ? scId : '(no sub-code)'),
+        scLabel: plan.scLevel ? (scRec?.label || (scId ? scId : '(no sub-code)')) : '(all sub-codes)',
         billingCode: proj?.billingCode || ''
       });
       const d = ensureDay(g, date);
@@ -15953,6 +16004,20 @@ function _tsaSetGroupSc(idx, val) {
 // Groups and days are addressed BY INDEX into groupsCache, never by key: a
 // group key embeds the spreadsheet's own job label, and a crafted .xlsx could
 // otherwise break out of these inline handlers (security invariant #5).
+function _tsaSetStaff(li) {
+  const plan = _tsAuditPlan;
+  if (!plan) return;
+  plan.staffFilter = li === -1 ? null : (plan.staffList[li] || null);
+  _tsaRenderPreviewBody();
+}
+
+function _tsaSetIncludeNc(on) {
+  const plan = _tsAuditPlan;
+  if (!plan) return;
+  plan.includeNonCharge = !!on;
+  _tsaRenderPreviewBody();
+}
+
 function _tsaToggleDay(gi, di, on) {
   const plan = _tsAuditPlan;
   const d = plan && plan.groupsCache?.[gi]?.days?.[di];
@@ -16012,16 +16077,50 @@ function _tsaRenderPreviewBody() {
   const cutH = groups.reduce((a, g) => a + g.pendingCut, 0);
   const unmatched = plan.rows.filter(r => _aipResolveProject(r).isNew);
 
+  const active = _tsaActiveRows(plan);
+  const activeHours = active.reduce((a, r) => a + r.hours, 0);
   document.getElementById('tsaSummary').innerHTML =
     `${escHtml(plan.dateFrom || '?')} → ${escHtml(plan.dateTo || '?')} · ` +
-    `${plan.rows.length} sheet ${plan.rows.length === 1 ? 'line' : 'lines'} · ` +
+    `${active.length} sheet ${active.length === 1 ? 'line' : 'lines'} · ${fmtQ(activeHours)}h · ` +
     `<strong style="color:var(--success);">${inSync} in sync</strong> · ` +
     `<strong style="color:${offCount ? 'var(--warn)' : 'var(--text3)'};">${offCount} with differences</strong>`;
 
   let html = '';
 
+  // ── sheet-scope filters ──
+  const filterBits = [];
+  if (plan.staffList.length > 1) {
+    filterBits.push(`<label style="display:flex;align-items:center;gap:5px;">
+      <span style="color:var(--text3);">Staff:</span>
+      <select class="filter-select" style="font-size:11px;" onchange="_tsaSetStaff(Number(this.value))">
+        ${plan.staffList.map((n, i) => `<option value="${i}"${plan.staffFilter === n ? ' selected' : ''}>${escHtml(n)}</option>`).join('')}
+        <option value="-1"${plan.staffFilter === null ? ' selected' : ''}>Everyone on the sheet</option>
+      </select>
+    </label>`);
+  } else if (plan.staffList.length === 1) {
+    filterBits.push(`<span style="color:var(--text3);">Staff: <strong style="color:var(--text2);">${escHtml(plan.staffList[0])}</strong></span>`);
+  }
+  if (plan.ncCount) {
+    filterBits.push(`<label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+      <input type="checkbox" ${plan.includeNonCharge ? 'checked' : ''} onchange="_tsaSetIncludeNc(this.checked)">
+      <span>Include non-chargeable <span style="color:var(--text3);">(${plan.ncCount} ${plan.ncCount === 1 ? 'line' : 'lines'}, ${fmtQ(plan.ncHours)}h)</span></span>
+    </label>`);
+  }
+  if (filterBits.length) {
+    html += `<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;margin-bottom:10px;">${filterBits.join('')}</div>`;
+  }
+
+  if (!plan.scLevel) {
+    html += `<div style="background:rgba(96,165,250,0.09);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:var(--text2);line-height:1.45;">
+      <strong>Comparing at project level.</strong> This sheet has no sub-code / category data, so it only asserts totals per billing code — comparing per sub-code would flag every row just because the tracker knows more than the sheet does. Any entry added here lands on the project with no sub-code; set that on the entry afterwards if you need it.
+    </div>`;
+  }
+
   // ── skipped / unreadable rows ──
   const skippedTotal = plan.skipped.noDate + plan.skipped.noHours + plan.skipped.zero;
+  if (plan.skipped.totals) {
+    html += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Ignored ${plan.skipped.totals} spreadsheet total${plan.skipped.totals === 1 ? '' : 's'} row.</div>`;
+  }
   if (skippedTotal) {
     const bits = [];
     if (plan.skipped.noDate) bits.push(`${plan.skipped.noDate} with an unreadable date`);
@@ -17224,7 +17323,7 @@ const INFO_COPY = {
   },
   tsAudit: {
     title: 'Import & Audit — reconciling against your spreadsheet',
-    body: 'Treats your timesheet spreadsheet as the <strong>source of truth</strong> and compares it against logged time (<code>wt_completed</code>) <strong>code by code, day by day</strong> — only inside the sheet\'s own date range, so nothing outside it is judged. Comparison is by <strong>daily total per billing code</strong>, not line by line: three tracker entries against one code on one day are compared as their sum, which is the only honest reading. Days the tracker <strong>under-logged</strong> are pre-selected to top up; days it logged more, or logged work absent from the sheet, are <strong>flagged but never pre-selected</strong> — removing billed time is always your explicit call. A day whose hours belong to a completed <strong>work block or session</strong> shows 🔒 and can\'t be touched here: un-tick it at source instead, so the block\'s own record stays true. Applying is one undoable step, and re-importing the same sheet reads as in sync rather than doubling anything.'
+    body: 'Treats your timesheet spreadsheet as the <strong>source of truth</strong> and compares it against logged time (<code>wt_completed</code>) <strong>code by code, day by day</strong> — only inside the sheet\'s own date range, so nothing outside it is judged. Comparison is by <strong>daily total per billing code</strong>, not line by line: three tracker entries against one code on one day are compared as their sum, which is the only honest reading. Days the tracker <strong>under-logged</strong> are pre-selected to top up; days it logged more, or logged work absent from the sheet, are <strong>flagged but never pre-selected</strong> — removing billed time is always your explicit call. A day whose hours belong to a completed <strong>work block or session</strong> shows 🔒 and can\'t be touched here: un-tick it at source instead, so the block\'s own record stays true. Applying is one undoable step, and re-importing the same sheet reads as in sync rather than doubling anything. <strong>Granularity follows your sheet</strong>: an export with no sub-code / category column only asserts totals per billing code, so the comparison drops to <strong>project level</strong> rather than flagging everything. If the sheet names several staff it picks one (never importing a colleague\'s hours by accident), and <strong>non-chargeable</strong> lines are included by default with a toggle to leave them out.'
   },
   tsViews: {
     title: 'Pay Period vs Month — two different meters',
@@ -17355,6 +17454,7 @@ const _TAB_TIPS = {
       'All hours snap to <strong>quarter-hour increments</strong> automatically.',
       '<strong>Unscheduled holds</strong> (items parked in a month with no date) count in the month total but not in any period or week bar — click the holds line to schedule them in Capacity.',
       '<strong>⬆ Import &amp; Audit</strong> reconciles a timesheet spreadsheet against your logged time — a <strong>code-by-code, day-by-day</strong> comparison inside the sheet\'s date range. Under-logged days are pre-ticked to top up; over-logged days and time missing from the sheet are flagged but never removed unless you say so. 🔒 days belong to a completed block or session — un-tick those at source. Nothing is written until you apply, and applying is undoable.',
+      'The audit reads a <strong>BigTime Timesheet Detail export</strong> as-is (Project · Staff Member · Category · Date · Input · N/C · Notes) — totals rows are ignored, and if the sheet has no <strong>Category</strong> data it compares at <strong>project level</strong>, since that\'s all the sheet actually claims. Filters at the top pick <strong>whose</strong> hours to read and whether to include <strong>non-chargeable</strong> time (leave, overhead).',
       'Outstanding <strong>▣ block rows</strong> log just that block when ticked — the parent task stays open and only closes from its own row.',
       'Set your <strong>hours/day capacity</strong> in the toolbar.'
     ]

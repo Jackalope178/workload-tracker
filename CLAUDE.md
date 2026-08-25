@@ -355,6 +355,28 @@ preserve:
    in one import holds in the other — audit rows are built with the same
    field names those resolvers read. Scenario 19 enforces all of this.
 
+   **Granularity follows what the sheet asserts** (Aug 2026, calibrated
+   against a real BigTime *Timesheet Detail* export: `Project · Staff
+   Member · Category · Date · Input · N/C · Notes`). That export leaves
+   **`Category` empty**, so it says nothing about sub-codes — comparing at
+   sub-code level would flag every row as mismatched purely because the
+   tracker knows more than the sheet does. `_tsaComputeGroups` therefore
+   sets `plan.scLevel` from whether ANY active row carries a task name and,
+   when false, buckets **both sides by project only** (`projKey + '|*'`,
+   labelled "(all sub-codes)"); entries it creates land on the project with
+   an empty `subCode`. Three more rules from that same export: a
+   **totals footer** (`_tsaIsTotalsRow` — "OVERALL TOTALS") is skipped
+   silently, never reported as an unreadable row; when the sheet names
+   **more than one staff member** the plan defaults `staffFilter` to the
+   busiest so a colleague's hours can never import silently into a personal
+   ledger; and **non-chargeable** (`N/C`) lines are included by default but
+   toggleable, since leave and overhead are real logged time yet not
+   everyone wants them in the ledger. Both filters run through
+   `_tsaActiveRows`, and the comparison **window is recomputed from the
+   filtered rows** so narrowing to one person never leaves the audit judging
+   days they didn't work. Scenario 20 enforces all of this against the real
+   export shape.
+
 Known-open minor item (deliberate — see the audit's Minor section): `fmtQ`
 snaps legacy non-quarter values for display only (sums use raw values). The
 audit's other minor items (rounded color thresholds, negative import
@@ -405,7 +427,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls`, `payPeriodOf` |
 | Capacity planner / drill-down / scheduler | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold`, `_capAssignOne` |
 | Allocations / Excel import / rollovers | `renderAllocations`, `handleAllocImport`, `allocKey`, `_rollRemainingForward` |
-| Timesheet audit import (spreadsheet ↔ ledger) | `handleTsAuditImport`, `_buildTsAuditPlan`, `_tsaComputeGroups`, `_commitTsAuditPlan`, `_tsaEntryLocked`, `_tsaParseHours`, `_tsaParseDate`, `_tsaDetectColumns` |
+| Timesheet audit import (spreadsheet ↔ ledger) | `handleTsAuditImport`, `_buildTsAuditPlan`, `_tsaComputeGroups`, `_tsaActiveRows`, `_commitTsAuditPlan`, `_tsaEntryLocked`, `_tsaParseHours`, `_tsaParseDate`, `_tsaDetectColumns`, `_tsaIsTotalsRow` |
 | Import row ↔ project matching / merge suggestions | `_matchProject`, `_suggestProject`, `_parseBillingCode`, `_aipSetRowProj` |
 | Reconcile view (plan vs budget, one month) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
