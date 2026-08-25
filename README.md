@@ -41,7 +41,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | **My Tasks** | Personal billable tasks: recurrence, timers, priority, week planner. | `renderTasks()`, `renderWeekPlanner()` |
 | **Projects** | Project codes, metadata, members, per-project item lists. | `renderProjects()`, `renderProjCodeList()`, `renderProjCodeContent()` |
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
-| **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). | `renderTimesheet()`, `renderTsCapacityBar()` |
+| **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). Spreadsheet reconciliation via **⬆ Import & Audit**. | `renderTimesheet()`, `renderTsCapacityBar()`, `handleTsAuditImport()` |
 | **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, move/delegate. | `renderCapacity()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
 | **Allocations** | Budgeted vs actual hours per project/sub-code per month (BigTime import). | `renderAllocations()`, `handleAllocImport()` |
 
@@ -56,7 +56,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_tasks` | Personal task array: `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }`. Delegation fields: `delegatedTo[]` (lightweight tag — renders on the Team tab, leaves your Capacity) and `_deliverableId` (the task is a relay-mirror leg of that `wt_team` item). |
 | `wt_team` | Team deliverables: `{ id, name, owner, owners[], project, subCode, due, status, waiting, notes }` + relay fields (`relay[]`, `relayStage`, `activeOwner`, `reviewTaskId`, `relayLog[]`) |
 | `wt_bigprojs` | Big projects (multi-session/subtask structures) |
-| `wt_completed` | Archive of completed items — also the **billing ledger** (Timesheet/Allocations actuals read from here) |
+| `wt_completed` | Archive of completed items — also the **billing ledger** (Timesheet/Allocations actuals read from here). Entries carry provenance when something else billed them: `_blockRef` (work block), `_srcRef` (session/subtask), `_tsaRef` (timesheet audit import) |
 | `wt_projects_meta` | Project definitions: `{ label, color, billingCode, subCodes[], tags[] }` |
 | `wt_persons` | Team roster |
 | `wt_allocations` | Monthly budget allocations per person/project |
@@ -98,6 +98,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 11. **Work blocks bill exactly once and stay locked.** A logged block's ledger entry is linked to it (`_blockRef` on the entry, `entryId` on the block); un-ticking a done block retracts the entry (with undo) so hours are never logged and planned at once. Done blocks' hours are frozen on task save; a task with logged blocks refuses to become recurring. Every ▣ block row (Timesheet, Capacity drill-down, week planner, task lists) logs/moves **its block**, never the parent task; closing a parent with open blocks warns that they're cancelled unbilled. Sessions and subtasks follow the same lock-in (`_srcRef`/`entryId`): un-ticking retracts the entry, and a done block/subtask can't be deleted until it's un-ticked (deletion would re-grow the parent's remainder while the hours stay billed).
 12. **A co-assigned item (`delegatedTo` includes `'Me'` plus others) stays on My Tasks and in Capacity** — only items delegated entirely to others leave. Assignment toggles toast the outcome (`_assignToast`); the dropdown stays open for multi-select, so the toast is the primary feedback.
 13. **Recurring anchors only move along natural occurrence dates** (see [`docs/recurrence-audit-2026-08.md`](docs/recurrence-audit-2026-08.md)). One-off moves live in `recurrence.overrides`, one-off cancels in `recurrence.skips` — both keyed by the ORIGINAL occurrence date. A missed backlog resolves via **⏩ Catch up** (`catchUpRecurrence` — records skips, resumes on schedule, undoable); the edit modal's due field shows the next upcoming occurrence but writes it back only when actually changed. Month moves and drag-assigns refuse dated recurring items (task occurrence rows reroute to 📅 reschedule); recurring **month holds** (no date) are the exception — moving one re-parks the month the hold series starts.
+14. **The timesheet audit import compares bucket totals, never rows.** `⬆ Import & Audit` on the Timesheet tab reconciles a source-of-truth spreadsheet against `wt_completed` by **project + sub-code + date**, summing each side — the tracker may hold several entries against one code on one day where the sheet holds one line. The comparison is **windowed to the sheet's own date range**; **under-logged days default to apply, over-logged and sheet-absent days default to skip** (removing billed time is always explicit); an entry locked to a completed block or session (`_blockRef`/`_srcRef`) is never edited or deleted — un-tick it at source; and because totals are compared, **re-importing the same sheet is a no-op**, not a double-count. It shares the allocations import's matching layer and alias memory, so a remap taught in one holds in the other.
 
 ## Sync architecture
 
@@ -120,6 +121,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls` |
 | Capacity planner / drill-down | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold` |
 | Allocations / Excel import | `renderAllocations`, `handleAllocImport` |
+| Timesheet audit import (spreadsheet ↔ ledger) | `handleTsAuditImport`, `_buildTsAuditPlan`, `_tsaComputeGroups`, `_commitTsAuditPlan`, `_tsaEntryLocked` |
 | Reconcile view (plan vs budget) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
