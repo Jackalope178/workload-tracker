@@ -74,7 +74,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | **My Tasks** | Personal billable tasks: recurrence, timers, priority, week planner. | `renderTasks()`, `renderWeekPlanner()` |
 | **Projects** | Project codes, metadata, members, per-project item lists. | `renderProjects()`, `renderProjCodeContent()` |
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
-| **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). | `renderTimesheet()`, `renderTsCapacityBar()` |
+| **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). Spreadsheet reconciliation via **Import & Audit**. | `renderTimesheet()`, `renderTsCapacityBar()`, `handleTsAuditImport()` |
 | **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, scheduler board, move/delegate. Answers "someone needs this by May — do I have time?" All recurrences expand so future load is true. | `renderCapacity()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
 | **Allocations** | Budgeted vs actual hours per project/sub-code per month (BigTime import). Distinct from Capacity: Allocations = budget tracking, Capacity = personal headroom. | `renderAllocations()`, `handleAllocImport()` |
 
@@ -89,7 +89,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }`. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). Delegation fields: `delegatedTo[]` (lightweight tag — task stays here but renders on the Team tab and leaves your Capacity) and `_deliverableId` (this task IS a relay-mirror leg of that `wt_team` item). Work blocks: `blocks[]` = `{ id, date, hours, desc, done, entryId? }` — dated sessions under the task's deadline; the parent plans only the un-blocked remainder. A logged block's `wt_completed` entry carries `_blockRef` (`taskId_blockId`) and the block stores `entryId` — the linkage that lets un-ticking retract the entry (see Math invariant #8). |
 | `wt_team` | Team deliverables: `{ id, name, owner, owners[], project, subCode, due, status, waiting, notes }` + relay fields (`relay[]`, `relayStage`, `activeOwner`, `reviewTaskId`, `relayLog[]`) |
 | `wt_bigprojs` | Big projects (multi-session/subtask structures). Completed sessions/subtasks carry `entryId`, and their ledger entries `_srcRef` — same un-tick-retracts-the-entry lock-in as work blocks (Math invariant #8). |
-| `wt_completed` | Archive of completed items — also the **billing ledger** (Timesheet/Allocations actuals read from here) |
+| `wt_completed` | Archive of completed items — also the **billing ledger** (Timesheet/Allocations actuals read from here). Entry shape: `{ id, name, project, subCode, dateCompleted, estHours, actualHours, category }`. Provenance markers link an entry back to what billed it: `_blockRef` (work block), `_srcRef` (session/subtask), `_tsaRef` (created by a timesheet audit import) — the first two make an entry **locked** (see Math invariants #8 and #10) |
 | `wt_projects_meta` | Project definitions: `{ label, color, billingCode, subCodes[], tags[] }` |
 | `wt_persons` | Team roster |
 | `wt_allocations` | Monthly budget allocations, keyed `projKey|scId|YYYY-MM` |
@@ -330,6 +330,53 @@ preserve:
    re-parks the month the hold series starts (allowed). Scenario 18 enforces
    all of this.
 
+10. **The timesheet audit import compares bucket totals, never rows** (Aug
+   2026). `_tsaComputeGroups` reconciles the spreadsheet against
+   `wt_completed` by **project + sub-code + date**, summing each side —
+   the tracker legitimately holds several entries against one code on one
+   day where the sheet holds a single line, so only the totals compare.
+   Four rules the feature depends on: the comparison is **windowed to the
+   sheet's own `dateFrom`..`dateTo`** (outside it the sheet asserts
+   nothing, so neither may the audit); **under-logged days default to
+   apply, over-logged and sheet-absent days default to skip** — topping up
+   is routine, removing billed time is always an explicit choice; an entry
+   that is **locked** (`_tsaEntryLocked` — `_blockRef` / `_srcRef` /
+   `_relayRef` / `_deliverableId`) is never edited or deleted, because its
+   hours ARE the completion record of a block/session (invariant #8) and
+   the un-tick-at-source path is the only honest way to change them; and
+   because it compares totals, **re-importing the same sheet is a no-op**
+   rather than a double-count. Hours snap with
+   `Math.max(0, snapQuarter(h))` and not `enforceQuarter` — the latter
+   toasts per call and a 400-row sheet would bury the user in toasts; the
+   preview surfaces the snap instead. The matching layer is deliberately
+   **shared with the allocations import** (`_parseBillingCode`,
+   `_matchProject`, `_matchSubCode`, `_aipResolveProject`,
+   `_aipResolveRow`, and the `wt_alloc_aliases` memory), so a remap taught
+   in one import holds in the other — audit rows are built with the same
+   field names those resolvers read. Scenario 19 enforces all of this.
+
+   **Granularity follows what the sheet asserts** (Aug 2026, calibrated
+   against a real BigTime *Timesheet Detail* export: `Project · Staff
+   Member · Category · Date · Input · N/C · Notes`). That export leaves
+   **`Category` empty**, so it says nothing about sub-codes — comparing at
+   sub-code level would flag every row as mismatched purely because the
+   tracker knows more than the sheet does. `_tsaComputeGroups` therefore
+   sets `plan.scLevel` from whether ANY active row carries a task name and,
+   when false, buckets **both sides by project only** (`projKey + '|*'`,
+   labelled "(all sub-codes)"); entries it creates land on the project with
+   an empty `subCode`. Three more rules from that same export: a
+   **totals footer** (`_tsaIsTotalsRow` — "OVERALL TOTALS") is skipped
+   silently, never reported as an unreadable row; when the sheet names
+   **more than one staff member** the plan defaults `staffFilter` to the
+   busiest so a colleague's hours can never import silently into a personal
+   ledger; and **non-chargeable** (`N/C`) lines are included by default but
+   toggleable, since leave and overhead are real logged time yet not
+   everyone wants them in the ledger. Both filters run through
+   `_tsaActiveRows`, and the comparison **window is recomputed from the
+   filtered rows** so narrowing to one person never leaves the audit judging
+   days they didn't work. Scenario 20 enforces all of this against the real
+   export shape.
+
 Known-open minor item (deliberate — see the audit's Minor section): `fmtQ`
 snaps legacy non-quarter values for display only (sums use raw values). The
 audit's other minor items (rounded color thresholds, negative import
@@ -380,6 +427,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls`, `payPeriodOf` |
 | Capacity planner / drill-down / scheduler | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold`, `_capAssignOne` |
 | Allocations / Excel import / rollovers | `renderAllocations`, `handleAllocImport`, `allocKey`, `_rollRemainingForward` |
+| Timesheet audit import (spreadsheet ↔ ledger) | `handleTsAuditImport`, `_buildTsAuditPlan`, `_tsaComputeGroups`, `_tsaActiveRows`, `_commitTsAuditPlan`, `_tsaEntryLocked`, `_tsaParseHours`, `_tsaParseDate`, `_tsaDetectColumns`, `_tsaIsTotalsRow` |
 | Import row ↔ project matching / merge suggestions | `_matchProject`, `_suggestProject`, `_parseBillingCode`, `_aipSetRowProj` |
 | Reconcile view (plan vs budget, one month) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
@@ -463,7 +511,12 @@ A change that "cleans up" or "simplifies" any of them reintroduces a real bug.
    Same family: person names in any inline handler need the dual-escape
    (invariant #2), and restored-backup project KEYS are sanitized to
    `[a-z0-9_-]` in `importBackup` because keys are interpolated into handlers
-   app-wide.
+   app-wide. The timesheet audit preview follows the same rule for the same
+   reason: its group keys embed the spreadsheet's own job label, so
+   `_tsaToggleDay` / `_tsaToggleGroup` / `_tsaToggleCollapse` address groups
+   and days **by index into `groupsCache`**, never by key. Don't "simplify"
+   those back to key arguments — a crafted `.xlsx` label would break straight
+   out of the `onchange`.
 6. **RLS is the security boundary.** Data is per-user (`auth.uid() = user_id`);
    the baked-in anon key is public and safe *only* because RLS is enforced.
    Don't add tables/queries that bypass it.
