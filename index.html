@@ -504,6 +504,16 @@
     flex-shrink: 0;
     margin-left: 4px;
   }
+  /* Inline notes on a task row — wears the same yellow as the old waiting
+     chip but truncates so long notes can't blow the row out. */
+  .task-note-inline {
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
   .notes-icon {
     font-size: 11px;
     cursor: pointer;
@@ -1848,6 +1858,40 @@
 
   .edit-form-group { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .edit-form-group.full { grid-column: 1 / -1; }
+
+  /* Collapsible option sections in the task modal (Schedule / Repeats / Team).
+     Collapsing hides the fields, never clears them; the toggle button carries
+     a summary of anything set inside so collapsed ≠ invisible. */
+  .edit-sec { display: none; }
+  .edit-sec.open { display: flex; }
+  .edit-sec-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .edit-sec-btn {
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .edit-sec-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .edit-sec-btn.open { border-color: var(--accent); color: var(--accent); background: var(--bg3); }
+  .edit-sec-btn.open .edit-sec-caret { transform: rotate(180deg); }
+  .edit-sec-caret { font-size: 9px; transition: transform 0.12s; }
+  .edit-sec-sum {
+    font-weight: 500;
+    color: var(--warn);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .edit-sec-sum:empty { display: none; }
   .edit-label { font-size: 11px; color: var(--text2); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; }
   .edit-input {
     background: var(--bg4);
@@ -3436,46 +3480,12 @@ if (typeof XLSX === 'undefined') {
         </div>
       </div>
       <div class="edit-form-group">
-        <label class="edit-label">Work on <span style="font-weight:400;font-size:9px;color:var(--text3);">(optional — when you'll do it)</span></label>
-        <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editWorkDate" style="flex:1;min-width:0;"><button type="button" class="btn" onclick="capPickForInput(this,'editWorkDate','editEst','Work date','editProject','editSubCode')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
-      </div>
-      <div class="edit-form-group full">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2);">
-          <input type="checkbox" id="editWorkSpread"> Spread the estimated hours evenly across weekdays from work date through due date
-        </label>
-      </div>
-      <div class="edit-form-group full">
-        <label class="edit-label">Work blocks <span style="font-weight:400;font-size:9px;color:var(--text3);">(bite-sized sessions under this deadline — each lands on capacity on its own day; the remainder rides the due date)</span></label>
-        <div id="editBlocksList"></div>
-        <div style="display:flex;gap:6px;margin-top:4px;align-items:center;flex-wrap:wrap;">
-          <button type="button" class="btn" onclick="blkAddRow()" style="font-size:10px;padding:3px 8px;">+ Block</button>
-          <button type="button" class="btn" onclick="blkAutoFill()" style="font-size:10px;padding:3px 8px;" title="Pack the un-blocked remainder into days with free capacity before the due date">⚡ Auto-fill remainder</button>
-          <span id="editBlocksSummary" style="font-size:10px;color:var(--text3);"></span>
-        </div>
-      </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
-        <input class="edit-input" type="month" id="editAllocMonth">
-      </div>
-      <div class="edit-form-group">
         <label class="edit-label">Est. Hours</label>
         <input class="edit-input" type="number" id="editEst" step="0.25" min="0.25">
       </div>
-      <div class="edit-form-group">
-        <label class="edit-label">Waiting On</label>
-        <input class="edit-input" type="text" id="editWaiting">
-      </div>
       <div class="edit-form-group full">
-        <label class="edit-label">Notes</label>
+        <label class="edit-label">Notes <span style="font-weight:400;color:var(--text3);">(shows inline on the task row)</span></label>
         <input class="edit-input" type="text" id="editNotes">
-      </div>
-      <div class="edit-form-group full">
-        <label class="edit-label">Assign to <span style="font-weight:400;color:var(--text3);">(optional — appears in Team tab)</span></label>
-        <div id="editTaskDelegateWrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
-      </div>
-      <div class="edit-form-group full" id="editTaskHandoffRow" style="margin-top:-4px;">
-        <button type="button" class="btn" data-assign-btn onclick="showTaskHandoffDropdown(event)" style="font-size:11px;">⇄ Hand off as deliverable…</button>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Moves this task to Team Deliverables with a relay: their work leg, then your review. Recurring tasks can't move — assign above instead and they're tagged on every occurrence.</div>
       </div>
       <div class="edit-form-group full" id="editTimerRow" style="display:none;">
         <label class="edit-label">Logged Time</label>
@@ -3484,7 +3494,57 @@ if (typeof XLSX === 'undefined') {
           <button type="button" class="btn" onclick="clearEditingTaskTimer()" style="color:var(--danger);border-color:var(--danger);padding:4px 10px;font-size:11px;">Clear Timer</button>
         </div>
       </div>
-      <div class="edit-form-group full" style="margin-top:4px;padding-top:10px;border-top:1px solid var(--border);">
+      <!-- Collapsed option sections — the rest of the form lives behind these
+           toggles. Fields keep their ids and are read by saveEditTask whether
+           or not a section is open: collapsing hides, never clears. -->
+      <div class="edit-form-group full" style="margin-top:2px;padding-top:10px;border-top:1px solid var(--border);">
+        <div class="edit-sec-btns">
+          <button type="button" class="edit-sec-btn" id="editSecBtnSchedule" onclick="_editSecToggle('Schedule')">📅 Schedule work<span class="edit-sec-sum" id="editSecSumSchedule"></span><span class="edit-sec-caret">▾</span></button>
+          <button type="button" class="edit-sec-btn" id="editSecBtnRepeat" onclick="_editSecToggle('Repeat')">🔁 Repeats<span class="edit-sec-sum" id="editSecSumRepeat"></span><span class="edit-sec-caret">▾</span></button>
+          <button type="button" class="edit-sec-btn" id="editSecBtnTeam" onclick="_editSecToggle('Team')">👥 Team<span class="edit-sec-sum" id="editSecSumTeam"></span><span class="edit-sec-caret">▾</span></button>
+        </div>
+      </div>
+      <div class="edit-form-group full edit-sec" id="editSecSchedule">
+        <div class="edit-form-grid" style="margin-bottom:0;">
+          <div class="edit-form-group">
+            <label class="edit-label">Work on <span style="font-weight:400;font-size:9px;color:var(--text3);">(optional — when you'll do it)</span></label>
+            <div style="display:flex;gap:4px;"><input class="edit-input" type="date" id="editWorkDate" style="flex:1;min-width:0;" onchange="_syncEditSecButtons()"><button type="button" class="btn" onclick="capPickForInput(this,'editWorkDate','editEst','Work date','editProject','editSubCode')" title="Pick a day with free capacity in view" style="padding:4px 8px;flex-shrink:0;">◷</button></div>
+          </div>
+          <div class="edit-form-group">
+            <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
+            <input class="edit-input" type="month" id="editAllocMonth" onchange="_syncEditSecButtons()">
+          </div>
+          <div class="edit-form-group full">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2);">
+              <input type="checkbox" id="editWorkSpread" onchange="_syncEditSecButtons()"> Spread the estimated hours evenly across weekdays from work date through due date
+            </label>
+          </div>
+          <div class="edit-form-group full">
+            <label class="edit-label">Work blocks <span style="font-weight:400;font-size:9px;color:var(--text3);">(bite-sized sessions under this deadline — each lands on capacity on its own day; the remainder rides the due date)</span></label>
+            <div id="editBlocksList"></div>
+            <div style="display:flex;gap:6px;margin-top:4px;align-items:center;flex-wrap:wrap;">
+              <button type="button" class="btn" onclick="blkAddRow()" style="font-size:10px;padding:3px 8px;">+ Block</button>
+              <button type="button" class="btn" onclick="blkAutoFill()" style="font-size:10px;padding:3px 8px;" title="Pack the un-blocked remainder into days with free capacity before the due date">⚡ Auto-fill remainder</button>
+              <span id="editBlocksSummary" style="font-size:10px;color:var(--text3);"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="edit-form-group full edit-sec" id="editSecTeam">
+        <div class="edit-form-grid" style="margin-bottom:0;">
+          <div class="edit-form-group full">
+            <label class="edit-label">Assign to <span style="font-weight:400;color:var(--text3);">(optional — appears in Team tab)</span></label>
+            <div id="editTaskDelegateWrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;min-height:28px;"></div>
+          </div>
+          <div class="edit-form-group full" id="editTaskHandoffRow" style="margin-top:-4px;">
+            <button type="button" class="btn" data-assign-btn onclick="showTaskHandoffDropdown(event)" style="font-size:11px;">⇄ Hand off as deliverable…</button>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">Moves this task to Team Deliverables with a relay: their work leg, then your review. Recurring tasks can't move — assign above instead and they're tagged on every occurrence.</div>
+          </div>
+        </div>
+      </div>
+      <div class="edit-form-group full edit-sec" id="editSecRepeat">
+        <div class="edit-form-grid" style="margin-bottom:0;">
+      <div class="edit-form-group full">
         <label class="edit-label">Repeats</label>
         <select class="edit-input" id="editRecurType" onchange="onRecurTypeChange()">
           <option value="">Does not repeat</option>
@@ -3546,6 +3606,8 @@ if (typeof XLSX === 'undefined') {
       <div class="edit-form-group" id="editRecurEndDateGroup" style="display:none;">
         <label class="edit-label">Ends on <span style="font-weight:400;color:var(--text3);">(leave blank = never)</span></label>
         <input type="date" class="edit-input" id="editRecurEndDate">
+      </div>
+        </div>
       </div>
     </div>
     <div class="modal-actions">
@@ -6229,6 +6291,7 @@ function onRecurTypeChange() {
   document.getElementById('editRecurWeekOfMonthGroup').style.display  = type === 'monthly-weekday' ? '' : 'none';
   document.getElementById('editRecurMonthWeekdayGroup').style.display = type === 'monthly-weekday' ? '' : 'none';
   document.getElementById('editRecurEndDateGroup').style.display      = type ? '' : 'none';
+  if (typeof _syncEditSecButtons === 'function') _syncEditSecButtons();
 }
 
 function fmtDate(d) {
@@ -7027,7 +7090,7 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${escHtml(projColor(task.project))};" title="${escHtml(projLabel(task.project))}"></div>
-        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${task._deliverableId ? '<span class="from-team-badge" title="Your turn on a team deliverable — handed to you via the board">↩ team</span>' : ''}${_taskRelayPassBtn(task)}${delegateTagsHtml(task.delegatedTo)}${task.waiting ? `<span class="task-waiting">⏳ ${escHtml(task.waiting)}</span>` : ''}${task.notes ? `<span class="notes-icon" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="View notes">📝</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}${spreadBadgeHtml(task, task.due)}${blocksBadgeHtml(task)}</div>
+        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${task._deliverableId ? '<span class="from-team-badge" title="Your turn on a team deliverable — handed to you via the board">↩ team</span>' : ''}${_taskRelayPassBtn(task)}${delegateTagsHtml(task.delegatedTo)}${task.notes ? `<span class="task-waiting task-note-inline" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="${escHtml(task.notes)}">📝 ${escHtml(task.notes)}</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}${spreadBadgeHtml(task, task.due)}${blocksBadgeHtml(task)}</div>
         <div class="task-recur-actions"><button class="row-edit-btn" onclick="event.stopPropagation();showTaskAssignDropdown(event,'${task.id}')" title="Assign" style="font-size:11px;padding:2px 4px;">↗</button>${task.recurrence && task.due ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>${item._date && item._date < todayStr ? `<button class="row-edit-btn" onclick="event.stopPropagation();catchUpRecurrence('${task.id}')" title="Catch up — skip every missed occurrence (recorded, undoable) and resume from the next scheduled date" style="font-size:11px;padding:2px 4px;">⏩</button>` : ''}` : ''}</div>
         <span class="task-category">${escHtml(projLabel(task.project))}</span>
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
@@ -7699,8 +7762,7 @@ function openEditModal(taskId) {
   _renderBlockEditor();
   document.getElementById('editAllocMonth').value = task.allocMonth || '';
   document.getElementById('editEst').value = task.est || '';
-  // category removed from UI
-  document.getElementById('editWaiting').value = task.waiting || '';
+  // category removed from UI; "Waiting On" retired Sep 2026 (folded into notes)
   document.getElementById('editNotes').value = task.notes || '';
   // Assign-to pills
   populateSessionDelegatePills(PERSONS, task.delegatedTo, 'editTaskDelegateWrap');
@@ -7719,8 +7781,56 @@ function openEditModal(taskId) {
   document.getElementById('editRecurWeekdayAdjust').checked = r.weekdayAdjust !== false;
   onRecurTypeChange();
   _syncEditTaskTimerRow(task);
+  _editSecCollapseAll();
+  _syncEditSecButtons();
   document.getElementById('editDeleteBtn').style.display = '';
   document.getElementById('editTaskModal').classList.add('open');
+}
+
+// ── Collapsible modal sections (Schedule / Repeat / Team) ──
+// The task form opens with only the core fields; scheduling, recurrence, and
+// delegation live behind the toggle buttons. Collapsing hides fields, never
+// clears them — saveEditTask reads them by id either way.
+function _editSecToggle(name) {
+  const sec = document.getElementById('editSec' + name);
+  const btn = document.getElementById('editSecBtn' + name);
+  if (!sec) return;
+  const open = !sec.classList.contains('open');
+  sec.classList.toggle('open', open);
+  if (btn) btn.classList.toggle('open', open);
+  _syncEditSecButtons();
+}
+
+function _editSecCollapseAll() {
+  ['Schedule', 'Repeat', 'Team'].forEach(n => {
+    document.getElementById('editSec' + n)?.classList.remove('open');
+    document.getElementById('editSecBtn' + n)?.classList.remove('open');
+  });
+}
+
+// Summaries on the toggle buttons so collapsed ≠ invisible: anything set
+// inside a section is named on its button.
+function _syncEditSecButtons() {
+  const sumEl = n => document.getElementById('editSecSum' + n);
+  if (!sumEl('Schedule')) return;
+  const parts = [];
+  const wd = document.getElementById('editWorkDate')?.value;
+  if (wd) parts.push('work ' + fmtDate(wd));
+  if (document.getElementById('editWorkSpread')?.checked) parts.push('spread');
+  if (_blockDraft.length) {
+    const doneN = _blockDraft.filter(b => b.done).length;
+    parts.push(`${_blockDraft.length} block${_blockDraft.length > 1 ? 's' : ''}${doneN ? ` (${doneN} ✓)` : ''}`);
+  }
+  const hm = document.getElementById('editAllocMonth')?.value;
+  if (hm) parts.push('hold ' + hm);
+  sumEl('Schedule').textContent = parts.join(' · ');
+
+  const rSel = document.getElementById('editRecurType');
+  sumEl('Repeat').textContent = rSel?.value ? (rSel.options[rSel.selectedIndex]?.text || '') : '';
+
+  const people = getSelectedDelegatees('editTaskDelegateWrap');
+  sumEl('Team').textContent = !people.length ? ''
+    : people.length <= 2 ? people.join(', ') : people.length + ' assigned';
 }
 
 // Missed-backlog banner in the task edit modal: names how many occurrences
@@ -7799,6 +7909,7 @@ function _renderBlockEditor() {
       ? `${fmtQ(blocked)}h of ${fmtQ(est)}h in blocks · ${fmtQ(Math.max(0, est - blocked))}h remainder`
       : '';
   }
+  _syncEditSecButtons();
 }
 
 function _blkUpd(i, field, val) {
@@ -7899,8 +8010,8 @@ function saveEditTask() {
   }
   task.allocMonth = document.getElementById('editAllocMonth').value || null;
   task.est      = enforceQuarter(parseFloat(document.getElementById('editEst').value) || 0, 'estimate');
-  // category field preserved in data but removed from UI
-  task.waiting  = document.getElementById('editWaiting').value.trim();
+  // category field preserved in data but removed from UI; task "waiting" is
+  // retired (folded into notes at init) — the form no longer writes it
   task.notes    = document.getElementById('editNotes').value.trim();
   const delegated = getSelectedDelegatees('editTaskDelegateWrap');
   task.delegatedTo = delegated.length ? delegated : null;
@@ -9379,8 +9490,7 @@ function renderProjItemRow(item, projKey, scId) {
       <div class="session-desc" style="${isDone ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditModal('${t.id}')">
         ${escHtml(t.name)}
         <span id="task-tags-${t.id}">${delegateTagsHtml(t.delegatedTo)}</span>
-        ${t.waiting ? `<span class="task-waiting">⏳ ${escHtml(t.waiting)}</span>` : ''}
-        ${t.notes ? '<span class="notes-icon" title="Has notes">📝</span>' : ''}
+        ${t.notes ? `<span class="task-waiting task-note-inline" onclick="event.stopPropagation();openNotesFor('task','${t.id}')" title="${escHtml(t.notes)}">📝 ${escHtml(t.notes)}</span>` : ''}
         ${t.recurrence ? `<span class="recur-badge">${recurLabel(t)}</span>` : ''}
         ${blocksBadgeHtml(t)}
       </div>
@@ -9868,7 +9978,6 @@ function openAddTaskForProject(projKey, scId) {
   _blockDraft = [];
   _renderBlockEditor();
   document.getElementById('editEst').value = '';
-  document.getElementById('editWaiting').value = '';
   document.getElementById('editNotes').value = '';
   document.getElementById('editAllocMonth').value = '';
   document.getElementById('editRecurType').value = '';
@@ -9877,6 +9986,8 @@ function openAddTaskForProject(projKey, scId) {
   populateSessionDelegatePills(PERSONS, null, 'editTaskDelegateWrap');
   const _hoRow = document.getElementById('editTaskHandoffRow');
   if (_hoRow) _hoRow.style.display = 'none';   // nothing to hand off until the task exists
+  _editSecCollapseAll();
+  _syncEditSecButtons();
   document.getElementById('editDeleteBtn').style.display = 'none';
   document.getElementById('editTaskModal').classList.add('open');
   setTimeout(() => document.getElementById('editName').focus(), 80);
@@ -10202,6 +10313,7 @@ function renderTeam() {
       name: t.name, owners: people, owner: people.join(', '), project: t.project,
       due: t.due, status: t.completed ? 'complete' : (t.status || 'need-delegate'), ownerStatus: t.ownerStatus,
       priority: t.priority || 'med', est: t.est || 0, waiting: t.waiting || '',
+      notes: t.notes || '',
       _taskDelegated: true, _taskId: t.id
     });
   });
@@ -10364,7 +10476,7 @@ function renderTeam() {
         `;
     } else if (item._taskDelegated) {
       row.innerHTML = `
-        <div class="team-task-name" onclick="openEditModal('${item._taskId}')">${escHtml(item.name)}${item.waiting ? `<span class="task-waiting">⏳ ${escHtml(item.waiting)}</span>` : ''}</div>
+        <div class="team-task-name" onclick="openEditModal('${item._taskId}')">${escHtml(item.name)}${item.notes ? `<span class="task-waiting task-note-inline" title="${escHtml(item.notes)}">📝 ${escHtml(item.notes)}</span>` : ''}</div>
         ${ownerHtml}
         <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(projLabel(item.project))}</span>
         <div class="project-dot" style="background:${escHtml(projColor(item.project))};"></div>
@@ -10777,6 +10889,7 @@ function teamBoardCard(item, forPerson, showProj) {
     ${batonHtml}
     ${(relay && !_relayDone(item) && relayStage(item)?.note) ? `<div class="team-board-card-wait" style="color:var(--warn);" title="Note on the current leg">📝 ${escHtml(relayStage(item).note)}</div>` : ''}
     ${item.waiting ? `<div class="team-board-card-wait">⏳ ${escHtml(item.waiting)}</div>` : ''}
+    ${(item._taskDelegated && item.notes) ? `<div class="team-board-card-wait" style="color:var(--warn);">📝 ${escHtml(item.notes)}</div>` : ''}
     <div class="team-board-card-foot">
       ${(item.priority === 'meeting' && pStatus !== 'complete') ? '' : statusBadge}
       ${relay
@@ -17401,6 +17514,8 @@ const _TAB_TIPS = {
     title: 'My Tasks — Tips',
     tips: [
       'Click <strong>+ Add Task</strong> (or press <strong>Shift+N</strong>) to open the full task form; plain <strong>N</strong> quick-captures straight to your Inbox. The green <strong>Log</strong> button skips the task list and logs hours straight to the timesheet.',
+      'The task form opens <strong>compact</strong> — scheduling (work date, blocks, hold month), repeats, and team options live behind the <strong>📅 🔁 👥</strong> buttons. Each button names anything set inside it, so a collapsed section never hides state.',
+      '<strong>Notes show inline</strong> on the task row in yellow (📝) — jot "waiting on X" there; the separate Waiting On field is retired and old values were folded into notes automatically.',
       'Click the <strong>play ▶ button</strong> to start a timer. It persists across refreshes.',
       'Click a <strong>date</strong> to open the capacity picker — every day shows its free hours, and ⚡ Next fit jumps to the first day with room before the deadline.',
       '<strong>Work date vs deadline:</strong> pick a day other than the due date and it becomes your work date — the ⚑ chip keeps the deadline (red = at risk). Capacity and allocations follow the work date.',
@@ -17629,6 +17744,24 @@ function reloadStateFromLocalStorage() {
   _focusMode = load('wt_focus_mode', false);
 }
 
+// Task "Waiting On" retired (Sep 2026): it was redundant with notes, which
+// now render inline on the row in the old waiting-chip yellow. Fold any
+// legacy value into notes (⏳-prefixed) so nothing is lost. Runs at every
+// init and no-ops when clean; AI-imported tasks that still arrive with a
+// waiting value get folded the same way at their creation sites. Sessions,
+// subtasks, and team deliverables keep their own waiting field.
+function _migrateTaskWaitingNotes() {
+  let changed = false;
+  tasks.forEach(t => {
+    const w = (t.waiting || '').trim();
+    if (!w) return;
+    t.notes = ['⏳ ' + w, (t.notes || '').trim()].filter(Boolean).join(' · ');
+    t.waiting = '';
+    changed = true;
+  });
+  if (changed) save('wt_tasks', tasks);
+}
+
 function initApp() {
   try {
     if (_currentUser) {
@@ -17636,6 +17769,7 @@ function initApp() {
     }
     _appInitialized = true;
     _auditBatonMirrors();   // heal any deliverable↔mirror drift before first render
+    _migrateTaskWaitingNotes();   // fold legacy task "waiting" into notes (field retired Sep 2026)
 
     populateProjectSelects();
     _restoreFilters();
@@ -17964,7 +18098,7 @@ function handoffTaskAsDeliverable(person) {
     due: document.getElementById('editDue').value || '',
     est,
     priority: document.getElementById('editPriority').value || 'med',
-    waiting: document.getElementById('editWaiting').value.trim(),
+    waiting: task.waiting || '',
     notes: document.getElementById('editNotes').value.trim(),
     allocMonth: document.getElementById('editAllocMonth').value || null
   }, person);
@@ -18313,6 +18447,9 @@ function toggleDelegatePill(el, name, bg, text, border) {
     el.style.color = ''; el.style.fontWeight = '';
     el.textContent = label;
   }
+  // Shared with the session modal; harmlessly refreshes the task modal's
+  // 👥 Team button summary when the pill lives there.
+  _syncEditSecButtons();
 }
 
 function getSelectedDelegatees(containerId) {
@@ -19493,8 +19630,10 @@ function confirmImport() {
       due: item.due || '',
       est: parseFloat(item.est) || 0,
       category: item.category || '',
-      waiting: item.waiting || '',
-      notes: item.notes || '',
+      // tasks carry no waiting field anymore — fold anything the AI
+      // extracted into notes, same shape as _migrateTaskWaitingNotes
+      waiting: '',
+      notes: [item.waiting && ('⏳ ' + item.waiting), item.notes].filter(Boolean).join(' · '),
       timer: 0, timerStart: null, completed: false
     });
     count++;
@@ -19505,6 +19644,10 @@ function confirmImport() {
     const task = tasks.find(t => t.id === item.id);
     if (!task) return;
     const { id, ...changes } = item;
+    if (changes.waiting) {   // fold AI-suggested waiting into notes (field retired)
+      changes.notes = ['⏳ ' + changes.waiting, changes.notes ?? task.notes ?? ''].filter(Boolean).join(' · ');
+      changes.waiting = '';
+    }
     Object.assign(task, changes);
     count++;
   });

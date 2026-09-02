@@ -86,7 +86,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 
 | Key | Contents |
 |---|---|
-| `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, waiting, notes, recurrence, timer, timerStart, completed }`. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). Delegation fields: `delegatedTo[]` (lightweight tag — task stays here but renders on the Team tab and leaves your Capacity) and `_deliverableId` (this task IS a relay-mirror leg of that `wt_team` item). Work blocks: `blocks[]` = `{ id, date, hours, desc, done, entryId? }` — dated sessions under the task's deadline; the parent plans only the un-blocked remainder. A logged block's `wt_completed` entry carries `_blockRef` (`taskId_blockId`) and the block stores `entryId` — the linkage that lets un-ticking retract the entry (see Math invariant #8). |
+| `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, notes, recurrence, timer, timerStart, completed }`. **`waiting` retired (Sep 2026)** — `_migrateTaskWaitingNotes` folds any legacy value into `notes` at every init (`⏳ `-prefixed), and notes render **inline on the task row** in the old waiting-chip yellow (`task-note-inline`); sessions/subtasks/deliverables keep their own `waiting` field. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). Delegation fields: `delegatedTo[]` (lightweight tag — task stays here but renders on the Team tab and leaves your Capacity) and `_deliverableId` (this task IS a relay-mirror leg of that `wt_team` item). Work blocks: `blocks[]` = `{ id, date, hours, desc, done, entryId? }` — dated sessions under the task's deadline; the parent plans only the un-blocked remainder. A logged block's `wt_completed` entry carries `_blockRef` (`taskId_blockId`) and the block stores `entryId` — the linkage that lets un-ticking retract the entry (see Math invariant #8). |
 | `wt_team` | Team deliverables: `{ id, name, owner, owners[], project, subCode, due, status, waiting, notes }` + relay fields (`relay[]`, `relayStage`, `activeOwner`, `reviewTaskId`, `relayLog[]`) |
 | `wt_bigprojs` | Big projects (multi-session/subtask structures). Completed sessions/subtasks carry `entryId`, and their ledger entries `_srcRef` — same un-tick-retracts-the-entry lock-in as work blocks (Math invariant #8). |
 | `wt_completed` | Archive of completed items — also the **billing ledger** (Timesheet/Allocations actuals read from here). Entry shape: `{ id, name, project, subCode, dateCompleted, estHours, actualHours, category }`. Provenance markers link an entry back to what billed it: `_blockRef` (work block), `_srcRef` (session/subtask), `_tsaRef` (created by a timesheet audit import) — the first two make an entry **locked** (see Math invariants #8 and #10) |
@@ -103,7 +103,7 @@ states, …). Anything that must survive across devices belongs in `SYNC_KEYS`.
 - **Statuses:** `need-delegate`, `in-progress`, `ready-review`, `in-review`, `blocked`, `complete`
 - **Priorities:** `urgent`, `high`, `med`, `low` (+ `meeting` in My Tasks)
 - **Billing codes:** `T-21-010`, `W-24-022` style; sub-codes live under projects
-- **Internal composite objects** (used by planners): `_type` (`task` | `session` | `team`) with `_date`, `_src`, `_delegated`, `_taskDelegated`. The Team tab builds composite rows for delegated tasks/sessions/subtasks — any field the board/list/chips read (e.g. `waiting`, `est`, `priority`) must be copied into those composites in `renderTeam()` or it silently vanishes from the Team tab.
+- **Internal composite objects** (used by planners): `_type` (`task` | `session` | `team`) with `_date`, `_src`, `_delegated`, `_taskDelegated`. The Team tab builds composite rows for delegated tasks/sessions/subtasks — any field the board/list/chips read (e.g. `notes`, `est`, `priority`) must be copied into those composites in `renderTeam()` or it silently vanishes from the Team tab.
 - **The `'Me'` sentinel:** the app owner is stored as `'Me'` everywhere, displayed as **"KME"** on the Team tab
 - **Render pattern:** after mutating state, call the owning tab's `render*()`; don't patch DOM incrementally
 
@@ -226,6 +226,18 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    leave. Every assignment toggle (dropdown or pills) fires `_assignToast`
    naming the outcome — the dropdown stays open for multi-select, so the
    toast is the primary feedback; don't remove it.
+12. **The task modal is compact by design** (Sep 2026). Only core fields
+   (name, project/sub-code, priority, due, est, notes) show; scheduling
+   (work date / spread / work blocks / hold month), recurrence, and team
+   (assign-to / hand-off) live behind the 📅 🔁 👥 toggle buttons
+   (`_editSecToggle`). Collapsing hides fields, **never clears them** —
+   `saveEditTask` reads every field by id whether or not its section is
+   open — and each button carries a live summary of anything set inside
+   (`_syncEditSecButtons`), so collapsed state is never invisible. Tasks
+   have **no Waiting On field** anymore (notes are the one free-text field,
+   shown inline on the row); don't re-add it, and don't make the board's
+   ⏳ Waiting chip count task notes — only true `waiting` on team/session
+   items. Scenario 21 enforces this.
 
 ## Math Invariants (July 2026 audit)
 
@@ -416,6 +428,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | If the task touches… | Start by grepping… |
 |---|---|
 | Personal tasks, recurrence, timers | `function renderTasks`, `renderWeekPlanner`, `confirmComplete`, `nextRecurrenceAfter` |
+| Task modal sections / inline notes / retired waiting | `_editSecToggle`, `_syncEditSecButtons`, `_migrateTaskWaitingNotes`, `task-note-inline` |
 | Per-occurrence recurrence actions (skip/move/catch-up) | `skipRecurOccurrence`, `openRescheduleModal`, `catchUpRecurrence`, `_recurMissedDates`, `_occDate` |
 | Work blocks (▣): logging, lock-in, block rows | `openBlockCompletionModal`, `_renderBlockEditor`, `_blockRef`, `blkAutoFill` |
 | ADHD ergonomics (capture/inbox, wins, focus, day-fit) | `quickCaptureAdd`, `_celebrateWin`, `_focusMode`, `_fitStatus`, `_startNextQueue` |
@@ -483,8 +496,9 @@ A change that "cleans up" or "simplifies" any of them reintroduces a real bug.
    spreadsheet import can set — project `label`/`billingCode`, project/session
    `name`, sub-code `code`/`label`, person/owner names, `_currentUser` display
    name — MUST be wrapped in `escHtml(...)` when interpolated into a template
-   literal that becomes `innerHTML`/`outerHTML`. Task `name`/`notes`/`waiting`
-   are already escaped; match that pattern. `escHtml` escapes `& < > " ' \``;
+   literal that becomes `innerHTML`/`outerHTML`. Task `name`/`notes` (notes
+   now render inline on rows — a new sink) and session/team `waiting` are
+   already escaped; match that pattern. `escHtml` escapes `& < > " ' \``;
    do not "trim" it back down. Values are stored raw and escaped only at render,
    so a missed sink = stored XSS (reachable via a crafted `.xlsx` import).
    When in doubt, escape. Rendering via `.textContent` / `.value =` is already

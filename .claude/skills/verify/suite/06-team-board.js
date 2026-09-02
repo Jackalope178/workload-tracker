@@ -46,9 +46,12 @@ const { launch, step, done } = require('./_lib');
   step('meeting card sits in the Meetings column with NO status badge',
     /Meetings/i.test(colOf('Designated meeting')?.head || '') && card('Designated meeting').badge === null,
     card('Designated meeting'));
-  step('no Blocked chip; Waiting chip counts delegated composites too (2)',
-    !r.chips.some(c => /Blocked/i.test(c)) && r.chips.some(c => /⏳ Waiting\s*2/.test(c)), r.chips);
-  step('delegated task card shows its ⏳ note', /IT ticket/.test(card('Delegated waiting task').wait || ''), card('Delegated waiting task').wait);
+  // Sep 2026: tasks no longer carry a waiting field (folded into notes at
+  // init), so the ⏳ Waiting chip counts only native team items — the
+  // delegated task composite dropped out of the count by design.
+  step('no Blocked chip; Waiting chip counts only true waiting items (1)',
+    !r.chips.some(c => /Blocked/i.test(c)) && r.chips.some(c => /⏳ Waiting\s*1/.test(c)), r.chips);
+  step('delegated task card shows its migrated 📝 note', /IT ticket/.test(card('Delegated waiting task').wait || ''), card('Delegated waiting task').wait);
   step("solo card on Jordan's own board shows no baton echo", card('Solo native').baton === null, card('Solo native'));
 
   // Sort toggle: due mode flattens with per-card project line; project mode groups
