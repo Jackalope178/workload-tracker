@@ -7,6 +7,7 @@ const { launch, step, done } = require('./_lib');
 
 (async () => {
   const { browser, page } = await launch({
+    wt_proj_view: '"list"',   // this scenario tests the ☰ List ledger (Boards is the default view)
     wt_projects_meta: {
       proj1: { label: 'Toggle Proj', color: '#4a7', billingCode: 'T-26-001', subCodes: [
         { id: 'sc1', code: '1', label: 'Mixed' },

@@ -72,7 +72,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | Tab | Purpose | Entry function(s) |
 |---|---|---|
 | **My Tasks** | Personal billable tasks: recurrence, timers, priority, week planner. | `renderTasks()`, `renderWeekPlanner()` |
-| **Projects** | Project codes, metadata, members, per-project item lists. | `renderProjects()`, `renderProjCodeContent()` |
+| **Projects** | Opens on **▦ Boards** (Sep 2026): one sticky-note whiteboard per sub-code plus a 💭 Loose thoughts board — the project's thinking surface, with a free-arrange view and a ⊞ Sort 2×2 (urgent/important) view. **☰ List** is the per-sub-code ledger of every task/session/subtask/deliverable (metadata, members, bulk moves, close-outs). | `renderProjects()`, `renderProjBoards()`, `renderProjCodeContent()` |
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
 | **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). Spreadsheet reconciliation via **Import & Audit**. | `renderTimesheet()`, `renderTsCapacityBar()`, `handleTsAuditImport()` |
 | **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, scheduler board, move/delegate. Answers "someone needs this by May — do I have time?" All recurrences expand so future load is true. | `renderCapacity()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
@@ -94,9 +94,14 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_persons` | Team roster |
 | `wt_allocations` | Monthly budget allocations, keyed `projKey|scId|YYYY-MM` |
 | `wt_person_allocs` | Per-person monthly hour allocations by billing code, keyed `person|projKey|scId|YYYY-MM` (drives the person-board allocation meters; parse keys from the END — names may contain `|`) |
+| `wt_boards` | Whiteboards: `{ id, projKey, scId, createdAt }` — one per sub-code plus `scId: ''` (the project's **Loose thoughts** board). Auto-created by `_ensureBoards` the first time a project's boards render; boards of inactive/removed sub-codes stay listed while they hold cards (never hide a thought). |
+| `wt_board_cards` | Stickies: `{ id, boardId, kind: 'note' \| 'heading', x, y, w, h, color, z, text, urgent, important, createdAt, updatedAt }`. `color` is a palette NAME (`BOARD_COLORS`), never a hex — it is rendered as a CSS class. `urgent`/`important` (`null` = unsorted) drive the ⊞ Sort 2×2 view (`_boardQuadOf`). **Cards carry no hours and no dates** — Phase 1 links a card to a task; the task keeps est/dates/code. |
 
 Plus ~20 smaller preference/UI keys (`wt_theme`, `wt_ts_capacity`, collapse
 states, …). Anything that must survive across devices belongs in `SYNC_KEYS`.
+Board view state is device-local like `wt_focus_mode`: `wt_proj_view`
+(`boards` | `list`), `wt_board_open` (`{projKey: boardId}`), `wt_board_view`
+(`{boardId: 'free' | 'grid'}`).
 
 ### Conventions
 - **IDs:** `uid()` = `'_' + Math.random().toString(36).slice(2, 11)`
@@ -238,6 +243,21 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    shown inline on the row); don't re-add it, and don't make the board's
    ⏳ Waiting chip count task notes — only true `waiting` on team/session
    items. Scenario 21 enforces this.
+13. **Boards are a thinking surface, not a planner** (Sep 2026 — Phase 0 of
+   `docs/vision-2026-09-boards.md`). Stickies never carry hours or dates and
+   are invisible to `plannedItems`, the Timesheet, Capacity and Allocations;
+   a thought becomes work only by becoming a task (Phase 1 links them). The
+   capture box is **one field + Enter** with no other decisions (same rule as
+   quick capture → Inbox). The board strip **never hides a board** — sliding
+   changes which one is open, the strip stays; the ⊞ Sort 2×2 view keeps
+   unsorted stickies in a visible tray, and headings stay out of the grid
+   (structure, not to-dos). Quadrant labels are verbs (Do now / Schedule /
+   Delegate / Park) on purpose. Press-and-release on a sticky edits, moving
+   more than 6px drags — one gesture set for mouse, touch and pencil. Every
+   board mutation goes through `_boardSave`, which drives the save-state chip
+   (synced / saved-on-this-device / failed) — the trust signal after the
+   Aug 2026 data-loss incident; `save()` now returns its cloud promise for
+   that reason. Scenario 22 enforces all of this.
 
 ## Math Invariants (July 2026 audit)
 
@@ -444,6 +464,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Import row ↔ project matching / merge suggestions | `_matchProject`, `_suggestProject`, `_parseBillingCode`, `_aipSetRowProj` |
 | Reconcile view (plan vs budget, one month) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
+| Boards / stickies / 2×2 sort (Projects tab default view) | `renderProjBoards`, `_boardsForProject`, `_ensureBoards`, `boardAddCard`, `boardCaptureSubmit`, `_boardCardHtml`, `_bcPointerDown`, `boardCardEdit`, `boardCardMenu`, `_boardSetQuadrant`, `boardSlide`, `_boardSave`, `_setProjView`, `BOARD_QUADS` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
 | In-app orientation / ⓘ help | `INFO_COPY`, `infoIcon`, `showWelcome`, `_TAB_TIPS` |
 | Tabs / navigation | `_switchTab`, `data-tab` |
@@ -497,8 +518,9 @@ A change that "cleans up" or "simplifies" any of them reintroduces a real bug.
    `name`, sub-code `code`/`label`, person/owner names, `_currentUser` display
    name — MUST be wrapped in `escHtml(...)` when interpolated into a template
    literal that becomes `innerHTML`/`outerHTML`. Task `name`/`notes` (notes
-   now render inline on rows — a new sink) and session/team `waiting` are
-   already escaped; match that pattern. `escHtml` escapes `& < > " ' \``;
+   now render inline on rows — a new sink), board sticky `text` and board
+   titles (sub-code code/label), and session/team `waiting` are already
+   escaped; match that pattern. `escHtml` escapes `& < > " ' \``;
    do not "trim" it back down. Values are stored raw and escaped only at render,
    so a missed sink = stored XSS (reachable via a crafted `.xlsx` import).
    When in doubt, escape. Rendering via `.textContent` / `.value =` is already

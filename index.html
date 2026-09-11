@@ -2992,6 +2992,86 @@
     font-size: 12px;
     margin-bottom: 14px;
   }
+  /* ── Boards — sticky-note whiteboards per sub-code (Projects tab default view, Sep 2026) ── */
+  .board-seg { display:inline-flex; border:1px solid var(--border); border-radius:6px; overflow:hidden; font-size:11px; }
+  .board-seg button { padding:4px 10px; border:none; background:var(--bg2); color:var(--text3); cursor:pointer; font-size:11px; font-weight:600; font-family:inherit; }
+  .board-seg button + button { border-left:1px solid var(--border); }
+  .board-seg button.on { background:var(--accent); color:#fff; }
+  .board-save-chip { font-size:10px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); color:var(--text3); background:var(--bg2); white-space:nowrap; }
+  .board-save-chip.ok { color:var(--success); border-color:color-mix(in srgb, var(--success) 40%, transparent); }
+  .board-save-chip.warn { color:var(--warn); border-color:color-mix(in srgb, var(--warn) 50%, transparent); background:#fffbeb; }
+  .board-save-chip.bad { color:var(--danger); border-color:color-mix(in srgb, var(--danger) 50%, transparent); background:#fef2f2; }
+  .board-strip { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
+  .board-strip-arrow { width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); cursor:pointer; font-size:16px; line-height:1; flex-shrink:0; font-family:inherit; }
+  .board-strip-arrow:disabled { opacity:.3; cursor:default; }
+  .board-strip-tabs { display:flex; gap:6px; overflow-x:auto; flex:1; padding:2px; scrollbar-width:thin; }
+  .board-tab { flex-shrink:0; display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:999px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); font-size:11.5px; font-weight:600; cursor:pointer; font-family:inherit; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .board-tab.active { background:color-mix(in srgb, var(--pc, var(--accent)) 14%, #fff); border-color:var(--pc, var(--accent)); color:var(--text); box-shadow:inset 0 -2px 0 var(--pc, var(--accent)); }
+  .board-tab-n { font-size:10px; font-weight:700; color:var(--text3); background:var(--bg3); border-radius:999px; padding:0 6px; min-width:18px; text-align:center; }
+  .board-tab.active .board-tab-n { background:#fff; }
+  .board-stage { display:flex; flex-direction:column; min-height:calc(100vh - 250px); border:1px solid var(--border); border-radius:10px; background:var(--bg2); overflow:hidden; }
+  @media (prefers-reduced-motion: no-preference) {
+    .board-stage.slide-in-right { animation:boardSlideR .22s ease-out; }
+    .board-stage.slide-in-left { animation:boardSlideL .22s ease-out; }
+  }
+  @keyframes boardSlideR { from { transform:translateX(40px); opacity:.3; } to { transform:none; opacity:1; } }
+  @keyframes boardSlideL { from { transform:translateX(-40px); opacity:.3; } to { transform:none; opacity:1; } }
+  .board-head { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); touch-action:pan-y; flex-wrap:wrap; }
+  .board-head-title { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:var(--text); }
+  .board-head-sub { font-family:'Inter',sans-serif; font-size:11px; font-weight:400; color:var(--text3); margin-left:6px; }
+  .board-head-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .board-capture { display:flex; align-items:center; gap:8px; padding:10px 14px; background:#fffdf0; border-bottom:1px solid var(--border); margin:0; }
+  .board-capture input { flex:1; font-size:14px; padding:9px 12px; border:1px solid var(--border2); border-radius:8px; background:#fff; color:var(--text); font-family:inherit; min-width:0; }
+  .board-capture input:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+  .board-capture-icon { font-size:16px; }
+  .board-body { flex:1; position:relative; }
+  .board-scroll { overflow:auto; }
+  .board-canvas { position:relative; min-width:100%; min-height:100%; background-color:#fbfbf7; background-image:radial-gradient(circle, #d9dbe3 1px, transparent 1px); background-size:24px 24px; }
+  .board-empty { position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); text-align:center; color:var(--text2); font-size:14px; font-weight:600; pointer-events:none; width:min(90%, 420px); }
+  .board-empty span { display:block; margin-top:6px; font-size:12px; font-weight:400; color:var(--text3); }
+  .bcard { position:absolute; box-sizing:border-box; border-radius:4px; padding:6px 10px 10px; box-shadow:0 1px 2px rgba(0,0,0,.12), 0 4px 10px rgba(0,0,0,.08); cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none; color:#1a1d26; display:flex; flex-direction:column; overflow:hidden; transition:box-shadow .12s; }
+  .bcard.dragging { cursor:grabbing; box-shadow:0 8px 22px rgba(0,0,0,.22); opacity:.95; z-index:100000 !important; }
+  .bcard.editing { cursor:text; user-select:text; -webkit-user-select:text; }
+  .bc-yellow { background:#fff3a3; } .bc-pink { background:#ffd6e0; } .bc-blue { background:#d3e8ff; } .bc-green { background:#d5f5dc; } .bc-purple { background:#e8dcff; } .bc-orange { background:#ffe2c4; } .bc-white { background:#fff; border:1px solid var(--border2); }
+  .bc-top { display:flex; align-items:center; gap:6px; min-height:16px; margin:0 -4px 2px 0; }
+  .bc-menu { margin-left:auto; border:none; background:transparent; color:rgba(0,0,0,.45); font-size:14px; line-height:1; padding:2px 6px; cursor:pointer; border-radius:4px; font-family:inherit; }
+  .bc-menu:hover { background:rgba(0,0,0,.08); color:#000; }
+  .bc-text { font-size:13px; line-height:1.4; white-space:pre-wrap; word-break:break-word; overflow:hidden; flex:1; font-family:'Inter',sans-serif; }
+  .bc-empty { color:rgba(0,0,0,.4); font-style:italic; }
+  .bc-editor { flex:1; width:100%; min-height:60px; resize:none; border:none; background:rgba(255,255,255,.6); border-radius:4px; padding:4px 6px; font-size:13px; line-height:1.4; color:#1a1d26; outline:2px solid var(--accent); font-family:'Inter',sans-serif; box-sizing:border-box; }
+  .bc-resize { position:absolute; right:0; bottom:0; width:18px; height:18px; cursor:nwse-resize; touch-action:none; background:linear-gradient(135deg, transparent 50%, rgba(0,0,0,.22) 50%, rgba(0,0,0,.22) 60%, transparent 60%, transparent 75%, rgba(0,0,0,.22) 75%, rgba(0,0,0,.22) 85%, transparent 85%); }
+  .bc-heading { background:transparent !important; box-shadow:none; border:none; border-bottom:2px dashed rgba(0,0,0,.28); border-radius:0; padding:4px 28px 6px 8px; }
+  .bc-heading .bc-text { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; white-space:nowrap; text-overflow:ellipsis; }
+  .bc-heading .bc-top { position:absolute; right:2px; top:2px; margin:0; }
+  .bc-heading .bc-editor { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; min-height:30px; }
+  .bc-quad { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:1px 6px; border-radius:999px; background:rgba(0,0,0,.08); color:rgba(0,0,0,.6); }
+  .bc-quad.q-do { background:#fecaca; color:#991b1b; } .bc-quad.q-schedule { background:#bfdbfe; color:#1e40af; } .bc-quad.q-delegate { background:#fde68a; color:#92400e; } .bc-quad.q-park { background:#e5e7eb; color:#374151; }
+  /* 2×2 sort view */
+  .board-gridwrap { padding:12px 14px; overflow:auto; display:flex; flex-direction:column; gap:12px; }
+  .board-grid { display:grid; grid-template-columns:22px 1fr 1fr; grid-template-rows:auto 1fr 1fr; gap:8px; }
+  .board-axis-x { grid-column:2 / 4; display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px; font-weight:700; color:var(--text3); text-align:center; text-transform:uppercase; letter-spacing:.05em; }
+  .board-axis-y { grid-row:2 / 4; display:grid; grid-template-rows:1fr 1fr; gap:8px; }
+  .board-axis-y span { writing-mode:vertical-rl; transform:rotate(180deg); font-size:11px; font-weight:700; color:var(--text3); text-align:center; text-transform:uppercase; letter-spacing:.05em; }
+  .board-quad, .board-tray { border:1px solid var(--border); border-radius:10px; background:#fbfbf7; min-height:170px; display:flex; flex-direction:column; transition:background .12s, border-color .12s; }
+  .board-quad.over, .board-tray.over { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, #fff); }
+  .board-quad.q-do { border-top:3px solid #ef4444; } .board-quad.q-schedule { border-top:3px solid #3b82f6; } .board-quad.q-delegate { border-top:3px solid #f59e0b; } .board-quad.q-park { border-top:3px solid #9ca3af; }
+  .board-quad-head { display:flex; align-items:baseline; gap:8px; padding:8px 12px 4px; font-size:12px; color:var(--text); }
+  .board-quad-head span { font-size:10.5px; color:var(--text3); }
+  .board-quad-head em { margin-left:auto; font-style:normal; font-size:10px; font-weight:700; color:var(--text3); background:var(--bg3); border-radius:999px; padding:0 7px; }
+  .board-quad-cards { display:flex; flex-wrap:wrap; gap:8px; padding:6px 10px 12px; flex:1; align-content:flex-start; }
+  .board-quad-empty { font-size:11px; color:var(--text3); font-style:italic; padding:6px 2px; }
+  .bcard.bc-flow { position:relative; width:180px; min-height:64px; max-height:150px; }
+  .bcard.bc-lifted { opacity:.35; }
+  .bcard.bc-ghost { position:fixed !important; z-index:99999; pointer-events:none; opacity:.9; transform:rotate(-2deg); box-shadow:0 10px 26px rgba(0,0,0,.25); }
+  .board-tray-note { font-size:10.5px; color:var(--text3); padding:0 12px 10px; }
+  @media (max-width: 700px) {
+    .board-grid { grid-template-columns:22px 1fr; grid-template-rows:auto repeat(4, auto); }
+    .board-axis-x { grid-column:2 / 3; grid-template-columns:1fr; }
+    .board-axis-x span + span { display:none; }
+    .board-axis-y { grid-row:2 / 6; grid-template-rows:repeat(4, 1fr); }
+    .board-axis-y span + span { display:none; }
+  }
+
 </style>
 <!-- Supabase JS Client — version-pinned with Subresource Integrity so a
      compromised/tampered CDN file can't execute in the app origin. -->
@@ -3221,6 +3301,7 @@ if (typeof XLSX === 'undefined') {
       <div id="projCapPanel" class="proj-cap-panel" style="display:none;"></div>
       <!-- Right Panel (sub-code tables) -->
       <div id="projRightPanel" class="proj-right-panel">
+        <div id="projBoardsWrap" style="display:none;"></div>
         <div id="projCodeContent">
           <div class="proj-empty-state">
             <span style="font-size:24px;">📂</span>
@@ -4320,7 +4401,7 @@ if (typeof XLSX === 'undefined') {
     <div class="welcome-step" data-step="1">
       <h3>Your 6 Tabs</h3>
       <div class="welcome-tip"><span class="welcome-tip-icon">1</span><span><strong>My Tasks</strong> — your personal billable work: timers, priorities, recurring tasks, week planner.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — billing codes with sub-codes; sessions and subtasks live under each.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — a sticky-note <strong>board per sub-code</strong> for thoughts, plus the ☰ List ledger of sessions and subtasks under each code.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">3</span><span><strong>Team Deliverables</strong> — cross-team work and relay hand-offs (who has the baton).</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">4</span><span><strong>Timesheet</strong> — logged hours by pay period (billing record) and by month (headroom).</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">5</span><span><strong>Capacity</strong> — 12-month forward planner: "someone needs this by May — do I have room?"</span></div>
@@ -4337,8 +4418,9 @@ if (typeof XLSX === 'undefined') {
     </div>
 
     <div class="welcome-step" data-step="3">
-      <h3>Projects & Sessions</h3>
-      <p>The <strong>Projects</strong> tab groups work under billing codes. Each project can have multiple <strong>sessions</strong> (work items) and <strong>subtasks</strong>, organized by sub-code.</p>
+      <h3>Projects: Boards & Sessions</h3>
+      <p>The <strong>Projects</strong> tab opens on <strong>▦ Boards</strong> — one whiteboard per sub-code (plus 💭 Loose thoughts) where a typed thought lands as a sticky with no other decisions. Drag to arrange, or <strong>⊞ Sort 2×2</strong> into Do now / Schedule / Delegate / Park. Stickies carry no hours.</p>
+      <div class="welcome-tip"><span class="welcome-tip-icon">☰</span><span><strong>☰ List</strong> is the ledger: each project's <strong>sessions</strong> (work items) and <strong>subtasks</strong>, organized by sub-code.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">📂</span><span>Sessions have their own timers, due dates, and can be delegated to team members.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">◷</span><span>The <strong>Capacity split</strong> (◷ button) shows the month's free hours beside your project — drag any row onto a day to schedule it.</span></div>
       <!-- Brain Dump tip hidden while feature is disabled -->
@@ -4835,7 +4917,8 @@ const SYNC_KEYS = [
   'wt_dup_decisions', 'wt_stale_subcodes',
   'wt_onboarded', 'wt_xlsx_alloc_imported',
   'wt_alloc_rollovers', 'wt_collapsed_task_sections',
-  'wt_alloc_aliases', 'wt_person_colors', 'wt_person_allocs'
+  'wt_alloc_aliases', 'wt_person_colors', 'wt_person_allocs',
+  'wt_boards', 'wt_board_cards'
 ];
 
 async function cloudSave(key, data) {
@@ -5733,7 +5816,8 @@ function save(key, data) {
   } catch(e) { /* caches not yet initialized during early bootstrap */ }
   // Fire-and-forget cloud sync (non-blocking) with failure notification
   if (_supabase && _currentUser && SYNC_KEYS.includes(key)) {
-    cloudSave(key, data).catch(err => {
+    const _p = cloudSave(key, data);
+    _p.catch(err => {
       console.warn('Cloud save failed for', key, err);
       _syncFailCount = (_syncFailCount || 0) + 1;
       // Show toast on first failure, then throttle to avoid spam
@@ -5743,6 +5827,9 @@ function save(key, data) {
       const btn = document.getElementById('syncStatusBtn');
       if (btn) { btn.textContent = '⚠'; btn.title = 'Sync error — click to retry'; }
     });
+    // Returned so surfaces that show a save state (the board save chip) can
+    // await the cloud result; the catch above already marks it handled.
+    return _p;
   }
 }
 
@@ -8883,7 +8970,9 @@ function renderProjects() {
       selectedProjCode = visible[0];
       renderProjCodeContent(selectedProjCode);
     } else {
-      document.getElementById('projCodeContent').innerHTML = '<div class="proj-empty-state"><span style="font-size:24px;">📂</span><span>No visible project codes. Unhide some from the panel.</span></div>';
+      const _bw = document.getElementById('projBoardsWrap'); if (_bw) _bw.style.display = 'none';
+      const _pc = document.getElementById('projCodeContent'); _pc.style.display = '';
+      _pc.innerHTML = '<div class="proj-empty-state"><span style="font-size:24px;">📂</span><span>No visible project codes. Unhide some from the panel.</span></div>';
     }
   }
 }
@@ -8963,6 +9052,518 @@ function renderProjCodeList() {
     html += '</div>';
   }
   container.innerHTML = html;
+}
+
+// =============================================
+// BOARDS — sticky-note whiteboards per sub-code (Phase 0, Sep 2026)
+// =============================================
+// Design record: docs/vision-2026-09-boards.md. Boards are the Projects tab's
+// DEFAULT view (the thinking surface); the per-sub-code ledger survives as the
+// ☰ List view. Hierarchy follows billing: project code → one board per
+// sub-code, plus the project's "Loose thoughts" board (scId '') for ideas not
+// filed to a code yet.
+//
+// Data (both in SYNC_KEYS):
+//   wt_boards       [{ id, projKey, scId, createdAt }]
+//   wt_board_cards  [{ id, boardId, kind: 'note'|'heading', x, y, w, h, color,
+//                      z, text, urgent, important, createdAt, updatedAt }]
+// Device-local (never synced, like wt_focus_mode): wt_proj_view ('boards' |
+// 'list'), wt_board_open ({projKey: boardId}), wt_board_view ({boardId:
+// 'free'|'grid'}).
+//
+// Invariants: cards NEVER carry hours — a card that becomes a task (Phase 1)
+// links to it and the task keeps estimate/dates/code, so nothing here touches
+// Capacity/Timesheet math. Card text and board titles are user text → escHtml
+// at every innerHTML sink; handlers carry only ids. Boards slide but the
+// strip of boards never hides (object-permanence rule from focus mode).
+let boards = load('wt_boards', []) || [];
+let boardCards = load('wt_board_cards', []) || [];
+let _projView = load('wt_proj_view', 'boards') === 'list' ? 'list' : 'boards';
+let _boardOpen = load('wt_board_open', {}) || {};
+let _boardViewPref = load('wt_board_view', {}) || {};
+let _boardSlideDir = 0;
+let _boardSaveState = 'saved'; // 'saved' | 'saving' | 'failed' (chip; 'local' derived when signed out)
+const BOARD_COLORS = ['yellow', 'pink', 'blue', 'green', 'purple', 'orange', 'white'];
+const BOARD_COLOR_HEX = { yellow: '#fff3a3', pink: '#ffd6e0', blue: '#d3e8ff', green: '#d5f5dc', purple: '#e8dcff', orange: '#ffe2c4', white: '#ffffff' };
+// Eisenhower quadrants. Labels are verbs on purpose — the box tells you what
+// to do with the thought, not what category it is in.
+const BOARD_QUADS = {
+  do:       { urgent: true,  important: true,  label: 'Do now',   hint: 'urgent + important' },
+  schedule: { urgent: false, important: true,  label: 'Schedule', hint: 'important, not urgent' },
+  delegate: { urgent: true,  important: false, label: 'Delegate', hint: 'urgent, not important' },
+  park:     { urgent: false, important: false, label: 'Park',     hint: 'neither — maybe later' }
+};
+
+// save() wrapper that drives the per-board save chip — the trust signal after
+// the data-loss incident. save() returns the cloud promise when signed in.
+function _boardSave(key) {
+  _boardSaveState = 'saving'; _boardChip();
+  const p = save(key, key === 'wt_boards' ? boards : boardCards);
+  if (!p || typeof p.then !== 'function') { _boardSaveState = 'saved'; _boardChip(); return; }
+  p.then(() => { _boardSaveState = 'saved'; _boardChip(); })
+   .catch(() => { _boardSaveState = 'failed'; _boardChip(); });
+}
+function _boardChip() {
+  const el = document.getElementById('boardSaveChip'); if (!el) return;
+  const signed = !!(_supabase && _currentUser);
+  const st = signed ? _boardSaveState : 'local';
+  const map = {
+    saved:  ['☁ Saved & synced', 'ok'],
+    saving: ['Saving…', ''],
+    failed: ['⚠ Saved on this device only — sync failed', 'bad'],
+    local:  ['Saved on this device only — not backed up', 'warn']
+  };
+  const [txt, cls] = map[st] || map.saved;
+  el.textContent = txt; el.className = 'board-save-chip ' + cls;
+}
+
+function _ensureBoards(projKey) {
+  const proj = PROJECTS[projKey]; if (!proj) return;
+  let changed = false;
+  [''].concat((proj.subCodes || []).map(sc => sc.id)).forEach(scId => {
+    if (!boards.some(b => b.projKey === projKey && b.scId === scId)) {
+      boards.push({ id: uid(), projKey, scId, createdAt: today() });
+      changed = true;
+    }
+  });
+  if (changed) _boardSave('wt_boards');
+}
+// Ordered boards for a project: Loose thoughts first, then sub-codes in the
+// project's own order. Inactive sub-codes keep their board only while it holds
+// cards; a board whose sub-code was deleted stays visible while it has cards
+// (never hide a thought), labelled as such.
+function _boardsForProject(projKey) {
+  _ensureBoards(projKey);
+  const proj = PROJECTS[projKey]; if (!proj) return [];
+  const mine = boards.filter(b => b.projKey === projKey);
+  const hasCards = b => boardCards.some(c => c.boardId === b.id);
+  const out = [];
+  const loose = mine.find(b => b.scId === ''); if (loose) out.push(loose);
+  const seen = new Set(['']);
+  (proj.subCodes || []).forEach(sc => {
+    seen.add(sc.id);
+    const b = mine.find(x => x.scId === sc.id); if (!b) return;
+    if (sc.active === false && !hasCards(b)) return;
+    out.push(b);
+  });
+  mine.filter(b => !seen.has(b.scId) && hasCards(b)).forEach(b => out.push(b));
+  return out;
+}
+function _boardTitle(b) {
+  if (!b.scId) return 'Loose thoughts';
+  const sc = (PROJECTS[b.projKey]?.subCodes || []).find(s => s.id === b.scId);
+  if (!sc) return 'Removed sub-code';
+  return [sc.code, sc.label].filter(Boolean).join(' ');
+}
+function _boardCurrent(projKey) {
+  const list = _boardsForProject(projKey);
+  if (!list.length) return null;
+  return list.find(b => b.id === _boardOpen[projKey]) || list[0];
+}
+function boardOpen(projKey, boardId, dir) {
+  _boardOpen[projKey] = boardId; save('wt_board_open', _boardOpen);
+  _boardSlideDir = dir || 0;
+  renderProjBoards(projKey);
+}
+function boardSlide(projKey, delta) {
+  const list = _boardsForProject(projKey);
+  const cur = _boardCurrent(projKey); if (!cur) return;
+  const idx = list.findIndex(b => b.id === cur.id);
+  const next = idx + delta;
+  if (next < 0 || next >= list.length) return; // no wrap — the ends are the ends
+  boardOpen(projKey, list[next].id, delta);
+}
+function boardSetView(boardId, view) {
+  _boardViewPref[boardId] = view === 'grid' ? 'grid' : 'free';
+  save('wt_board_view', _boardViewPref);
+  const b = boards.find(x => x.id === boardId); if (b) renderProjBoards(b.projKey);
+}
+function _projViewToggleHtml(cur) {
+  return `<div class="board-seg" title="Boards = think & sort · List = every item by sub-code">
+    <button class="${cur === 'boards' ? 'on' : ''}" onclick="_setProjView('boards')">▦ Boards</button>
+    <button class="${cur === 'list' ? 'on' : ''}" onclick="_setProjView('list')">☰ List</button>
+  </div>`;
+}
+function _setProjView(v) {
+  _projView = v === 'list' ? 'list' : 'boards';
+  save('wt_proj_view', _projView);
+  if (selectedProjCode) renderProjCodeContent(selectedProjCode); else renderProjects();
+}
+// Re-render only when the boards view is actually showing this project —
+// mutations can arrive while another tab/view is up.
+function _boardRerender(projKey) {
+  if (_projView === 'boards' && selectedProjCode === projKey) renderProjBoards(projKey);
+}
+
+function renderProjBoards(projKey) {
+  const wrap = document.getElementById('projBoardsWrap');
+  const list = document.getElementById('projCodeContent');
+  if (!wrap) return;
+  if (list) list.style.display = 'none';
+  wrap.style.display = '';
+  const proj = PROJECTS[projKey];
+  if (!proj) { wrap.innerHTML = ''; return; }
+  const bl = _boardsForProject(projKey);
+  const board = _boardCurrent(projKey);
+  const color = proj.color || '#666';
+  const idx = board ? bl.findIndex(b => b.id === board.id) : -1;
+  const view = board ? (_boardViewPref[board.id] || 'free') : 'free';
+  const cards = board ? boardCards.filter(c => c.boardId === board.id) : [];
+
+  let html = `<div class="proj-right-header" style="margin-bottom:10px;">
+    <div class="proj-code-dot" style="background:${escHtml(color)};width:12px;height:12px;border-radius:50%;"></div>
+    <span class="proj-right-title">${escHtml(proj.label || projKey)}</span>
+    <span class="proj-right-code">${escHtml(proj.billingCode || '')}</span>
+    <span class="info-i" onclick="showInfoPopover(event,'boards')" title="What is a board?">i</span>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <span id="boardSaveChip" class="board-save-chip"></span>
+      ${_projViewToggleHtml('boards')}
+    </div>
+  </div>`;
+
+  html += `<div class="board-strip">
+    <button class="board-strip-arrow" onclick="boardSlide('${projKey}',-1)" ${idx <= 0 ? 'disabled' : ''} title="Previous board (←)">‹</button>
+    <div class="board-strip-tabs">${bl.map((b, i) => {
+      const n = boardCards.filter(c => c.boardId === b.id).length;
+      return `<button class="board-tab${board && b.id === board.id ? ' active' : ''}" onclick="boardOpen('${projKey}','${b.id}',${i > idx ? 1 : -1})" style="--pc:${escHtml(color)};" title="${escHtml(_boardTitle(b))}">${b.scId === '' ? '💭 ' : ''}${escHtml(_boardTitle(b))}<span class="board-tab-n">${n}</span></button>`;
+    }).join('')}</div>
+    <button class="board-strip-arrow" onclick="boardSlide('${projKey}',1)" ${idx < 0 || idx >= bl.length - 1 ? 'disabled' : ''} title="Next board (→)">›</button>
+  </div>`;
+
+  if (!board) {
+    html += '<div class="proj-empty-state"><span style="font-size:24px;">💭</span><span>No boards yet for this project.</span></div>';
+    wrap.innerHTML = html; return;
+  }
+  const isLoose = board.scId === '';
+  const sub = isLoose ? 'ideas not filed to a sub-code yet' : `board ${idx + 1} of ${bl.length}`;
+  html += `<div class="board-stage${_boardSlideDir > 0 ? ' slide-in-right' : _boardSlideDir < 0 ? ' slide-in-left' : ''}" id="boardStage" data-board-id="${board.id}">
+    <div class="board-head">
+      <div class="board-head-title">${isLoose ? '💭 ' : ''}${escHtml(_boardTitle(board))}<span class="board-head-sub">${escHtml(sub)}</span></div>
+      <div class="board-head-actions">
+        <div class="board-seg" title="Free = arrange stickies anywhere · Sort = drop them into urgent/important boxes">
+          <button class="${view === 'free' ? 'on' : ''}" onclick="boardSetView('${board.id}','free')">▦ Free</button>
+          <button class="${view === 'grid' ? 'on' : ''}" onclick="boardSetView('${board.id}','grid')">⊞ Sort 2×2</button>
+        </div>
+        <button class="btn" onclick="boardAddHeading('${board.id}')" style="font-size:11px;padding:3px 10px;" title="A heading is a label you can group stickies under">+ Heading</button>
+      </div>
+    </div>
+    <form class="board-capture" onsubmit="return boardCaptureSubmit(event,'${board.id}')">
+      <span class="board-capture-icon">💭</span>
+      <input type="text" id="boardCapture" placeholder="Toss a thought on this board — Enter adds it, nothing else to decide" autocomplete="off" maxlength="2000">
+      <button type="submit" class="btn primary" style="font-size:11px;padding:6px 12px;">Add</button>
+    </form>
+    <div class="board-body" id="boardBody"></div>
+  </div>`;
+  wrap.innerHTML = html;
+  _boardSlideDir = 0;
+  _boardChip();
+  const body = document.getElementById('boardBody');
+  if (view === 'grid') _renderBoardGrid(body, board, cards); else _renderBoardFree(body, board, cards);
+  _boardBindSwipe(wrap.querySelector('.board-head'), projKey);
+}
+
+function _renderBoardFree(body, board, cards) {
+  body.className = 'board-body board-scroll';
+  const maxR = cards.reduce((m, c) => Math.max(m, c.x + c.w), 0);
+  const maxB = cards.reduce((m, c) => Math.max(m, c.y + c.h), 0);
+  const canvasW = Math.max(body.clientWidth || 800, maxR + 260);
+  const canvasH = Math.max(body.clientHeight || 500, maxB + 220);
+  const sorted = cards.slice().sort((a, b) => (a.z || 0) - (b.z || 0));
+  body.innerHTML = `<div class="board-canvas" id="boardCanvas" style="width:${canvasW}px;height:${canvasH}px;">` +
+    (cards.length ? '' : '<div class="board-empty">Nothing here yet.<span>Type a thought above and press Enter — it lands here as a sticky. Drag to arrange, tap to edit, ⋯ for colour.</span></div>') +
+    sorted.map(c => _boardCardHtml(c, false)).join('') + '</div>';
+  body.querySelectorAll('.bcard').forEach(_boardBindCard);
+}
+
+function _renderBoardGrid(body, board, cards) {
+  body.className = 'board-body board-gridwrap';
+  const notes = cards.filter(c => c.kind !== 'heading');
+  const headings = cards.length - notes.length;
+  const byQ = { do: [], schedule: [], delegate: [], park: [], tray: [] };
+  notes.forEach(c => byQ[_boardQuadOf(c) || 'tray'].push(c));
+  const quad = q => `<div class="board-quad q-${q}" data-quad="${q}">
+      <div class="board-quad-head"><strong>${BOARD_QUADS[q].label}</strong><span>${BOARD_QUADS[q].hint}</span><em>${byQ[q].length}</em></div>
+      <div class="board-quad-cards">${byQ[q].map(c => _boardCardHtml(c, true)).join('') || '<div class="board-quad-empty">drop stickies here</div>'}</div>
+    </div>`;
+  body.innerHTML = `<div class="board-grid">
+      <div class="board-axis-x"><span>Urgent</span><span>Not urgent</span></div>
+      <div class="board-axis-y"><span>Important</span><span>Not important</span></div>
+      ${quad('do')}${quad('schedule')}${quad('delegate')}${quad('park')}
+    </div>
+    <div class="board-tray" data-quad="tray">
+      <div class="board-quad-head"><strong>Unsorted</strong><span>drag a sticky into a box — nothing is hidden here</span><em>${byQ.tray.length}</em></div>
+      <div class="board-quad-cards">${byQ.tray.map(c => _boardCardHtml(c, true)).join('') || '<div class="board-quad-empty">everything is sorted ✓</div>'}</div>
+      ${headings ? `<div class="board-tray-note">${headings} heading${headings > 1 ? 's' : ''} stay on the Free view — headings are structure, not to-dos.</div>` : ''}
+    </div>`;
+  body.querySelectorAll('.bcard').forEach(_boardBindCard);
+}
+
+function _boardCardHtml(c, flow) {
+  const color = BOARD_COLORS.includes(c.color) ? c.color : 'yellow';
+  const quad = _boardQuadOf(c);
+  const isHead = c.kind === 'heading';
+  const style = flow ? '' : `left:${+c.x || 0}px;top:${+c.y || 0}px;width:${+c.w || 200}px;${isHead ? '' : `height:${+c.h || 140}px;`}z-index:${+c.z || 1};`;
+  return `<div class="bcard bc-${color}${isHead ? ' bc-heading' : ''}${flow ? ' bc-flow' : ''}" data-card-id="${c.id}" style="${style}">
+    <div class="bc-top">
+      ${quad && !flow ? `<span class="bc-quad q-${quad}">${BOARD_QUADS[quad].label}</span>` : ''}
+      <button class="bc-menu" onclick="event.stopPropagation();boardCardMenu(event,'${c.id}')" title="Colour · heading · delete">⋯</button>
+    </div>
+    <div class="bc-text">${c.text ? escHtml(c.text) : '<span class="bc-empty">(empty — tap to write)</span>'}</div>
+    ${flow || isHead ? '' : '<div class="bc-resize" title="Resize"></div>'}
+  </div>`;
+}
+function _boardQuadOf(c) {
+  if (c.urgent == null || c.important == null) return null;
+  return c.urgent ? (c.important ? 'do' : 'delegate') : (c.important ? 'schedule' : 'park');
+}
+function _boardNextZ(boardId) {
+  return boardCards.filter(c => c.boardId === boardId).reduce((m, c) => Math.max(m, c.z || 0), 0) + 1;
+}
+// Re-render just the stage body (keeps the capture box and its focus intact).
+function _boardRefreshBody() {
+  const stage = document.getElementById('boardStage'); if (!stage) return;
+  const board = boards.find(b => b.id === stage.dataset.boardId); if (!board) return;
+  const body = document.getElementById('boardBody'); if (!body) return;
+  const cards = boardCards.filter(c => c.boardId === board.id);
+  const sl = body.scrollLeft, st = body.scrollTop;
+  if ((_boardViewPref[board.id] || 'free') === 'grid') _renderBoardGrid(body, board, cards);
+  else _renderBoardFree(body, board, cards);
+  body.scrollLeft = sl; body.scrollTop = st;
+}
+
+// ── Capture / add ──
+function boardCaptureSubmit(ev, boardId) {
+  if (ev) ev.preventDefault();
+  const inp = document.getElementById('boardCapture');
+  const text = (inp?.value || '').trim();
+  if (!text) return false;
+  boardAddCard(boardId, { text });
+  const again = document.getElementById('boardCapture');
+  if (again) { again.value = ''; again.focus(); }
+  return false;
+}
+function boardAddCard(boardId, opts = {}) {
+  const board = boards.find(b => b.id === boardId); if (!board) return null;
+  const kind = opts.kind === 'heading' ? 'heading' : 'note';
+  const w = opts.w || (kind === 'heading' ? 280 : 200);
+  const h = opts.h || (kind === 'heading' ? 44 : 140);
+  const pos = _boardFreeSlot(boardId, w, h);
+  const c = { id: uid(), boardId, kind, x: pos.x, y: pos.y, w, h,
+    color: BOARD_COLORS.includes(opts.color) ? opts.color : (kind === 'heading' ? 'white' : 'yellow'),
+    z: _boardNextZ(boardId), text: (opts.text || '').slice(0, 2000), urgent: null, important: null,
+    createdAt: today(), updatedAt: today() };
+  boardCards.push(c);
+  _boardSave('wt_board_cards');
+  _boardRerender(board.projKey);
+  return c;
+}
+function boardAddHeading(boardId) {
+  const c = boardAddCard(boardId, { kind: 'heading', text: '' });
+  if (!c) return;
+  if ((_boardViewPref[boardId] || 'free') === 'grid') boardSetView(boardId, 'free');
+  boardCardEdit(c.id);
+}
+// First empty slot scanning left→right, top→bottom, so a new sticky lands in
+// view near the top rather than off-screen.
+function _boardFreeSlot(boardId, w, h) {
+  const cards = boardCards.filter(c => c.boardId === boardId);
+  const body = document.getElementById('boardBody');
+  const width = Math.max(400, (body?.clientWidth || 900) - 20);
+  const stepX = 220, stepY = 160, pad = 16;
+  const cols = Math.max(1, Math.floor((width - pad) / stepX));
+  for (let row = 0; row < 400; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = pad + col * stepX, y = pad + row * stepY;
+      const hit = cards.some(c => x < c.x + c.w + 8 && x + w + 8 > c.x && y < c.y + c.h + 8 && y + h + 8 > c.y);
+      if (!hit) return { x, y };
+    }
+  }
+  return { x: pad, y: pad + cards.length * 30 };
+}
+
+// ── Card interactions (pointer events: mouse, touch, pencil) ──
+// Press and release without moving = edit; move more than 6px = drag.
+let _bcDrag = null;
+function _boardBindCard(el) {
+  el.addEventListener('pointerdown', _bcPointerDown);
+  const rh = el.querySelector('.bc-resize');
+  if (rh) rh.addEventListener('pointerdown', _bcResizeDown);
+}
+function _bcPointerDown(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const el = e.currentTarget;
+  if (e.target.closest('.bc-menu, .bc-resize, textarea')) return;
+  if (el.classList.contains('editing')) return;
+  _bcDrag = { el, id: el.dataset.cardId, pid: e.pointerId, startX: e.clientX, startY: e.clientY,
+    ox: el.offsetLeft, oy: el.offsetTop, moved: false, flow: el.classList.contains('bc-flow'), ghost: null };
+  try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  el.addEventListener('pointermove', _bcPointerMove);
+  el.addEventListener('pointerup', _bcPointerUp);
+  el.addEventListener('pointercancel', _bcPointerUp);
+}
+function _bcPointerMove(e) {
+  const d = _bcDrag; if (!d) return;
+  const dx = e.clientX - d.startX, dy = e.clientY - d.startY;
+  if (!d.moved) {
+    if (Math.hypot(dx, dy) < 6) return;
+    d.moved = true; d.el.classList.add('dragging');
+    if (d.flow) _bcGhostStart(d, e);
+  }
+  if (d.flow) { _bcGhostMove(d, e); return; }
+  d.el.style.left = Math.max(0, d.ox + dx) + 'px';
+  d.el.style.top = Math.max(0, d.oy + dy) + 'px';
+}
+function _bcPointerUp(e) {
+  const d = _bcDrag; if (!d) return;
+  _bcDrag = null;
+  d.el.removeEventListener('pointermove', _bcPointerMove);
+  d.el.removeEventListener('pointerup', _bcPointerUp);
+  d.el.removeEventListener('pointercancel', _bcPointerUp);
+  try { d.el.releasePointerCapture(d.pid); } catch (_) {}
+  d.el.classList.remove('dragging');
+  if (!d.moved) { if (e.type !== 'pointercancel') boardCardEdit(d.id); return; }
+  if (d.flow) { _bcGhostDrop(d, e); return; }
+  const x = Math.round(Math.max(0, d.el.offsetLeft) / 10) * 10;
+  const y = Math.round(Math.max(0, d.el.offsetTop) / 10) * 10;
+  _boardMoveCard(d.id, x, y);
+}
+function _boardMoveCard(id, x, y) {
+  const c = boardCards.find(k => k.id === id); if (!c) return;
+  c.x = Math.max(0, Math.round(x)); c.y = Math.max(0, Math.round(y));
+  c.z = _boardNextZ(c.boardId); c.updatedAt = today();
+  _boardSave('wt_board_cards');
+  _boardRefreshBody();
+}
+function _bcResizeDown(e) {
+  e.stopPropagation();
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const h = e.currentTarget, el = h.closest('.bcard'), id = el.dataset.cardId;
+  const st = { sx: e.clientX, sy: e.clientY, w: el.offsetWidth, h: el.offsetHeight };
+  try { h.setPointerCapture(e.pointerId); } catch (_) {}
+  const mv = ev => {
+    el.style.width = Math.max(120, st.w + ev.clientX - st.sx) + 'px';
+    el.style.height = Math.max(70, st.h + ev.clientY - st.sy) + 'px';
+  };
+  const up = () => {
+    h.removeEventListener('pointermove', mv); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up);
+    const c = boardCards.find(k => k.id === id); if (!c) return;
+    c.w = Math.round(el.offsetWidth / 10) * 10; c.h = Math.round(el.offsetHeight / 10) * 10;
+    c.updatedAt = today(); _boardSave('wt_board_cards'); _boardRefreshBody();
+  };
+  h.addEventListener('pointermove', mv); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+}
+// Grid-view drag: a fixed-position ghost follows the pointer; the drop target
+// is whichever quadrant (or the tray) is under the pointer on release.
+function _bcGhostStart(d, e) {
+  const g = d.el.cloneNode(true);
+  g.classList.add('bc-ghost'); g.classList.remove('dragging');
+  g.style.width = d.el.offsetWidth + 'px';
+  document.body.appendChild(g); d.ghost = g; d.el.classList.add('bc-lifted');
+  _bcGhostMove(d, e);
+}
+function _bcGhostMove(d, e) {
+  if (!d.ghost) return;
+  d.ghost.style.left = (e.clientX + 10) + 'px'; d.ghost.style.top = (e.clientY + 10) + 'px';
+  document.querySelectorAll('.board-quad.over, .board-tray.over').forEach(q => q.classList.remove('over'));
+  const q = _bcQuadAt(e.clientX, e.clientY); if (q) q.classList.add('over');
+}
+function _bcQuadAt(x, y) {
+  const under = document.elementFromPoint(x, y);
+  return under ? under.closest('[data-quad]') : null;
+}
+function _bcGhostDrop(d, e) {
+  const q = _bcQuadAt(e.clientX, e.clientY);
+  if (d.ghost) d.ghost.remove();
+  d.el.classList.remove('bc-lifted');
+  document.querySelectorAll('.board-quad.over, .board-tray.over').forEach(x => x.classList.remove('over'));
+  if (!q) return;
+  _boardSetQuadrant(d.id, q.dataset.quad);
+}
+function _boardSetQuadrant(id, quad) {
+  const c = boardCards.find(k => k.id === id); if (!c) return;
+  if (!BOARD_QUADS[quad]) { c.urgent = null; c.important = null; }
+  else { c.urgent = BOARD_QUADS[quad].urgent; c.important = BOARD_QUADS[quad].important; }
+  c.updatedAt = today();
+  _boardSave('wt_board_cards');
+  _boardRefreshBody();
+}
+
+// ── Inline edit ──
+function boardCardEdit(id) {
+  const el = document.querySelector(`.bcard[data-card-id="${id}"]`);
+  const c = boardCards.find(k => k.id === id);
+  if (!el || !c || el.classList.contains('editing')) return;
+  el.classList.add('editing');
+  const t = el.querySelector('.bc-text');
+  const ta = document.createElement('textarea');
+  ta.className = 'bc-editor'; ta.value = c.text || ''; ta.maxLength = 2000;
+  ta.placeholder = c.kind === 'heading' ? 'Heading…' : 'Write…';
+  t.replaceWith(ta);
+  const finish = cancel => {
+    if (!el.classList.contains('editing')) return;
+    el.classList.remove('editing');
+    const val = cancel ? (c.text || '') : ta.value.trim();
+    if (val !== (c.text || '')) { c.text = val; c.updatedAt = today(); _boardSave('wt_board_cards'); }
+    _boardRefreshBody();
+  };
+  ta.addEventListener('blur', () => finish(false));
+  ta.addEventListener('keydown', ev => {
+    ev.stopPropagation();
+    if (ev.key === 'Escape') { ev.preventDefault(); finish(true); }
+    else if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey || c.kind === 'heading')) { ev.preventDefault(); finish(false); }
+  });
+  ta.addEventListener('pointerdown', ev => ev.stopPropagation());
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+// ── Card menu / delete ──
+function boardCardMenu(ev, id) {
+  const c = boardCards.find(k => k.id === id); if (!c) return;
+  const items = BOARD_COLORS.map(col => ({ value: 'color:' + col, label: col[0].toUpperCase() + col.slice(1), swatch: BOARD_COLOR_HEX[col] }));
+  items.push({ value: 'kind', label: c.kind === 'heading' ? 'Turn into a sticky' : 'Turn into a heading' });
+  if (_boardQuadOf(c)) items.push({ value: 'unsort', label: 'Clear urgent / important' });
+  items.push({ value: 'front', label: 'Bring to front' });
+  items.push({ value: 'delete', label: '🗑 Delete' });
+  showDropdown(ev.currentTarget || ev.target, items, 'color:' + (c.color || 'yellow'), v => {
+    if (v === 'delete') { boardCardDelete(id); return; }
+    if (v.startsWith('color:')) c.color = v.slice(6);
+    else if (v === 'kind') {
+      c.kind = c.kind === 'heading' ? 'note' : 'heading';
+      if (c.kind === 'heading') { c.h = 44; c.w = Math.max(c.w, 240); c.urgent = null; c.important = null; }
+      else c.h = Math.max(c.h, 120);
+    }
+    else if (v === 'unsort') { c.urgent = null; c.important = null; }
+    else if (v === 'front') c.z = _boardNextZ(c.boardId);
+    c.updatedAt = today();
+    _boardSave('wt_board_cards');
+    _boardRefreshBody();
+  });
+}
+function boardCardDelete(id) {
+  const idx = boardCards.findIndex(k => k.id === id); if (idx === -1) return;
+  const c = boardCards[idx];
+  const board = boards.find(b => b.id === c.boardId);
+  const label = (c.text || '').trim().slice(0, 32) || '(empty sticky)';
+  _performDelete(`Deleted "${label}"`,
+    () => { boardCards.splice(idx, 1); _boardSave('wt_board_cards'); if (board) _boardRerender(board.projKey); },
+    () => { boardCards.splice(Math.min(idx, boardCards.length), 0, c); _boardSave('wt_board_cards'); if (board) _boardRerender(board.projKey); });
+}
+
+// ── Swipe between boards (touch/pen on the board header; ←/→ keys elsewhere) ──
+function _boardBindSwipe(el, projKey) {
+  if (!el) return;
+  let s = null;
+  el.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' || e.target.closest('button, input')) return;
+    s = { x: e.clientX, y: e.clientY };
+  });
+  el.addEventListener('pointerup', e => {
+    if (!s) return;
+    const dx = e.clientX - s.x, dy = e.clientY - s.y; s = null;
+    if (Math.abs(dx) > 70 && Math.abs(dy) < 50) boardSlide(projKey, dx < 0 ? 1 : -1);
+  });
+  el.addEventListener('pointercancel', () => { s = null; });
 }
 
 // ── Right Panel: sub-code tables for selected project ──
@@ -9185,6 +9786,10 @@ function renderProjCodeContent(projKey) {
   if (!container) return;
   const proj = PROJECTS[projKey];
   if (!proj) { container.innerHTML = ''; return; }
+  // Boards are the default view of this panel; the ledger below is ☰ List.
+  if (_projView === 'boards') { renderProjBoards(projKey); return; }
+  const _bw = document.getElementById('projBoardsWrap'); if (_bw) _bw.style.display = 'none';
+  container.style.display = '';
 
   // Auto-create a default sub-code if the project has none
   if (!proj.subCodes || proj.subCodes.length === 0) {
@@ -9279,6 +9884,7 @@ function renderProjCodeContent(projKey) {
     <span class="proj-right-title">${escHtml(proj.label || projKey)}</span>
     <span class="proj-right-code">${escHtml(proj.billingCode || '')}</span>
     <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+      ${_projViewToggleHtml('list')}
       <div style="display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:10px;">
         <button onclick="_setProjHorizon('all')" style="padding:3px 10px;border:none;cursor:pointer;font-size:10px;font-weight:600;${_projHorizon === 'all' ? 'background:var(--accent);color:#fff;' : 'background:var(--bg2);color:var(--text3);'}">All Tasks</button>
         <button onclick="_setProjHorizon('30d')" style="padding:3px 10px;border:none;border-left:1px solid var(--border);cursor:pointer;font-size:10px;font-weight:600;${_projHorizon === '30d' ? 'background:var(--accent);color:#fff;' : 'background:var(--bg2);color:var(--text3);'}">Next 30 Days</button>
@@ -17430,6 +18036,10 @@ function _maybeShowWelcome() {
 // steps, and _TAB_TIPS below — all three are part of definition-of-done.
 
 const INFO_COPY = {
+  boards: {
+    title: 'Boards — the thinking surface for a project',
+    body: 'Each project has one <strong>board per sub-code</strong> plus a <strong>💭 Loose thoughts</strong> board for ideas not filed to a code yet. Type into the capture box and press <strong>Enter</strong> — the thought lands as a sticky, no other decisions needed. Drag stickies to arrange them, tap one to edit, <strong>⋯</strong> for colour / heading / delete. <strong>⊞ Sort 2×2</strong> lays the same stickies into urgent/important boxes (Do now · Schedule · Delegate · Park); unsorted ones wait in a tray underneath, never hidden. Slide between boards with the arrows, <strong>←/→</strong>, or a swipe on the board title. <strong>Stickies carry no hours</strong> and count nowhere — Capacity, Timesheet and Allocations only see tasks. <strong>☰ List</strong> is the full per-sub-code ledger of every task, session and deliverable.'
+  },
   payPeriodBar: {
     title: 'Pay-period bar — logged hours only',
     body: 'Target = weekdays in the period × your hours/day (80h or 88h depending on the calendar). This bar counts <strong>logged hours only</strong> — it is your billing record for the 1–15 / 16–EOM period. Weekend hours log into the period but add no capacity, so running over reads as <strong>banked flex time</strong>. Planned (future) work is measured in the Timesheet month view and the Capacity tab instead.'
@@ -17533,7 +18143,10 @@ const _TAB_TIPS = {
   projects: {
     title: 'Projects — Tips',
     tips: [
-      'Click a <strong>project card</strong> to expand it and see sessions/subtasks.',
+      '<strong>▦ Boards</strong> is the default view: one sticky-note board per sub-code plus 💭 Loose thoughts. Press <strong>N</strong> or click the capture box, type, <strong>Enter</strong> — the thought lands as a sticky. Drag to arrange, tap to edit, <strong>⋯</strong> for colour, heading or delete.',
+      '<strong>⊞ Sort 2×2</strong> drops the same stickies into Do now / Schedule / Delegate / Park boxes. Unsorted ones sit in the tray below — nothing is ever hidden. Stickies carry <strong>no hours</strong> and never touch Capacity or the Timesheet.',
+      'Slide between boards with <strong>‹ ›</strong>, the <strong>← →</strong> keys, or a swipe on the board title. The chip next to the view toggle says whether the board is <strong>synced</strong> or saved on this device only.',
+      '<strong>☰ List</strong> is the full ledger: every task, session, subtask and deliverable grouped by sub-code. Click a <strong>project card</strong> there to expand it and see sessions/subtasks.',
       'Use <strong>+ Add Session</strong> to create work items within a project.',
       'Sessions can have <strong>subtasks</strong>, timers, and be delegated to team members.',
       'Un-ticking a completed item <strong>retracts its logged time entry</strong> (undo toast) so hours never count twice — and a logged subtask or block must be un-ticked before it can be deleted.',
@@ -17680,6 +18293,20 @@ document.addEventListener('keydown', e => {
       else document.getElementById('quickCapture')?.focus();
     }
     else if (activeTab === 'team') { e.preventDefault(); openAddTeamModal(); }
+    else if (activeTab === 'projects' && _projView === 'boards' && document.getElementById('boardCapture')) {
+      e.preventDefault(); document.getElementById('boardCapture').focus();
+    }
+  }
+
+  // ←/→: slide between a project's boards (tab-bar arrows keep their own handler)
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+    const activeTab = document.querySelector('.tab.active')?.dataset.tab;
+    const onTabBar = e.target && e.target.classList && e.target.classList.contains('tab');
+    const modalOpen = !!document.querySelector('.modal-overlay.open');
+    if (activeTab === 'projects' && _projView === 'boards' && selectedProjCode && !onTabBar && !modalOpen && document.getElementById('boardStage')) {
+      e.preventDefault();
+      boardSlide(selectedProjCode, e.key === 'ArrowRight' ? 1 : -1);
+    }
   }
 
   // 1-6: switch tabs
@@ -17742,6 +18369,8 @@ function reloadStateFromLocalStorage() {
   allocAliases = load('wt_alloc_aliases', {});
   _collapsedTaskSections = new Set(load('wt_collapsed_task_sections', []));
   _focusMode = load('wt_focus_mode', false);
+  boards = load('wt_boards', []) || [];
+  boardCards = load('wt_board_cards', []) || [];
 }
 
 // Task "Waiting On" retired (Sep 2026): it was redundant with notes, which

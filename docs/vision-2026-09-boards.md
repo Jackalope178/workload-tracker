@@ -1,9 +1,19 @@
 # Vision — Boards, command panel, timeline, Capacity 2.0 (Sep 2026)
 
-Status: **plan agreed in principle, nothing built yet.** Revised Sep 11, 2026
-after the owner answered the ten open questions (answers folded in below).
-Phase 0 is the next build; everything after it is sequenced but will be
-re-cut as each phase lands.
+Status: **Phase 0 shipped (Sep 11, 2026)** — boards, stickies, capture box,
+slide strip, ⊞ Sort 2×2, save-state chip, verify scenario 22. Revised the same
+day after the owner answered the ten open questions (answers folded in
+below). Phase 1 is next; everything after it is sequenced but will be re-cut
+as each phase lands.
+
+**Phase 0 as built, where it differs from the plan below:** cards live in a
+flat `wt_board_cards` array keyed by `boardId` (not nested in the board);
+the project's unfiled board is labelled **💭 Loose thoughts**; the Projects
+tab keeps its left-hand project-code list as the "which program" chooser,
+with ▦ Boards / ☰ List as a toggle on the right panel (the command-panel
+tiles arrive in Phase 2); ←/→ keys and a swipe on the board title slide
+between boards, with no wrap-around at the ends; `save()` now returns its
+cloud promise so the save chip can report synced / device-only / failed.
 
 ## The reflection, played back
 

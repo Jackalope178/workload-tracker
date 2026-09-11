@@ -7,6 +7,7 @@ const { launch, step, done } = require('./_lib');
 (async () => {
   const { browser, page } = await launch({
     wt_active_tab: 'projects',
+    wt_proj_view: '"list"',   // asserts on the ☰ List ledger rows (Boards is the default view)
     wt_persons: ['Jordan K'],
     wt_projects_meta: { overhead: { label: 'Overhead', color: '#4a7', billingCode: 'T-0', subCodes: [], tags: [] } },
     wt_tasks: [

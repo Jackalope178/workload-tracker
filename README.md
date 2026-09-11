@@ -39,7 +39,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | Tab | Purpose | Entry function(s) |
 |---|---|---|
 | **My Tasks** | Personal billable tasks: recurrence, timers, priority, week planner. | `renderTasks()`, `renderWeekPlanner()` |
-| **Projects** | Project codes, metadata, members, per-project item lists. | `renderProjects()`, `renderProjCodeList()`, `renderProjCodeContent()` |
+| **Projects** | Opens on **▦ Boards**: one sticky-note whiteboard per sub-code plus a 💭 Loose thoughts board (free-arrange or ⊞ Sort 2×2 urgent/important view; stickies carry no hours). **☰ List** is the per-sub-code ledger of tasks, sessions, subtasks and deliverables. | `renderProjects()`, `renderProjBoards()`, `renderProjCodeContent()` |
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
 | **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). Spreadsheet reconciliation via **⬆ Import & Audit**. | `renderTimesheet()`, `renderTsCapacityBar()`, `handleTsAuditImport()` |
 | **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, move/delegate. | `renderCapacity()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
@@ -60,6 +60,8 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_projects_meta` | Project definitions: `{ label, color, billingCode, subCodes[], tags[] }` |
 | `wt_persons` | Team roster |
 | `wt_allocations` | Monthly budget allocations per person/project |
+| `wt_boards` | Whiteboards, one per sub-code plus the project's 💭 Loose thoughts board: `{ id, projKey, scId, createdAt }` |
+| `wt_board_cards` | Stickies: `{ id, boardId, kind, x, y, w, h, color, z, text, urgent, important, createdAt, updatedAt }` — no hours, no dates |
 
 Plus ~20 smaller preference/UI keys (`wt_theme`, `wt_ts_capacity`, collapse states, etc.). Anything that must survive across devices belongs in the `SYNC_KEYS` array (~line 4,451).
 
@@ -100,6 +102,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 13. **Recurring anchors only move along natural occurrence dates** (see [`docs/recurrence-audit-2026-08.md`](docs/recurrence-audit-2026-08.md)). One-off moves live in `recurrence.overrides`, one-off cancels in `recurrence.skips` — both keyed by the ORIGINAL occurrence date. A missed backlog resolves via **⏩ Catch up** (`catchUpRecurrence` — records skips, resumes on schedule, undoable); the edit modal's due field shows the next upcoming occurrence but writes it back only when actually changed. Month moves and drag-assigns refuse dated recurring items (task occurrence rows reroute to 📅 reschedule); recurring **month holds** (no date) are the exception — moving one re-parks the month the hold series starts.
 14. **The task modal is compact by design** (Sep 2026). Core fields only (name, project/sub-code, priority, due, est, notes); scheduling (work date / spread / work blocks / hold month), recurrence, and team options (assign-to / hand-off) live behind 📅 🔁 👥 toggle buttons. Collapsing hides fields without clearing them, and each button summarizes anything set inside. Tasks carry **no Waiting On field** — notes are the one free-text field and show inline on the row; the board's ⏳ Waiting chip counts only true `waiting` on team/session items.
 15. **The timesheet audit import compares bucket totals, never rows.** `⬆ Import & Audit` on the Timesheet tab reconciles a source-of-truth spreadsheet against `wt_completed` by **project + sub-code + date**, summing each side — the tracker may hold several entries against one code on one day where the sheet holds one line. The comparison is **windowed to the sheet's own date range**; **under-logged days default to apply, over-logged and sheet-absent days default to skip** (removing billed time is always explicit); an entry locked to a completed block or session (`_blockRef`/`_srcRef`) is never edited or deleted — un-tick it at source; and because totals are compared, **re-importing the same sheet is a no-op**, not a double-count. It shares the allocations import's matching layer and alias memory, so a remap taught in one holds in the other. **Granularity follows what the sheet asserts:** a BigTime *Timesheet Detail* export leaves its `Category` column empty, so when no sub-code data is present the comparison drops to **project level** rather than flagging every row. Totals footers are skipped silently; a sheet naming several staff defaults to one person (never importing a colleague's hours silently); non-chargeable lines are included by default but toggleable.
+16. **Boards are a thinking surface, not a planner** (Sep 2026, Phase 0 of [`docs/vision-2026-09-boards.md`](docs/vision-2026-09-boards.md)). Stickies never carry hours or dates and are invisible to Capacity, the Timesheet and Allocations — a thought becomes work only by becoming a task. Capture is one field + Enter; the board strip never hides a board; the ⊞ Sort 2×2 view keeps unsorted stickies in a visible tray; quadrant labels are verbs (Do now / Schedule / Delegate / Park). The save-state chip on every board (synced / saved on this device / failed) is deliberate friction after the Aug 2026 data-loss incident. Board view prefs (`wt_proj_view`, `wt_board_open`, `wt_board_view`) are device-local.
 
 ## Sync architecture
 
@@ -125,6 +128,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 | Timesheet audit import (spreadsheet ↔ ledger) | `handleTsAuditImport`, `_buildTsAuditPlan`, `_tsaComputeGroups`, `_tsaActiveRows`, `_commitTsAuditPlan`, `_tsaEntryLocked` |
 | Reconcile view (plan vs budget) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
+| Boards / stickies / 2×2 sort | `renderProjBoards`, `boardAddCard`, `boardCardEdit`, `_boardSetQuadrant`, `boardSlide`, `_boardSave`, `wt_boards`, `wt_board_cards` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
 | Tabs / navigation | `_switchTab`, `data-tab` |
 | Theming (light-only) | `applyTheme`, `data-theme`, `:root` |
