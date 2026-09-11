@@ -202,7 +202,7 @@ const { launch, step, done } = require('./_lib');
   await page.waitForTimeout(600);
   // (the harness re-seeds localStorage on every navigation, so only the
   // un-seeded wt_proj_view key can prove persistence here)
-  r = await page.evaluate(() => ({ view: _projView, listShown: document.getElementById('projCodeContent').style.display !== 'none' }));
+  r = await page.evaluate(() => ({ view: _projView, listShown: document.getElementById('projCodeContent').style.display !== 'none', stored: localStorage.getItem('wt_proj_view'), lastUser: localStorage.getItem('wt_last_user'), snapshot: !!localStorage.getItem('wt_local_snapshot'), tab: document.querySelector('.tab.active')?.dataset.tab }));
   step('view pref survives reload', r.view === 'list' && r.listShown, r);
 
   await done(browser);
