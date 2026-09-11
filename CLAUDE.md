@@ -257,7 +257,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    changes which one is open, the strip stays; the ⊞ Sort 2×2 view keeps
    unsorted stickies in a visible tray, and headings stay out of the grid
    (structure, not to-dos). Quadrant labels are verbs (Do now / Up next /
-   Delegate / Park) on purpose. Press-and-release on a sticky edits, moving
+   Steady / Park) on purpose. Press-and-release on a sticky edits, moving
    more than 6px drags — one gesture set for mouse, touch and pencil. Every
    board mutation goes through `_boardSave`, which drives the save-state chip
    (synced / saved-on-this-device / failed) — the trust signal after the
@@ -267,8 +267,9 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    / `_boardTaskFromSelection` create the task with `inbox: true` and no
    date/estimate (so it cannot touch Capacity until triaged), priority
    seeded from the quadrant (`_boardQuadPriority` — Do now → urgent,
-   Up next → high, Delegate → med **and the modal opens on the Team
-   section**, Park → low), `createdAt` stamped, and the card becomes a
+   Up next → high, Steady → med, Park → low; a sticky flagged for the
+   **👥 Delegate bin** promotes to med **and the modal opens on the Team
+   section**), `createdAt` stamped, and the card becomes a
    `ref`. Linked cards are **live and never copy fields**; a deleted item
    leaves a dashed "no longer exists" card whose ⋯ Unlink turns it back
    into a sticky (never lose the thought). `boardPinItem` pins an existing
@@ -320,7 +321,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    in `_boardVirtual`, never stored): on the 📋 docket strip in the free
    view, and inside the 2×2 box its **priority** maps to in ⊞ Sort 2×2
    (`BOARD_PRI_QUAD` / `BOARD_QUAD_PRI`: urgent/high/med/low ↔ Do now /
-   Up next / Delegate / Park — the same rule promotion uses). Dropping a
+   Up next / Steady / Park — the same rule promotion uses). Dropping a
    linked card in a box **sets the item's priority**
    (`_boardSetItemPriority`; relay legs and deliverables refuse with a
    toast); dropping one on the canvas **materialises** a stored card
@@ -331,6 +332,15 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    — unsorted stickies only; linked cards never sit there. Every lookup
    that may hit a docket card goes through `_boardCardById`. Scenario 28
    enforces this.
+   **👥 Delegate is a bin, not a level** (Sep 2026). It sits beside 💭 Ideas
+   under the 2×2. A sticky dropped there gets `delegate: true` (any
+   quadrant drop clears it); a task / work item dropped there opens the
+   assignment picker on the spot (relay legs and deliverables refuse — use
+   ◖); once an item is handed entirely to others it leaves the docket and
+   the bin lists it as a virtual `delegated` card ("handed to X"), together
+   with deliverables on that code whose baton is elsewhere
+   (`_boardDelegated`). The assignment toggles refresh a visible board so
+   docket ↔ bin moves show immediately.
    **Assign and baton from anywhere** (Sep 2026): `showBatonMenu(e, id)`
    is the one "whose court" control for deliverables (relay: Pass → /
    ✓ Finish / ↩ Send back for my leg, open otherwise; non-relay: the

@@ -3139,7 +3139,7 @@
   .bc-heading .bc-top { position:absolute; right:2px; top:2px; margin:0; }
   .bc-heading .bc-editor { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; min-height:30px; }
   .bc-quad { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:1px 6px; border-radius:999px; background:rgba(0,0,0,.08); color:rgba(0,0,0,.6); }
-  .bc-quad.q-do { background:#fecaca; color:#991b1b; } .bc-quad.q-schedule { background:#bfdbfe; color:#1e40af; } .bc-quad.q-delegate { background:#fde68a; color:#92400e; } .bc-quad.q-park { background:#e5e7eb; color:#374151; }
+  .bc-quad.q-do { background:#fecaca; color:#991b1b; } .bc-quad.q-schedule { background:#bfdbfe; color:#1e40af; } .bc-quad.q-steady { background:#fde68a; color:#92400e; } .bc-quad.q-park { background:#e5e7eb; color:#374151; } .bc-quad.q-delegate { background:#e8dcff; color:#5b21b6; }
   /* 2×2 sort view */
   .board-gridwrap { padding:12px 14px; overflow:auto; display:flex; flex-direction:column; gap:12px; }
   .board-grid { display:grid; grid-template-columns:22px 1fr 1fr; grid-template-rows:auto 1fr 1fr; gap:8px; }
@@ -3148,7 +3148,10 @@
   .board-axis-y span { writing-mode:vertical-rl; transform:rotate(180deg); font-size:11px; font-weight:700; color:var(--text3); text-align:center; text-transform:uppercase; letter-spacing:.05em; }
   .board-quad, .board-tray { border:1px solid var(--border); border-radius:10px; background:#fbfbf7; min-height:170px; display:flex; flex-direction:column; transition:background .12s, border-color .12s; }
   .board-quad.over, .board-tray.over { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, #fff); }
-  .board-quad.q-do { border-top:3px solid #ef4444; } .board-quad.q-schedule { border-top:3px solid #3b82f6; } .board-quad.q-delegate { border-top:3px solid #f59e0b; } .board-quad.q-park { border-top:3px solid #9ca3af; }
+  .board-quad.q-do { border-top:3px solid #ef4444; } .board-quad.q-schedule { border-top:3px solid #3b82f6; } .board-quad.q-steady { border-top:3px solid #f59e0b; } .board-quad.q-park { border-top:3px solid #9ca3af; }
+  .board-bottom { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .board-bin-delegate { border-top:3px solid #7c3aed; }
+  @media (max-width: 700px) { .board-bottom { grid-template-columns:1fr; } }
   .board-quad-head { display:flex; align-items:baseline; gap:8px; padding:8px 12px 4px; font-size:12px; color:var(--text); }
   .board-quad-head span { font-size:10.5px; color:var(--text3); }
   .board-quad-head em { margin-left:auto; font-style:normal; font-size:10px; font-weight:700; color:var(--text3); background:var(--bg3); border-radius:999px; padding:0 7px; }
@@ -4640,7 +4643,7 @@ if (typeof XLSX === 'undefined') {
 
     <div class="welcome-step" data-step="3">
       <h3>Projects: Dash, Boards & Sessions</h3>
-      <p>The <strong>Projects</strong> tab lands on <strong>⌂ Dash</strong> — one tile per program, worst first, with burn vs plan for the month, your next deadline, and who holds a baton. Click a tile for <strong>▦ Boards</strong> — one whiteboard per sub-code (plus 💭 Loose thoughts) where a typed thought lands as a sticky with no other decisions. Drag to arrange, or <strong>⊞ Sort 2×2</strong> into Do now / Up next / Delegate / Park. Stickies carry no hours until <strong>⋯ → Make this a task</strong> turns one into an Inbox task and a live linked card; <strong>+ Meeting</strong> cards hold dated notes you can pull tasks out of.</p>
+      <p>The <strong>Projects</strong> tab lands on <strong>⌂ Dash</strong> — one tile per program, worst first, with burn vs plan for the month, your next deadline, and who holds a baton. Click a tile for <strong>▦ Boards</strong> — one whiteboard per sub-code (plus 💭 Loose thoughts) where a typed thought lands as a sticky with no other decisions. Drag to arrange, or <strong>⊞ Sort 2×2</strong> into Do now / Up next / Steady / Park (plus a 👥 Delegate bin for hand-offs). Stickies carry no hours until <strong>⋯ → Make this a task</strong> turns one into an Inbox task and a live linked card; <strong>+ Meeting</strong> cards hold dated notes you can pull tasks out of.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">☰</span><span><strong>☰ List</strong> is the ledger: each project's <strong>sessions</strong> (work items) and <strong>subtasks</strong>, organized by sub-code.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">📂</span><span>Sessions have their own timers, due dates, and can be delegated to team members.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">◷</span><span>The <strong>Capacity split</strong> (◷ button) shows the month's free hours beside your project — drag any row onto a day to schedule it.</span></div>
@@ -9334,14 +9337,20 @@ const BOARD_COLOR_HEX = { yellow: '#fff3a3', pink: '#ffd6e0', blue: '#d3e8ff', g
 // to do with the thought, not what category it is in.
 // Tasks (and work items) sit in the 2×2 by PRIORITY, and dropping one in a box
 // sets the priority — one rule in both directions (matches promotion).
-const BOARD_PRI_QUAD = { urgent: 'do', high: 'schedule', med: 'delegate', low: 'park' };
-const BOARD_QUAD_PRI = { do: 'urgent', schedule: 'high', delegate: 'med', park: 'low' };
+const BOARD_PRI_QUAD = { urgent: 'do', high: 'schedule', med: 'steady', low: 'park' };
+const BOARD_QUAD_PRI = { do: 'urgent', schedule: 'high', steady: 'med', park: 'low' };
 const BOARD_QUADS = {
   do:       { urgent: true,  important: true,  label: 'Do now',   hint: 'urgent + important · tasks: urgent' },
   schedule: { urgent: false, important: true,  label: 'Up next',  hint: 'important, not urgent · tasks: high' },
-  delegate: { urgent: true,  important: false, label: 'Delegate', hint: 'urgent, not important · tasks: med' },
+  steady:   { urgent: true,  important: false, label: 'Steady',   hint: 'urgent, not important · tasks: med' },
   park:     { urgent: false, important: false, label: 'Park',     hint: 'neither — maybe later · tasks: low' }
 };
+// 👥 Delegate is a BIN, not a priority level: a sticky dropped there is
+// flagged for hand-off (promotion opens the Team section first); a task
+// dropped there opens the assignment picker on the spot, and once it is
+// handed entirely to someone else it leaves the docket and stays visible in
+// the bin. The bin also lists what others on this code currently hold.
+const BOARD_BIN_LABEL = { delegate: '👥 Delegate' };
 
 // save() wrapper that drives the per-board save chip — the trust signal after
 // the data-loss incident. save() returns the cloud promise when signed in.
@@ -9752,10 +9761,12 @@ function _renderBoardFree(body, board, cards) {
 
 function _renderBoardGrid(body, board, cards, docket) {
   body.className = 'board-body board-gridwrap';
-  if (!docket) docket = Object.values(_boardVirtual).filter(v => v.boardId === board.id);
-  const notes = cards.filter(c => c.kind !== 'heading').concat(docket);
+  if (!docket) docket = Object.values(_boardVirtual).filter(v => v.boardId === board.id && !v.delegated);
+  const delegated = _boardDelegated(board);
+  delegated.forEach(v => { _boardVirtual[v.id] = v; });
+  const notes = cards.filter(c => c.kind !== 'heading').concat(docket, delegated);
   const headings = cards.length - cards.filter(c => c.kind !== 'heading').length;
-  const byQ = { do: [], schedule: [], delegate: [], park: [], tray: [] };
+  const byQ = { do: [], schedule: [], steady: [], park: [], tray: [], delegate: [] };
   notes.forEach(c => byQ[_boardQuadOf(c) || 'tray'].push(c));
   const quad = q => `<div class="board-quad q-${q}" data-quad="${q}">
       <div class="board-quad-head"><strong>${BOARD_QUADS[q].label}</strong><span>${BOARD_QUADS[q].hint}</span><em>${byQ[q].length}</em></div>
@@ -9764,12 +9775,18 @@ function _renderBoardGrid(body, board, cards, docket) {
   body.innerHTML = `<div class="board-grid">
       <div class="board-axis-x"><span>Urgent</span><span>Not urgent</span></div>
       <div class="board-axis-y"><span>Important</span><span>Not important</span></div>
-      ${quad('do')}${quad('schedule')}${quad('delegate')}${quad('park')}
+      ${quad('do')}${quad('schedule')}${quad('steady')}${quad('park')}
     </div>
+    <div class="board-bottom">
     <div class="board-tray" data-quad="tray">
       <div class="board-quad-head"><strong>💭 Ideas</strong><span>thoughts not sorted yet — drag one into a box; tasks sit by priority</span><em>${byQ.tray.length}</em></div>
       <div class="board-quad-cards">${byQ.tray.map(c => _boardCardHtml(c, true)).join('') || '<div class="board-quad-empty">everything is sorted ✓</div>'}</div>
       ${headings ? `<div class="board-tray-note">${headings} heading${headings > 1 ? 's' : ''} stay on the Free view — headings are structure, not to-dos.</div>` : ''}
+    </div>
+    <div class="board-tray board-bin-delegate" data-quad="delegate">
+      <div class="board-quad-head"><strong>👥 Delegate</strong><span>drop a task to pick who takes it · a sticky to flag it for hand-off · what others hold shows here</span><em>${byQ.delegate.length}</em></div>
+      <div class="board-quad-cards">${byQ.delegate.map(c => _boardCardHtml(c, true)).join('') || '<div class="board-quad-empty">nothing handed off on this code</div>'}</div>
+    </div>
     </div>`;
   body.querySelectorAll('.bcard').forEach(_boardBindCard);
 }
@@ -9779,7 +9796,7 @@ function _boardCardHtml(c, flow, allCards) {
   const quad = _boardQuadOf(c);
   const isHead = c.kind === 'heading';
   const style = flow ? '' : `left:${+c.x || 0}px;top:${+c.y || 0}px;width:${+c.w || 200}px;${isHead ? '' : `height:${+c.h || 140}px;`}z-index:${+c.z || 1};`;
-  const quadTag = quad && !flow ? `<span class="bc-quad q-${quad}">${BOARD_QUADS[quad].label}</span>` : '';
+  const quadTag = quad && !flow ? `<span class="bc-quad q-${quad}">${_boardQuadLabel(quad)}</span>` : '';
   const menuBtn = `<button class="bc-menu" onclick="event.stopPropagation();boardCardMenu(event,'${c.id}')" title="Options">⋯</button>`;
   const resize = flow || isHead ? '' : '<div class="bc-resize" title="Resize"></div>';
 
@@ -9791,7 +9808,7 @@ function _boardCardHtml(c, flow, allCards) {
     const typeLbl = ref.type === 'team' ? 'deliverable' : ref.type === 'session' ? 'work item' : ref.type === 'subtask' ? 'subtask' : 'task';
     const dueHtml = r.found && r.due ? `<span class="bc-ref-due ${r.done ? '' : dueCls(r.due)}">${r.due < today() && !r.done ? '⚠ ' : ''}${fmtDate(r.due)}</span>` : '';
     const estHtml = r.found && r.est ? `<span>${fmtQ(r.est)}h</span>` : '';
-    const badge = !r.found ? 'no longer exists' : r.done ? 'done ✓' : r.badge;
+    const badge = !r.found ? 'no longer exists' : r.done ? 'done ✓' : (c.delegated && r.who.length ? `handed to ${r.who.map(_relayWho).join(', ')}` : r.badge);
     const act = r.found && !r.done ? `<span class="bc-act" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()">${_assignBtnFor(ref)}</span>` : '';
     return `<div class="bcard bc-ref bc-${ref.type || 'task'}${r.done ? ' done' : ''}${r.found ? '' : ' missing'}${flow ? ' bc-flow' : ''}${c.virtual ? ' bc-virtual' : ''}" data-card-id="${c.id}" style="${style}" title="${r.found ? 'Tap to open · drag to place or to change priority' : 'The linked item is gone — ⋯ to keep it as a sticky'}">
       <div class="bc-top"><span class="bc-ref-kind">${r.icon} ${typeLbl}</span>${quadTag}${act}${menuBtn}</div>
@@ -9899,11 +9916,14 @@ function _boardRefOpen(c) {
 function _boardQuadOf(c) {
   if (c.kind === 'ref') {
     const r = _boardRefResolve(c.ref || {});
+    if (c.virtual && c.delegated) return 'delegate';
     return r.found && r.pri ? (BOARD_PRI_QUAD[r.pri] || null) : null;
   }
+  if (c.delegate) return 'delegate';
   if (c.urgent == null || c.important == null) return null;
-  return c.urgent ? (c.important ? 'do' : 'delegate') : (c.important ? 'schedule' : 'park');
+  return c.urgent ? (c.important ? 'do' : 'steady') : (c.important ? 'schedule' : 'park');
 }
+function _boardQuadLabel(q) { return BOARD_BIN_LABEL[q] || (BOARD_QUADS[q] && BOARD_QUADS[q].label) || q; }
 // Stored card or one of this render's virtual docket cards.
 let _boardVirtual = {};
 function _boardCardById(id) { return boardCards.find(k => k.id === id) || _boardVirtual[id] || null; }
@@ -10095,6 +10115,26 @@ function _bcGhostDrop(d, e) {
 }
 function _boardSetQuadrant(id, quad) {
   const c = _boardCardById(id); if (!c) return;
+  if (quad === 'delegate') {
+    if (c.kind === 'ref') {
+      const ref = c.ref || {};
+      if (ref.type === 'team') { showSyncToast('Use ◖ on a deliverable to move the baton.', 'warn'); return; }
+      if (ref.type === 'task') { const t = tasks.find(x => x.id === ref.id); if (t && t._deliverableId) { showSyncToast('That is a relay leg — pass the baton with ◖ instead.', 'warn'); return; } }
+      // Open the assignment picker after the drop's own click has passed (the
+      // document click handler would close it in the same tick).
+      setTimeout(() => {
+        const anchor = document.querySelector('[data-quad="delegate"] .board-quad-head') || document.body;
+        const fake = { currentTarget: anchor, stopPropagation() {} };
+        if (ref.type === 'task') showTaskAssignDropdown(fake, ref.id);
+        else showAssignDropdown(fake, ref.projId, ref.type === 'session' ? ref.id : ref.sessionId, ref.type === 'subtask' ? ref.id : undefined);
+      }, 40);
+      return;
+    }
+    if (c.kind === 'heading') return;
+    c.delegate = true; c.urgent = null; c.important = null; c.updatedAt = today();
+    _boardSave('wt_board_cards'); _boardRefreshBody();
+    return;
+  }
   if (c.kind === 'ref') {
     // Linked cards sit by the item's priority: the box IS the priority.
     if (!BOARD_QUAD_PRI[quad]) { showSyncToast('Tasks always sit by priority — drop it in Park to make it low.', 'warn'); return; }
@@ -10108,9 +10148,37 @@ function _boardSetQuadrant(id, quad) {
   }
   if (!BOARD_QUADS[quad]) { c.urgent = null; c.important = null; }
   else { c.urgent = BOARD_QUADS[quad].urgent; c.important = BOARD_QUADS[quad].important; }
+  c.delegate = false;
   c.updatedAt = today();
   _boardSave('wt_board_cards');
   _boardRefreshBody();
+}
+// What others hold on this code: items handed entirely to someone else, and
+// deliverables whose baton is elsewhere — the Delegate bin's read-out.
+function _boardDelegated(board) {
+  if (board.meetingTaskId) return [];
+  const stored = new Set(boardCards.filter(c => c.boardId === board.id && c.kind === 'ref' && c.ref).map(c => c.ref.type + ':' + c.ref.id));
+  const theirs = del => { const d = normDelegated(del); return d.length && !d.includes('Me'); };
+  const out = [];
+  const mk = (type, id, extra, name) => {
+    if (stored.has(type + ':' + id)) return;
+    out.push({ id: 'v:' + type + ':' + id, boardId: board.id, kind: 'ref', ref: Object.assign({ type, id, label: name }, extra || {}), virtual: true, delegated: true, x: 0, y: 0, w: 200, h: 120, color: 'white', z: 0, urgent: null, important: null });
+  };
+  tasks.forEach(t => { if (!t.completed && t.project === board.projKey && (t.subCode || '') === (board.scId || '') && t.priority !== 'meeting' && theirs(t.delegatedTo) && !isProjArchived(t.project)) mk('task', t.id, null, t.name); });
+  bigProjs.forEach(bp => {
+    if (bp.project !== board.projKey || isProjArchived(bp.project)) return;
+    (bp.sessions || []).forEach(sess => {
+      const ssc = sess.subCode || bp.defaultSubCode || '';
+      if (!sess.done && ssc === (board.scId || '') && theirs(sess.delegatedTo)) mk('session', sess.id, { projId: bp.id }, sess.desc);
+      (sess.subtasks || []).forEach(st => { if (!st.done && (st.subCode || ssc) === (board.scId || '') && theirs(st.delegatedTo)) mk('subtask', st.id, { projId: bp.id, sessionId: sess.id }, st.desc); });
+    });
+  });
+  teamItems.forEach(d => {
+    if (d.project !== board.projKey || (d.subCode || '') !== (board.scId || '') || d.status === 'complete') return;
+    const b = _boardBatonOf(d); if (!b || b === 'Me') return;
+    mk('team', d.id, null, d.name);
+  });
+  return out;
 }
 
 // ── Inline edit ──
@@ -10208,7 +10276,7 @@ function boardCardMenu(ev, id) {
     BOARD_COLORS.forEach(col => items.push({ value: 'color:' + col, label: col[0].toUpperCase() + col.slice(1), swatch: BOARD_COLOR_HEX[col] }));
     items.push({ value: 'kind', label: c.kind === 'heading' ? 'Turn into a sticky' : 'Turn into a heading' });
   }
-  if (c.kind !== 'ref' && _boardQuadOf(c)) items.push({ value: 'unsort', label: 'Clear urgent / important' });
+  if (c.kind !== 'ref' && _boardQuadOf(c)) items.push({ value: 'unsort', label: c.delegate ? 'Take out of the Delegate bin' : 'Clear urgent / important' });
   items.push({ value: 'front', label: 'Bring to front' });
   items.push({ value: 'delete', label: c.kind === 'ref' ? '🗑 Remove from board (the item stays)' : '🗑 Delete' });
   if (c.kind === 'ref' && !c.virtual && _boardIsDocketItem(c)) items.splice(items.findIndex(i => i.value === 'delete'), 1);   // docket items go back to the strip instead
@@ -10241,7 +10309,7 @@ function boardCardMenu(ev, id) {
       if (c.kind === 'heading') { c.h = 44; c.w = Math.max(c.w, 240); c.urgent = null; c.important = null; }
       else c.h = Math.max(c.h, 120);
     }
-    else if (v === 'unsort') { c.urgent = null; c.important = null; }
+    else if (v === 'unsort') { c.urgent = null; c.important = null; c.delegate = false; }
     else if (v === 'front') c.z = _boardNextZ(c.boardId);
     c.updatedAt = today();
     _boardSave('wt_board_cards');
@@ -10263,9 +10331,7 @@ function boardCardDelete(id) {
 // (no date/estimate yet, so it can't touch Capacity until triaged) and the
 // card turns into a live linked card. The quadrant seeds priority; the
 // Delegate box opens the task's Team section first (assign-to / hand-off).
-function _boardQuadPriority(quad) {
-  return quad === 'do' ? 'urgent' : quad === 'schedule' ? 'high' : quad === 'park' ? 'low' : 'med';
-}
+function _boardQuadPriority(quad) { return BOARD_QUAD_PRI[quad] || 'med'; }
 function _boardNewTask(board, name, extra) {
   return Object.assign({
     id: uid(), name, project: board.projKey, subCode: board.scId || '',
@@ -10280,14 +10346,15 @@ function boardPromoteCard(cardId) {
   const name = (lines[0] || '').slice(0, 160);
   if (!name) { showSyncToast('Write something on the sticky first.', 'warn'); return null; }
   const quad = _boardQuadOf(c);
+  const wasDelegate = !!c.delegate;
   const t = _boardNewTask(board, name, { priority: _boardQuadPriority(quad), notes: lines.slice(1).join(' · ').slice(0, 1000), _boardCard: c.id });
   tasks.unshift(t); save('wt_tasks', tasks);
-  c.kind = 'ref'; c.ref = { type: 'task', id: t.id, label: name }; c.text = ''; c.color = 'white'; c.updatedAt = today();
+  c.kind = 'ref'; c.ref = { type: 'task', id: t.id, label: name }; c.text = ''; c.color = 'white'; c.delegate = false; c.updatedAt = today();
   _boardSave('wt_board_cards');
   _boardRerender(board.projKey); renderTasks(); updateHeaderMeta();
-  if (quad === 'delegate') {
+  if (wasDelegate) {
     openEditModal(t.id); _editSecToggle('Team');
-    showSyncToast('Task created — it sits in the Delegate box, so pick who takes it.', 'success');
+    showSyncToast('Task created — it was in the Delegate bin, so pick who takes it.', 'success');
   } else {
     showSyncToast(`☐ "${name}" is now a task in your Inbox — open it to add a date and estimate.`, 'success');
   }
@@ -19608,7 +19675,7 @@ const INFO_COPY = {
   },
   boards: {
     title: 'Boards — the thinking surface for a project',
-    body: 'Each project has one <strong>board per sub-code</strong> plus a <strong>💭 Loose thoughts</strong> board for ideas not filed to a code yet. Type into the capture box and press <strong>Enter</strong> — the thought lands as a sticky, no other decisions needed. Drag stickies to arrange them, tap one to edit, <strong>⋯</strong> for colour / heading / delete. <strong>⊞ Sort 2×2</strong> lays the same stickies into urgent/important boxes (Do now · Up next · Delegate · Park); unsorted ones wait in a tray underneath, never hidden. Slide between boards with the arrows, <strong>←/→</strong>, or a swipe on the board title. <strong>Stickies carry no hours</strong> and count nowhere — Capacity, Timesheet and Allocations only see tasks. A sticky becomes work via <strong>⋯ → Make this a task</strong>: the task lands in your Inbox (no date yet, so it can\'t touch Capacity until you triage it) and the card turns into a <strong>live linked card</strong> showing its due date, status and who holds it — tap it to open the task. <strong>📌</strong> on any task, work item or deliverable row pins it to its board the same way. A <strong>+ Meeting</strong> card is dated and can carry a link to the notes (Loop page); highlight words in it and click <strong>✂ Task from selection</strong> to pull a task out while the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked beneath it (open count, next deadline, who). The <strong>📅 Meetings</strong> list beside the sub-code tiles shows every meeting-priority task on this program (title + date); click one to open <strong>that meeting\'s own board</strong> — notes to bring before, notes taken during — and past meetings fold behind "Past (n)" so old notes stay reachable without clutter. <strong>📋 On the docket</strong> above a board is everything open on this code — every task, work item and subtask that is yours, as dashed live cards; drag one onto the board to give it a place, or open <strong>⊞ Sort 2×2</strong> where tasks sit in the box their priority maps to (Do now = urgent · Up next = high · Delegate = med · Park = low) and dragging between boxes <strong>changes the priority</strong>. Thoughts you have not sorted wait in <strong>💭 Ideas</strong>. ↗ on a card assigns it; ◖ on a deliverable passes the baton — the same controls sit on ☰ List and ▬ Timeline rows. <strong>☰ List</strong> is the full per-sub-code ledger of every task, session and deliverable.'
+    body: 'Each project has one <strong>board per sub-code</strong> plus a <strong>💭 Loose thoughts</strong> board for ideas not filed to a code yet. Type into the capture box and press <strong>Enter</strong> — the thought lands as a sticky, no other decisions needed. Drag stickies to arrange them, tap one to edit, <strong>⋯</strong> for colour / heading / delete. <strong>⊞ Sort 2×2</strong> lays the same stickies into urgent/important boxes (Do now · Up next · Steady · Park); unsorted ones wait in 💭 Ideas underneath, and 👥 Delegate beside it is the hand-off bin — never hidden. Slide between boards with the arrows, <strong>←/→</strong>, or a swipe on the board title. <strong>Stickies carry no hours</strong> and count nowhere — Capacity, Timesheet and Allocations only see tasks. A sticky becomes work via <strong>⋯ → Make this a task</strong>: the task lands in your Inbox (no date yet, so it can\'t touch Capacity until you triage it) and the card turns into a <strong>live linked card</strong> showing its due date, status and who holds it — tap it to open the task. <strong>📌</strong> on any task, work item or deliverable row pins it to its board the same way. A <strong>+ Meeting</strong> card is dated and can carry a link to the notes (Loop page); highlight words in it and click <strong>✂ Task from selection</strong> to pull a task out while the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked beneath it (open count, next deadline, who). The <strong>📅 Meetings</strong> list beside the sub-code tiles shows every meeting-priority task on this program (title + date); click one to open <strong>that meeting\'s own board</strong> — notes to bring before, notes taken during — and past meetings fold behind "Past (n)" so old notes stay reachable without clutter. <strong>📋 On the docket</strong> above a board is everything open on this code — every task, work item and subtask that is yours, as dashed live cards; drag one onto the board to give it a place, or open <strong>⊞ Sort 2×2</strong> where tasks sit in the box their priority maps to (Do now = urgent · Up next = high · Steady = med · Park = low) and dragging between boxes <strong>changes the priority</strong>. Thoughts you have not sorted wait in <strong>💭 Ideas</strong>; the <strong>👥 Delegate</strong> bin beside it is an action, not a level — drop a task there and the assignment picker opens, drop a sticky there to flag it for hand-off (promoting it opens the Team section first), and everything on this code that others currently hold is listed there. ↗ on a card assigns it; ◖ on a deliverable passes the baton — the same controls sit on ☰ List and ▬ Timeline rows. <strong>☰ List</strong> is the full per-sub-code ledger of every task, session and deliverable.'
   },
   payPeriodBar: {
     title: 'Pay-period bar — logged hours only',
@@ -19716,10 +19783,10 @@ const _TAB_TIPS = {
       '<strong>⌂ Dash</strong> is where the tab lands: one tile per program, worst first, each saying burn vs plan for the month, your next deadline (or why it needs attention), and who holds a baton. Click a tile to drill in; the same signals sit on each sub-code tile above the board (▴ shrinks them to chips).',
       '<strong>▬ Timeline</strong> draws every open item as a bar from its start (or entry date) to its ◆ deadline, grouped program → sub-code, with relay stages as coloured segments per person and your forward-fill load shaded in the header. Set a <strong>Start</strong> or <strong>After</strong> (waits-for) in the task form\'s 📅 section to shape a bar.',
       '<strong>▦ Boards</strong> is the thinking view: one sticky-note board per sub-code plus 💭 Loose thoughts. Press <strong>N</strong> or click the capture box, type, <strong>Enter</strong> — the thought lands as a sticky. Drag to arrange, tap to edit, <strong>⋯</strong> for colour, heading or delete.',
-      '<strong>⊞ Sort 2×2</strong> drops the same stickies into Do now / Up next / Delegate / Park boxes. Unsorted ones sit in the tray below — nothing is ever hidden. Stickies carry <strong>no hours</strong> and never touch Capacity or the Timesheet.',
+      '<strong>⊞ Sort 2×2</strong> drops the same stickies into Do now / Up next / Steady / Park boxes; tasks sit by priority (urgent / high / med / low) and dragging one between boxes changes it. 💭 Ideas holds unsorted thoughts and <strong>👥 Delegate</strong> is the hand-off bin: drop a task to pick who takes it, a sticky to flag it. Nothing is ever hidden. Stickies carry <strong>no hours</strong> and never touch Capacity or the Timesheet.',
       'Slide between boards with <strong>‹ ›</strong>, the <strong>← →</strong> keys, or a swipe on the board title. The chip next to the view toggle says whether the board is <strong>synced</strong> or saved on this device only.',
       '<strong>⋯ → Make this a task</strong> turns a sticky into an Inbox task and the card into a <strong>live linked card</strong> (due, status, who holds it — tap to open). From the Delegate box it opens the task\'s Team section first. <strong>📌</strong> on any row pins an existing item to its board; <strong>💭</strong> on a task jumps back to the sticky it came from.',
-      '<strong>📅 Meetings</strong> (beside the sub-code tiles) lists this program\'s meeting-priority tasks by date; click one to open that meeting\'s own board for notes to bring and notes taken. Past meetings fold behind "Past (n)". From My Tasks, the 📅💭 chip on a meeting row jumps straight to its board. <strong>📋 On the docket</strong> above a board shows everything open on that code as dashed live cards — drag one onto the board to place it; in <strong>⊞ Sort 2×2</strong> tasks sit by priority and dragging between boxes changes it. <strong>💭 Ideas</strong> holds unsorted thoughts. ↗ assigns, ◖ passes a baton — from cards, ☰ List rows and ▬ Timeline rows alike.',
+      '<strong>📅 Meetings</strong> (beside the sub-code tiles) lists this program\'s meeting-priority tasks by date; click one to open that meeting\'s own board for notes to bring and notes taken. Past meetings fold behind "Past (n)". From My Tasks, the 📅💭 chip on a meeting row jumps straight to its board. <strong>📋 On the docket</strong> above a board shows everything open on that code as dashed live cards — drag one onto the board to place it; in <strong>⊞ Sort 2×2</strong> tasks sit by priority and dragging between boxes changes it; <strong>💭 Ideas</strong> holds unsorted thoughts and <strong>👥 Delegate</strong> is the hand-off bin. ↗ assigns, ◖ passes a baton — from cards, ☰ List rows and ▬ Timeline rows alike.',
       '<strong>+ Meeting</strong> adds a dated notes card (paste from Loop, keep the link). Highlight words, click <strong>✂ Task from selection</strong> — the task is created and the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked under it: open count, next deadline, baton holders.',
       '<strong>☰ List</strong> is the full ledger: every task, session, subtask and deliverable grouped by sub-code. Click a <strong>project card</strong> there to expand it and see sessions/subtasks.',
       'Use <strong>+ Add Session</strong> to create work items within a project.',
@@ -20216,6 +20283,7 @@ function toggleTaskPersonAssignment(name) {
   if (tagsEl) tagsEl.innerHTML = delegateTagsHtml(task.delegatedTo);
   _renderAssignDropdownItems();
   renderTasks();
+  if (document.getElementById('boardStage')) _boardRefreshBody();   // docket ↔ Delegate bin
   _assignToast(task.name, task.delegatedTo);
 }
 
@@ -20410,6 +20478,7 @@ function togglePersonAssignment(name) {
   }
   renderTasks();
   _renderAssignDropdownItems();
+  if (document.getElementById('boardStage')) _boardRefreshBody();   // docket ↔ Delegate bin
   const target = _assignSubtaskId ? (s.subtasks || []).find(st => st.id === _assignSubtaskId) : s;
   if (target) _assignToast(target.desc || target.name || 'Item', target.delegatedTo);
 }

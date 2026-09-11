@@ -127,20 +127,20 @@ const { launch, step, done } = require('./_lib');
   r = await page.evaluate(() => {
     boardSetView('_bX', 'grid');
     const id = boardCards.find(c => c.text === 'First thought').id;
-    _boardSetQuadrant(id, 'delegate');
+    _boardSetQuadrant(id, 'steady');
     const c = boardCards.find(k => k.id === id);
     const body = document.getElementById('boardBody');
     const inQuad = q => [...body.querySelectorAll(`[data-quad="${q}"] .bcard`)].map(e => e.dataset.cardId);
     return {
       quads: body.querySelectorAll('.board-quad').length,
       flags: [c.urgent, c.important],
-      inDelegate: inQuad('delegate').includes(id),
+      inSteady: inQuad('steady').includes(id),
       trayCount: inQuad('tray').length,
       pref: JSON.parse(localStorage.getItem('wt_board_view'))['_bX'],
-      quadOf: _boardQuadOf(c)
+      quadOf: _boardQuadOf(c), bins: document.querySelectorAll('[data-quad="delegate"], [data-quad="tray"]').length
     };
   });
-  step('Sort 2×2 renders four boxes; drop sets urgent/important and persists', r.quads === 4 && r.flags[0] === true && r.flags[1] === false && r.inDelegate && r.quadOf === 'delegate', r);
+  step('Sort 2×2 renders four boxes + Ideas and Delegate bins; drop sets urgent/important and persists', r.quads === 4 && r.bins === 2 && r.flags[0] === true && r.flags[1] === false && r.inSteady && r.quadOf === 'steady', r);
   step('unsorted stickies wait in the tray (2), never hidden; view pref is per board', r.trayCount === 2 && r.pref === 'grid', r);
 
   r = await page.evaluate(() => {
@@ -198,7 +198,8 @@ const { launch, step, done } = require('./_lib');
   });
   step('☰ List shows the ledger with the view toggle; pref stored', r.listShown && r.boardsHidden && r.hasTask && r.toggle && r.pref === '"list"', r);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1800);
+  await page.waitForFunction(() => typeof _projView !== 'undefined' && document.querySelector('.tab.active') && document.getElementById('projCodeContent'), null, { timeout: 15000 });
+  await page.waitForTimeout(600);
   // (the harness re-seeds localStorage on every navigation, so only the
   // un-seeded wt_proj_view key can prove persistence here)
   r = await page.evaluate(() => ({ view: _projView, listShown: document.getElementById('projCodeContent').style.display !== 'none' }));

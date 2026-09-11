@@ -64,7 +64,7 @@ const { launch, step, done } = require('./_lib');
   r = await page.evaluate(() => {
     boardSetView('_b1', 'grid');
     const inQ = q => [...document.querySelectorAll(`[data-quad="${q}"] .bcard`)].map(e => (e.querySelector('.bc-ref-name') || e.querySelector('.bc-text')).textContent.trim());
-    const layout = { do: inQ('do'), schedule: inQ('schedule'), delegate: inQ('delegate'), park: inQ('park'), tray: inQ('tray') };
+    const layout = { do: inQ('do'), schedule: inQ('schedule'), steady: inQ('steady'), park: inQ('park'), tray: inQ('tray'), delegate: inQ('delegate') };
     const trayLabel = document.querySelector('.board-tray .board-quad-head strong').textContent;
     _boardSetQuadrant('v:task:_t2', 'do');
     const t2 = tasks.find(t => t.id === '_t2');
@@ -79,7 +79,7 @@ const { launch, step, done } = require('./_lib');
     const unchanged = tasks.find(t => t.id === '_t1').priority === before;
     return { layout, trayLabel, t2: t2.priority, stored, after, t3, s1, unchanged };
   });
-  step('linked cards sit by priority: urgent→Do now, high→Up next, med→Delegate, low→Park; the sticky waits in 💭 Ideas', r.layout.do.includes('Urgent one') && r.layout.schedule.includes('Already placed') && r.layout.schedule.includes('Sub bit') && r.layout.delegate.includes('Work item') && r.layout.park.includes('Low one') && r.layout.tray.includes('An idea') && r.trayLabel.includes('Ideas'), r.layout);
+  step('linked cards sit by priority: urgent→Do now, high→Up next, med→Steady, low→Park; the sticky waits in 💭 Ideas; what others hold sits in 👥 Delegate', r.layout.do.includes('Urgent one') && r.layout.schedule.includes('Already placed') && r.layout.schedule.includes('Sub bit') && r.layout.steady.includes('Work item') && r.layout.park.includes('Low one') && r.layout.tray.includes('An idea') && r.trayLabel.includes('Ideas') && r.layout.delegate.includes('Theirs') && r.layout.delegate.includes('Deliverable'), r.layout);
   step('dropping a docket card into Do now sets the task to urgent (saved) and it moves box', r.t2 === 'urgent' && r.stored === 'urgent' && r.after.includes('Low one'), r);
   step('stored linked cards and work items follow the same rule; dropping a task in Ideas never changes it', r.t3 === 'low' && r.s1 === 'high' && r.unchanged, r);
 
@@ -103,6 +103,32 @@ const { launch, step, done } = require('./_lib');
   });
   step('↗ Assign sits on task cards and timeline rows; ◖ Baton on ☰ List and timeline deliverable rows', r.assignOnCard && r.listBaton && r.tlBaton && r.tlAssign && r.tlAssignSub, r);
   step('the baton menu on my relay leg offers ✓ Finish (last leg) / ↩ Send back / open', r.menu.some(m => m.includes('Finish')) && r.menu.some(m => m.includes('Send back')) && r.menu.some(m => m.includes('Open deliverable')), r.menu);
+
+  // 4b. The Delegate bin: a sticky is flagged; a task opens the assignment picker; assigning away moves it docket → bin.
+  r = await page.evaluate(async () => {
+    _setProjView('boards'); boardOpen('pa', '_b1'); boardSetView('_b1', 'grid');
+    _boardSetQuadrant('_n1', 'delegate');
+    const flagged = boardCards.find(c => c.id === '_n1').delegate === true;
+    const inBin = [...document.querySelectorAll('[data-quad="delegate"] .bcard')].some(e => e.dataset.cardId === '_n1');
+    _boardSetQuadrant('_n1', 'schedule');
+    const cleared = !boardCards.find(c => c.id === '_n1').delegate;
+    _boardSetQuadrant('v:task:_t1', 'delegate');
+    await new Promise(r => setTimeout(r, 80));
+    const pickerOpen = document.getElementById('assignDropdown').classList.contains('open');
+    const pickerFor = _assignTaskId, before = JSON.stringify(tasks.find(t => t.id === '_t1').delegatedTo);
+    let mid = 'n/a', err = '';
+    try { toggleTaskPersonAssignment('Jordan K'); mid = JSON.stringify(tasks.find(t => t.id === '_t1').delegatedTo); } catch (e) { err = e.message; }
+    closeAssignDropdown();
+    const t1 = tasks.find(t => t.id === '_t1');
+    const handed = (t1.delegatedTo || []).join() === 'Jordan K';
+    const inDocket = [...document.querySelectorAll('[data-quad="do"] .bcard')].some(e => e.dataset.cardId === 'v:task:_t1');
+    const inDelegate = [...document.querySelectorAll('[data-quad="delegate"] .bcard')].some(e => e.dataset.cardId === 'v:task:_t1');
+    const badge = document.querySelector('[data-quad="delegate"] .bcard[data-card-id="v:task:_t1"] .bc-ref-badge')?.textContent;
+    t1.delegatedTo = null; save('wt_tasks', tasks); _boardRefreshBody();
+    return { mid, err, flagged, inBin, cleared, pickerOpen, pickerFor, handed, inDocket, inDelegate, badge };
+  });
+  step('a sticky dropped in 👥 Delegate is flagged and sits there; dropping it in a box clears the flag', r.flagged && r.inBin && r.cleared, r);
+  step('a task dropped in 👥 Delegate opens the assignment picker; once handed to Jordan it leaves Do now and shows in the bin as "handed to"', r.pickerOpen && r.handed && !r.inDocket && r.inDelegate && (r.badge || '').includes('Jordan'), r);
 
   // 5. Review fixes: baton menu from a card's ⋯ menu survives the dropdown close; no 'unsort' on linked cards; meetings never demoted by drag.
   r = await page.evaluate(async () => {

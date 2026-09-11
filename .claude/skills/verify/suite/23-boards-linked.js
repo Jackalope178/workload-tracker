@@ -21,7 +21,7 @@ const { launch, step, done } = require('./_lib');
     wt_board_cards: [
       { id: '_h1', boardId: '_b1', kind: 'heading', x: 16, y: 16, w: 460, h: 44, color: 'white', z: 1, text: 'County questions', urgent: null, important: null },
       { id: '_n1', boardId: '_b1', kind: 'note', x: 16, y: 80, w: 200, h: 140, color: 'yellow', z: 2, text: 'Ask Dana about the intake permit\nbefore the 9/24 meeting', urgent: true, important: true },
-      { id: '_n2', boardId: '_b1', kind: 'note', x: 236, y: 80, w: 200, h: 140, color: 'pink', z: 3, text: 'Delegate-box thought', urgent: true, important: false },
+      { id: '_n2', boardId: '_b1', kind: 'note', x: 236, y: 80, w: 200, h: 140, color: 'pink', z: 3, text: 'Delegate-bin thought', urgent: null, important: null, delegate: true },
       { id: '_n3', boardId: '_b1', kind: 'note', x: 700, y: 80, w: 200, h: 140, color: 'blue', z: 4, text: 'Outside the heading column', urgent: null, important: null },
       { id: '_m1', boardId: '_b1', kind: 'meeting', x: 16, y: 400, w: 300, h: 200, color: 'white', z: 5, text: 'Board meeting: Jordan to draft the one-pager by October. Also revisit the reuse credit model.', date: '2026-09-10', url: 'javascript:alert(1)', urgent: null, important: null }
     ],
@@ -55,7 +55,7 @@ const { launch, step, done } = require('./_lib');
   step('an Inbox task (no date) is still invisible to Capacity', r.planned === 0, r.planned);
   step('promotion from Do now does NOT open the modal', !r.modalOpen);
 
-  // 2. Delegate box → opens the task modal with the Team section first.
+  // 2. Delegate bin → opens the task modal with the Team section first.
   r = await page.evaluate(() => {
     const t = boardPromoteCard('_n2');
     const open = document.getElementById('editTaskModal').classList.contains('open');
@@ -63,7 +63,7 @@ const { launch, step, done } = require('./_lib');
     document.getElementById('editTaskModal').classList.remove('open');
     return { pri: t.priority, open, teamOpen };
   });
-  step('Delegate quadrant → med priority and the modal opens on the Team section', r.pri === 'med' && r.open && r.teamOpen, r);
+  step('Delegate bin → med priority and the modal opens on the Team section', r.pri === 'med' && r.open && r.teamOpen, r);
 
   // 3. Live: setting a due date and completing the task shows on the card without any copy.
   r = await page.evaluate(() => {

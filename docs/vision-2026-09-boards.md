@@ -25,7 +25,9 @@ view; by priority in the 2×2, where dragging between boxes changes the
 priority); the tray is 💭 Ideas; ↗ Assign and ◖ Baton are reachable from
 cards, ☰ List rows and ▬ Timeline rows through the existing dropdowns
 (scenario 28). The ◖ In my court strip was superseded by the docket and
-removed. An Opus code review of that change caught one real bug before
+removed. The med box was renamed Steady and 👥 Delegate became its own
+bin beside 💭 Ideas (an action, not a level: tasks dropped there open the
+assignment picker; stickies are flagged; what others hold is listed). An Opus code review of that change caught one real bug before
 release (the baton submenu opened from a card's ⋯ menu was closed in the
 same tick by the generic dropdown) plus two guards (no "clear
 urgent/important" on linked cards; a pinned meeting can never be demoted
