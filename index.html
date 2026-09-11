@@ -3188,6 +3188,25 @@
   .sig-more { font-size:9.5px; color:var(--text3); }
   .sig-tile-foot { font-size:10px; color:var(--text3); margin-top:auto; }
   .dash-summary { font-size:11px; color:var(--text3); }
+  .board-meetings { flex:0 0 240px; max-width:280px; display:flex; flex-direction:column; gap:3px; border-left:1px dashed var(--border); padding-left:10px; margin-left:4px; max-height:220px; overflow:auto; }
+  .board-meet-head { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text3); display:flex; align-items:baseline; gap:6px; }
+  .board-meet-sub { font-weight:400; text-transform:none; letter-spacing:0; font-size:10px; }
+  .board-meet-row { display:flex; align-items:center; gap:8px; font-family:inherit; font-size:11.5px; color:var(--text); background:var(--bg2); border:1px solid var(--border); border-radius:6px; padding:4px 8px; cursor:pointer; text-align:left; min-width:0; }
+  .board-meet-row:hover { border-color:var(--border2); }
+  .board-meet-row.active { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); background:color-mix(in srgb, var(--accent) 8%, #fff); }
+  .board-meet-row.past { color:var(--text3); }
+  .board-meet-date { font-size:10.5px; font-weight:700; color:var(--text2); white-space:nowrap; min-width:46px; }
+  .board-meet-row.past .board-meet-date { color:var(--text3); }
+  .board-meet-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .board-meet-gone { font-size:9.5px; color:var(--text3); }
+  .board-meet-empty { font-size:11px; color:var(--text3); font-style:italic; padding:2px 0; }
+  .board-meet-past { font-family:inherit; font-size:10.5px; color:var(--text3); background:transparent; border:none; text-align:left; padding:3px 4px; cursor:pointer; }
+  .board-meet-past:hover { color:var(--text); }
+  .board-court { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:6px 14px; border-bottom:1px solid var(--border); background:#f3f8ff; font-size:11px; }
+  .board-court-lbl { font-weight:700; color:var(--accent2); white-space:nowrap; }
+  .board-court-chip { display:inline-flex; align-items:center; gap:4px; background:#fff; border:1px solid var(--border2); border-left:3px solid #7c3aed; border-radius:6px; padding:2px 4px 2px 8px; cursor:pointer; color:var(--text); }
+  .board-court-chip:hover { border-color:var(--accent); }
+  .board-origin-chip.meet { display:inline-flex; align-items:center; gap:2px; }
   .dash-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:10px; }
   .dash-allquiet { padding:18px; text-align:center; color:var(--text2); font-size:13px; }
   .dash-quiet { margin-top:14px; border-top:1px dashed var(--border); padding-top:10px; }
@@ -9337,7 +9356,7 @@ function _ensureBoards(projKey) {
   const proj = PROJECTS[projKey]; if (!proj) return;
   let changed = false;
   [''].concat((proj.subCodes || []).map(sc => sc.id)).forEach(scId => {
-    if (!boards.some(b => b.projKey === projKey && b.scId === scId)) {
+    if (!boards.some(b => b.projKey === projKey && b.scId === scId && !b.meetingTaskId)) {   // meeting boards share a scId but aren't the sub-code board
       boards.push({ id: uid(), projKey, scId, createdAt: today() });
       changed = true;
     }
@@ -9351,7 +9370,7 @@ function _ensureBoards(projKey) {
 function _boardsForProject(projKey) {
   _ensureBoards(projKey);
   const proj = PROJECTS[projKey]; if (!proj) return [];
-  const mine = boards.filter(b => b.projKey === projKey);
+  const mine = boards.filter(b => b.projKey === projKey && !b.meetingTaskId);   // meeting boards list separately
   const hasCards = b => boardCards.some(c => c.boardId === b.id);
   const out = [];
   const loose = mine.find(b => b.scId === ''); if (loose) out.push(loose);
@@ -9366,6 +9385,10 @@ function _boardsForProject(projKey) {
   return out;
 }
 function _boardTitle(b) {
+  if (b.meetingTaskId) {
+    const m = _meetingInfo(b);
+    return `📅 ${m.date ? fmtDate(m.date) + ' · ' : ''}${m.name}`;
+  }
   if (!b.scId) return 'Loose thoughts';
   const sc = (PROJECTS[b.projKey]?.subCodes || []).find(s => s.id === b.scId);
   if (!sc) return 'Removed sub-code';
@@ -9374,7 +9397,90 @@ function _boardTitle(b) {
 function _boardCurrent(projKey) {
   const list = _boardsForProject(projKey);
   if (!list.length) return null;
-  return list.find(b => b.id === _boardOpen[projKey]) || list[0];
+  const openId = _boardOpen[projKey];
+  return list.find(b => b.id === openId) || boards.find(b => b.id === openId && b.projKey === projKey && b.meetingTaskId) || list[0];
+}
+// ── Meeting boards: every meeting-priority task on the project is a doorway ──
+// The command panel lists the project's meetings (title + date) beside the
+// sub-code tiles; clicking one opens a board that belongs to that meeting
+// (created on first open). Upcoming meetings sit front and centre; past
+// ones fold behind "Past (n)" so old notes stay reachable without clutter.
+// A board whose meeting task was deleted keeps a title/date snapshot and
+// stays listed under Past while it holds cards.
+function _meetingInfo(b) {
+  const t = tasks.find(x => x.id === b.meetingTaskId);
+  if (!t) return { name: b.title || 'Meeting', date: b.date || '', gone: true, done: true };
+  const date = t.recurrence ? (_nextUpcomingRecurrence(t) || t.due || '') : (t.due || '');
+  return { name: t.name, date, gone: false, done: !!t.completed, recur: !!t.recurrence, task: t };
+}
+function _projMeetings(projKey) {
+  const t0 = today();
+  const up = [], past = [];
+  tasks.forEach(t => {
+    if (t.priority !== 'meeting' || t.project !== projKey) return;
+    const b = boards.find(x => x.meetingTaskId === t.id);
+    const n = b ? boardCards.filter(c => c.boardId === b.id).length : 0;
+    const date = t.recurrence ? (_nextUpcomingRecurrence(t) || t.due || '') : (t.due || '');
+    const row = { taskId: t.id, boardId: b ? b.id : null, name: t.name, date, recur: !!t.recurrence, n, done: !!t.completed };
+    if (!t.completed && (!date || date >= t0 || t.recurrence)) up.push(row); else past.push(row);
+  });
+  boards.filter(b => b.projKey === projKey && b.meetingTaskId && !tasks.some(t => t.id === b.meetingTaskId)).forEach(b => {
+    const n = boardCards.filter(c => c.boardId === b.id).length;
+    if (n) past.push({ taskId: null, boardId: b.id, name: b.title || 'Meeting', date: b.date || '', recur: false, n, done: true, gone: true });
+  });
+  up.sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || a.name.localeCompare(b.name));
+  past.sort((a, b) => (b.date || '').localeCompare(a.date || '') || a.name.localeCompare(b.name));
+  return { up, past };
+}
+let _boardPastOpen = new Set();   // session-only: which projects show past meetings
+function _boardTogglePast(projKey) { if (_boardPastOpen.has(projKey)) _boardPastOpen.delete(projKey); else _boardPastOpen.add(projKey); renderProjBoards(projKey); }
+function boardOpenMeeting(projKey, taskId, boardId) {
+  let b = boardId ? boards.find(x => x.id === boardId) : boards.find(x => x.meetingTaskId === taskId);
+  if (!b) {
+    const t = tasks.find(x => x.id === taskId); if (!t) return;
+    b = { id: uid(), projKey, scId: t.subCode || '', meetingTaskId: t.id, title: t.name, date: t.due || '', createdAt: today() };
+    boards.push(b); _boardSave('wt_boards');
+  }
+  boardOpen(projKey, b.id, 1);
+}
+// From a My Tasks row: jump straight onto this meeting's board.
+function boardGoMeeting(taskId) {
+  const t = tasks.find(x => x.id === taskId);
+  if (!t || !PROJECTS[t.project]) { showSyncToast('Give the meeting a project first — its board lives under that program.', 'warn'); return; }
+  _projView = 'boards'; save('wt_proj_view', _projView);
+  selectedProjCode = t.project;
+  const tab = document.querySelector('.tab[data-tab="projects"]');
+  if (tab && !tab.classList.contains('active')) _switchTab(tab);
+  renderProjCodeList();
+  boardOpenMeeting(t.project, t.id);
+  setTimeout(() => document.getElementById('boardCapture')?.focus(), 50);
+}
+function _boardMeetingsHtml(projKey, board) {
+  const { up, past } = _projMeetings(projKey);
+  if (!up.length && !past.length) return '';
+  const row = m => `<button class="board-meet-row${board && m.boardId === board.id ? ' active' : ''}${m.done ? ' past' : ''}" onclick="boardOpenMeeting('${projKey}',${m.taskId ? `'${m.taskId}'` : 'null'}${m.boardId ? `,'${m.boardId}'` : ''})" title="${m.gone ? 'The meeting task was deleted — its notes are kept here' : 'Open this meeting\'s board'}">
+      <span class="board-meet-date">${m.date ? fmtDate(m.date) : '—'}${m.recur ? ' ↻' : ''}</span>
+      <span class="board-meet-name">${escHtml(m.name)}${m.gone ? ' <span class="board-meet-gone">(deleted)</span>' : ''}</span>
+      ${m.n ? `<span class="board-tab-n" title="stickies on its board">${m.n}</span>` : ''}
+    </button>`;
+  const open = _boardPastOpen.has(projKey);
+  return `<div class="board-meetings">
+    <div class="board-meet-head">📅 Meetings<span class="board-meet-sub">click one to open its board</span></div>
+    ${up.length ? up.map(row).join('') : '<div class="board-meet-empty">nothing upcoming</div>'}
+    ${past.length ? `<button class="board-meet-past" onclick="_boardTogglePast('${projKey}')">${open ? '▾' : '▸'} Past (${past.length})</button>${open ? past.map(row).join('') : ''}` : ''}
+  </div>`;
+}
+// ── In my court: what is waiting on ME under this sub-code, before I pin anything ──
+function _boardCourtHtml(board) {
+  if (board.meetingTaskId) return '';
+  const pinned = new Set(boardCards.filter(c => c.boardId === board.id && c.kind === 'ref' && c.ref).map(c => c.ref.type + ':' + c.ref.id));
+  const items = teamItems.filter(d => d.project === board.projKey && (d.subCode || '') === (board.scId || '') && d.status !== 'complete' && _boardBatonOf(d) === 'Me' && !pinned.has('team:' + d.id));
+  if (!items.length) return '';
+  return `<div class="board-court"><span class="board-court-lbl" title="Deliverables where the baton is in your court on this code — 📌 to keep one on the board">◖ In my court</span>${items.map(d => {
+    const st = _isRelay(d) ? relayStage(d) : null;
+    const due = st && st.due ? st.due : d.due;
+    return `<span class="board-court-chip" onclick="openEditTeamModal('${d.id}')" title="Open the deliverable"><span>👥 ${escHtml(d.name)}${st ? ` · ${escHtml((RELAY_KINDS[st.kind] && RELAY_KINDS[st.kind].label) || st.kind)}` : ''}${due ? ` · due ${fmtDate(due)}` : ''}</span><button class="row-edit-btn" onclick="event.stopPropagation();boardPinItem('team','${d.id}')" title="Pin to this board">📌</button></span>`;
+  }).join('')}</div>`;
 }
 function boardOpen(projKey, boardId, dir) {
   _boardOpen[projKey] = boardId; save('wt_board_open', _boardOpen);
@@ -9384,7 +9490,7 @@ function boardOpen(projKey, boardId, dir) {
 function boardSlide(projKey, delta) {
   const list = _boardsForProject(projKey);
   const cur = _boardCurrent(projKey); if (!cur) return;
-  const idx = list.findIndex(b => b.id === cur.id);
+  const idx = list.findIndex(b => b.id === cur.id);   // -1 on a meeting board → next lands on the first sub-code board
   const next = idx + delta;
   if (next < 0 || next >= list.length) return; // no wrap — the ends are the ends
   boardOpen(projKey, list[next].id, delta);
@@ -9459,7 +9565,8 @@ function renderProjBoards(projKey) {
       if (!tiles) return `<button class="board-tab${isActive ? ' active' : ''}" onclick="${go}" style="--pc:${escHtml(color)};" title="${escHtml(_boardTitle(b))}">${b.scId === '' ? '💭 ' : ''}${escHtml(_boardTitle(b))}<span class="board-tab-n">${n}</span></button>`;
       return _scTileHtml(projKey, b, _projSignals(projKey, b.scId, ym), n, isActive, go, color);
     }).join('')}</div>
-    <button class="board-strip-arrow" onclick="boardSlide('${projKey}',1)" ${idx < 0 || idx >= bl.length - 1 ? 'disabled' : ''} title="Next board (→)">›</button>
+    ${tiles ? _boardMeetingsHtml(projKey, board) : (() => { const m = _projMeetings(projKey); const n = m.up.length; return n || m.past.length ? `<button class="board-tab" onclick="boardTogglePanel()" title="Expand the panel to see the meetings">📅 ${n} upcoming</button>` : ''; })()}
+    <button class="board-strip-arrow" onclick="boardSlide('${projKey}',1)" ${idx >= bl.length - 1 ? 'disabled' : ''} title="Next board (→)">›</button>
     <button class="board-strip-arrow board-panel-toggle" onclick="boardTogglePanel()" title="${tiles ? 'Shrink the panel to chips' : 'Show the signals on each board (burn, next deadline, who)'}">${tiles ? '▴' : '▾'}</button>
   </div>`;
 
@@ -9468,7 +9575,8 @@ function renderProjBoards(projKey) {
     wrap.innerHTML = html; return;
   }
   const isLoose = board.scId === '';
-  const sub = isLoose ? 'ideas not filed to a sub-code yet' : `board ${idx + 1} of ${bl.length}`;
+  const isMeet = !!board.meetingTaskId;
+  const sub = isMeet ? 'meeting board — notes to bring, notes taken' : isLoose ? 'ideas not filed to a sub-code yet' : `board ${idx + 1} of ${bl.length}`;
   html += `<div class="board-stage${_boardSlideDir > 0 ? ' slide-in-right' : _boardSlideDir < 0 ? ' slide-in-left' : ''}" id="boardStage" data-board-id="${board.id}">
     <div class="board-head">
       <div class="board-head-title">${isLoose ? '💭 ' : ''}${escHtml(_boardTitle(board))}<span class="board-head-sub">${escHtml(sub)}</span></div>
@@ -9486,6 +9594,7 @@ function renderProjBoards(projKey) {
       <input type="text" id="boardCapture" placeholder="Toss a thought on this board — Enter adds it, nothing else to decide" autocomplete="off" maxlength="2000">
       <button type="submit" class="btn primary" style="font-size:11px;padding:6px 12px;">Add</button>
     </form>
+    ${_boardCourtHtml(board)}
     <div class="board-body" id="boardBody"></div>
   </div>`;
   wrap.innerHTML = html;
@@ -10024,7 +10133,7 @@ function boardPinItem(type, ...ids) {
   } else return;
   if (!PROJECTS[projKey]) { showSyncToast('This item has no project yet — set one first.', 'warn'); return; }
   _ensureBoards(projKey);
-  const board = boards.find(b => b.projKey === projKey && b.scId === scId) || boards.find(b => b.projKey === projKey && b.scId === '');
+  const board = boards.find(b => b.projKey === projKey && b.scId === scId && !b.meetingTaskId) || boards.find(b => b.projKey === projKey && b.scId === '' && !b.meetingTaskId);
   if (!board) return;
   const dup = boardCards.find(k => k.boardId === board.id && k.kind === 'ref' && k.ref && k.ref.type === type && k.ref.id === ref.id);
   if (dup) { showSyncToast(`Already on the ${_boardTitle(board)} board of ${projLabel(projKey)}.`, 'warn'); return; }
@@ -10051,8 +10160,13 @@ function boardRevealCard(cardId) {
 }
 function _boardOriginChip(item) {
   const id = item && item._boardCard;
-  if (!id || !boardCards.some(k => k.id === id)) return '';
-  return `<span class="board-origin-chip" onclick="event.stopPropagation();boardRevealCard('${id}')" title="Came from a board sticky — click to see it">💭</span>`;
+  if (id && boardCards.some(k => k.id === id)) return `<span class="board-origin-chip" onclick="event.stopPropagation();boardRevealCard('${id}')" title="Came from a board sticky — click to see it">💭</span>`;
+  if (item && item.priority === 'meeting' && item.id && PROJECTS[item.project]) {
+    const b = boards.find(x => x.meetingTaskId === item.id);
+    const n = b ? boardCards.filter(c => c.boardId === b.id).length : 0;
+    return `<span class="board-origin-chip meet" onclick="event.stopPropagation();boardGoMeeting('${item.id}')" title="Open this meeting's board${n ? ` (${n} stickies)` : ''}">📅💭${n ? `<span class="board-tab-n">${n}</span>` : ''}</span>`;
+  }
+  return '';
 }
 function _boardPinBtn(type, ...ids) {
   const args = [type].concat(ids).map(v => `'${v}'`).join(',');
@@ -19296,7 +19410,7 @@ const INFO_COPY = {
   },
   boards: {
     title: 'Boards — the thinking surface for a project',
-    body: 'Each project has one <strong>board per sub-code</strong> plus a <strong>💭 Loose thoughts</strong> board for ideas not filed to a code yet. Type into the capture box and press <strong>Enter</strong> — the thought lands as a sticky, no other decisions needed. Drag stickies to arrange them, tap one to edit, <strong>⋯</strong> for colour / heading / delete. <strong>⊞ Sort 2×2</strong> lays the same stickies into urgent/important boxes (Do now · Schedule · Delegate · Park); unsorted ones wait in a tray underneath, never hidden. Slide between boards with the arrows, <strong>←/→</strong>, or a swipe on the board title. <strong>Stickies carry no hours</strong> and count nowhere — Capacity, Timesheet and Allocations only see tasks. A sticky becomes work via <strong>⋯ → Make this a task</strong>: the task lands in your Inbox (no date yet, so it can\'t touch Capacity until you triage it) and the card turns into a <strong>live linked card</strong> showing its due date, status and who holds it — tap it to open the task. <strong>📌</strong> on any task, work item or deliverable row pins it to its board the same way. A <strong>+ Meeting</strong> card is dated and can carry a link to the notes (Loop page); highlight words in it and click <strong>✂ Task from selection</strong> to pull a task out while the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked beneath it (open count, next deadline, who). <strong>☰ List</strong> is the full per-sub-code ledger of every task, session and deliverable.'
+    body: 'Each project has one <strong>board per sub-code</strong> plus a <strong>💭 Loose thoughts</strong> board for ideas not filed to a code yet. Type into the capture box and press <strong>Enter</strong> — the thought lands as a sticky, no other decisions needed. Drag stickies to arrange them, tap one to edit, <strong>⋯</strong> for colour / heading / delete. <strong>⊞ Sort 2×2</strong> lays the same stickies into urgent/important boxes (Do now · Schedule · Delegate · Park); unsorted ones wait in a tray underneath, never hidden. Slide between boards with the arrows, <strong>←/→</strong>, or a swipe on the board title. <strong>Stickies carry no hours</strong> and count nowhere — Capacity, Timesheet and Allocations only see tasks. A sticky becomes work via <strong>⋯ → Make this a task</strong>: the task lands in your Inbox (no date yet, so it can\'t touch Capacity until you triage it) and the card turns into a <strong>live linked card</strong> showing its due date, status and who holds it — tap it to open the task. <strong>📌</strong> on any task, work item or deliverable row pins it to its board the same way. A <strong>+ Meeting</strong> card is dated and can carry a link to the notes (Loop page); highlight words in it and click <strong>✂ Task from selection</strong> to pull a task out while the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked beneath it (open count, next deadline, who). The <strong>📅 Meetings</strong> list beside the sub-code tiles shows every meeting-priority task on this program (title + date); click one to open <strong>that meeting\'s own board</strong> — notes to bring before, notes taken during — and past meetings fold behind "Past (n)" so old notes stay reachable without clutter. <strong>◖ In my court</strong> above a board lists deliverables whose baton is yours on this code, with 📌 to keep one on the board. <strong>☰ List</strong> is the full per-sub-code ledger of every task, session and deliverable.'
   },
   payPeriodBar: {
     title: 'Pay-period bar — logged hours only',
@@ -19407,6 +19521,7 @@ const _TAB_TIPS = {
       '<strong>⊞ Sort 2×2</strong> drops the same stickies into Do now / Schedule / Delegate / Park boxes. Unsorted ones sit in the tray below — nothing is ever hidden. Stickies carry <strong>no hours</strong> and never touch Capacity or the Timesheet.',
       'Slide between boards with <strong>‹ ›</strong>, the <strong>← →</strong> keys, or a swipe on the board title. The chip next to the view toggle says whether the board is <strong>synced</strong> or saved on this device only.',
       '<strong>⋯ → Make this a task</strong> turns a sticky into an Inbox task and the card into a <strong>live linked card</strong> (due, status, who holds it — tap to open). From the Delegate box it opens the task\'s Team section first. <strong>📌</strong> on any row pins an existing item to its board; <strong>💭</strong> on a task jumps back to the sticky it came from.',
+      '<strong>📅 Meetings</strong> (beside the sub-code tiles) lists this program\'s meeting-priority tasks by date; click one to open that meeting\'s own board for notes to bring and notes taken. Past meetings fold behind "Past (n)". From My Tasks, the 📅💭 chip on a meeting row jumps straight to its board. <strong>◖ In my court</strong> above a board shows deliverables waiting on you under that code — 📌 keeps one on the board.',
       '<strong>+ Meeting</strong> adds a dated notes card (paste from Loop, keep the link). Highlight words, click <strong>✂ Task from selection</strong> — the task is created and the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked under it: open count, next deadline, baton holders.',
       '<strong>☰ List</strong> is the full ledger: every task, session, subtask and deliverable grouped by sub-code. Click a <strong>project card</strong> there to expand it and see sessions/subtasks.',
       'Use <strong>+ Add Session</strong> to create work items within a project.',

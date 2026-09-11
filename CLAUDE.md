@@ -94,7 +94,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_persons` | Team roster |
 | `wt_allocations` | Monthly budget allocations, keyed `projKey|scId|YYYY-MM` |
 | `wt_person_allocs` | Per-person monthly hour allocations by billing code, keyed `person|projKey|scId|YYYY-MM` (drives the person-board allocation meters; parse keys from the END — names may contain `|`) |
-| `wt_boards` | Whiteboards: `{ id, projKey, scId, createdAt }` — one per sub-code plus `scId: ''` (the project's **Loose thoughts** board). Auto-created by `_ensureBoards` the first time a project's boards render; boards of inactive/removed sub-codes stay listed while they hold cards (never hide a thought). |
+| `wt_boards` | Whiteboards: `{ id, projKey, scId, createdAt }` — one per sub-code plus `scId: ''` (the project's **Loose thoughts** board). Auto-created by `_ensureBoards` the first time a project's boards render; boards of inactive/removed sub-codes stay listed while they hold cards (never hide a thought). **Meeting boards** (Sep 2026) add `meetingTaskId` (a meeting-priority task's id) plus `title`/`date` snapshots: created on first open from the 📅 Meetings list, never listed as sub-code tiles (`_boardsForProject` filters them), and kept reachable under "Past" while they hold cards even after the meeting task is deleted. |
 | `wt_time_off` | Time-off ranges `{ id, from, to, label }` — 0h room in the forward fill only (see Math invariant #11). |
 | `wt_overhead_weekly` | Hours per week of meetings/admin churn that never become tasks — subtracted (÷5 per day) from forward-fill room only. |
 | `wt_board_cards` | Stickies: `{ id, boardId, kind: 'note' \| 'heading' \| 'ref' \| 'meeting', x, y, w, h, color, z, text, urgent, important, createdAt, updatedAt }`. `color` is a palette NAME (`BOARD_COLORS`), never a hex — it is rendered as a CSS class. `urgent`/`important` (`null` = unsorted) drive the ⊞ Sort 2×2 view (`_boardQuadOf`). **`ref` cards** (Sep 2026) carry `ref: { type: 'task' \| 'team' \| 'session' \| 'subtask', id, projId?, sessionId?, label }` and NO text — `_boardRefResolve` looks the item up on every render (due/status/who are never copied); `label` is only the fallback name shown when the item no longer exists. **`meeting` cards** carry `date` and `url` (rendered as a link only when `_boardSafeUrl` accepts an http(s) URL). **Cards carry no hours** — a task created from a card keeps est/dates/code on the task, and the task carries `_boardCard` (the sticky it came from; 💭 chip → `boardRevealCard`). |
@@ -303,6 +303,19 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    predecessor's `due` (no scheduling side effect); undated items and month
    holds keep their rows as chips (never hidden); ⇄ routes through
    `capMoveItem`, so every recurrence/placement rule holds. Scenario 26
+   enforces this.
+   **Meetings are doorways, not cards** (Sep 2026). Every meeting-priority
+   task on a program appears in the 📅 Meetings list beside the sub-code
+   tiles (`_projMeetings` — upcoming by date, undated last, past and
+   completed folded behind "Past (n)", session-only toggle); clicking one
+   opens a board owned by that meeting (`boardOpenMeeting`, created once).
+   No pre-seeded headings, no summaries on the row beyond a sticky count.
+   A meeting board is never a sub-code tile and → from it lands on the
+   first sub-code board. The My Tasks row of a meeting carries a 📅💭 chip
+   (`boardGoMeeting`) straight onto its board. **◖ In my court**
+   (`_boardCourtHtml`) sits above a sub-code board listing deliverables
+   whose baton is `'Me'` on that code that are not yet pinned — the board
+   shows what is waiting on you before you pin anything. Scenario 27
    enforces this.
 
 ## Math Invariants (July 2026 audit)
@@ -537,6 +550,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Reconcile view (plan vs budget, one month) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
 | Boards / stickies / 2×2 sort (Projects tab default view) | `renderProjBoards`, `_boardsForProject`, `_ensureBoards`, `boardAddCard`, `boardCaptureSubmit`, `_boardCardHtml`, `_bcPointerDown`, `boardCardEdit`, `boardCardMenu`, `_boardSetQuadrant`, `boardSlide`, `_boardSave`, `_setProjView`, `BOARD_QUADS` |
+| Meeting boards / 📅 Meetings list / In my court | `_projMeetings`, `_meetingInfo`, `boardOpenMeeting`, `boardGoMeeting`, `_boardMeetingsHtml`, `_boardTogglePast`, `_boardCourtHtml`, `meetingTaskId` |
 | Linked cards / promote / pin / meeting cards / heading rollups | `boardPromoteCard`, `_boardTaskFromSelection`, `boardPinItem`, `_boardPinBtn`, `_boardRefResolve`, `_boardRefOpen`, `_boardHeadingRollup`, `boardAddMeeting`, `_boardSafeUrl`, `boardRevealCard`, `_boardOriginChip`, `_boardCard`, `createdAt` |
 | ⌂ Dash / command-panel tiles / program signals | `renderProjDash`, `_projSignals`, `_SIG_RANK`, `_sigBurnHtml`, `_sigNextHtml`, `_sigBatonHtml`, `_scTileHtml`, `boardTogglePanel`, `wt_board_panel` |
 | ▬ Timeline / bars / relay segments / Start & After fields | `renderProjTimeline`, `_tlItems`, `_tlRowHtml`, `_tlDerivedStart`, `_tlToggleProj`, `_tlToggleDone`, `_populateDependsOn`, `editStart`, `editDependsOn`, `dependsOn`, `createdAt` |

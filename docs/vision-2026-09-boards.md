@@ -12,6 +12,13 @@ segments, dependencies, chips for undated/held rows and the load band
 questions (answers folded in below). Phase 5 (ink) and Phase 6 (team room
 in the schedule) remain; both will be re-cut before building.
 
+**Follow-up (Sep 11, after the owner poked at the live build):** meetings
+are doorways — every meeting-priority task on a program lists beside the
+sub-code tiles (title + date, past folded) and opens its own board; no
+pre-seeded headings, no summaries. ◖ In my court above a sub-code board
+lists deliverables whose baton is the owner's, before any pinning
+(scenario 27).
+
 **Phase 4 as built, where it differs from the plan below:** the timeline
 is a fourth segment of the Projects view toggle (⌂ Dash · ▬ Timeline · ▦
 Boards · ☰ List) rather than a separate tab; the scale is a fixed 4 px per
