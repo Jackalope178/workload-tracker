@@ -3064,6 +3064,36 @@
   .bcard.bc-lifted { opacity:.35; }
   .bcard.bc-ghost { position:fixed !important; z-index:99999; pointer-events:none; opacity:.9; transform:rotate(-2deg); box-shadow:0 10px 26px rgba(0,0,0,.25); }
   .board-tray-note { font-size:10.5px; color:var(--text3); padding:0 12px 10px; }
+  /* Linked cards (live views of tasks / deliverables / work items) */
+  .bcard.bc-ref { background:#fff; border:1px solid var(--border2); border-left:4px solid var(--accent); padding-top:5px; }
+  .bcard.bc-ref.bc-team { border-left-color:#7c3aed; }
+  .bcard.bc-ref.bc-session, .bcard.bc-ref.bc-subtask { border-left-color:#0f766e; }
+  .bcard.bc-ref.done { opacity:.62; }
+  .bcard.bc-ref.done .bc-ref-name { text-decoration:line-through; color:var(--text3); }
+  .bcard.bc-ref.missing { border-style:dashed; opacity:.8; }
+  .bc-ref-kind { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text3); white-space:nowrap; }
+  .bc-ref-name { font-weight:600; }
+  .bc-ref-meta { display:flex; flex-wrap:wrap; gap:3px 8px; align-items:center; font-size:10.5px; color:var(--text3); margin-top:4px; }
+  .bc-ref-due.overdue { color:var(--danger); font-weight:700; }
+  .bc-ref-due.today { color:var(--warn); font-weight:700; }
+  .bc-ref-badge { background:var(--bg3); border-radius:999px; padding:0 6px; }
+  .bc-ref-meta .delegate-tag, .bc-head-meta .delegate-tag { font-size:9.5px; padding:0 5px; vertical-align:middle; }
+  /* Meeting cards */
+  .bcard.bc-meeting { background:#fff; border:1px solid var(--border2); border-top:4px solid #f59e0b; padding-top:5px; }
+  .bc-meet-date { font-size:10.5px; font-weight:700; color:#92400e; white-space:nowrap; }
+  .bc-meet-link { font-size:12px; text-decoration:none; }
+  /* Editor toolbar */
+  .bc-toolbar { display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-top:4px; }
+  .bc-toolbar input { font-size:11px; padding:2px 4px; border:1px solid var(--border2); border-radius:4px; font-family:inherit; min-width:0; background:#fff; color:var(--text); }
+  .bc-toolbar .bc-tb-url { flex:1; min-width:80px; }
+  .bc-tb-btn { font-size:10.5px; padding:2px 7px; border:1px solid var(--border2); border-radius:4px; background:#fff; cursor:pointer; font-family:inherit; color:var(--text); white-space:nowrap; }
+  .bc-tb-btn:hover { border-color:var(--accent); color:var(--accent); }
+  /* Heading rollup line */
+  .bc-head-meta { font-family:'Inter',sans-serif; font-size:10.5px; font-weight:500; color:var(--text2); margin-top:3px; white-space:normal; line-height:1.5; }
+  .board-origin-chip { cursor:pointer; font-size:11px; margin-left:4px; opacity:.75; }
+  .board-origin-chip:hover { opacity:1; }
+  .bcard.flash { animation:bcFlash 1.5s ease-out; }
+  @keyframes bcFlash { 0%,55% { box-shadow:0 0 0 4px var(--accent), 0 8px 22px rgba(0,0,0,.2); } 100% { box-shadow:0 1px 2px rgba(0,0,0,.12), 0 4px 10px rgba(0,0,0,.08); } }
   @media (max-width: 700px) {
     .board-grid { grid-template-columns:22px 1fr; grid-template-rows:auto repeat(4, auto); }
     .board-axis-x { grid-column:2 / 3; grid-template-columns:1fr; }
@@ -4419,7 +4449,7 @@ if (typeof XLSX === 'undefined') {
 
     <div class="welcome-step" data-step="3">
       <h3>Projects: Boards & Sessions</h3>
-      <p>The <strong>Projects</strong> tab opens on <strong>▦ Boards</strong> — one whiteboard per sub-code (plus 💭 Loose thoughts) where a typed thought lands as a sticky with no other decisions. Drag to arrange, or <strong>⊞ Sort 2×2</strong> into Do now / Schedule / Delegate / Park. Stickies carry no hours.</p>
+      <p>The <strong>Projects</strong> tab opens on <strong>▦ Boards</strong> — one whiteboard per sub-code (plus 💭 Loose thoughts) where a typed thought lands as a sticky with no other decisions. Drag to arrange, or <strong>⊞ Sort 2×2</strong> into Do now / Schedule / Delegate / Park. Stickies carry no hours until <strong>⋯ → Make this a task</strong> turns one into an Inbox task and a live linked card; <strong>+ Meeting</strong> cards hold dated notes you can pull tasks out of.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">☰</span><span><strong>☰ List</strong> is the ledger: each project's <strong>sessions</strong> (work items) and <strong>subtasks</strong>, organized by sub-code.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">📂</span><span>Sessions have their own timers, due dates, and can be delegated to team members.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">◷</span><span>The <strong>Capacity split</strong> (◷ button) shows the month's free hours beside your project — drag any row onto a day to schedule it.</span></div>
@@ -6656,7 +6686,7 @@ function quickCaptureAdd() {
     id: uid(), name, project: 'overhead', subCode: '',
     priority: 'med', due: '', est: 0, category: '',
     waiting: '', notes: '', recurrence: null,
-    timer: 0, timerStart: null, completed: false, inbox: true
+    timer: 0, timerStart: null, completed: false, inbox: true, createdAt: today()
   });
   save('wt_tasks', tasks);
   input.value = '';
@@ -7177,8 +7207,8 @@ function renderTasks() {
       row.innerHTML = `
         <div class="task-check" onclick="openCompletionModal('${task.id}')" title="Complete task"></div>
         <div class="project-dot" style="background:${escHtml(projColor(task.project))};" title="${escHtml(projLabel(task.project))}"></div>
-        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${task._deliverableId ? '<span class="from-team-badge" title="Your turn on a team deliverable — handed to you via the board">↩ team</span>' : ''}${_taskRelayPassBtn(task)}${delegateTagsHtml(task.delegatedTo)}${task.notes ? `<span class="task-waiting task-note-inline" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="${escHtml(task.notes)}">📝 ${escHtml(task.notes)}</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}${spreadBadgeHtml(task, task.due)}${blocksBadgeHtml(task)}</div>
-        <div class="task-recur-actions"><button class="row-edit-btn" onclick="event.stopPropagation();showTaskAssignDropdown(event,'${task.id}')" title="Assign" style="font-size:11px;padding:2px 4px;">↗</button>${task.recurrence && task.due ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>${item._date && item._date < todayStr ? `<button class="row-edit-btn" onclick="event.stopPropagation();catchUpRecurrence('${task.id}')" title="Catch up — skip every missed occurrence (recorded, undoable) and resume from the next scheduled date" style="font-size:11px;padding:2px 4px;">⏩</button>` : ''}` : ''}</div>
+        <div class="task-name" onclick="openEditModal('${task.id}')"><span class="task-name-text">${escHtml(task.name)}</span>${_boardOriginChip(task)}${task._deliverableId ? '<span class="from-team-badge" title="Your turn on a team deliverable — handed to you via the board">↩ team</span>' : ''}${_taskRelayPassBtn(task)}${delegateTagsHtml(task.delegatedTo)}${task.notes ? `<span class="task-waiting task-note-inline" onclick="event.stopPropagation();openNotesFor('task','${task.id}')" title="${escHtml(task.notes)}">📝 ${escHtml(task.notes)}</span>` : ''}${task.recurrence ? `<span class="recur-badge" style="flex-shrink:0;">${recurLabel(task)}</span>` : ''}${spreadBadgeHtml(task, task.due)}${blocksBadgeHtml(task)}</div>
+        <div class="task-recur-actions">${_boardPinBtn('task', task.id)}<button class="row-edit-btn" onclick="event.stopPropagation();showTaskAssignDropdown(event,'${task.id}')" title="Assign" style="font-size:11px;padding:2px 4px;">↗</button>${task.recurrence && task.due ? `<button class="row-edit-btn" onclick="event.stopPropagation();skipRecurOccurrence('${task.id}','${item._occurrenceDate || task.due}')" title="Skip this occurrence" style="font-size:11px;padding:2px 4px;">⏭</button><button class="row-edit-btn" onclick="event.stopPropagation();openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')" title="Reschedule this occurrence" style="font-size:11px;padding:2px 4px;">📅</button>${item._date && item._date < todayStr ? `<button class="row-edit-btn" onclick="event.stopPropagation();catchUpRecurrence('${task.id}')" title="Catch up — skip every missed occurrence (recorded, undoable) and resume from the next scheduled date" style="font-size:11px;padding:2px 4px;">⏩</button>` : ''}` : ''}</div>
         <span class="task-category">${escHtml(projLabel(task.project))}</span>
         <div onclick="showPriorityDropdown(event,'${task.id}')" style="cursor:pointer;" title="Change priority">${priorityBadge(task.priority)}</div>
         <div class="task-due ${dc}" onclick="${task.recurrence && task.due ? `openRescheduleModal('${task.id}','${item._occurrenceDate || task.due}')` : `openDueDatePicker(this, '${task.id}')`}" ${task.recurrence && task.due ? 'title="Move just this occurrence — the rest of the series stays on schedule"' : ''}>${fmtDate(item._date)}${deadlineChipHtml(item._deadline, task.workDate, `openTaskDeadlinePicker(this,'${task.id}')`)}</div>
@@ -8056,7 +8086,8 @@ function saveEditTask() {
     task = {
       id: uid(), name: '', project: '', subCode: '',
       priority: 'med', due: '', est: 0, category: '',
-      waiting: '', notes: '', timer: 0, timerStart: null, completed: false
+      waiting: '', notes: '', timer: 0, timerStart: null, completed: false,
+      createdAt: today()   // entry date — the timeline's derived start (Phase 4)
     };
     tasks.unshift(task);
     editingTaskId = task.id;
@@ -9244,7 +9275,8 @@ function renderProjBoards(projKey) {
           <button class="${view === 'free' ? 'on' : ''}" onclick="boardSetView('${board.id}','free')">▦ Free</button>
           <button class="${view === 'grid' ? 'on' : ''}" onclick="boardSetView('${board.id}','grid')">⊞ Sort 2×2</button>
         </div>
-        <button class="btn" onclick="boardAddHeading('${board.id}')" style="font-size:11px;padding:3px 10px;" title="A heading is a label you can group stickies under">+ Heading</button>
+        <button class="btn" onclick="boardAddHeading('${board.id}')" style="font-size:11px;padding:3px 10px;" title="A heading is a label you can group stickies under — it rolls up the linked tasks beneath it">+ Heading</button>
+        <button class="btn" onclick="boardAddMeeting('${board.id}')" style="font-size:11px;padding:3px 10px;" title="A dated card for meeting notes — paste from Loop, then pull tasks out of it">+ Meeting</button>
       </div>
     </div>
     <form class="board-capture" onsubmit="return boardCaptureSubmit(event,'${board.id}')">
@@ -9271,7 +9303,7 @@ function _renderBoardFree(body, board, cards) {
   const sorted = cards.slice().sort((a, b) => (a.z || 0) - (b.z || 0));
   body.innerHTML = `<div class="board-canvas" id="boardCanvas" style="width:${canvasW}px;height:${canvasH}px;">` +
     (cards.length ? '' : '<div class="board-empty">Nothing here yet.<span>Type a thought above and press Enter — it lands here as a sticky. Drag to arrange, tap to edit, ⋯ for colour.</span></div>') +
-    sorted.map(c => _boardCardHtml(c, false)).join('') + '</div>';
+    sorted.map(c => _boardCardHtml(c, false, cards)).join('') + '</div>';
   body.querySelectorAll('.bcard').forEach(_boardBindCard);
 }
 
@@ -9298,19 +9330,126 @@ function _renderBoardGrid(body, board, cards) {
   body.querySelectorAll('.bcard').forEach(_boardBindCard);
 }
 
-function _boardCardHtml(c, flow) {
+function _boardCardHtml(c, flow, allCards) {
   const color = BOARD_COLORS.includes(c.color) ? c.color : 'yellow';
   const quad = _boardQuadOf(c);
   const isHead = c.kind === 'heading';
   const style = flow ? '' : `left:${+c.x || 0}px;top:${+c.y || 0}px;width:${+c.w || 200}px;${isHead ? '' : `height:${+c.h || 140}px;`}z-index:${+c.z || 1};`;
+  const quadTag = quad && !flow ? `<span class="bc-quad q-${quad}">${BOARD_QUADS[quad].label}</span>` : '';
+  const menuBtn = `<button class="bc-menu" onclick="event.stopPropagation();boardCardMenu(event,'${c.id}')" title="Options">⋯</button>`;
+  const resize = flow || isHead ? '' : '<div class="bc-resize" title="Resize"></div>';
+
+  // Linked card: a live view of a task / deliverable / session / subtask.
+  // Nothing is copied — every render resolves the item afresh.
+  if (c.kind === 'ref') {
+    const ref = c.ref || {};
+    const r = _boardRefResolve(ref);
+    const typeLbl = ref.type === 'team' ? 'deliverable' : ref.type === 'session' ? 'work item' : ref.type === 'subtask' ? 'subtask' : 'task';
+    const dueHtml = r.found && r.due ? `<span class="bc-ref-due ${r.done ? '' : dueCls(r.due)}">${r.due < today() && !r.done ? '⚠ ' : ''}${fmtDate(r.due)}</span>` : '';
+    const estHtml = r.found && r.est ? `<span>${fmtQ(r.est)}h</span>` : '';
+    const badge = !r.found ? 'no longer exists' : r.done ? 'done ✓' : r.badge;
+    return `<div class="bcard bc-ref bc-${ref.type || 'task'}${r.done ? ' done' : ''}${r.found ? '' : ' missing'}${flow ? ' bc-flow' : ''}" data-card-id="${c.id}" style="${style}" title="${r.found ? 'Tap to open' : 'The linked item is gone — ⋯ to keep it as a sticky'}">
+      <div class="bc-top"><span class="bc-ref-kind">${r.icon} ${typeLbl}</span>${quadTag}${menuBtn}</div>
+      <div class="bc-text bc-ref-name">${escHtml(r.name)}</div>
+      <div class="bc-ref-meta">${dueHtml}${estHtml}${badge ? `<span class="bc-ref-badge">${escHtml(badge)}</span>` : ''}${r.who.length ? delegateTagsHtml(r.who) : ''}</div>
+      ${resize}
+    </div>`;
+  }
+  if (c.kind === 'meeting') {
+    const url = _boardSafeUrl(c.url);
+    return `<div class="bcard bc-meeting${flow ? ' bc-flow' : ''}" data-card-id="${c.id}" style="${style}">
+      <div class="bc-top"><span class="bc-meet-date">📅 ${c.date ? fmtDate(c.date) : 'meeting'}</span>${url ? `<a class="bc-meet-link" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" title="Open the meeting notes">🔗</a>` : ''}${quadTag}${menuBtn}</div>
+      <div class="bc-text">${c.text ? escHtml(c.text) : '<span class="bc-empty">(paste or type the notes — select words, then ✂ Task from selection)</span>'}</div>
+      ${resize}
+    </div>`;
+  }
+  let headMeta = '';
+  if (isHead && allCards) {
+    const ru = _boardHeadingRollup(c, allCards);
+    if (ru.members) {
+      const bits = [];
+      if (ru.open) bits.push(`${ru.open} open`);
+      if (ru.nextDue) bits.push(`next ${fmtDate(ru.nextDue)}`);
+      if (ru.who.length) bits.push(delegateTagsHtml(ru.who));
+      if (ru.done) bits.push(`${ru.done} done`);
+      if (ru.thoughts) bits.push(`${ru.thoughts} thought${ru.thoughts > 1 ? 's' : ''}`);
+      headMeta = `<div class="bc-head-meta">${bits.join(' · ')}</div>`;
+    }
+  }
   return `<div class="bcard bc-${color}${isHead ? ' bc-heading' : ''}${flow ? ' bc-flow' : ''}" data-card-id="${c.id}" style="${style}">
-    <div class="bc-top">
-      ${quad && !flow ? `<span class="bc-quad q-${quad}">${BOARD_QUADS[quad].label}</span>` : ''}
-      <button class="bc-menu" onclick="event.stopPropagation();boardCardMenu(event,'${c.id}')" title="Colour · heading · delete">⋯</button>
-    </div>
+    <div class="bc-top">${quadTag}${menuBtn}</div>
     <div class="bc-text">${c.text ? escHtml(c.text) : '<span class="bc-empty">(empty — tap to write)</span>'}</div>
-    ${flow || isHead ? '' : '<div class="bc-resize" title="Resize"></div>'}
+    ${headMeta}${resize}
   </div>`;
+}
+function _boardSafeUrl(u) {
+  const v = String(u || '').trim();
+  return /^https?:\/\/[^\s]+$/i.test(v) ? v : '';
+}
+// A heading "owns" the stickies stacked beneath it: same column (card centre
+// inside the heading's width), below it, above the next heading in that
+// column. Spatial membership, like a real whiteboard — no grouping field.
+function _boardHeadingRollup(h, cards) {
+  const others = cards.filter(c => c.id !== h.id);
+  const nextY = others.filter(c => c.kind === 'heading' && c.y > h.y && c.x < h.x + h.w && c.x + c.w > h.x)
+    .reduce((m, c) => Math.min(m, c.y), Infinity);
+  const members = others.filter(c => c.kind !== 'heading' && c.y >= h.y && c.y < nextY
+    && c.x + c.w / 2 >= h.x && c.x + c.w / 2 <= h.x + h.w);
+  const out = { members: members.length, open: 0, done: 0, thoughts: 0, nextDue: '', who: [] };
+  const who = new Set();
+  members.forEach(c => {
+    if (c.kind !== 'ref') { out.thoughts++; return; }
+    const r = _boardRefResolve(c.ref || {});
+    if (!r.found) return;
+    if (r.done) { out.done++; return; }
+    out.open++;
+    if (r.due && (!out.nextDue || r.due < out.nextDue)) out.nextDue = r.due;
+    r.who.forEach(w => who.add(w));
+  });
+  out.who = [...who];
+  return out;
+}
+function _boardBatonOf(d) {
+  if (d.status === 'complete') return '';
+  if (_isRelay(d)) { if (_relayDone(d)) return ''; const st = relayStage(d); return st ? st.who : ''; }
+  return _batonOwner(d);
+}
+function _boardRefResolve(ref) {
+  const out = { found: false, name: (ref && ref.label) || '(item)', done: false, due: '', est: 0, who: [], badge: '', icon: '☐', pri: 'med' };
+  if (!ref) return out;
+  if (ref.type === 'task') {
+    const t = tasks.find(x => x.id === ref.id); if (!t) return out;
+    out.found = true; out.name = t.name; out.done = !!t.completed; out.due = t.workDate || t.due || ''; out.est = t.est || 0;
+    out.who = normDelegated(t.delegatedTo);
+    if (t._deliverableId) { const d = teamItems.find(x => x.id === t._deliverableId); if (d) { const b = _boardBatonOf(d); out.who = b ? [b] : []; } }
+    out.pri = t.priority || 'med';
+    out.badge = t.inbox ? '📥 inbox — needs a date' : (t.priority === 'meeting' ? 'meeting' : t.priority || 'med');
+    out.icon = out.done ? '✓' : '☐';
+  } else if (ref.type === 'team') {
+    const d = teamItems.find(x => x.id === ref.id); if (!d) return out;
+    out.found = true; out.name = d.name; out.done = d.status === 'complete'; out.due = d.due || ''; out.est = d.est || 0;
+    const holder = _boardBatonOf(d); out.who = holder ? [holder] : [];
+    out.badge = out.done ? '' : (_isRelay(d) ? relayStatusInfo(d).label : (STATUS_LABELS[d.status] || d.status || ''));
+    out.icon = '👥';
+  } else if (ref.type === 'session' || ref.type === 'subtask') {
+    const bp = bigProjs.find(x => x.id === ref.projId); if (!bp) return out;
+    const s = bp.sessions.find(x => x.id === (ref.type === 'session' ? ref.id : ref.sessionId)); if (!s) return out;
+    const it = ref.type === 'session' ? s : (s.subtasks || []).find(x => x.id === ref.id); if (!it) return out;
+    out.found = true; out.name = it.desc; out.done = !!it.done; out.due = it.workDate || it.date || ''; out.est = it.hours || 0;
+    out.who = normDelegated(it.delegatedTo); out.pri = it.priority || 'med';
+    out.badge = it.waiting ? '⏳ ' + it.waiting : (it.priority || 'med');
+    out.icon = out.done ? '✓' : '▣';
+  }
+  return out;
+}
+function _boardRefOpen(c) {
+  const ref = c.ref || {};
+  const r = _boardRefResolve(ref);
+  if (!r.found) { showSyncToast('That item no longer exists — use ⋯ to keep the card as a sticky.', 'warn'); return; }
+  if (ref.type === 'task') openEditModal(ref.id);
+  else if (ref.type === 'team') openEditTeamModal(ref.id);
+  else if (ref.type === 'session') openEditSessionModal(ref.projId, ref.id);
+  else if (ref.type === 'subtask') openEditSubtaskModal(ref.projId, ref.sessionId, ref.id);
 }
 function _boardQuadOf(c) {
   if (c.urgent == null || c.important == null) return null;
@@ -9344,14 +9483,16 @@ function boardCaptureSubmit(ev, boardId) {
 }
 function boardAddCard(boardId, opts = {}) {
   const board = boards.find(b => b.id === boardId); if (!board) return null;
-  const kind = opts.kind === 'heading' ? 'heading' : 'note';
-  const w = opts.w || (kind === 'heading' ? 280 : 200);
-  const h = opts.h || (kind === 'heading' ? 44 : 140);
+  const kind = ['heading', 'ref', 'meeting'].includes(opts.kind) ? opts.kind : 'note';
+  const w = opts.w || (kind === 'heading' ? 280 : kind === 'meeting' ? 300 : 200);
+  const h = opts.h || (kind === 'heading' ? 44 : kind === 'ref' ? 120 : kind === 'meeting' ? 200 : 140);
   const pos = _boardFreeSlot(boardId, w, h);
   const c = { id: uid(), boardId, kind, x: pos.x, y: pos.y, w, h,
-    color: BOARD_COLORS.includes(opts.color) ? opts.color : (kind === 'heading' ? 'white' : 'yellow'),
+    color: BOARD_COLORS.includes(opts.color) ? opts.color : (kind === 'note' ? 'yellow' : 'white'),
     z: _boardNextZ(boardId), text: (opts.text || '').slice(0, 2000), urgent: null, important: null,
     createdAt: today(), updatedAt: today() };
+  if (kind === 'ref') { c.ref = opts.ref || null; c.text = ''; }
+  if (kind === 'meeting') { c.date = opts.date || today(); c.url = (opts.url || '').slice(0, 500); }
   boardCards.push(c);
   _boardSave('wt_board_cards');
   _boardRerender(board.projKey);
@@ -9421,7 +9562,12 @@ function _bcPointerUp(e) {
   d.el.removeEventListener('pointercancel', _bcPointerUp);
   try { d.el.releasePointerCapture(d.pid); } catch (_) {}
   d.el.classList.remove('dragging');
-  if (!d.moved) { if (e.type !== 'pointercancel') boardCardEdit(d.id); return; }
+  if (!d.moved) {
+    if (e.type === 'pointercancel') return;
+    const c = boardCards.find(k => k.id === d.id);
+    if (c && c.kind === 'ref') _boardRefOpen(c); else boardCardEdit(d.id);
+    return;
+  }
   if (d.flow) { _bcGhostDrop(d, e); return; }
   const x = Math.round(Math.max(0, d.el.offsetLeft) / 10) * 10;
   const y = Math.round(Math.max(0, d.el.offsetTop) / 10) * 10;
@@ -9499,14 +9645,52 @@ function boardCardEdit(id) {
   ta.className = 'bc-editor'; ta.value = c.text || ''; ta.maxLength = 2000;
   ta.placeholder = c.kind === 'heading' ? 'Heading…' : 'Write…';
   t.replaceWith(ta);
+  // Toolbar under the text: meeting date + link, and ✂ Task from selection.
+  const bar = document.createElement('div');
+  bar.className = 'bc-toolbar';
+  if (c.kind === 'meeting') {
+    bar.innerHTML = `<input type="date" class="bc-tb-date" value="${escHtml(c.date || '')}" title="Meeting date">` +
+      `<input type="url" class="bc-tb-url" placeholder="Link to the notes (Loop page…)" value="${escHtml(c.url || '')}" maxlength="500">`;
+  }
+  if (c.kind !== 'heading') {
+    bar.insertAdjacentHTML('beforeend', `<button type="button" class="bc-tb-btn" data-act="seltask" title="Highlight the words that are the task, then click">✂ Task from selection</button>`);
+  }
+  if (bar.childNodes.length) ta.after(bar);
+  let lastSel = [0, 0];
+  const noteSel = () => { lastSel = [ta.selectionStart, ta.selectionEnd]; };
+  ['select', 'keyup', 'pointerup'].forEach(evn => ta.addEventListener(evn, noteSel));
+  let finished = false;
   const finish = cancel => {
-    if (!el.classList.contains('editing')) return;
+    if (finished || !el.classList.contains('editing')) return;
+    finished = true;
     el.classList.remove('editing');
+    let changed = false;
     const val = cancel ? (c.text || '') : ta.value.trim();
-    if (val !== (c.text || '')) { c.text = val; c.updatedAt = today(); _boardSave('wt_board_cards'); }
+    if (val !== (c.text || '')) { c.text = val; changed = true; }
+    if (!cancel && c.kind === 'meeting') {
+      const d = bar.querySelector('.bc-tb-date'), u = bar.querySelector('.bc-tb-url');
+      const nd = d ? d.value : c.date, nu = u ? u.value.trim().slice(0, 500) : c.url;
+      if (nd !== c.date) { c.date = nd; changed = true; }
+      if (nu !== (c.url || '')) { c.url = nu; changed = true; }
+    }
+    if (changed) { c.updatedAt = today(); _boardSave('wt_board_cards'); }
     _boardRefreshBody();
   };
-  ta.addEventListener('blur', () => finish(false));
+  // Finish when focus leaves the CARD (not just the textarea) so the toolbar
+  // stays usable; buttons preventDefault on pointerdown to keep focus put.
+  el.addEventListener('focusout', ev => {
+    if (ev.relatedTarget && el.contains(ev.relatedTarget)) return;
+    setTimeout(() => { if (!finished && !el.contains(document.activeElement)) finish(false); }, 0);
+  });
+  bar.addEventListener('pointerdown', ev => { if (ev.target.closest('button')) ev.preventDefault(); ev.stopPropagation(); });
+  bar.addEventListener('keydown', ev => ev.stopPropagation());
+  bar.addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-act="seltask"]'); if (!b) return;
+    ev.stopPropagation();
+    const selText = ta.value.slice(lastSel[0], lastSel[1]);
+    finish(false);
+    _boardTaskFromSelection(c.id, selText);
+  });
   ta.addEventListener('keydown', ev => {
     ev.stopPropagation();
     if (ev.key === 'Escape') { ev.preventDefault(); finish(true); }
@@ -9520,14 +9704,29 @@ function boardCardEdit(id) {
 // ── Card menu / delete ──
 function boardCardMenu(ev, id) {
   const c = boardCards.find(k => k.id === id); if (!c) return;
-  const items = BOARD_COLORS.map(col => ({ value: 'color:' + col, label: col[0].toUpperCase() + col.slice(1), swatch: BOARD_COLOR_HEX[col] }));
-  items.push({ value: 'kind', label: c.kind === 'heading' ? 'Turn into a sticky' : 'Turn into a heading' });
+  const items = [];
+  if (c.kind === 'note') items.push({ value: 'promote', label: '☐ Make this a task' });
+  if (c.kind === 'ref') {
+    const r = _boardRefResolve(c.ref || {});
+    if (r.found) items.push({ value: 'open', label: '↗ Open' });
+    items.push({ value: 'unlink', label: '💭 Unlink — keep as a sticky' });
+  }
+  if (c.kind === 'note' || c.kind === 'heading') {
+    BOARD_COLORS.forEach(col => items.push({ value: 'color:' + col, label: col[0].toUpperCase() + col.slice(1), swatch: BOARD_COLOR_HEX[col] }));
+    items.push({ value: 'kind', label: c.kind === 'heading' ? 'Turn into a sticky' : 'Turn into a heading' });
+  }
   if (_boardQuadOf(c)) items.push({ value: 'unsort', label: 'Clear urgent / important' });
   items.push({ value: 'front', label: 'Bring to front' });
-  items.push({ value: 'delete', label: '🗑 Delete' });
+  items.push({ value: 'delete', label: c.kind === 'ref' ? '🗑 Remove from board (the item stays)' : '🗑 Delete' });
   showDropdown(ev.currentTarget || ev.target, items, 'color:' + (c.color || 'yellow'), v => {
     if (v === 'delete') { boardCardDelete(id); return; }
-    if (v.startsWith('color:')) c.color = v.slice(6);
+    if (v === 'promote') { boardPromoteCard(id); return; }
+    if (v === 'open') { _boardRefOpen(c); return; }
+    if (v === 'unlink') {
+      const r = _boardRefResolve(c.ref || {});
+      c.kind = 'note'; c.text = (r.name || '').slice(0, 2000); c.ref = null; c.color = 'yellow'; c.h = Math.max(c.h || 0, 120);
+    }
+    else if (v.startsWith('color:')) c.color = v.slice(6);
     else if (v === 'kind') {
       c.kind = c.kind === 'heading' ? 'note' : 'heading';
       if (c.kind === 'heading') { c.h = 44; c.w = Math.max(c.w, 240); c.urgent = null; c.important = null; }
@@ -9548,6 +9747,114 @@ function boardCardDelete(id) {
   _performDelete(`Deleted "${label}"`,
     () => { boardCards.splice(idx, 1); _boardSave('wt_board_cards'); if (board) _boardRerender(board.projKey); },
     () => { boardCards.splice(Math.min(idx, boardCards.length), 0, c); _boardSave('wt_board_cards'); if (board) _boardRerender(board.projKey); });
+}
+
+// ── Tasks in the web (Phase 1) ──
+// A sticky becomes a task by PROMOTION: the task is created in the Inbox
+// (no date/estimate yet, so it can't touch Capacity until triaged) and the
+// card turns into a live linked card. The quadrant seeds priority; the
+// Delegate box opens the task's Team section first (assign-to / hand-off).
+function _boardQuadPriority(quad) {
+  return quad === 'do' ? 'urgent' : quad === 'schedule' ? 'high' : quad === 'park' ? 'low' : 'med';
+}
+function _boardNewTask(board, name, extra) {
+  return Object.assign({
+    id: uid(), name, project: board.projKey, subCode: board.scId || '',
+    priority: 'med', due: '', est: 0, category: '', waiting: '', notes: '', recurrence: null,
+    timer: 0, timerStart: null, completed: false, inbox: true, createdAt: today()
+  }, extra || {});
+}
+function boardPromoteCard(cardId) {
+  const c = boardCards.find(k => k.id === cardId); if (!c || c.kind !== 'note') return null;
+  const board = boards.find(b => b.id === c.boardId); if (!board) return null;
+  const lines = (c.text || '').split('\n').map(x => x.trim()).filter(Boolean);
+  const name = (lines[0] || '').slice(0, 160);
+  if (!name) { showSyncToast('Write something on the sticky first.', 'warn'); return null; }
+  const quad = _boardQuadOf(c);
+  const t = _boardNewTask(board, name, { priority: _boardQuadPriority(quad), notes: lines.slice(1).join(' · ').slice(0, 1000), _boardCard: c.id });
+  tasks.unshift(t); save('wt_tasks', tasks);
+  c.kind = 'ref'; c.ref = { type: 'task', id: t.id, label: name }; c.text = ''; c.color = 'white'; c.updatedAt = today();
+  _boardSave('wt_board_cards');
+  _boardRerender(board.projKey); renderTasks(); updateHeaderMeta();
+  if (quad === 'delegate') {
+    openEditModal(t.id); _editSecToggle('Team');
+    showSyncToast('Task created — it sits in the Delegate box, so pick who takes it.', 'success');
+  } else {
+    showSyncToast(`☐ "${name}" is now a task in your Inbox — open it to add a date and estimate.`, 'success');
+  }
+  return t;
+}
+// Pull a task out of a meeting card (or any sticky) from highlighted words.
+// The source card keeps its text; the new linked card lands beside it and
+// the task remembers the sticky it came from (_boardCard).
+function _boardTaskFromSelection(cardId, selText) {
+  const c = boardCards.find(k => k.id === cardId); if (!c) return null;
+  const board = boards.find(b => b.id === c.boardId); if (!board) return null;
+  const name = String(selText || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  if (!name) { showSyncToast('Highlight the words that are the task, then click ✂ Task from selection.', 'warn'); return null; }
+  const t = _boardNewTask(board, name, { notes: c.kind === 'meeting' && c.date ? 'From meeting ' + fmtDate(c.date) : '', _boardCard: c.id });
+  tasks.unshift(t); save('wt_tasks', tasks);
+  boardAddCard(board.id, { kind: 'ref', ref: { type: 'task', id: t.id, label: name } });
+  renderTasks(); updateHeaderMeta();
+  showSyncToast(`☐ "${name}" is now a task in your Inbox — the note keeps its text.`, 'success');
+  return t;
+}
+function boardAddMeeting(boardId) {
+  const c = boardAddCard(boardId, { kind: 'meeting', text: '', date: today() });
+  if (!c) return;
+  if ((_boardViewPref[boardId] || 'free') === 'grid') boardSetView(boardId, 'free');
+  boardCardEdit(c.id);
+}
+// Pin an existing item onto its own project/sub-code board as a linked card.
+function boardPinItem(type, ...ids) {
+  let ref, projKey, scId;
+  if (type === 'task') {
+    const t = tasks.find(x => x.id === ids[0]); if (!t) return;
+    ref = { type, id: t.id, label: t.name }; projKey = t.project; scId = t.subCode || '';
+  } else if (type === 'team') {
+    const d = teamItems.find(x => x.id === ids[0]); if (!d) return;
+    ref = { type, id: d.id, label: d.name }; projKey = d.project; scId = d.subCode || '';
+  } else if (type === 'session' || type === 'subtask') {
+    const bp = bigProjs.find(x => x.id === ids[0]); const s = bp && bp.sessions.find(x => x.id === ids[1]); if (!s) return;
+    if (type === 'session') { ref = { type, id: s.id, projId: bp.id, label: s.desc }; scId = s.subCode || bp.defaultSubCode || ''; }
+    else { const st = (s.subtasks || []).find(x => x.id === ids[2]); if (!st) return; ref = { type, id: st.id, projId: bp.id, sessionId: s.id, label: st.desc }; scId = st.subCode || s.subCode || bp.defaultSubCode || ''; }
+    projKey = bp.project;
+  } else return;
+  if (!PROJECTS[projKey]) { showSyncToast('This item has no project yet — set one first.', 'warn'); return; }
+  _ensureBoards(projKey);
+  const board = boards.find(b => b.projKey === projKey && b.scId === scId) || boards.find(b => b.projKey === projKey && b.scId === '');
+  if (!board) return;
+  const dup = boardCards.find(k => k.boardId === board.id && k.kind === 'ref' && k.ref && k.ref.type === type && k.ref.id === ref.id);
+  if (dup) { showSyncToast(`Already on the ${_boardTitle(board)} board of ${projLabel(projKey)}.`, 'warn'); return; }
+  _boardOpen[projKey] = board.id; save('wt_board_open', _boardOpen);
+  boardAddCard(board.id, { kind: 'ref', ref });
+  showSyncToast(`📌 Pinned to ${projLabel(projKey)} › ${_boardTitle(board)}`, 'success');
+}
+// Jump from a task back to the sticky it came from.
+function boardRevealCard(cardId) {
+  const c = boardCards.find(k => k.id === cardId);
+  const b = c && boards.find(x => x.id === c.boardId);
+  if (!b || !PROJECTS[b.projKey]) { showSyncToast('That sticky is gone.', 'warn'); return; }
+  _projView = 'boards'; save('wt_proj_view', _projView);
+  _boardOpen[b.projKey] = b.id; save('wt_board_open', _boardOpen);
+  selectedProjCode = b.projKey;
+  const tab = document.querySelector('.tab[data-tab="projects"]');
+  if (tab && !tab.classList.contains('active')) _switchTab(tab);
+  renderProjCodeList(); renderProjBoards(b.projKey);
+  const el = document.querySelector(`.bcard[data-card-id="${cardId}"]`);
+  if (el) {
+    try { el.scrollIntoView({ block: 'center', inline: 'center' }); } catch (_) {}
+    el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600);
+  }
+}
+function _boardOriginChip(item) {
+  const id = item && item._boardCard;
+  if (!id || !boardCards.some(k => k.id === id)) return '';
+  return `<span class="board-origin-chip" onclick="event.stopPropagation();boardRevealCard('${id}')" title="Came from a board sticky — click to see it">💭</span>`;
+}
+function _boardPinBtn(type, ...ids) {
+  const args = [type].concat(ids).map(v => `'${v}'`).join(',');
+  return `<button class="row-edit-btn" onclick="event.stopPropagation();boardPinItem(${args})" title="Pin to this item's board as a live card" style="opacity:0.7;font-size:12px;">📌</button>`;
 }
 
 // ── Swipe between boards (touch/pen on the board header; ←/→ keys elsewhere) ──
@@ -10094,7 +10401,7 @@ function renderProjItemRow(item, projKey, scId) {
         ${isDone ? '<span style="color:var(--check-fg);font-size:11px;">✓</span>' : ''}
       </div>
       <div class="session-desc" style="${isDone ? 'text-decoration:line-through;color:var(--text3);' : ''}" onclick="openEditModal('${t.id}')">
-        ${escHtml(t.name)}
+        ${escHtml(t.name)}${_boardOriginChip(t)}
         <span id="task-tags-${t.id}">${delegateTagsHtml(t.delegatedTo)}</span>
         ${t.notes ? `<span class="task-waiting task-note-inline" onclick="event.stopPropagation();openNotesFor('task','${t.id}')" title="${escHtml(t.notes)}">📝 ${escHtml(t.notes)}</span>` : ''}
         ${t.recurrence ? `<span class="recur-badge">${recurLabel(t)}</span>` : ''}
@@ -10109,6 +10416,7 @@ function renderProjItemRow(item, projKey, scId) {
         <div class="timer-btn${t.timerStart ? ' running' : ''}" onclick="${t.timerStart ? `stopTimer('${t.id}')` : `startTimer('${t.id}')`}" title="${t.timerStart ? 'Stop' : 'Start'} timer">${t.timerStart ? '⏹' : '▶'}</div>
       </div>
       <div class="session-row-actions" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+        ${_boardPinBtn('task', t.id)}
         <button class="row-edit-btn" onclick="deleteTaskFromProjects('${t.id}')" title="Delete" style="color:var(--danger);">×</button>
       </div>
     </div>`;
@@ -10160,6 +10468,7 @@ function renderProjItemRow(item, projKey, scId) {
         <div class="timer-btn${s.timerStart ? ' running' : ''}" onclick="${s.timerStart ? `stopSessionTimer('${bp.id}','${s.id}')` : `startSessionTimer('${bp.id}','${s.id}')`}" title="${s.timerStart ? 'Stop' : 'Start'} timer">${s.timerStart ? '⏹' : '▶'}</div>
       </div>
       <div class="session-row-actions" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+        ${_boardPinBtn('session', bp.id, s.id)}
         <button class="row-edit-btn" onclick="deleteSession('${bp.id}','${s.id}')" title="Delete" style="color:var(--danger);">×</button>
         <button class="row-edit-btn" onclick="openAddSubtaskModal('${bp.id}','${s.id}')" title="Add subtask" style="color:var(--accent);font-size:14px;font-weight:700;">+</button>
         ${!s.recurrence && _ownPlannedHours(s) >= 0.25 ? `<button class="row-edit-btn" onclick="autoPlanSessionRemainder('${bp.id}','${s.id}')" title="Auto-plan the ${fmtQ(_ownPlannedHours(s))}h remainder into dated subtasks on days with free capacity${s.date ? ' before ' + fmtDate(s.date) : ''}" style="font-size:12px;">⚡</button>` : ''}
@@ -10198,6 +10507,7 @@ function renderProjItemRow(item, projKey, scId) {
         <div class="timer-btn${st.timerStart ? ' running' : ''}" onclick="${st.timerStart ? `stopSubtaskTimer('${bp.id}','${s.id}','${st.id}')` : `startSubtaskTimer('${bp.id}','${s.id}','${st.id}')`}" title="${st.timerStart ? 'Stop' : 'Start'} timer">${st.timerStart ? '⏹' : '▶'}</div>
       </div>
       <div class="session-row-actions" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+        ${_boardPinBtn('subtask', bp.id, s.id, st.id)}
         <button class="row-edit-btn" onclick="deleteSubtask('${bp.id}','${s.id}','${st.id}')" title="Delete" style="color:var(--danger);">×</button>
       </div>
     </div>`;
@@ -10220,7 +10530,7 @@ function renderProjItemRow(item, projKey, scId) {
       <div class="session-date">${fmtDate(ti.due)}</div>
       <div class="session-hours">—</div>
       <span class="status-badge ${STATUS_CLS[ti.status] || ''}" style="cursor:pointer;white-space:nowrap;" onclick="event.stopPropagation();showStatusDropdown(event,'${ti.id}')">${STATUS_LABELS[ti.status] || ti.status}</span>
-      <div></div>
+      <div class="session-row-actions" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">${_boardPinBtn('team', ti.id)}</div>
     </div>`;
   }
 
@@ -10559,7 +10869,7 @@ function inlineAddTask(projKey, scId) {
     id: uid(), name, project: projKey, subCode: scId || '',
     priority: 'med', due: '', est: 0, category: '',
     waiting: '', notes: '', timer: 0, timerStart: null,
-    completed: false
+    completed: false, createdAt: today()
   });
   save('wt_tasks', tasks);
   input.value = '';
@@ -18038,7 +18348,7 @@ function _maybeShowWelcome() {
 const INFO_COPY = {
   boards: {
     title: 'Boards — the thinking surface for a project',
-    body: 'Each project has one <strong>board per sub-code</strong> plus a <strong>💭 Loose thoughts</strong> board for ideas not filed to a code yet. Type into the capture box and press <strong>Enter</strong> — the thought lands as a sticky, no other decisions needed. Drag stickies to arrange them, tap one to edit, <strong>⋯</strong> for colour / heading / delete. <strong>⊞ Sort 2×2</strong> lays the same stickies into urgent/important boxes (Do now · Schedule · Delegate · Park); unsorted ones wait in a tray underneath, never hidden. Slide between boards with the arrows, <strong>←/→</strong>, or a swipe on the board title. <strong>Stickies carry no hours</strong> and count nowhere — Capacity, Timesheet and Allocations only see tasks. <strong>☰ List</strong> is the full per-sub-code ledger of every task, session and deliverable.'
+    body: 'Each project has one <strong>board per sub-code</strong> plus a <strong>💭 Loose thoughts</strong> board for ideas not filed to a code yet. Type into the capture box and press <strong>Enter</strong> — the thought lands as a sticky, no other decisions needed. Drag stickies to arrange them, tap one to edit, <strong>⋯</strong> for colour / heading / delete. <strong>⊞ Sort 2×2</strong> lays the same stickies into urgent/important boxes (Do now · Schedule · Delegate · Park); unsorted ones wait in a tray underneath, never hidden. Slide between boards with the arrows, <strong>←/→</strong>, or a swipe on the board title. <strong>Stickies carry no hours</strong> and count nowhere — Capacity, Timesheet and Allocations only see tasks. A sticky becomes work via <strong>⋯ → Make this a task</strong>: the task lands in your Inbox (no date yet, so it can\'t touch Capacity until you triage it) and the card turns into a <strong>live linked card</strong> showing its due date, status and who holds it — tap it to open the task. <strong>📌</strong> on any task, work item or deliverable row pins it to its board the same way. A <strong>+ Meeting</strong> card is dated and can carry a link to the notes (Loop page); highlight words in it and click <strong>✂ Task from selection</strong> to pull a task out while the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked beneath it (open count, next deadline, who). <strong>☰ List</strong> is the full per-sub-code ledger of every task, session and deliverable.'
   },
   payPeriodBar: {
     title: 'Pay-period bar — logged hours only',
@@ -18146,6 +18456,8 @@ const _TAB_TIPS = {
       '<strong>▦ Boards</strong> is the default view: one sticky-note board per sub-code plus 💭 Loose thoughts. Press <strong>N</strong> or click the capture box, type, <strong>Enter</strong> — the thought lands as a sticky. Drag to arrange, tap to edit, <strong>⋯</strong> for colour, heading or delete.',
       '<strong>⊞ Sort 2×2</strong> drops the same stickies into Do now / Schedule / Delegate / Park boxes. Unsorted ones sit in the tray below — nothing is ever hidden. Stickies carry <strong>no hours</strong> and never touch Capacity or the Timesheet.',
       'Slide between boards with <strong>‹ ›</strong>, the <strong>← →</strong> keys, or a swipe on the board title. The chip next to the view toggle says whether the board is <strong>synced</strong> or saved on this device only.',
+      '<strong>⋯ → Make this a task</strong> turns a sticky into an Inbox task and the card into a <strong>live linked card</strong> (due, status, who holds it — tap to open). From the Delegate box it opens the task\'s Team section first. <strong>📌</strong> on any row pins an existing item to its board; <strong>💭</strong> on a task jumps back to the sticky it came from.',
+      '<strong>+ Meeting</strong> adds a dated notes card (paste from Loop, keep the link). Highlight words, click <strong>✂ Task from selection</strong> — the task is created and the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked under it: open count, next deadline, baton holders.',
       '<strong>☰ List</strong> is the full ledger: every task, session, subtask and deliverable grouped by sub-code. Click a <strong>project card</strong> there to expand it and see sessions/subtasks.',
       'Use <strong>+ Add Session</strong> to create work items within a project.',
       'Sessions can have <strong>subtasks</strong>, timers, and be delegated to team members.',

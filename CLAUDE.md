@@ -95,7 +95,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_allocations` | Monthly budget allocations, keyed `projKey|scId|YYYY-MM` |
 | `wt_person_allocs` | Per-person monthly hour allocations by billing code, keyed `person|projKey|scId|YYYY-MM` (drives the person-board allocation meters; parse keys from the END — names may contain `|`) |
 | `wt_boards` | Whiteboards: `{ id, projKey, scId, createdAt }` — one per sub-code plus `scId: ''` (the project's **Loose thoughts** board). Auto-created by `_ensureBoards` the first time a project's boards render; boards of inactive/removed sub-codes stay listed while they hold cards (never hide a thought). |
-| `wt_board_cards` | Stickies: `{ id, boardId, kind: 'note' \| 'heading', x, y, w, h, color, z, text, urgent, important, createdAt, updatedAt }`. `color` is a palette NAME (`BOARD_COLORS`), never a hex — it is rendered as a CSS class. `urgent`/`important` (`null` = unsorted) drive the ⊞ Sort 2×2 view (`_boardQuadOf`). **Cards carry no hours and no dates** — Phase 1 links a card to a task; the task keeps est/dates/code. |
+| `wt_board_cards` | Stickies: `{ id, boardId, kind: 'note' \| 'heading' \| 'ref' \| 'meeting', x, y, w, h, color, z, text, urgent, important, createdAt, updatedAt }`. `color` is a palette NAME (`BOARD_COLORS`), never a hex — it is rendered as a CSS class. `urgent`/`important` (`null` = unsorted) drive the ⊞ Sort 2×2 view (`_boardQuadOf`). **`ref` cards** (Sep 2026) carry `ref: { type: 'task' \| 'team' \| 'session' \| 'subtask', id, projId?, sessionId?, label }` and NO text — `_boardRefResolve` looks the item up on every render (due/status/who are never copied); `label` is only the fallback name shown when the item no longer exists. **`meeting` cards** carry `date` and `url` (rendered as a link only when `_boardSafeUrl` accepts an http(s) URL). **Cards carry no hours** — a task created from a card keeps est/dates/code on the task, and the task carries `_boardCard` (the sticky it came from; 💭 chip → `boardRevealCard`). |
 
 Plus ~20 smaller preference/UI keys (`wt_theme`, `wt_ts_capacity`, collapse
 states, …). Anything that must survive across devices belongs in `SYNC_KEYS`.
@@ -258,6 +258,22 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    (synced / saved-on-this-device / failed) — the trust signal after the
    Aug 2026 data-loss incident; `save()` now returns its cloud promise for
    that reason. Scenario 22 enforces all of this.
+   **A sticky becomes work only by promotion** (Phase 1): `boardPromoteCard`
+   / `_boardTaskFromSelection` create the task with `inbox: true` and no
+   date/estimate (so it cannot touch Capacity until triaged), priority
+   seeded from the quadrant (`_boardQuadPriority` — Do now → urgent,
+   Schedule → high, Delegate → med **and the modal opens on the Team
+   section**, Park → low), `createdAt` stamped, and the card becomes a
+   `ref`. Linked cards are **live and never copy fields**; a deleted item
+   leaves a dashed "no longer exists" card whose ⋯ Unlink turns it back
+   into a sticky (never lose the thought). `boardPinItem` pins an existing
+   item to its own project/sub-code board and refuses duplicates. Heading
+   rollups are **spatial** (`_boardHeadingRollup`: same column, below the
+   heading, above the next heading) — there is no grouping field. Meeting
+   cards keep their text when a task is pulled out of them. `createdAt` is
+   now stamped on every user-facing task create path (quick capture,
+   inline add, task modal, promotion) — it is the timeline's derived start
+   (Phase 4); legacy tasks have none. Scenario 23 enforces all of this.
 
 ## Math Invariants (July 2026 audit)
 
@@ -465,6 +481,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Reconcile view (plan vs budget, one month) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
 | Boards / stickies / 2×2 sort (Projects tab default view) | `renderProjBoards`, `_boardsForProject`, `_ensureBoards`, `boardAddCard`, `boardCaptureSubmit`, `_boardCardHtml`, `_bcPointerDown`, `boardCardEdit`, `boardCardMenu`, `_boardSetQuadrant`, `boardSlide`, `_boardSave`, `_setProjView`, `BOARD_QUADS` |
+| Linked cards / promote / pin / meeting cards / heading rollups | `boardPromoteCard`, `_boardTaskFromSelection`, `boardPinItem`, `_boardPinBtn`, `_boardRefResolve`, `_boardRefOpen`, `_boardHeadingRollup`, `boardAddMeeting`, `_boardSafeUrl`, `boardRevealCard`, `_boardOriginChip`, `_boardCard`, `createdAt` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
 | In-app orientation / ⓘ help | `INFO_COPY`, `infoIcon`, `showWelcome`, `_TAB_TIPS` |
 | Tabs / navigation | `_switchTab`, `data-tab` |
@@ -518,7 +535,9 @@ A change that "cleans up" or "simplifies" any of them reintroduces a real bug.
    `name`, sub-code `code`/`label`, person/owner names, `_currentUser` display
    name — MUST be wrapped in `escHtml(...)` when interpolated into a template
    literal that becomes `innerHTML`/`outerHTML`. Task `name`/`notes` (notes
-   now render inline on rows — a new sink), board sticky `text` and board
+   now render inline on rows — a new sink), board sticky `text`, linked-card
+   names (resolved item names + `ref.label`), meeting `url` (also gated by
+   `_boardSafeUrl` — only `http(s)://` ever becomes an `href`), board
    titles (sub-code code/label), and session/team `waiting` are already
    escaped; match that pattern. `escHtml` escapes `& < > " ' \``;
    do not "trim" it back down. Values are stored raw and escaped only at render,
