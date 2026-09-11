@@ -320,7 +320,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    in `_boardVirtual`, never stored): on the 📋 docket strip in the free
    view, and inside the 2×2 box its **priority** maps to in ⊞ Sort 2×2
    (`BOARD_PRI_QUAD` / `BOARD_QUAD_PRI`: urgent/high/med/low ↔ Do now /
-   Schedule / Delegate / Park — the same rule promotion uses). Dropping a
+   Up next / Delegate / Park — the same rule promotion uses). Dropping a
    linked card in a box **sets the item's priority**
    (`_boardSetItemPriority`; relay legs and deliverables refuse with a
    toast); dropping one on the canvas **materialises** a stored card
