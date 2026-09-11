@@ -30,21 +30,25 @@ const { launch, step, done } = require('./_lib');
   // 1. Boards exist per sub-code + Loose thoughts; view is Boards by default.
   let r = await page.evaluate(() => {
     _switchTab(document.querySelector('.tab[data-tab="projects"]'));
-    selectProjCode('proj1');
+    const landing = _projView;                       // ⌂ Dash lands first (Phase 2)
+    const dashShown = !!document.querySelector('.dash-grid');
+    selectProjCode('proj1');                          // picking a program → its Boards
     const list = _boardsForProject('proj1');
     return {
+      landing, dashShown,
       n: list.length,
       titles: list.map(_boardTitle),
       stored: JSON.parse(localStorage.getItem('wt_boards')).length,
       boardsShown: document.getElementById('projBoardsWrap').style.display !== 'none',
       listHidden: document.getElementById('projCodeContent').style.display === 'none',
-      stripTabs: document.querySelectorAll('.board-tab').length,
+      stripTabs: document.querySelectorAll('.board-strip .sig-tile, .board-strip .board-tab').length,
       synced: SYNC_KEYS.includes('wt_boards') && SYNC_KEYS.includes('wt_board_cards'),
       localOnly: !SYNC_KEYS.includes('wt_proj_view') && !SYNC_KEYS.includes('wt_board_open') && !SYNC_KEYS.includes('wt_board_view')
     };
   });
   step('one board per sub-code + Loose thoughts (3), persisted', r.n === 3 && r.stored === 3 && r.titles[0] === 'Loose thoughts' && r.titles[1] === '1 Design', r.titles);
-  step('Boards is the default Projects view; strip shows every board', r.boardsShown && r.listHidden && r.stripTabs === 3, r);
+  step('the tab lands on ⌂ Dash; picking a program opens its Boards', r.landing === 'dash' && r.dashShown && r.boardsShown && r.listHidden, r);
+  step('the command panel shows a tile for every board', r.stripTabs === 3, r.stripTabs);
   step('wt_boards / wt_board_cards sync; view prefs are device-local', r.synced && r.localOnly, r);
 
   // 2. Seeded card renders escaped on its (sc1) board.
@@ -78,7 +82,7 @@ const { launch, step, done } = require('./_lib');
       inputCleared: document.getElementById('boardCapture').value === '',
       focused: document.activeElement && document.activeElement.id === 'boardCapture',
       stored: JSON.parse(localStorage.getItem('wt_board_cards')).length,
-      stripCount: document.querySelector('.board-tab.active .board-tab-n').textContent,
+      stripCount: document.querySelector('.board-strip .sig-tile.active .board-tab-n, .board-strip .board-tab.active .board-tab-n').textContent,
       noHours: cards.every(c => c.est === undefined && c.hours === undefined)
     };
   });

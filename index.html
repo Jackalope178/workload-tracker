@@ -3064,6 +3064,49 @@
   .bcard.bc-lifted { opacity:.35; }
   .bcard.bc-ghost { position:fixed !important; z-index:99999; pointer-events:none; opacity:.9; transform:rotate(-2deg); box-shadow:0 10px 26px rgba(0,0,0,.25); }
   .board-tray-note { font-size:10.5px; color:var(--text3); padding:0 12px 10px; }
+  /* Command panel tiles + ⌂ Dash */
+  .board-strip.tiles { align-items:stretch; }
+  .board-strip.tiles .board-strip-arrow { align-self:center; }
+  .board-strip-tabs.tiles { flex-wrap:wrap; overflow:visible; gap:8px; }
+  .board-panel-toggle { font-size:12px; }
+  .sig-tile { text-align:left; font-family:inherit; cursor:pointer; background:var(--bg2); border:1px solid var(--border); border-left:4px solid var(--border2); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:5px; color:var(--text); min-width:0; transition:box-shadow .12s, border-color .12s; }
+  .sig-tile:hover { box-shadow:0 2px 8px rgba(0,0,0,.08); border-color:var(--border2); }
+  .sig-tile.sc { width:220px; flex:0 0 auto; }
+  .sig-tile.sc.active { background:color-mix(in srgb, var(--pc, var(--accent)) 10%, #fff); box-shadow:inset 0 0 0 1px var(--pc, var(--accent)); }
+  .sig-tile.att-red { border-left-color:var(--danger); }
+  .sig-tile.att-amber { border-left-color:var(--warn); }
+  .sig-tile.att-green { border-left-color:var(--success); }
+  .sig-tile.att-none { border-left-color:var(--border2); opacity:.85; }
+  .sig-tile-head { display:flex; align-items:center; gap:6px; min-width:0; }
+  .sig-tile-head .proj-code-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .sig-tile-title { font-size:12.5px; font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .sig-tile-code { font-size:10px; font-family:monospace; color:var(--text3); }
+  .sig-burn { display:flex; flex-direction:column; gap:3px; }
+  .sig-bar { height:6px; border-radius:3px; background:var(--bg4); overflow:hidden; display:flex; }
+  .sig-fill-l { background:var(--alloc-logged); height:100%; }
+  .sig-fill-p { background:var(--alloc-planned); height:100%; }
+  .sig-burn.over .sig-fill-l { background:var(--danger); } .sig-burn.over .sig-fill-p { background:color-mix(in srgb, var(--danger) 55%, #fff); }
+  .sig-burn.warn .sig-fill-l { background:var(--warn); } .sig-burn.warn .sig-fill-p { background:color-mix(in srgb, var(--warn) 55%, #fff); }
+  .sig-burn.nobudget .sig-fill-l { background:var(--text3); } .sig-burn.nobudget .sig-fill-p { background:var(--border2); }
+  .sig-burn-txt { font-size:10.5px; color:var(--text3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sig-burn.none .sig-burn-txt { font-style:italic; }
+  .sig-att { font-size:11px; font-weight:700; }
+  .sig-att.red { color:var(--danger); } .sig-att.amber { color:var(--warn); }
+  .sig-next { font-size:10.5px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sig-next.overdue { color:var(--danger); } .sig-next.quiet { color:var(--text3); font-style:italic; }
+  .sig-batons { font-size:10.5px; color:var(--text3); display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
+  .sig-batons .delegate-tag { font-size:9.5px; padding:0 5px; }
+  .sig-more { font-size:9.5px; color:var(--text3); }
+  .sig-tile-foot { font-size:10px; color:var(--text3); margin-top:auto; }
+  .dash-summary { font-size:11px; color:var(--text3); }
+  .dash-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:10px; }
+  .dash-allquiet { padding:18px; text-align:center; color:var(--text2); font-size:13px; }
+  .dash-quiet { margin-top:14px; border-top:1px dashed var(--border); padding-top:10px; }
+  .dash-quiet-head { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text3); margin-bottom:6px; }
+  .dash-quiet-row { display:flex; flex-wrap:wrap; gap:6px; }
+  .dash-quiet-chip { display:inline-flex; align-items:center; gap:6px; font-family:inherit; font-size:11px; color:var(--text2); background:var(--bg2); border:1px solid var(--border); border-radius:999px; padding:3px 10px; cursor:pointer; }
+  .dash-quiet-chip:hover { border-color:var(--border2); color:var(--text); }
+  .dash-quiet-chip .proj-code-dot { width:8px; height:8px; border-radius:50%; }
   /* Linked cards (live views of tasks / deliverables / work items) */
   .bcard.bc-ref { background:#fff; border:1px solid var(--border2); border-left:4px solid var(--accent); padding-top:5px; }
   .bcard.bc-ref.bc-team { border-left-color:#7c3aed; }
@@ -4431,7 +4474,7 @@ if (typeof XLSX === 'undefined') {
     <div class="welcome-step" data-step="1">
       <h3>Your 6 Tabs</h3>
       <div class="welcome-tip"><span class="welcome-tip-icon">1</span><span><strong>My Tasks</strong> — your personal billable work: timers, priorities, recurring tasks, week planner.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — a sticky-note <strong>board per sub-code</strong> for thoughts, plus the ☰ List ledger of sessions and subtasks under each code.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — a ⌂ Dash of every program (burn, next deadline, batons), a sticky-note <strong>board per sub-code</strong> for thoughts, and the ☰ List ledger under each code.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">3</span><span><strong>Team Deliverables</strong> — cross-team work and relay hand-offs (who has the baton).</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">4</span><span><strong>Timesheet</strong> — logged hours by pay period (billing record) and by month (headroom).</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">5</span><span><strong>Capacity</strong> — 12-month forward planner: "someone needs this by May — do I have room?"</span></div>
@@ -4448,8 +4491,8 @@ if (typeof XLSX === 'undefined') {
     </div>
 
     <div class="welcome-step" data-step="3">
-      <h3>Projects: Boards & Sessions</h3>
-      <p>The <strong>Projects</strong> tab opens on <strong>▦ Boards</strong> — one whiteboard per sub-code (plus 💭 Loose thoughts) where a typed thought lands as a sticky with no other decisions. Drag to arrange, or <strong>⊞ Sort 2×2</strong> into Do now / Schedule / Delegate / Park. Stickies carry no hours until <strong>⋯ → Make this a task</strong> turns one into an Inbox task and a live linked card; <strong>+ Meeting</strong> cards hold dated notes you can pull tasks out of.</p>
+      <h3>Projects: Dash, Boards & Sessions</h3>
+      <p>The <strong>Projects</strong> tab lands on <strong>⌂ Dash</strong> — one tile per program, worst first, with burn vs plan for the month, your next deadline, and who holds a baton. Click a tile for <strong>▦ Boards</strong> — one whiteboard per sub-code (plus 💭 Loose thoughts) where a typed thought lands as a sticky with no other decisions. Drag to arrange, or <strong>⊞ Sort 2×2</strong> into Do now / Schedule / Delegate / Park. Stickies carry no hours until <strong>⋯ → Make this a task</strong> turns one into an Inbox task and a live linked card; <strong>+ Meeting</strong> cards hold dated notes you can pull tasks out of.</p>
       <div class="welcome-tip"><span class="welcome-tip-icon">☰</span><span><strong>☰ List</strong> is the ledger: each project's <strong>sessions</strong> (work items) and <strong>subtasks</strong>, organized by sub-code.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">📂</span><span>Sessions have their own timers, due dates, and can be delegated to team members.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">◷</span><span>The <strong>Capacity split</strong> (◷ button) shows the month's free hours beside your project — drag any row onto a day to schedule it.</span></div>
@@ -8992,6 +9035,7 @@ function renderProjects() {
     toggle.style.display = 'none';
   }
   renderProjCodeList();
+  if (_projView === 'dash') { renderProjDash(); return; }
   if (selectedProjCode && PROJECTS[selectedProjCode]) {
     renderProjCodeContent(selectedProjCode);
   } else {
@@ -9109,7 +9153,8 @@ function renderProjCodeList() {
 // strip of boards never hides (object-permanence rule from focus mode).
 let boards = load('wt_boards', []) || [];
 let boardCards = load('wt_board_cards', []) || [];
-let _projView = load('wt_proj_view', 'boards') === 'list' ? 'list' : 'boards';
+let _projView = ['boards', 'list', 'dash'].includes(load('wt_proj_view', 'dash')) ? load('wt_proj_view', 'dash') : 'dash';
+let _boardPanelMode = load('wt_board_panel', 'tiles') === 'chips' ? 'chips' : 'tiles'; // command-panel tiles vs compact chips
 let _boardOpen = load('wt_board_open', {}) || {};
 let _boardViewPref = load('wt_board_view', {}) || {};
 let _boardSlideDir = 0;
@@ -9210,15 +9255,22 @@ function boardSetView(boardId, view) {
   const b = boards.find(x => x.id === boardId); if (b) renderProjBoards(b.projKey);
 }
 function _projViewToggleHtml(cur) {
-  return `<div class="board-seg" title="Boards = think & sort · List = every item by sub-code">
+  return `<div class="board-seg" title="Dash = every program at a glance · Boards = think & sort · List = every item by sub-code">
+    <button class="${cur === 'dash' ? 'on' : ''}" onclick="_setProjView('dash')">⌂ Dash</button>
     <button class="${cur === 'boards' ? 'on' : ''}" onclick="_setProjView('boards')">▦ Boards</button>
     <button class="${cur === 'list' ? 'on' : ''}" onclick="_setProjView('list')">☰ List</button>
   </div>`;
 }
 function _setProjView(v) {
-  _projView = v === 'list' ? 'list' : 'boards';
+  _projView = v === 'list' ? 'list' : v === 'dash' ? 'dash' : 'boards';
   save('wt_proj_view', _projView);
+  if (_projView === 'dash') { renderProjCodeList(); renderProjDash(); return; }
   if (selectedProjCode) renderProjCodeContent(selectedProjCode); else renderProjects();
+}
+function boardTogglePanel() {
+  _boardPanelMode = _boardPanelMode === 'tiles' ? 'chips' : 'tiles';
+  save('wt_board_panel', _boardPanelMode);
+  if (selectedProjCode) renderProjBoards(selectedProjCode);
 }
 // Re-render only when the boards view is actually showing this project —
 // mutations can arrive while another tab/view is up.
@@ -9252,13 +9304,21 @@ function renderProjBoards(projKey) {
     </div>
   </div>`;
 
-  html += `<div class="board-strip">
+  // Command panel: one tile per board carrying the three signals (burn vs
+  // plan, my next deadline / attention, baton holders). Collapses to chips.
+  const ym = today().slice(0, 7);
+  const tiles = _boardPanelMode === 'tiles';
+  html += `<div class="board-strip${tiles ? ' tiles' : ''}">
     <button class="board-strip-arrow" onclick="boardSlide('${projKey}',-1)" ${idx <= 0 ? 'disabled' : ''} title="Previous board (←)">‹</button>
-    <div class="board-strip-tabs">${bl.map((b, i) => {
+    <div class="board-strip-tabs${tiles ? ' tiles' : ''}">${bl.map((b, i) => {
       const n = boardCards.filter(c => c.boardId === b.id).length;
-      return `<button class="board-tab${board && b.id === board.id ? ' active' : ''}" onclick="boardOpen('${projKey}','${b.id}',${i > idx ? 1 : -1})" style="--pc:${escHtml(color)};" title="${escHtml(_boardTitle(b))}">${b.scId === '' ? '💭 ' : ''}${escHtml(_boardTitle(b))}<span class="board-tab-n">${n}</span></button>`;
+      const isActive = board && b.id === board.id;
+      const go = `boardOpen('${projKey}','${b.id}',${i > idx ? 1 : -1})`;
+      if (!tiles) return `<button class="board-tab${isActive ? ' active' : ''}" onclick="${go}" style="--pc:${escHtml(color)};" title="${escHtml(_boardTitle(b))}">${b.scId === '' ? '💭 ' : ''}${escHtml(_boardTitle(b))}<span class="board-tab-n">${n}</span></button>`;
+      return _scTileHtml(projKey, b, _projSignals(projKey, b.scId, ym), n, isActive, go, color);
     }).join('')}</div>
     <button class="board-strip-arrow" onclick="boardSlide('${projKey}',1)" ${idx < 0 || idx >= bl.length - 1 ? 'disabled' : ''} title="Next board (→)">›</button>
+    <button class="board-strip-arrow board-panel-toggle" onclick="boardTogglePanel()" title="${tiles ? 'Shrink the panel to chips' : 'Show the signals on each board (burn, next deadline, who)'}">${tiles ? '▴' : '▾'}</button>
   </div>`;
 
   if (!board) {
@@ -9857,6 +9917,166 @@ function _boardPinBtn(type, ...ids) {
   return `<button class="row-edit-btn" onclick="event.stopPropagation();boardPinItem(${args})" title="Pin to this item's board as a live card" style="opacity:0.7;font-size:12px;">📌</button>`;
 }
 
+// ── Signals: the three things a program tile must say (Phase 2) ──
+// 1. burn vs plan for the month (allocation vs logged + planned — the same
+//    numbers the Allocations Reconcile view uses), 2. MY next deadline or the
+//    reason the sub-project needs attention, 3. who holds batons. scId null =
+//    the whole project. Deadlines count only items that are mine (invariant
+//    #11: an item delegated entirely to others leaves my plate); relay legs
+//    reach me through their mirror tasks so deliverables are never counted
+//    twice. Nothing here writes.
+const _SIG_RANK = { red: 3, amber: 2, green: 1, none: 0 };
+function _projSignals(projKey, scId, ym) {
+  ym = ym || today().slice(0, 7);
+  const t0 = today();
+  const all = scId == null;
+  const scOk = sc => all || (sc || '') === (scId || '');
+  const mine = del => { const d = normDelegated(del); return !d.length || d.includes('Me'); };
+  let alloc = 0;
+  if (all) { const pref = projKey + '|', suf = '|' + ym; Object.keys(allocations).forEach(k => { if (k.startsWith(pref) && k.endsWith(suf)) alloc += allocations[k] || 0; }); }
+  else alloc = allocations[allocKey(projKey, scId, ym)] || 0;
+  const logged = all ? allocGetAllProjectActuals(projKey, ym) : allocGetActuals(projKey, scId, ym);
+  const planned = all ? allocGetAllProjectPlanned(projKey, ym) : allocGetPlanned(projKey, scId, ym);
+  const s = { projKey, scId, ym, alloc, logged, planned, open: 0, overdue: 0, inbox: 0, waiting: 0, blocked: 0, needDelegate: 0, batons: [], nextDue: null, attention: null };
+  const consider = (d, name, kind) => {
+    if (!d) return;
+    if (d < t0) s.overdue++;
+    if (!s.nextDue || d < s.nextDue.date) s.nextDue = { date: d, name, kind };
+  };
+  tasks.forEach(t => {
+    if (t.completed || t.project !== projKey || !scOk(t.subCode) || !mine(t.delegatedTo)) return;
+    s.open++; if (t.inbox) s.inbox++;
+    consider(t.workDate || t.due, t.name, 'task');
+  });
+  bigProjs.forEach(bp => {
+    if (bp.project !== projKey) return;
+    (bp.sessions || []).forEach(sess => {
+      const ssc = sess.subCode || bp.defaultSubCode || '';
+      if (!sess.done && scOk(ssc) && mine(sess.delegatedTo)) { s.open++; if (sess.waiting) s.waiting++; consider(sess.workDate || sess.date, sess.desc, 'session'); }
+      (sess.subtasks || []).forEach(st => {
+        if (st.done || !scOk(st.subCode || ssc) || !mine(st.delegatedTo)) return;
+        s.open++; if (st.waiting) s.waiting++; consider(st.workDate || st.date, st.desc, 'subtask');
+      });
+    });
+  });
+  const bat = new Set();
+  teamItems.forEach(d => {
+    if (d.project !== projKey || !scOk(d.subCode) || d.status === 'complete') return;
+    if (d.status === 'blocked') s.blocked++;
+    if (d.status === 'need-delegate') s.needDelegate++;
+    if (d.waiting) s.waiting++;
+    const b = _boardBatonOf(d); if (b) bat.add(b);
+  });
+  s.batons = [...bat];
+  const over = alloc > 0 && logged + planned > alloc + 0.001;
+  if (s.overdue) s.attention = { cls: 'red', label: `⚠ ${s.overdue} overdue` };
+  else if (over) s.attention = { cls: 'red', label: `⚠ ${fmtQ(logged + planned - alloc)}h over budget` };
+  else if (s.blocked) s.attention = { cls: 'red', label: `🚫 ${s.blocked} blocked` };
+  else if (s.needDelegate) s.attention = { cls: 'amber', label: `👥 ${s.needDelegate} to delegate` };
+  else if (s.waiting) s.attention = { cls: 'amber', label: `⏳ ${s.waiting} waiting` };
+  else if (s.inbox) s.attention = { cls: 'amber', label: `📥 ${s.inbox} to triage` };
+  else if (s.open || s.batons.length) s.attention = { cls: 'green', label: '' };
+  else s.attention = { cls: 'none', label: '' };
+  return s;
+}
+function _sigMonthLabel(ym) { const [y, m] = ym.split('-').map(Number); return MONTH_NAMES[m - 1] + ' ' + y; }
+function _sigBurnHtml(s) {
+  const committed = s.logged + s.planned;
+  if (!s.alloc && !committed) return `<div class="sig-burn none"><div class="sig-burn-txt">no hours in ${_sigMonthLabel(s.ym)}</div></div>`;
+  const denom = s.alloc || committed;
+  const lp = Math.min(100, s.logged / denom * 100);
+  const pp = Math.min(100 - lp, s.planned / denom * 100);
+  const cls = !s.alloc ? 'nobudget' : committed > s.alloc + 0.001 ? 'over' : committed >= s.alloc * 0.8 ? 'warn' : 'ok';
+  const txt = s.alloc
+    ? `${fmtQ(s.logged)}h of ${fmtQ(s.alloc)}h${s.planned ? ` · ${fmtQ(s.planned)}h planned` : ''}`
+    : `${fmtQ(s.logged)}h logged${s.planned ? ` · ${fmtQ(s.planned)}h planned` : ''} · no budget set`;
+  return `<div class="sig-burn ${cls}" title="${_sigMonthLabel(s.ym)}: logged (solid) + planned (light) vs the month's allocation — the Reconcile view's numbers">
+    <div class="sig-bar"><div class="sig-fill-l" style="width:${lp.toFixed(1)}%"></div><div class="sig-fill-p" style="width:${pp.toFixed(1)}%"></div></div>
+    <div class="sig-burn-txt">${txt}</div></div>`;
+}
+function _sigNextHtml(s) {
+  const a = s.attention || { cls: 'none', label: '' };
+  let html = '';
+  if (a.label) html += `<div class="sig-att ${a.cls}">${a.label}</div>`;
+  if (s.nextDue) {
+    const overdue = s.nextDue.date < today();
+    html += `<div class="sig-next${overdue ? ' overdue' : ''}" title="${escHtml(s.nextDue.name)}">${overdue ? 'due ' : 'next '}<strong>${fmtDate(s.nextDue.date)}</strong> · ${escHtml(s.nextDue.name)}</div>`;
+  } else if (!a.label) {
+    html += `<div class="sig-next quiet">${s.open ? `${s.open} open, nothing dated` : 'nothing open'}</div>`;
+  }
+  return html;
+}
+function _sigBatonHtml(s) {
+  if (!s.batons.length) return '';
+  const shown = s.batons.slice(0, 3), more = s.batons.length - shown.length;
+  return `<div class="sig-batons" title="Who holds a baton on this code right now">◖ ${delegateTagsHtml(shown)}${more ? `<span class="sig-more">+${more}</span>` : ''}</div>`;
+}
+function _scTileHtml(projKey, b, s, stickies, active, go, color) {
+  const cls = (s.attention && s.attention.cls) || 'none';
+  const isLoose = b.scId === '';
+  return `<button class="sig-tile sc${active ? ' active' : ''} att-${cls}" onclick="${go}" style="--pc:${escHtml(color)};" title="Open this board">
+    <div class="sig-tile-head"><span class="sig-tile-title">${isLoose ? '💭 ' : ''}${escHtml(_boardTitle(b))}</span><span class="board-tab-n" title="stickies on this board">${stickies}</span></div>
+    ${isLoose ? '' : _sigBurnHtml(s)}
+    ${_sigNextHtml(s)}
+    ${_sigBatonHtml(s)}
+  </button>`;
+}
+// ── ⌂ Dash: every active program at a glance, worst-first ──
+function renderProjDash() {
+  const wrap = document.getElementById('projBoardsWrap');
+  const list = document.getElementById('projCodeContent');
+  if (!wrap) return;
+  if (list) list.style.display = 'none';
+  wrap.style.display = '';
+  const ym = today().slice(0, 7);
+  const keys = projOrder.filter(k => PROJECTS[k] && !PROJECTS[k].archivedAt && !hiddenProjs.has(k));
+  const rows = keys.map(k => {
+    const s = _projSignals(k, null, ym);
+    const bIds = new Set(boards.filter(b => b.projKey === k).map(b => b.id));
+    const stickies = boardCards.filter(c => bIds.has(c.boardId)).length;
+    return { k, s, stickies };
+  });
+  rows.sort((a, b) => (_SIG_RANK[b.s.attention.cls] - _SIG_RANK[a.s.attention.cls])
+    || ((a.s.nextDue ? a.s.nextDue.date : '9999') .localeCompare(b.s.nextDue ? b.s.nextDue.date : '9999'))
+    || projLabel(a.k).localeCompare(projLabel(b.k)));
+  const needs = rows.filter(r => r.s.attention.cls === 'red' || r.s.attention.cls === 'amber').length;
+  let html = `<div class="proj-right-header" style="margin-bottom:10px;">
+    <span class="proj-right-title">⌂ All programs</span>
+    <span class="proj-right-code">${escHtml(_sigMonthLabel(ym))}</span>
+    <span class="info-i" onclick="showInfoPopover(event,'dash')" title="What do these tiles say?">i</span>
+    <span class="dash-summary">${rows.length} program${rows.length === 1 ? '' : 's'}${needs ? ` · <strong>${needs}</strong> need${needs === 1 ? 's' : ''} attention` : ' · all quiet'}</span>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${_projViewToggleHtml('dash')}</div>
+  </div>`;
+  if (!rows.length) {
+    html += '<div class="proj-empty-state"><span style="font-size:24px;">📂</span><span>No visible project codes. Unhide some from the panel.</span></div>';
+    wrap.innerHTML = html; return;
+  }
+  // Quiet programs (nothing open, no hours, no batons) compress to chips at
+  // the bottom — still on screen (never hidden), just not twenty identical
+  // tiles competing with the ones that matter.
+  const loud = rows.filter(r => r.s.attention.cls !== 'none');
+  const quiet = rows.filter(r => r.s.attention.cls === 'none');
+  html += '<div class="dash-grid">' + loud.map(r => {
+    const p = PROJECTS[r.k];
+    const cls = r.s.attention.cls;
+    const nb = boards.filter(b => b.projKey === r.k).length;
+    return `<button class="sig-tile proj att-${cls}" onclick="selectProjCode('${r.k}')" style="--pc:${escHtml(p.color || '#666')};" title="Open this program's boards">
+      <div class="sig-tile-head"><span class="proj-code-dot" style="background:${escHtml(p.color || '#666')};"></span><span class="sig-tile-title">${escHtml(p.label || r.k)}</span><span class="sig-tile-code">${escHtml(p.billingCode || '')}</span></div>
+      ${_sigBurnHtml(r.s)}
+      ${_sigNextHtml(r.s)}
+      ${_sigBatonHtml(r.s)}
+      <div class="sig-tile-foot">${r.s.open} open · ${nb ? `${nb} board${nb === 1 ? '' : 's'} · ` : ''}${r.stickies} ${r.stickies === 1 ? 'sticky' : 'stickies'}</div>
+    </button>`;
+  }).join('') + '</div>';
+  if (!loud.length) html += '<div class="dash-allquiet">Nothing needs attention and nothing is open this month. 🎉</div>';
+  if (quiet.length) {
+    html += `<div class="dash-quiet"><div class="dash-quiet-head">Quiet — nothing open, no hours this month (${quiet.length})</div><div class="dash-quiet-row">` +
+      quiet.map(r => { const p = PROJECTS[r.k]; return `<button class="dash-quiet-chip" onclick="selectProjCode('${r.k}')" title="${escHtml(p.billingCode || '')} — open this program's boards"><span class="proj-code-dot" style="background:${escHtml(p.color || '#666')};"></span>${escHtml(p.label || r.k)}${r.stickies ? `<span class="board-tab-n">${r.stickies}</span>` : ''}</button>`; }).join('') +
+      '</div></div>';
+  }
+  wrap.innerHTML = html;
+}
+
 // ── Swipe between boards (touch/pen on the board header; ←/→ keys elsewhere) ──
 function _boardBindSwipe(el, projKey) {
   if (!el) return;
@@ -10093,7 +10313,9 @@ function renderProjCodeContent(projKey) {
   if (!container) return;
   const proj = PROJECTS[projKey];
   if (!proj) { container.innerHTML = ''; return; }
-  // Boards are the default view of this panel; the ledger below is ☰ List.
+  // ⌂ Dash lands first; ▦ Boards is the per-project thinking surface; the
+  // ledger below is ☰ List.
+  if (_projView === 'dash') { renderProjDash(); return; }
   if (_projView === 'boards') { renderProjBoards(projKey); return; }
   const _bw = document.getElementById('projBoardsWrap'); if (_bw) _bw.style.display = 'none';
   container.style.display = '';
@@ -10547,6 +10769,8 @@ function toggleProjPanel() {
 
 function selectProjCode(key) {
   selectedProjCode = key;
+  // Picking a program from the dash or the left list means "show me this one"
+  if (_projView === 'dash') { _projView = 'boards'; save('wt_proj_view', _projView); }
   renderProjCodeList();
   renderProjCodeContent(key);
 }
@@ -18346,6 +18570,10 @@ function _maybeShowWelcome() {
 // steps, and _TAB_TIPS below — all three are part of definition-of-done.
 
 const INFO_COPY = {
+  dash: {
+    title: 'Dash — every program at a glance',
+    body: 'One tile per active program, <strong>worst first</strong> (red → amber → green); programs with nothing open and no hours this month sit as small chips in a <strong>Quiet</strong> row at the bottom — still there, just not competing. Each tile says three things for the current month: <strong>burn vs plan</strong> (logged solid + planned light against the month\'s allocation — the same numbers as the Allocations Reconcile view; "no budget set" when nothing is allocated), <strong>your next deadline</strong> or the reason it needs attention (overdue, over budget, blocked, to delegate, waiting, Inbox items to triage — in that order), and <strong>who holds a baton</strong> on its deliverables. Deadlines count only work that is yours: an item delegated entirely to someone else is not your deadline. Click a tile to open that program\'s boards — the same three signals sit on each sub-code tile there.'
+  },
   boards: {
     title: 'Boards — the thinking surface for a project',
     body: 'Each project has one <strong>board per sub-code</strong> plus a <strong>💭 Loose thoughts</strong> board for ideas not filed to a code yet. Type into the capture box and press <strong>Enter</strong> — the thought lands as a sticky, no other decisions needed. Drag stickies to arrange them, tap one to edit, <strong>⋯</strong> for colour / heading / delete. <strong>⊞ Sort 2×2</strong> lays the same stickies into urgent/important boxes (Do now · Schedule · Delegate · Park); unsorted ones wait in a tray underneath, never hidden. Slide between boards with the arrows, <strong>←/→</strong>, or a swipe on the board title. <strong>Stickies carry no hours</strong> and count nowhere — Capacity, Timesheet and Allocations only see tasks. A sticky becomes work via <strong>⋯ → Make this a task</strong>: the task lands in your Inbox (no date yet, so it can\'t touch Capacity until you triage it) and the card turns into a <strong>live linked card</strong> showing its due date, status and who holds it — tap it to open the task. <strong>📌</strong> on any task, work item or deliverable row pins it to its board the same way. A <strong>+ Meeting</strong> card is dated and can carry a link to the notes (Loop page); highlight words in it and click <strong>✂ Task from selection</strong> to pull a task out while the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked beneath it (open count, next deadline, who). <strong>☰ List</strong> is the full per-sub-code ledger of every task, session and deliverable.'
@@ -18453,7 +18681,8 @@ const _TAB_TIPS = {
   projects: {
     title: 'Projects — Tips',
     tips: [
-      '<strong>▦ Boards</strong> is the default view: one sticky-note board per sub-code plus 💭 Loose thoughts. Press <strong>N</strong> or click the capture box, type, <strong>Enter</strong> — the thought lands as a sticky. Drag to arrange, tap to edit, <strong>⋯</strong> for colour, heading or delete.',
+      '<strong>⌂ Dash</strong> is where the tab lands: one tile per program, worst first, each saying burn vs plan for the month, your next deadline (or why it needs attention), and who holds a baton. Click a tile to drill in; the same signals sit on each sub-code tile above the board (▴ shrinks them to chips).',
+      '<strong>▦ Boards</strong> is the thinking view: one sticky-note board per sub-code plus 💭 Loose thoughts. Press <strong>N</strong> or click the capture box, type, <strong>Enter</strong> — the thought lands as a sticky. Drag to arrange, tap to edit, <strong>⋯</strong> for colour, heading or delete.',
       '<strong>⊞ Sort 2×2</strong> drops the same stickies into Do now / Schedule / Delegate / Park boxes. Unsorted ones sit in the tray below — nothing is ever hidden. Stickies carry <strong>no hours</strong> and never touch Capacity or the Timesheet.',
       'Slide between boards with <strong>‹ ›</strong>, the <strong>← →</strong> keys, or a swipe on the board title. The chip next to the view toggle says whether the board is <strong>synced</strong> or saved on this device only.',
       '<strong>⋯ → Make this a task</strong> turns a sticky into an Inbox task and the card into a <strong>live linked card</strong> (due, status, who holds it — tap to open). From the Delegate box it opens the task\'s Team section first. <strong>📌</strong> on any row pins an existing item to its board; <strong>💭</strong> on a task jumps back to the sticky it came from.',

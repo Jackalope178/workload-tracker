@@ -72,7 +72,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | Tab | Purpose | Entry function(s) |
 |---|---|---|
 | **My Tasks** | Personal billable tasks: recurrence, timers, priority, week planner. | `renderTasks()`, `renderWeekPlanner()` |
-| **Projects** | Opens on **▦ Boards** (Sep 2026): one sticky-note whiteboard per sub-code plus a 💭 Loose thoughts board — the project's thinking surface, with a free-arrange view and a ⊞ Sort 2×2 (urgent/important) view. **☰ List** is the per-sub-code ledger of every task/session/subtask/deliverable (metadata, members, bulk moves, close-outs). | `renderProjects()`, `renderProjBoards()`, `renderProjCodeContent()` |
+| **Projects** | Lands on **⌂ Dash** (Sep 2026): one tile per active program, worst first, each saying burn vs plan for the month, my next deadline or the attention reason, and baton holders; quiet programs compress to chips. **▦ Boards**: one sticky-note whiteboard per sub-code plus 💭 Loose thoughts — the thinking surface — with a command panel of sub-code tiles carrying the same three signals above the board, a free-arrange view and a ⊞ Sort 2×2 view. **☰ List** is the per-sub-code ledger of every task/session/subtask/deliverable (metadata, members, bulk moves, close-outs). | `renderProjects()`, `renderProjDash()`, `_projSignals()`, `renderProjBoards()`, `renderProjCodeContent()` |
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
 | **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). Spreadsheet reconciliation via **Import & Audit**. | `renderTimesheet()`, `renderTsCapacityBar()`, `handleTsAuditImport()` |
 | **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, scheduler board, move/delegate. Answers "someone needs this by May — do I have time?" All recurrences expand so future load is true. | `renderCapacity()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
@@ -100,8 +100,9 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 Plus ~20 smaller preference/UI keys (`wt_theme`, `wt_ts_capacity`, collapse
 states, …). Anything that must survive across devices belongs in `SYNC_KEYS`.
 Board view state is device-local like `wt_focus_mode`: `wt_proj_view`
-(`boards` | `list`), `wt_board_open` (`{projKey: boardId}`), `wt_board_view`
-(`{boardId: 'free' | 'grid'}`).
+(`dash` | `boards` | `list`, default `dash`), `wt_board_open` (`{projKey:
+boardId}`), `wt_board_view` (`{boardId: 'free' | 'grid'}`), `wt_board_panel`
+(`tiles` | `chips` — the command panel above a board).
 
 ### Conventions
 - **IDs:** `uid()` = `'_' + Math.random().toString(36).slice(2, 11)`
@@ -274,6 +275,19 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    now stamped on every user-facing task create path (quick capture,
    inline add, task modal, promotion) — it is the timeline's derived start
    (Phase 4); legacy tasks have none. Scenario 23 enforces all of this.
+   **The dash and command-panel tiles are read-only signals** (Phase 2 —
+   `_projSignals(projKey, scId | null, ym)`): burn = the month's allocation
+   vs logged + planned using the SAME helpers as the Allocations Reconcile
+   view (`allocGetActuals` / `allocGetPlanned` and their project-level
+   twins) so the two never disagree; "my next deadline" counts only work
+   that is mine (invariant #11 — an item delegated entirely to others is not
+   my deadline) and reads relay legs through their mirror tasks so a
+   deliverable is never counted twice; attention order is fixed: overdue >
+   over budget > blocked > to delegate > waiting > inbox-to-triage. The
+   dash sorts worst-first and **compresses quiet programs (nothing open, no
+   hours, no batons) into chips** rather than hiding them. Picking a
+   program (dash tile or left list) switches the view to Boards. Scenario
+   24 enforces this.
 
 ## Math Invariants (July 2026 audit)
 
@@ -482,6 +496,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
 | Boards / stickies / 2×2 sort (Projects tab default view) | `renderProjBoards`, `_boardsForProject`, `_ensureBoards`, `boardAddCard`, `boardCaptureSubmit`, `_boardCardHtml`, `_bcPointerDown`, `boardCardEdit`, `boardCardMenu`, `_boardSetQuadrant`, `boardSlide`, `_boardSave`, `_setProjView`, `BOARD_QUADS` |
 | Linked cards / promote / pin / meeting cards / heading rollups | `boardPromoteCard`, `_boardTaskFromSelection`, `boardPinItem`, `_boardPinBtn`, `_boardRefResolve`, `_boardRefOpen`, `_boardHeadingRollup`, `boardAddMeeting`, `_boardSafeUrl`, `boardRevealCard`, `_boardOriginChip`, `_boardCard`, `createdAt` |
+| ⌂ Dash / command-panel tiles / program signals | `renderProjDash`, `_projSignals`, `_SIG_RANK`, `_sigBurnHtml`, `_sigNextHtml`, `_sigBatonHtml`, `_scTileHtml`, `boardTogglePanel`, `wt_board_panel` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
 | In-app orientation / ⓘ help | `INFO_COPY`, `infoIcon`, `showWelcome`, `_TAB_TIPS` |
 | Tabs / navigation | `_switchTab`, `data-tab` |

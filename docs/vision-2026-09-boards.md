@@ -1,12 +1,28 @@
 # Vision — Boards, command panel, timeline, Capacity 2.0 (Sep 2026)
 
-Status: **Phases 0 and 1 shipped (Sep 11, 2026)** — boards, stickies,
-capture box, slide strip, ⊞ Sort 2×2, save-state chip (scenario 22); then
+Status: **Phases 0, 1 and 2 shipped (Sep 11, 2026)** — boards, stickies,
+capture box, slide strip, ⊞ Sort 2×2, save-state chip (scenario 22);
 promote-to-task, 📌 pin, live linked cards, spatial heading rollups, meeting
 cards with ✂ Task from selection, 💭 back-links, `createdAt` stamping
-(scenario 23). Revised the same day after the owner answered the ten open
-questions (answers folded in below). Phase 2 (command panel + dash) is next;
-everything after it is sequenced but will be re-cut as each phase lands.
+(scenario 23); ⌂ Dash landing view + command-panel tiles driven by
+`_projSignals` (scenario 24). Revised the same day after the owner answered
+the ten open questions (answers folded in below). Phase 3 (forward-fill
+schedule + what-if) is next; everything after it is sequenced but will be
+re-cut as each phase lands.
+
+**Phase 2 as built, where it differs from the plan below:** the dash is a
+third segment of the view toggle (⌂ Dash · ▦ Boards · ☰ List) and the
+default landing; the command panel replaces the board strip with tiles
+(▴ collapses them back to chips, device-local); quiet programs (nothing
+open, no hours, no batons this month) compress into a chip row rather than
+rendering as full tiles; a program tile's status colour comes from a fixed
+attention order (overdue > over budget > blocked > to delegate > waiting >
+inbox) rather than "worst sub-code".
+
+**Owner verification checklist (on the iPad, once merged and live):**
+Apple Pencil tap-to-edit and drag on stickies; drag between the 2×2 boxes;
+Scribble handwriting into the capture box and the sticky editor; ✂ Task
+from selection keeping the text selection in Safari.
 
 **Phase 1 as built, where it differs from the plan below:** promotion is a
 ⋯ menu action on a sticky (not a drag), and from the Delegate box it opens
