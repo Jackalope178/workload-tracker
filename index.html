@@ -3098,7 +3098,12 @@
   .board-tab.active { background:color-mix(in srgb, var(--pc, var(--accent)) 14%, #fff); border-color:var(--pc, var(--accent)); color:var(--text); box-shadow:inset 0 -2px 0 var(--pc, var(--accent)); }
   .board-tab-n { font-size:10px; font-weight:700; color:var(--text3); background:var(--bg3); border-radius:999px; padding:0 6px; min-width:18px; text-align:center; }
   .board-tab.active .board-tab-n { background:#fff; }
-  .board-stage { display:flex; flex-direction:column; min-height:calc(100vh - 250px); border:1px solid var(--border); border-radius:10px; background:var(--bg2); overflow:hidden; }
+  .board-stage-wrap { display:flex; align-items:stretch; gap:6px; }
+  .board-side-arrow { flex:0 0 26px; width:26px; border-radius:8px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); cursor:pointer; font-size:20px; line-height:1; font-family:inherit; display:flex; align-items:center; justify-content:center; padding:0; }
+  .board-side-arrow:hover:not(:disabled) { background:var(--bg3); color:var(--text); border-color:var(--border2); }
+  .board-side-arrow:disabled { opacity:.25; cursor:default; }
+  .board-side-arrow span { position:sticky; top:50vh; }
+  .board-stage { flex:1; min-width:0; display:flex; flex-direction:column; min-height:calc(100vh - 250px); border:1px solid var(--border); border-radius:10px; background:var(--bg2); overflow:hidden; }
   @media (prefers-reduced-motion: no-preference) {
     .board-stage.slide-in-right { animation:boardSlideR .22s ease-out; }
     .board-stage.slide-in-left { animation:boardSlideL .22s ease-out; }
@@ -9696,7 +9701,12 @@ function renderProjBoards(projKey) {
   const isLoose = board.scId === '';
   const isMeet = !!board.meetingTaskId;
   const sub = isMeet ? 'meeting board — notes to bring, notes taken' : isLoose ? 'ideas not filed to a sub-code yet' : `board ${idx + 1} of ${bl.length}`;
-  html += `<div class="board-stage${_boardSlideDir > 0 ? ' slide-in-right' : _boardSlideDir < 0 ? ' slide-in-left' : ''}" id="boardStage" data-board-id="${board.id}">
+  // Slide arrows flank the board itself too — tall targets at the edges, easy
+  // on a tablet, and they read as "the board slides" like a real whiteboard.
+  const prevOff = idx <= 0, nextOff = idx >= bl.length - 1;
+  html += `<div class="board-stage-wrap">
+    <button class="board-side-arrow" onclick="boardSlide('${projKey}',-1)" ${prevOff ? 'disabled' : ''} title="Previous board (←)"><span>‹</span></button>
+    <div class="board-stage${_boardSlideDir > 0 ? ' slide-in-right' : _boardSlideDir < 0 ? ' slide-in-left' : ''}" id="boardStage" data-board-id="${board.id}">
     <div class="board-head">
       <div class="board-head-title">${isLoose ? '💭 ' : ''}${escHtml(_boardTitle(board))}<span class="board-head-sub">${escHtml(sub)}</span></div>
       <div class="board-head-actions">
@@ -9715,6 +9725,8 @@ function renderProjBoards(projKey) {
     </form>
     ${view === 'free' ? _boardDocketHtml(board, docket) : ''}
     <div class="board-body" id="boardBody"></div>
+  </div>
+    <button class="board-side-arrow" onclick="boardSlide('${projKey}',1)" ${nextOff ? 'disabled' : ''} title="Next board (→)"><span>›</span></button>
   </div>`;
   wrap.innerHTML = html;
   _boardSlideDir = 0;

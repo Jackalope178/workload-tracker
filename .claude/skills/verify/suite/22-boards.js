@@ -162,9 +162,11 @@ const { launch, step, done } = require('./_lib');
     const list = _boardsForProject('proj1');
     return { moved: before !== after, atEnd: clamped === list[list.length - 1].id,
       remembered: JSON.parse(localStorage.getItem('wt_board_open')).proj1 === clamped,
-      nextDisabled: [...document.querySelectorAll('.board-strip-arrow')][1].disabled };
+      nextDisabled: [...document.querySelectorAll('.board-strip-arrow')][1].disabled,
+      sideArrows: document.querySelectorAll('.board-side-arrow').length, sideNextDisabled: [...document.querySelectorAll('.board-side-arrow')][1].disabled, sidePrevEnabled: ![...document.querySelectorAll('.board-side-arrow')][0].disabled };
   });
   step('slide moves to the next board, clamps at the end, remembers the open board', r.moved && r.atEnd && r.remembered && r.nextDisabled, r);
+  step('arrows also flank the board itself and mirror the strip\'s enabled state', r.sideArrows === 2 && r.sideNextDisabled && r.sidePrevEnabled, r);
 
   r = await page.evaluate(() => {
     const before = _boardCurrent('proj1').id;
