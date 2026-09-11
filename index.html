@@ -9560,7 +9560,7 @@ function _boardIsDocketItem(c) {
   const b = boards.find(x => x.id === c.boardId); if (!b || b.meetingTaskId) return false;
   const saved = boardCards; boardCards = boardCards.filter(k => k.id !== c.id);
   let yes = false;
-  try { yes = _boardDocket(b).some(v => v.ref.type === c.ref.type && v.ref.id === c.ref.id); } finally { boardCards = saved; }
+  try { yes = _boardDocket(b).concat(_boardDelegated(b)).some(v => v.ref.type === c.ref.type && v.ref.id === c.ref.id); } finally { boardCards = saved; }
   return yes;
 }
 function _boardSetItemPriority(ref, pri) {
@@ -9761,7 +9761,6 @@ function _renderBoardFree(body, board, cards) {
 
 function _renderBoardGrid(body, board, cards, docket) {
   body.className = 'board-body board-gridwrap';
-  if (!docket) docket = Object.values(_boardVirtual).filter(v => v.boardId === board.id && !v.delegated);
   const delegated = _boardDelegated(board);
   delegated.forEach(v => { _boardVirtual[v.id] = v; });
   const notes = cards.filter(c => c.kind !== 'heading').concat(docket, delegated);
@@ -9808,7 +9807,7 @@ function _boardCardHtml(c, flow, allCards) {
     const typeLbl = ref.type === 'team' ? 'deliverable' : ref.type === 'session' ? 'work item' : ref.type === 'subtask' ? 'subtask' : 'task';
     const dueHtml = r.found && r.due ? `<span class="bc-ref-due ${r.done ? '' : dueCls(r.due)}">${r.due < today() && !r.done ? '⚠ ' : ''}${fmtDate(r.due)}</span>` : '';
     const estHtml = r.found && r.est ? `<span>${fmtQ(r.est)}h</span>` : '';
-    const badge = !r.found ? 'no longer exists' : r.done ? 'done ✓' : (c.delegated && r.who.length ? `handed to ${r.who.map(_relayWho).join(', ')}` : r.badge);
+    const badge = !r.found ? 'no longer exists' : r.done ? 'done ✓' : (ref.type !== 'team' && r.who.length && !r.who.includes('Me') ? `handed to ${r.who.map(_relayWho).join(', ')}` : r.badge);
     const act = r.found && !r.done ? `<span class="bc-act" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()">${_assignBtnFor(ref)}</span>` : '';
     return `<div class="bcard bc-ref bc-${ref.type || 'task'}${r.done ? ' done' : ''}${r.found ? '' : ' missing'}${flow ? ' bc-flow' : ''}${c.virtual ? ' bc-virtual' : ''}" data-card-id="${c.id}" style="${style}" title="${r.found ? 'Tap to open · drag to place or to change priority' : 'The linked item is gone — ⋯ to keep it as a sticky'}">
       <div class="bc-top"><span class="bc-ref-kind">${r.icon} ${typeLbl}</span>${quadTag}${act}${menuBtn}</div>
@@ -9916,7 +9915,8 @@ function _boardRefOpen(c) {
 function _boardQuadOf(c) {
   if (c.kind === 'ref') {
     const r = _boardRefResolve(c.ref || {});
-    if (c.virtual && c.delegated) return 'delegate';
+    // In others' hands → the Delegate bin, whether the card is virtual or placed.
+    if (c.delegated || (r.found && r.who.length && !r.who.includes('Me'))) return 'delegate';
     return r.found && r.pri ? (BOARD_PRI_QUAD[r.pri] || null) : null;
   }
   if (c.delegate) return 'delegate';
@@ -10118,6 +10118,7 @@ function _boardSetQuadrant(id, quad) {
   if (quad === 'delegate') {
     if (c.kind === 'ref') {
       const ref = c.ref || {};
+      if (!_boardRefResolve(ref).found) { showSyncToast('That item no longer exists — use ⋯ to keep the card as a sticky.', 'warn'); return; }
       if (ref.type === 'team') { showSyncToast('Use ◖ on a deliverable to move the baton.', 'warn'); return; }
       if (ref.type === 'task') { const t = tasks.find(x => x.id === ref.id); if (t && t._deliverableId) { showSyncToast('That is a relay leg — pass the baton with ◖ instead.', 'warn'); return; } }
       // Open the assignment picker after the drop's own click has passed (the
@@ -10306,7 +10307,7 @@ function boardCardMenu(ev, id) {
     else if (v.startsWith('color:')) c.color = v.slice(6);
     else if (v === 'kind') {
       c.kind = c.kind === 'heading' ? 'note' : 'heading';
-      if (c.kind === 'heading') { c.h = 44; c.w = Math.max(c.w, 240); c.urgent = null; c.important = null; }
+      if (c.kind === 'heading') { c.h = 44; c.w = Math.max(c.w, 240); c.urgent = null; c.important = null; c.delegate = false; }
       else c.h = Math.max(c.h, 120);
     }
     else if (v === 'unsort') { c.urgent = null; c.important = null; c.delegate = false; }

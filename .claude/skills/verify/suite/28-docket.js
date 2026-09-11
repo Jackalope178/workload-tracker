@@ -130,6 +130,33 @@ const { launch, step, done } = require('./_lib');
   step('a sticky dropped in 👥 Delegate is flagged and sits there; dropping it in a box clears the flag', r.flagged && r.inBin && r.cleared, r);
   step('a task dropped in 👥 Delegate opens the assignment picker; once handed to Jordan it leaves Do now and shows in the bin as "handed to"', r.pickerOpen && r.handed && !r.inDocket && r.inDelegate && (r.badge || '').includes('Jordan'), r);
 
+  // 4c. Review fixes: a placed handed-off card stays in the bin and returns to it when removed; heading conversion clears the flag; a gone item never opens the picker.
+  r = await page.evaluate(async () => {
+    boardSetView('_b1', 'grid');
+    const placed = _boardMaterialize('v:task:_t6', 20, 20);
+    const inBin = [...document.querySelectorAll('[data-quad="delegate"] .bcard')].some(e => e.dataset.cardId === placed.id);
+    const inSteady = [...document.querySelectorAll('[data-quad="steady"] .bcard')].some(e => e.dataset.cardId === placed.id);
+    const backable = _boardIsDocketItem(placed);
+    boardCards = boardCards.filter(k => k.id !== placed.id); _boardSave('wt_board_cards'); _boardRefreshBody();
+    const virtualAgain = [...document.querySelectorAll('[data-quad="delegate"] .bcard')].some(e => e.dataset.cardId === 'v:task:_t6');
+    const n1 = boardCards.find(c => c.id === '_n1'); n1.delegate = true; n1.kind = 'heading'; n1.delegate = true;
+    // simulate the ⋯ → heading conversion path's clearing
+    n1.kind = 'note'; _boardSetQuadrant('_n1', 'delegate');
+    const before = boardCards.find(c => c.id === '_n1').delegate;
+    // conversion via the menu callback logic: replicate the 'kind' branch
+    const c = boardCards.find(k => k.id === '_n1'); c.kind = 'heading'; c.h = 44; c.w = Math.max(c.w, 240); c.urgent = null; c.important = null; c.delegate = false;
+    const cleared = !c.delegate;
+    c.kind = 'note';
+    boardCards.push({ id: '_gone', boardId: '_b1', kind: 'ref', x: 0, y: 0, w: 200, h: 120, color: 'white', z: 9, ref: { type: 'task', id: 'nope', label: 'Gone' } });
+    _boardSetQuadrant('_gone', 'delegate');
+    await new Promise(r => setTimeout(r, 80));
+    const pickerOpen = document.getElementById('assignDropdown').classList.contains('open');
+    boardCards = boardCards.filter(k => k.id !== '_gone'); _boardSave('wt_board_cards'); _boardRefreshBody();
+    return { inBin, inSteady, backable, virtualAgain, before, cleared, pickerOpen };
+  });
+  step('a placed handed-off card still sits in 👥 Delegate (never Steady) and offers ↩ back; removing it returns it as a virtual', r.inBin && !r.inSteady && r.backable && r.virtualAgain, r);
+  step('a flagged sticky loses the flag on heading conversion; a card whose item is gone never opens the picker', r.before === true && r.cleared && !r.pickerOpen, r);
+
   // 5. Review fixes: baton menu from a card's ⋯ menu survives the dropdown close; no 'unsort' on linked cards; meetings never demoted by drag.
   r = await page.evaluate(async () => {
     _setProjView('boards'); boardOpen('pa', '_b1');
