@@ -1,15 +1,25 @@
 # Vision — Boards, command panel, timeline, Capacity 2.0 (Sep 2026)
 
-Status: **Phases 0–3 shipped (Sep 11, 2026)** — boards, stickies,
+Status: **Phases 0–4 shipped (Sep 11, 2026)** — boards, stickies,
 capture box, slide strip, ⊞ Sort 2×2, save-state chip (scenario 22);
 promote-to-task, 📌 pin, live linked cards, spatial heading rollups, meeting
 cards with ✂ Task from selection, 💭 back-links, `createdAt` stamping
 (scenario 23); ⌂ Dash landing view + command-panel tiles driven by
 `_projSignals` (scenario 24); ⏩ forward fill + what-if + time off/overhead +
-📅 Plan on the Capacity tab (scenario 25). Revised the same day after the
-owner answered the ten open questions (answers folded in below). Phase 4
-(timeline) is next; everything after it is sequenced but will be re-cut as
-each phase lands.
+📅 Plan on the Capacity tab (scenario 25); ▬ Timeline with bars, relay
+segments, dependencies, chips for undated/held rows and the load band
+(scenario 26). Revised the same day after the owner answered the ten open
+questions (answers folded in below). Phase 5 (ink) and Phase 6 (team room
+in the schedule) remain; both will be re-cut before building.
+
+**Phase 4 as built, where it differs from the plan below:** the timeline
+is a fourth segment of the Projects view toggle (⌂ Dash · ▬ Timeline · ▦
+Boards · ☰ List) rather than a separate tab; the scale is a fixed 4 px per
+day with a horizontally scrolling, sticky-labelled grid; moving a bar is
+the row's ⇄ button (the existing month-move), not drag; `dependsOn` is set
+in the task form's 📅 section ("After") next to a new "Start" field and is
+read by nothing but the timeline; the load band is per day in the header
+rather than a band behind rows.
 
 **Phase 3 as built, where it differs from the plan below:** time off and
 overhead feed **only the forward fill**, not the month bars or Timesheet

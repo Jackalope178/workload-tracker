@@ -72,7 +72,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | Tab | Purpose | Entry function(s) |
 |---|---|---|
 | **My Tasks** | Personal billable tasks: recurrence, timers, priority, week planner. | `renderTasks()`, `renderWeekPlanner()` |
-| **Projects** | Lands on **⌂ Dash** (Sep 2026): one tile per active program, worst first, each saying burn vs plan for the month, my next deadline or the attention reason, and baton holders; quiet programs compress to chips. **▦ Boards**: one sticky-note whiteboard per sub-code plus 💭 Loose thoughts — the thinking surface — with a command panel of sub-code tiles carrying the same three signals above the board, a free-arrange view and a ⊞ Sort 2×2 view. **☰ List** is the per-sub-code ledger of every task/session/subtask/deliverable (metadata, members, bulk moves, close-outs). | `renderProjects()`, `renderProjDash()`, `_projSignals()`, `renderProjBoards()`, `renderProjCodeContent()` |
+| **Projects** | Lands on **⌂ Dash** (Sep 2026): one tile per active program, worst first, each saying burn vs plan for the month, my next deadline or the attention reason, and baton holders; quiet programs compress to chips. **▬ Timeline**: rows program → sub-code → item, a bar from start (explicit `start`, else `createdAt`) to the ◆ deadline, relay deliverables as one segment per stage in the assignee's colour, `dependsOn` lead-ins, undated/held rows as chips, the forward-fill load band and a today line in the header. **▦ Boards**: one sticky-note whiteboard per sub-code plus 💭 Loose thoughts — the thinking surface — with a command panel of sub-code tiles carrying the same three signals above the board, a free-arrange view and a ⊞ Sort 2×2 view. **☰ List** is the per-sub-code ledger of every task/session/subtask/deliverable (metadata, members, bulk moves, close-outs). | `renderProjects()`, `renderProjDash()`, `_projSignals()`, `renderProjTimeline()`, `_tlItems()`, `renderProjBoards()`, `renderProjCodeContent()` |
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
 | **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). Spreadsheet reconciliation via **Import & Audit**. | `renderTimesheet()`, `renderTsCapacityBar()`, `handleTsAuditImport()` |
 | **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, scheduler board, move/delegate. Answers "someone needs this by May — do I have time?" All recurrences expand so future load is true. **⏩ Forward fill** (Sep 2026, top card): packs every flexible dated item earliest-deadline-first into coming working days → "placed through <date>", at-risk deadlines, a **What if: N h by date** box, time off + weekly overhead inputs, and 📅 Plan to commit one item. | `renderCapacity()`, `_renderForwardFill()`, `forwardFill()`, `ffWhatIf()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
@@ -86,7 +86,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 
 | Key | Contents |
 |---|---|
-| `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, notes, recurrence, timer, timerStart, completed }`. **`waiting` retired (Sep 2026)** — `_migrateTaskWaitingNotes` folds any legacy value into `notes` at every init (`⏳ `-prefixed), and notes render **inline on the task row** in the old waiting-chip yellow (`task-note-inline`); sessions/subtasks/deliverables keep their own `waiting` field. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). Delegation fields: `delegatedTo[]` (lightweight tag — task stays here but renders on the Team tab and leaves your Capacity) and `_deliverableId` (this task IS a relay-mirror leg of that `wt_team` item). Work blocks: `blocks[]` = `{ id, date, hours, desc, done, entryId? }` — dated sessions under the task's deadline; the parent plans only the un-blocked remainder. A logged block's `wt_completed` entry carries `_blockRef` (`taskId_blockId`) and the block stores `entryId` — the linkage that lets un-ticking retract the entry (see Math invariant #8). |
+| `wt_tasks` | Personal tasks: `{ id, name, project, subCode, priority, due, est, category, notes, recurrence, timer, timerStart, completed }`. **`waiting` retired (Sep 2026)** — `_migrateTaskWaitingNotes` folds any legacy value into `notes` at every init (`⏳ `-prefixed), and notes render **inline on the task row** in the old waiting-chip yellow (`task-note-inline`); sessions/subtasks/deliverables keep their own `waiting` field. Quick-captured tasks additionally carry `inbox: true` (awaiting triage in the 📥 Inbox section; cleared by saving the edit modal or setting a date inline). Delegation fields: `delegatedTo[]` (lightweight tag — task stays here but renders on the Team tab and leaves your Capacity) and `_deliverableId` (this task IS a relay-mirror leg of that `wt_team` item). Timeline-only fields (Sep 2026): `createdAt` (entry date, stamped on user-facing create paths — the bar's default start), `start` (explicit bar start) and `dependsOn` (a task id — the bar starts no earlier than that task's `due`); nothing in hours or placement math reads them. Work blocks: `blocks[]` = `{ id, date, hours, desc, done, entryId? }` — dated sessions under the task's deadline; the parent plans only the un-blocked remainder. A logged block's `wt_completed` entry carries `_blockRef` (`taskId_blockId`) and the block stores `entryId` — the linkage that lets un-ticking retract the entry (see Math invariant #8). |
 | `wt_team` | Team deliverables: `{ id, name, owner, owners[], project, subCode, due, status, waiting, notes }` + relay fields (`relay[]`, `relayStage`, `activeOwner`, `reviewTaskId`, `relayLog[]`) |
 | `wt_bigprojs` | Big projects (multi-session/subtask structures). Completed sessions/subtasks carry `entryId`, and their ledger entries `_srcRef` — same un-tick-retracts-the-entry lock-in as work blocks (Math invariant #8). |
 | `wt_completed` | Archive of completed items — also the **billing ledger** (Timesheet/Allocations actuals read from here). Entry shape: `{ id, name, project, subCode, dateCompleted, estHours, actualHours, category }`. Provenance markers link an entry back to what billed it: `_blockRef` (work block), `_srcRef` (session/subtask), `_tsaRef` (created by a timesheet audit import) — the first two make an entry **locked** (see Math invariants #8 and #10) |
@@ -105,7 +105,8 @@ Board view state is device-local like `wt_focus_mode`: `wt_proj_view`
 (`dash` | `boards` | `list`, default `dash`), `wt_board_open` (`{projKey:
 boardId}`), `wt_board_view` (`{boardId: 'free' | 'grid'}`), `wt_board_panel`
 (`tiles` | `chips` — the command panel above a board), `wt_ff_open` (the
-forward-fill details toggle).
+forward-fill details toggle), `wt_tl_collapsed` / `wt_tl_show_done` (the
+timeline's collapsed programs and ✓ Done toggle).
 
 ### Conventions
 - **IDs:** `uid()` = `'_' + Math.random().toString(36).slice(2, 11)`
@@ -291,6 +292,18 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    hours, no batons) into chips** rather than hiding them. Picking a
    program (dash tile or left list) switches the view to Boards. Scenario
    24 enforces this.
+   **The timeline is a read-only drawing of existing dates** (Phase 4 —
+   `_tlItems` / `renderProjTimeline`). A bar's start is `start`, else
+   `createdAt`, else none (legacy rows draw the ◆ deadline alone — never a
+   guessed bar); recurring tasks draw their next occurrence only; mirror
+   tasks are skipped because their leg is drawn on the deliverable's relay
+   bar; a relay's first stage with no known start is derived from its
+   estimate and drawn **dashed** so a derived edge never reads as a real
+   date; `dependsOn` only pulls the dependent bar's start to the
+   predecessor's `due` (no scheduling side effect); undated items and month
+   holds keep their rows as chips (never hidden); ⇄ routes through
+   `capMoveItem`, so every recurrence/placement rule holds. Scenario 26
+   enforces this.
 
 ## Math Invariants (July 2026 audit)
 
@@ -526,6 +539,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Boards / stickies / 2×2 sort (Projects tab default view) | `renderProjBoards`, `_boardsForProject`, `_ensureBoards`, `boardAddCard`, `boardCaptureSubmit`, `_boardCardHtml`, `_bcPointerDown`, `boardCardEdit`, `boardCardMenu`, `_boardSetQuadrant`, `boardSlide`, `_boardSave`, `_setProjView`, `BOARD_QUADS` |
 | Linked cards / promote / pin / meeting cards / heading rollups | `boardPromoteCard`, `_boardTaskFromSelection`, `boardPinItem`, `_boardPinBtn`, `_boardRefResolve`, `_boardRefOpen`, `_boardHeadingRollup`, `boardAddMeeting`, `_boardSafeUrl`, `boardRevealCard`, `_boardOriginChip`, `_boardCard`, `createdAt` |
 | ⌂ Dash / command-panel tiles / program signals | `renderProjDash`, `_projSignals`, `_SIG_RANK`, `_sigBurnHtml`, `_sigNextHtml`, `_sigBatonHtml`, `_scTileHtml`, `boardTogglePanel`, `wt_board_panel` |
+| ▬ Timeline / bars / relay segments / Start & After fields | `renderProjTimeline`, `_tlItems`, `_tlRowHtml`, `_tlDerivedStart`, `_tlToggleProj`, `_tlToggleDone`, `_populateDependsOn`, `editStart`, `editDependsOn`, `dependsOn`, `createdAt` |
 | Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
 | In-app orientation / ⓘ help | `INFO_COPY`, `infoIcon`, `showWelcome`, `_TAB_TIPS` |
 | Tabs / navigation | `_switchTab`, `data-tab` |

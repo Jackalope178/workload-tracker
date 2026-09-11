@@ -3031,6 +3031,55 @@
   .timeoff-empty { font-size:11.5px; color:var(--text3); padding:8px 0; font-style:italic; }
   .timeoff-add { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:10px; }
   .timeoff-add input { font-size:12px; padding:4px 6px; border:1px solid var(--border2); border-radius:6px; background:var(--bg2); color:var(--text); font-family:inherit; }
+  /* ── ▬ Timeline ── */
+  .tl-legend { display:flex; flex-wrap:wrap; gap:12px; font-size:10.5px; color:var(--text3); margin-bottom:8px; align-items:center; }
+  .tl-lg { display:inline-block; vertical-align:middle; width:22px; height:10px; border-radius:5px; margin-right:4px; }
+  .tl-lg.bar { background:color-mix(in srgb, var(--accent) 35%, #fff); border:1px solid var(--accent); }
+  .tl-lg.blk { width:8px; height:8px; border-radius:2px; background:var(--accent2); }
+  .tl-lg.seg { background:#e8dcff; border:1px solid #7c3aed; box-shadow:0 0 0 2px var(--accent); width:18px; }
+  .tl-lg.load { background:var(--accent); opacity:.5; }
+  .tl-lg-today { color:var(--danger); font-weight:700; }
+  .tl-scroll { overflow:auto; border:1px solid var(--border); border-radius:10px; background:var(--bg2); max-height:calc(100vh - 250px); }
+  .tl-inner { position:relative; }
+  .tl-row { display:flex; align-items:stretch; border-bottom:1px solid var(--border); }
+  .tl-label { position:sticky; left:0; width:260px; min-width:260px; max-width:260px; background:var(--bg2); z-index:2; padding:3px 8px; font-size:11.5px; display:flex; align-items:center; gap:6px; border-right:1px solid var(--border); overflow:hidden; box-sizing:border-box; }
+  .tl-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+  .tl-name:hover { color:var(--accent); }
+  .tl-label .delegate-tag { font-size:9.5px; padding:0 5px; flex-shrink:0; }
+  .tl-move { font-size:11px; opacity:.6; flex-shrink:0; } .tl-move:hover { opacity:1; }
+  .tl-track { position:relative; height:26px; flex:0 0 auto; }
+  .tl-head { position:sticky; top:0; z-index:4; background:var(--bg2); }
+  .tl-head .tl-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text3); z-index:5; }
+  .tl-head .tl-track { height:40px; }
+  .tl-month { position:absolute; top:0; height:20px; font-size:10px; font-weight:700; color:var(--text3); border-left:1px solid var(--border2); padding-left:4px; white-space:nowrap; overflow:hidden; box-sizing:border-box; line-height:20px; }
+  .tl-week { position:absolute; top:20px; height:6px; border-left:1px solid var(--border); }
+  .tl-load { position:absolute; top:28px; height:10px; background:var(--accent); }
+  .tl-load.over { background:var(--danger); } .tl-load.off { background:repeating-linear-gradient(45deg, var(--border2) 0 2px, transparent 2px 4px); }
+  .tl-today { position:absolute; top:0; bottom:0; width:2px; background:var(--danger); opacity:.65; z-index:3; pointer-events:none; }
+  .tl-proj { background:var(--bg3); cursor:pointer; }
+  .tl-proj .tl-label { background:var(--bg3); font-weight:700; }
+  .tl-proj.sel .tl-label { box-shadow:inset 3px 0 0 var(--accent); }
+  .tl-proj .tl-track { height:22px; }
+  .tl-chev { color:var(--text3); font-size:12px; margin-left:auto; }
+  .tl-late { font-size:9.5px; font-weight:700; color:var(--danger); }
+  .tl-sc .tl-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:.04em; padding-left:18px; }
+  .tl-sc .tl-track { height:18px; }
+  .tl-item .tl-label { padding-left:22px; }
+  .tl-item.done .tl-label { opacity:.5; text-decoration:line-through; }
+  .tl-bar { position:absolute; top:7px; height:12px; border-radius:6px; background:color-mix(in srgb, var(--accent) 35%, #fff); border:1px solid var(--accent); box-sizing:border-box; }
+  .tl-bar.done { opacity:.4; }
+  .tl-dl { position:absolute; top:3px; margin-left:-6px; font-size:12px; color:var(--text2); line-height:20px; }
+  .tl-dl.overdue { color:var(--danger); }
+  .tl-dl.mini { top:1px; font-size:10px; }
+  .tl-recur { font-size:9px; margin-left:1px; color:var(--text3); }
+  .tl-wd { position:absolute; top:13px; margin-left:-5px; font-size:9px; color:var(--accent2); line-height:12px; }
+  .tl-blk { position:absolute; top:9px; width:8px; height:8px; margin-left:-4px; background:var(--accent2); border-radius:2px; }
+  .tl-seg { position:absolute; top:6px; height:14px; border-radius:7px; border:1px solid; font-size:9px; font-weight:700; line-height:12px; padding:0 5px; overflow:hidden; white-space:nowrap; box-sizing:border-box; }
+  .tl-seg.done { opacity:.45; } .tl-seg.cur { box-shadow:0 0 0 2px var(--accent); z-index:1; } .tl-seg.derived { border-left-style:dashed; }
+  .tl-hold { position:absolute; top:7px; height:12px; border:1px dashed var(--border2); border-radius:6px; font-size:9px; color:var(--text3); padding:0 6px; line-height:10px; white-space:nowrap; overflow:hidden; box-sizing:border-box; background:var(--bg3); }
+  .tl-undated { position:absolute; top:6px; font-size:10px; color:var(--text3); font-style:italic; border:1px dotted var(--border2); border-radius:6px; padding:0 6px; line-height:13px; background:var(--bg2); white-space:nowrap; }
+  .tl-link { position:absolute; top:12px; border-top:2px dotted var(--text3); }
+  .tl-bar.dep { border-left-width:3px; }
 
   /* ── Boards — sticky-note whiteboards per sub-code (Projects tab default view, Sep 2026) ── */
   .board-seg { display:inline-flex; border:1px solid var(--border); border-radius:6px; overflow:hidden; font-size:11px; }
@@ -3729,6 +3778,14 @@ if (typeof XLSX === 'undefined') {
           <div class="edit-form-group">
             <label class="edit-label">Hold Month <span style="font-weight:400;font-size:9px;color:var(--text3);">(capacity)</span></label>
             <input class="edit-input" type="month" id="editAllocMonth" onchange="_syncEditSecButtons()">
+          </div>
+          <div class="edit-form-group">
+            <label class="edit-label">Start <span style="font-weight:400;font-size:9px;color:var(--text3);">(optional — timeline bar start; the entry date otherwise)</span></label>
+            <input class="edit-input" type="date" id="editStart" onchange="_syncEditSecButtons()">
+          </div>
+          <div class="edit-form-group">
+            <label class="edit-label">After <span style="font-weight:400;font-size:9px;color:var(--text3);">(waits for this task — timeline only)</span></label>
+            <select class="edit-input" id="editDependsOn" onchange="_syncEditSecButtons()"><option value="">— none —</option></select>
           </div>
           <div class="edit-form-group full">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2);">
@@ -4536,7 +4593,7 @@ if (typeof XLSX === 'undefined') {
     <div class="welcome-step" data-step="1">
       <h3>Your 6 Tabs</h3>
       <div class="welcome-tip"><span class="welcome-tip-icon">1</span><span><strong>My Tasks</strong> — your personal billable work: timers, priorities, recurring tasks, week planner.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — a ⌂ Dash of every program (burn, next deadline, batons), a sticky-note <strong>board per sub-code</strong> for thoughts, and the ☰ List ledger under each code.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — a ⌂ Dash of every program (burn, next deadline, batons), a ▬ Timeline of bars and relay stages, a sticky-note <strong>board per sub-code</strong> for thoughts, and the ☰ List ledger under each code.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">3</span><span><strong>Team Deliverables</strong> — cross-team work and relay hand-offs (who has the baton).</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">4</span><span><strong>Timesheet</strong> — logged hours by pay period (billing record) and by month (headroom).</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">5</span><span><strong>Capacity</strong> — 12-month forward planner plus the ⏩ forward fill: "how booked am I, and can I fit 6h by the 2nd?" — answered before you say yes.</span></div>
@@ -7983,6 +8040,8 @@ function openEditModal(taskId) {
   _blockDraft = (task.blocks || []).map(b => ({ ...b }));
   _renderBlockEditor();
   document.getElementById('editAllocMonth').value = task.allocMonth || '';
+  document.getElementById('editStart').value = task.start || '';
+  _populateDependsOn(task.project, task.id, task.dependsOn || '');
   document.getElementById('editEst').value = task.est || '';
   // category removed from UI; "Waiting On" retired Sep 2026 (folded into notes)
   document.getElementById('editNotes').value = task.notes || '';
@@ -8007,6 +8066,16 @@ function openEditModal(taskId) {
   _syncEditSecButtons();
   document.getElementById('editDeleteBtn').style.display = '';
   document.getElementById('editTaskModal').classList.add('open');
+}
+
+// "After" picker: open tasks on the same project (the timeline draws the
+// dependency; nothing else reads it).
+function _populateDependsOn(projKey, selfId, current) {
+  const sel = document.getElementById('editDependsOn'); if (!sel) return;
+  const opts = tasks.filter(t => t.project === projKey && t.id !== selfId && !t.completed && !t.recurrence)
+    .sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
+  sel.innerHTML = '<option value="">— none —</option>' + opts.map(t => `<option value="${t.id}"${t.id === current ? ' selected' : ''}>${escHtml(t.name.slice(0, 60))}${t.due ? ' · ' + fmtDate(t.due) : ''}</option>`).join('');
+  if (current && !opts.some(t => t.id === current)) sel.value = '';
 }
 
 // ── Collapsible modal sections (Schedule / Repeat / Team) ──
@@ -8045,6 +8114,10 @@ function _syncEditSecButtons() {
   }
   const hm = document.getElementById('editAllocMonth')?.value;
   if (hm) parts.push('hold ' + hm);
+  const st = document.getElementById('editStart')?.value;
+  if (st) parts.push('start ' + fmtDate(st));
+  const depSel = document.getElementById('editDependsOn');
+  if (depSel?.value) parts.push('after ' + (depSel.options[depSel.selectedIndex]?.text || '').slice(0, 24));
   sumEl('Schedule').textContent = parts.join(' · ');
 
   const rSel = document.getElementById('editRecurType');
@@ -8232,6 +8305,10 @@ function saveEditTask() {
     showSyncToast('Work date is after the due date — ⚑ flagged red.', 'warn');
   }
   task.allocMonth = document.getElementById('editAllocMonth').value || null;
+  // Timeline-only fields (Phase 4): never touch hours or placement math.
+  task.start = document.getElementById('editStart').value || null;
+  const _dep = document.getElementById('editDependsOn').value || null;
+  task.dependsOn = _dep && _dep !== task.id ? _dep : null;
   task.est      = enforceQuarter(parseFloat(document.getElementById('editEst').value) || 0, 'estimate');
   // category field preserved in data but removed from UI; task "waiting" is
   // retired (folded into notes at init) — the form no longer writes it
@@ -9098,6 +9175,7 @@ function renderProjects() {
   }
   renderProjCodeList();
   if (_projView === 'dash') { renderProjDash(); return; }
+  if (_projView === 'timeline') { renderProjTimeline(); return; }
   if (selectedProjCode && PROJECTS[selectedProjCode]) {
     renderProjCodeContent(selectedProjCode);
   } else {
@@ -9215,7 +9293,7 @@ function renderProjCodeList() {
 // strip of boards never hides (object-permanence rule from focus mode).
 let boards = load('wt_boards', []) || [];
 let boardCards = load('wt_board_cards', []) || [];
-let _projView = ['boards', 'list', 'dash'].includes(load('wt_proj_view', 'dash')) ? load('wt_proj_view', 'dash') : 'dash';
+let _projView = ['boards', 'list', 'dash', 'timeline'].includes(load('wt_proj_view', 'dash')) ? load('wt_proj_view', 'dash') : 'dash';
 let _boardPanelMode = load('wt_board_panel', 'tiles') === 'chips' ? 'chips' : 'tiles'; // command-panel tiles vs compact chips
 let _boardOpen = load('wt_board_open', {}) || {};
 let _boardViewPref = load('wt_board_view', {}) || {};
@@ -9319,14 +9397,16 @@ function boardSetView(boardId, view) {
 function _projViewToggleHtml(cur) {
   return `<div class="board-seg" title="Dash = every program at a glance · Boards = think & sort · List = every item by sub-code">
     <button class="${cur === 'dash' ? 'on' : ''}" onclick="_setProjView('dash')">⌂ Dash</button>
+    <button class="${cur === 'timeline' ? 'on' : ''}" onclick="_setProjView('timeline')">▬ Timeline</button>
     <button class="${cur === 'boards' ? 'on' : ''}" onclick="_setProjView('boards')">▦ Boards</button>
     <button class="${cur === 'list' ? 'on' : ''}" onclick="_setProjView('list')">☰ List</button>
   </div>`;
 }
 function _setProjView(v) {
-  _projView = v === 'list' ? 'list' : v === 'dash' ? 'dash' : 'boards';
+  _projView = v === 'list' ? 'list' : v === 'dash' ? 'dash' : v === 'timeline' ? 'timeline' : 'boards';
   save('wt_proj_view', _projView);
   if (_projView === 'dash') { renderProjCodeList(); renderProjDash(); return; }
+  if (_projView === 'timeline') { renderProjCodeList(); renderProjTimeline(); return; }
   if (selectedProjCode) renderProjCodeContent(selectedProjCode); else renderProjects();
 }
 function boardTogglePanel() {
@@ -10139,6 +10219,224 @@ function renderProjDash() {
   wrap.innerHTML = html;
 }
 
+// ── ▬ Timeline (Phase 4) ──
+// Month-scale rows: program → sub-code → item. A bar runs from the item's
+// START (an explicit `start`, else its entry date `createdAt`) to its
+// deadline ◆; items with neither draw the deadline alone (legacy rows, and
+// recurring tasks — their next occurrence). Relay deliverables draw one
+// segment per stage in the assignee's colour, the current stage outlined; a
+// first stage with no known start is derived from its estimate and drawn
+// with a dashed left edge. `dependsOn` pulls a task's start to its
+// predecessor's deadline and draws a dotted lead-in. Undated items and month
+// holds stay on their own rows as chips — never hidden. The header carries
+// the forward fill as a per-day load band and a today line, so crowding
+// across programs is visible at a glance. Read-only: names open the normal
+// editor, ⇄ routes through capMoveItem.
+let _tlCollapsed = new Set(load('wt_tl_collapsed', []));   // device-local
+let _tlShowDone = !!load('wt_tl_show_done', false);        // device-local
+const TL_DAY_PX = 4, TL_LABEL_W = 260;
+function _tlDayDiff(a, b) { return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000); }
+function _tlDerivedStart(end, hours) { return addDays(end, -Math.max(1, Math.ceil((hours || 0) / Math.max(1, tsCapacity)))); }
+function _tlToggleProj(k) { if (_tlCollapsed.has(k)) _tlCollapsed.delete(k); else _tlCollapsed.add(k); save('wt_tl_collapsed', [..._tlCollapsed]); renderProjTimeline(); }
+function _tlToggleDone() { _tlShowDone = !_tlShowDone; save('wt_tl_show_done', _tlShowDone); renderProjTimeline(); }
+
+function _tlItems() {
+  const out = [];
+  const mine = del => { const d = normDelegated(del); return !d.length || d.includes('Me'); };
+  tasks.forEach(t => {
+    if (isProjArchived(t.project) || t._deliverableId) return;      // mirror legs live on their deliverable's relay bar
+    if (t.completed && !_tlShowDone) return;
+    const who = normDelegated(t.delegatedTo);
+    const end = t.recurrence ? (_nextUpcomingRecurrence(t) || t.due || null) : (t.due || null);
+    out.push({ key: 'task:' + t.id, type: 'task', id: t.id, projKey: t.project, scId: t.subCode || '', name: t.name, done: !!t.completed,
+      start: t.recurrence ? null : (t.start || t.createdAt || null), end, workDate: t.recurrence ? null : (t.workDate || null),
+      hold: !end && t.allocMonth ? t.allocMonth : null, blocks: (t.blocks || []).filter(b => !b.done && b.date).map(b => b.date),
+      who: who.length ? who : ['Me'], mine: mine(t.delegatedTo), hours: t.est || 0, dependsOn: t.dependsOn || null, recur: !!t.recurrence, inbox: !!t.inbox,
+      open: `openEditModal('${t.id}')`, move: t.recurrence ? '' : `capMoveItem('task','${t.id}')` });
+  });
+  bigProjs.forEach(bp => {
+    if (isProjArchived(bp.project)) return;
+    (bp.sessions || []).forEach(s => {
+      const ssc = s.subCode || bp.defaultSubCode || '';
+      if (!s.done || _tlShowDone) {
+        const who = normDelegated(s.delegatedTo);
+        out.push({ key: 'session:' + s.id, type: 'session', id: s.id, projKey: bp.project, scId: ssc, name: s.desc, done: !!s.done,
+          start: s.recurrence ? null : (s.start || s.createdAt || null), end: s.recurrence ? (_nextUpcomingRecurrence(s, 'date') || s.date || null) : (s.date || null),
+          workDate: s.workDate || null, hold: !s.date && s.allocMonth ? s.allocMonth : null, blocks: [], who: who.length ? who : ['Me'], mine: mine(s.delegatedTo),
+          hours: s.hours || 0, recur: !!s.recurrence, open: `openEditSessionModal('${bp.id}','${s.id}')`, move: s.recurrence ? '' : `capMoveItem('session','${bp.id}','${s.id}')` });
+      }
+      (s.subtasks || []).forEach(st => {
+        if (st.done && !_tlShowDone) return;
+        const who = normDelegated(st.delegatedTo);
+        out.push({ key: 'subtask:' + st.id, type: 'subtask', id: st.id, projKey: bp.project, scId: st.subCode || ssc, name: '╰ ' + st.desc, done: !!st.done,
+          start: st.start || st.createdAt || null, end: st.date || null, workDate: st.workDate || null, hold: !st.date && st.allocMonth ? st.allocMonth : null, blocks: [],
+          who: who.length ? who : ['Me'], mine: mine(st.delegatedTo), hours: st.hours || 0, recur: !!st.recurrence,
+          open: `openEditSubtaskModal('${bp.id}','${s.id}','${st.id}')`, move: st.recurrence ? '' : `capMoveItem('subtask','${bp.id}','${s.id}','${st.id}')` });
+      });
+    });
+  });
+  teamItems.forEach(d => {
+    if (isProjArchived(d.project)) return;
+    const done = d.status === 'complete';
+    if (done && !_tlShowDone) return;
+    const holder = _boardBatonOf(d);
+    const row = { key: 'team:' + d.id, type: 'team', id: d.id, projKey: d.project, scId: d.subCode || '', name: d.name, done,
+      start: d.start || d.createdAt || null, end: d.due || null, workDate: null, hold: null, blocks: [], who: holder ? [holder] : (d.owners || [d.owner]).filter(Boolean).slice(0, 1),
+      mine: holder === 'Me', hours: d.est || 0, status: d.status, open: `openEditTeamModal('${d.id}')`, move: '', segments: null };
+    if (_isRelay(d)) {
+      const idx = relayIdx(d);
+      let prevEnd = row.start;
+      row.segments = d.relay.map((st, i) => {
+        const segEnd = st.due || null;
+        let segStart = prevEnd, derived = false;
+        if (!segStart && segEnd) { segStart = _tlDerivedStart(segEnd, st.est); derived = true; }
+        if (segEnd) prevEnd = segEnd;
+        return { who: st.who, kind: st.kind, start: segStart, end: segEnd, state: i < idx ? 'done' : i === idx ? 'cur' : 'pend', derived, est: st.est || 0 };
+      });
+      const lastDue = d.relay.map(s => s.due).filter(Boolean).sort().pop();
+      if (!row.end && lastDue) row.end = lastDue;
+    }
+    out.push(row);
+  });
+  // Dependencies: a task never starts before the task it waits on is due.
+  out.forEach(r => {
+    if (r.type !== 'task' || !r.dependsOn) return;
+    const pt = tasks.find(t => t.id === r.dependsOn);
+    if (!pt || !pt.due) { r.dependsOn = null; return; }
+    r.depFrom = pt.due; r.depName = pt.name; r.origStart = r.start;
+    if (!r.start || r.start < pt.due) r.start = pt.due;
+  });
+  return out;
+}
+
+function renderProjTimeline() {
+  const wrap = document.getElementById('projBoardsWrap');
+  const list = document.getElementById('projCodeContent');
+  if (!wrap) return;
+  if (list) list.style.display = 'none';
+  wrap.style.display = '';
+  const t0 = today();
+  const keys = projOrder.filter(k => PROJECTS[k] && !PROJECTS[k].archivedAt && !hiddenProjs.has(k));
+  const items = _tlItems().filter(it => keys.includes(it.projKey));
+  // Range: two weeks back to three months ahead, stretched to cover every date drawn (clamped).
+  let minD = addDays(t0, -14), maxD = addDays(t0, 90);
+  const seen = d => { if (!d) return; if (d < minD) minD = d; if (d > maxD) maxD = d; };
+  items.forEach(it => { seen(it.start); seen(it.end); seen(it.workDate); (it.blocks || []).forEach(seen); (it.segments || []).forEach(s => { seen(s.start); seen(s.end); }); if (it.hold) { seen(it.hold + '-01'); seen(_ffMonthEnd(it.hold)); } });
+  if (minD < addDays(t0, -60)) minD = addDays(t0, -60);
+  if (maxD > addDays(t0, 400)) maxD = addDays(t0, 400);
+  const from = minD, to = addDays(maxD, 10);
+  const W = _tlDayDiff(from, to) * TL_DAY_PX;
+  const x = d => Math.max(0, Math.min(W, _tlDayDiff(from, d) * TL_DAY_PX));
+  const ff = forwardFill();
+
+  // Header: months, week ticks, load band, today.
+  let months = '';
+  for (let d = from.slice(0, 7) + '-01'; d <= to; ) {
+    const [y, m] = d.split('-').map(Number);
+    const next = localDateStr(new Date(y, m, 1));
+    const l = x(d < from ? from : d), r = x(next > to ? to : next);
+    if (r > l) months += `<div class="tl-month" style="left:${l}px;width:${r - l}px;">${MONTH_NAMES[m - 1]} ${y}</div>`;
+    d = next;
+  }
+  let ticks = '';
+  for (let d = from; d <= to; d = addDays(d, 1)) {
+    const dow = new Date(d + 'T00:00:00').getDay();
+    if (dow === 0) ticks += `<div class="tl-week" style="left:${x(d)}px;"></div>`;
+    if (d >= t0 && d <= ff.to) {
+      const cap = _ffDayCap(d);
+      const load = (ff.fixed[d] || 0) + (ff.byDay[d] || 0);
+      if (dow !== 0 && dow !== 6) {
+        const ratio = cap > 0 ? load / cap : (load > 0 ? 2 : 0);
+        const cls = cap === 0 ? 'off' : ratio > 1.001 ? 'over' : '';
+        const op = cap === 0 ? 1 : Math.min(1, ratio) * 0.85;
+        ticks += `<div class="tl-load ${cls}" style="left:${x(d)}px;width:${TL_DAY_PX}px;opacity:${cls ? 1 : op.toFixed(2)};" title="${fmtDate(d)}: ${fmtQ(load)}h of ${fmtQ(cap)}h room${cap === 0 ? ' (off)' : ''}"></div>`;
+      }
+    }
+  }
+  const nOpen = items.filter(it => !it.done).length;
+  let html = `<div class="proj-right-header" style="margin-bottom:10px;">
+    <span class="proj-right-title">▬ Timeline</span>
+    <span class="proj-right-code">${escHtml(fmtDate(from))} → ${escHtml(fmtDate(to))}</span>
+    <span class="info-i" onclick="showInfoPopover(event,'timeline')" title="How to read this">i</span>
+    <span class="dash-summary">${nOpen} open item${nOpen === 1 ? '' : 's'} across ${keys.length} program${keys.length === 1 ? '' : 's'}</span>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="btn${_tlShowDone ? ' primary' : ''}" onclick="_tlToggleDone()" style="font-size:11px;padding:3px 10px;" title="${_tlShowDone ? 'Completed items are shown' : 'Completed items are hidden'}">✓ Done</button>
+      ${_projViewToggleHtml('timeline')}
+    </div>
+  </div>
+  <div class="tl-legend"><span><span class="tl-lg bar"></span> start → ◆ deadline</span><span>▲ work date</span><span><span class="tl-lg blk"></span> work block</span><span><span class="tl-lg seg"></span> relay stage (outlined = current, dashed = derived start)</span><span><span class="tl-lg load"></span> my load (forward fill)</span><span class="tl-lg-today">│ today</span></div>
+  <div class="tl-scroll"><div class="tl-inner" style="min-width:${TL_LABEL_W + W}px;">
+    <div class="tl-row tl-head"><div class="tl-label">Program › sub-code › item</div><div class="tl-track" style="width:${W}px;">${months}${ticks}</div></div>`;
+
+  if (!items.length) html += '<div class="proj-empty-state" style="min-height:160px;"><span style="font-size:24px;">▬</span><span>Nothing open to draw. Dated tasks, work items and deliverables appear here.</span></div>';
+
+  keys.forEach(k => {
+    const rows = items.filter(it => it.projKey === k);
+    if (!rows.length) return;
+    const p = PROJECTS[k];
+    const collapsed = _tlCollapsed.has(k);
+    const late = rows.filter(r => !r.done && r.end && r.end < t0).length;
+    html += `<div class="tl-row tl-proj${selectedProjCode === k ? ' sel' : ''}" onclick="_tlToggleProj('${k}')" title="${collapsed ? 'Expand' : 'Collapse'}">
+      <div class="tl-label"><span class="proj-code-dot" style="background:${escHtml(p.color || '#666')};"></span><span class="tl-name">${escHtml(p.label || k)}</span><span class="board-tab-n">${rows.length}</span>${late ? `<span class="tl-late">${late} late</span>` : ''}<span class="tl-chev">${collapsed ? '›' : '⌄'}</span></div>
+      <div class="tl-track" style="width:${W}px;">${collapsed ? _tlCollapsedSummary(rows, x, t0) : ''}</div></div>`;
+    if (collapsed) return;
+    const scOrder = [''].concat((p.subCodes || []).map(sc => sc.id));
+    const extra = [...new Set(rows.map(r => r.scId).filter(id => !scOrder.includes(id)))];
+    scOrder.concat(extra).forEach(scId => {
+      const scRows = rows.filter(r => r.scId === scId).sort((a, b) => (a.end || '9999').localeCompare(b.end || '9999') || a.name.localeCompare(b.name));
+      if (!scRows.length) return;
+      const sc = (p.subCodes || []).find(s => s.id === scId);
+      const scLabel = scId === '' ? 'Unassigned' : sc ? [sc.code, sc.label].filter(Boolean).join(' ') : 'Removed sub-code';
+      html += `<div class="tl-row tl-sc"><div class="tl-label">${escHtml(scLabel)}</div><div class="tl-track" style="width:${W}px;"></div></div>`;
+      scRows.forEach(it => { html += _tlRowHtml(it, x, W, t0); });
+    });
+  });
+  html += `<div class="tl-today" style="left:${TL_LABEL_W + x(t0)}px;" title="Today"></div></div></div>`;
+  wrap.innerHTML = html;
+  // Scroll so today sits a third of the way in on first paint.
+  const sc = wrap.querySelector('.tl-scroll');
+  if (sc) sc.scrollLeft = Math.max(0, x(t0) - sc.clientWidth / 3 + TL_LABEL_W / 2);
+}
+function _tlCollapsedSummary(rows, x, t0) {
+  return rows.filter(r => r.end && !r.done).map(r => `<div class="tl-dl mini${r.end < t0 ? ' overdue' : ''}" style="left:${x(r.end)}px;" title="${escHtml(r.name)} · ${fmtDate(r.end)}">◆</div>`).join('');
+}
+function _tlRowHtml(it, x, W, t0) {
+  const icon = it.type === 'team' ? '👥 ' : it.type === 'task' ? '' : '▣ ';
+  const c = it.who.length && !(it.mine && it.who.length === 1 && it.who[0] === 'Me') ? personColor(it.who[0]) : null;
+  const barStyle = c ? `background:${c.bg};border-color:${c.border};` : '';
+  let track = '';
+  if (it.segments) {
+    let undatedSegs = 0;
+    it.segments.forEach(s => {
+      if (!s.start || !s.end) { undatedSegs++; return; }
+      const pc = personColor(s.who);
+      const l = x(s.start), w = Math.max(6, x(s.end) - l);
+      track += `<div class="tl-seg ${s.state}${s.derived ? ' derived' : ''}" style="left:${l}px;width:${w}px;background:${pc.bg};border-color:${pc.border};color:${pc.text};" title="${escHtml((RELAY_KINDS[s.kind] && RELAY_KINDS[s.kind].label) || s.kind)} — ${escHtml(_relayWho(s.who))}${s.est ? ` · ${fmtQ(s.est)}h` : ''} · due ${fmtDate(s.end)}${s.state === 'cur' ? ' · current' : s.state === 'done' ? ' · done' : ''}">${s.state === 'done' ? '✓ ' : ''}${escHtml(_personInitials(s.who))}</div>`;
+    });
+    if (undatedSegs) track += `<div class="tl-undated" style="left:${x(it.end || t0) + 10}px;">${undatedSegs} stage${undatedSegs > 1 ? 's' : ''} undated</div>`;
+  } else if (it.end) {
+    if (it.depFrom && it.start) {
+      // Lead-in from where the task would have started (its own start/entry date, else a short stub) to the predecessor's deadline.
+      const l = x(it.origStart && it.origStart < it.start ? it.origStart : addDays(it.start, -4));
+      track += `<div class="tl-link" style="left:${l}px;width:${Math.max(6, x(it.start) - l)}px;" title="after: ${escHtml(it.depName)} (due ${fmtDate(it.depFrom)})"></div>`;
+    }
+    if (it.start && it.start < it.end) track += `<div class="tl-bar${it.done ? ' done' : ''}${it.depFrom ? ' dep' : ''}" style="left:${x(it.start)}px;width:${Math.max(6, x(it.end) - x(it.start))}px;${barStyle}" title="${escHtml(it.name)} · ${fmtDate(it.start)} → ${fmtDate(it.end)}${it.hours ? ` · ${fmtQ(it.hours)}h` : ''}${it.depName ? ` · after ${escHtml(it.depName)}` : ''}"></div>`;
+    track += `<div class="tl-dl${!it.done && it.end < t0 ? ' overdue' : ''}${it.recur ? ' recur' : ''}" style="left:${x(it.end)}px;" title="${it.recur ? 'next occurrence ' : 'due '}${fmtDate(it.end)}">◆${it.recur ? '<span class="tl-recur">↻</span>' : ''}</div>`;
+    if (it.workDate) track += `<div class="tl-wd" style="left:${x(it.workDate)}px;" title="work date ${fmtDate(it.workDate)}">▲</div>`;
+    (it.blocks || []).forEach(b => { track += `<div class="tl-blk" style="left:${x(b)}px;" title="work block ${fmtDate(b)}"></div>`; });
+  } else if (it.hold) {
+    const hs = it.hold + '-01', he = _ffMonthEnd(it.hold);
+    track += `<div class="tl-hold" style="left:${x(hs)}px;width:${Math.max(30, x(he) - x(hs))}px;" title="held for ${escHtml(it.hold)} — no day yet">hold · ${MONTH_NAMES[+it.hold.slice(5, 7) - 1]}${it.hours ? ` · ${fmtQ(it.hours)}h` : ''}</div>`;
+  } else {
+    track += `<div class="tl-undated" style="left:${x(t0) + 8}px;">no date${it.inbox ? ' · inbox' : ''}${it.hours ? ` · ${fmtQ(it.hours)}h` : ''}</div>`;
+  }
+  const whoHtml = (!it.mine || it.type === 'team' || it.who.length > 1) ? delegateTagsHtml(it.who) : '';
+  return `<div class="tl-row tl-item${it.done ? ' done' : ''}" data-key="${it.key}">
+    <div class="tl-label"><span class="tl-name" onclick="${it.open}" title="Open">${icon}${escHtml(it.name)}</span>${whoHtml}${it.move && !it.done ? `<button class="row-edit-btn tl-move" onclick="event.stopPropagation();${it.move}" title="Move to another month">⇄</button>` : ''}</div>
+    <div class="tl-track" style="width:${W}px;">${track}</div>
+  </div>`;
+}
+
 // ── Swipe between boards (touch/pen on the board header; ←/→ keys elsewhere) ──
 function _boardBindSwipe(el, projKey) {
   if (!el) return;
@@ -10378,6 +10676,7 @@ function renderProjCodeContent(projKey) {
   // ⌂ Dash lands first; ▦ Boards is the per-project thinking surface; the
   // ledger below is ☰ List.
   if (_projView === 'dash') { renderProjDash(); return; }
+  if (_projView === 'timeline') { renderProjTimeline(); return; }
   if (_projView === 'boards') { renderProjBoards(projKey); return; }
   const _bw = document.getElementById('projBoardsWrap'); if (_bw) _bw.style.display = 'none';
   container.style.display = '';
@@ -11168,6 +11467,8 @@ function openAddTaskForProject(projKey, scId) {
   editingTaskId = '__new__';
   document.getElementById('editTaskModalTitle').textContent = 'Add Task';
   _addTaskForProject = { project: projKey, subCode: scId || '' };
+  const _es = document.getElementById('editStart'); if (_es) _es.value = '';
+  _populateDependsOn(projKey, null, '');
   document.getElementById('editName').value = '';
   document.getElementById('editProject').value = projKey;
   populateSubCodeSelect('editSubCode', projKey, scId || '');
@@ -18981,6 +19282,10 @@ function _maybeShowWelcome() {
 // steps, and _TAB_TIPS below — all three are part of definition-of-done.
 
 const INFO_COPY = {
+  timeline: {
+    title: 'Timeline — where the flow is, who is on it, how programs cross over',
+    body: 'One row per open item under its program and sub-code. A bar runs from the item\'s <strong>start</strong> (a Start you set, else the day it was entered) to its <strong>◆ deadline</strong>; older items with no entry date draw the deadline alone, recurring tasks show their next occurrence ↻. ▲ marks a work date, small squares are work blocks. <strong>Relay deliverables</strong> draw one segment per stage in the assignee\'s colour — the outlined one is current, ✓ ones are done, a dashed left edge means the first stage\'s start was derived from its estimate. <strong>After</strong> (in the task form\'s 📅 section) pulls a task\'s start to the task it waits on and draws a dotted lead-in. Undated items and month holds keep their rows as chips — nothing is hidden. The header\'s shaded band is your <strong>forward-fill load</strong> per day (darker = fuller, red = over, hatched = off), with a red today line. Read-only: click a name to open it, ⇄ to move it through the normal month-move.'
+  },
   forwardFill: {
     title: 'Forward fill — how booked am I, and when could X land?',
     body: 'Every open dated item ahead is either <strong>pinned</strong> (a set work date, a spread plan, a work block, a recurring occurrence — it stays on its day) or <strong>flexible</strong> (placed on its deadline only: a plain due date, a month hold, a future relay leg). Flexible hours are packed <strong>earliest deadline first</strong> into the free room of coming working days — room = hours/day minus weekly overhead ÷ 5, zero on weekends and time off, minus what is already pinned. "Placed through" is the last day that packing needs. An item whose packing runs past its own deadline is <strong>at risk</strong>, with the working days it is late. <strong>What if</strong> drops a hypothetical item into the same packing: "Yes/No", the day it would land, and which existing deadlines it would push — plus the honest answer if you refuse to push anything. Overdue items enter as due today. Nothing here writes; <strong>📅 Plan</strong> commits one item to its placed start as a work date + spread through the normal placement path. Time off and overhead affect only this fill — the month bars and Timesheet targets are deliberately unchanged, because leave is billed to its own code here.'
@@ -19097,6 +19402,7 @@ const _TAB_TIPS = {
     title: 'Projects — Tips',
     tips: [
       '<strong>⌂ Dash</strong> is where the tab lands: one tile per program, worst first, each saying burn vs plan for the month, your next deadline (or why it needs attention), and who holds a baton. Click a tile to drill in; the same signals sit on each sub-code tile above the board (▴ shrinks them to chips).',
+      '<strong>▬ Timeline</strong> draws every open item as a bar from its start (or entry date) to its ◆ deadline, grouped program → sub-code, with relay stages as coloured segments per person and your forward-fill load shaded in the header. Set a <strong>Start</strong> or <strong>After</strong> (waits-for) in the task form\'s 📅 section to shape a bar.',
       '<strong>▦ Boards</strong> is the thinking view: one sticky-note board per sub-code plus 💭 Loose thoughts. Press <strong>N</strong> or click the capture box, type, <strong>Enter</strong> — the thought lands as a sticky. Drag to arrange, tap to edit, <strong>⋯</strong> for colour, heading or delete.',
       '<strong>⊞ Sort 2×2</strong> drops the same stickies into Do now / Schedule / Delegate / Park boxes. Unsorted ones sit in the tray below — nothing is ever hidden. Stickies carry <strong>no hours</strong> and never touch Capacity or the Timesheet.',
       'Slide between boards with <strong>‹ ›</strong>, the <strong>← →</strong> keys, or a swipe on the board title. The chip next to the view toggle says whether the board is <strong>synced</strong> or saved on this device only.',
