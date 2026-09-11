@@ -2991,7 +2991,47 @@
     padding: 8px 12px;
     font-size: 12px;
     margin-bottom: 14px;
-  }
+  }  /* ── Forward fill (Capacity tab headline card) ── */
+  .ff-card { border:1px solid var(--border); border-left:4px solid var(--accent); border-radius:10px; background:var(--bg2); padding:12px 14px; margin:0 14px 14px; display:flex; flex-direction:column; gap:8px; }
+  .ff-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .ff-title { font-size:12px; font-weight:700; color:var(--text); white-space:nowrap; }
+  .ff-headline { font-size:14px; color:var(--text); }
+  .ff-sub { font-size:11px; color:var(--text3); }
+  .ff-risk { color:var(--danger); font-weight:700; } .ff-ok { color:var(--success); font-weight:700; }
+  .ff-toggle { margin-left:auto; font-size:11px; padding:3px 10px; }
+  .ff-whatif { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:0; padding:8px 10px; background:var(--bg3); border-radius:8px; font-size:12px; color:var(--text2); }
+  .ff-whatif-lbl { font-weight:700; color:var(--text); }
+  .ff-whatif input[type=number] { width:64px; font-size:12px; padding:4px 6px; border:1px solid var(--border2); border-radius:6px; background:var(--bg2); color:var(--text); font-family:inherit; }
+  .ff-whatif input[type=date] { font-size:12px; padding:4px 6px; border:1px solid var(--border2); border-radius:6px; background:var(--bg2); color:var(--text); font-family:inherit; }
+  .ff-answer { flex-basis:100%; font-size:12px; color:var(--text); line-height:1.5; }
+  .ff-answer.quiet { color:var(--text3); font-style:italic; }
+  .ff-yes { color:var(--success); font-weight:800; } .ff-no { color:var(--danger); font-weight:800; }
+  .ff-basis { font-size:10.5px; color:var(--text3); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .ff-details { border-top:1px dashed var(--border); padding-top:8px; display:flex; flex-direction:column; gap:6px; }
+  .ff-sec-title { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text3); margin-top:6px; }
+  .ff-weeks { display:flex; flex-direction:column; gap:3px; }
+  .ff-week { display:grid; grid-template-columns:76px 1fr 96px; align-items:center; gap:8px; font-size:10.5px; color:var(--text3); }
+  .ff-week.over .ff-week-num { color:var(--danger); font-weight:700; }
+  .ff-week-bar { height:8px; border-radius:4px; background:var(--bg4); overflow:hidden; display:flex; }
+  .ff-week-pin { background:var(--alloc-logged); height:100%; }
+  .ff-week-fill { background:var(--alloc-planned); height:100%; }
+  .ff-week-num { text-align:right; white-space:nowrap; }
+  .ff-risk-row, .ff-placed-row { display:flex; align-items:center; gap:10px; font-size:11.5px; padding:4px 0; border-bottom:1px solid var(--border); }
+  .ff-risk-row { color:var(--text); } .ff-placed-row { color:var(--text2); }
+  .ff-risk-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ff-risk-meta { font-size:10.5px; color:var(--text3); white-space:nowrap; }
+  .ff-plan-btn { font-size:10px; padding:2px 8px; }
+  .ff-proj-row { display:flex; flex-wrap:wrap; gap:6px; }
+  .ff-proj-chip { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--text2); background:var(--bg3); border-radius:999px; padding:2px 9px; }
+  .ff-proj-chip .proj-code-dot { width:8px; height:8px; border-radius:50%; }
+  .ff-note { font-size:10.5px; color:var(--text3); margin-top:4px; }
+  .timeoff-row { display:grid; grid-template-columns:1fr 1fr auto auto; gap:8px; align-items:center; font-size:12px; padding:5px 0; border-bottom:1px solid var(--border); }
+  .timeoff-row.past { opacity:.55; }
+  .timeoff-lbl { color:var(--text2); } .timeoff-days { font-size:10.5px; color:var(--text3); white-space:nowrap; }
+  .timeoff-empty { font-size:11.5px; color:var(--text3); padding:8px 0; font-style:italic; }
+  .timeoff-add { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+  .timeoff-add input { font-size:12px; padding:4px 6px; border:1px solid var(--border2); border-radius:6px; background:var(--bg2); color:var(--text); font-family:inherit; }
+
   /* ── Boards — sticky-note whiteboards per sub-code (Projects tab default view, Sep 2026) ── */
   .board-seg { display:inline-flex; border:1px solid var(--border); border-radius:6px; overflow:hidden; font-size:11px; }
   .board-seg button { padding:4px 10px; border:none; background:var(--bg2); color:var(--text3); cursor:pointer; font-size:11px; font-weight:600; font-family:inherit; }
@@ -3524,6 +3564,28 @@ if (typeof XLSX === 'undefined') {
     <div class="modal-actions">
       <button class="btn" onclick="closeRescheduleModal()">Cancel</button>
       <button class="btn primary" onclick="confirmReschedule()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TIME OFF & OVERHEAD (forward fill inputs) -->
+<div class="modal-overlay" id="timeOffModal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title">Time off &amp; overhead</div>
+    <div class="modal-subtitle">Both feed the ⏩ forward fill only. Time-off days count as 0h room; overhead is the weekly hours of meetings and admin churn that never become tasks. The Capacity month bars and Timesheet targets are unchanged — leave is billed to its own code here, so subtracting it twice would double-count.</div>
+    <div class="modal-row" style="margin-top:12px;">
+      <span class="modal-label">Overhead per week</span>
+      <span style="display:flex;gap:6px;align-items:center;"><input type="number" id="overheadWeeklyInput" class="edit-input" min="0" step="0.25" style="width:80px;" onchange="setOverheadWeekly(this.value)"> h</span>
+    </div>
+    <div class="modal-label" style="margin-top:14px;">Time off</div>
+    <div id="timeOffList"></div>
+    <div class="timeoff-add">
+      <input type="date" id="timeOffFrom" title="From"> <span style="font-size:11px;color:var(--text3);">to</span> <input type="date" id="timeOffTo" title="To (blank = one day)">
+      <input type="text" id="timeOffLabel" placeholder="label (optional)" maxlength="60" style="flex:1;min-width:100px;">
+      <button type="button" class="btn primary" onclick="timeOffAdd()" style="font-size:11px;padding:4px 10px;">+ Add</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="closeTimeOffModal()">Done</button>
     </div>
   </div>
 </div>
@@ -4477,7 +4539,7 @@ if (typeof XLSX === 'undefined') {
       <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — a ⌂ Dash of every program (burn, next deadline, batons), a sticky-note <strong>board per sub-code</strong> for thoughts, and the ☰ List ledger under each code.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">3</span><span><strong>Team Deliverables</strong> — cross-team work and relay hand-offs (who has the baton).</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">4</span><span><strong>Timesheet</strong> — logged hours by pay period (billing record) and by month (headroom).</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">5</span><span><strong>Capacity</strong> — 12-month forward planner: "someone needs this by May — do I have room?"</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">5</span><span><strong>Capacity</strong> — 12-month forward planner plus the ⏩ forward fill: "how booked am I, and can I fit 6h by the 2nd?" — answered before you say yes.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">6</span><span><strong>Allocations</strong> — budgeted vs actual hours per project/sub-code, with a Reconcile view for plan-vs-budget.</span></div>
     </div>
 
@@ -4991,7 +5053,7 @@ const SYNC_KEYS = [
   'wt_onboarded', 'wt_xlsx_alloc_imported',
   'wt_alloc_rollovers', 'wt_collapsed_task_sections',
   'wt_alloc_aliases', 'wt_person_colors', 'wt_person_allocs',
-  'wt_boards', 'wt_board_cards'
+  'wt_boards', 'wt_board_cards', 'wt_time_off', 'wt_overhead_weekly'
 ];
 
 async function cloudSave(key, data) {
@@ -13914,6 +13976,352 @@ function capOpenMonth(ym) {
   }, 50);
 }
 
+// =============================================
+// FORWARD FILL — "how booked am I, and when could X land?" (Phase 3, Sep 2026)
+// =============================================
+// Design record: docs/vision-2026-09-boards.md (Phase 3). Read-only by
+// default. Every open planned item inside the horizon is either PINNED
+// (explicit work date, spread plan, work block, recurring occurrence — it
+// stays on its day) or FLEXIBLE (placed on its deadline only: a plain due
+// date, a month hold, a future relay leg). Flexible hours are packed
+// earliest-deadline-first into the free room of future working days —
+// a generalisation of packIntoFreeDays, which packs ONE item first-fit.
+// Room per day = tsCapacity − weekly overhead / 5, 0 on weekends and time
+// off, minus pinned planned hours (and today's logged hours).
+//
+// Deliberate: time off and overhead feed ONLY this fill. The Capacity month
+// bars and Timesheet targets are untouched — leave is billed to a code in
+// this org (Employee Leave / Holidays), so subtracting days from those
+// lenses would double-count once the leave hours are logged.
+//
+// Commit (📅 Plan) never writes dates directly: it routes through
+// _capAssignOne + workSpread, the existing "chip away" plan (Math
+// invariant #3), and refuses recurring items and holds.
+let timeOff = load('wt_time_off', []) || [];                    // [{ id, from, to, label }]
+let overheadWeekly = parseFloat(load('wt_overhead_weekly', 0)) || 0; // hours/week of meetings + admin churn
+let _ffOpen = !!load('wt_ff_open', false);                       // device-local details toggle
+let _ffLastWhatIf = null;                                        // { hours, by } re-shown across renders
+const _ffR4 = v => Math.round(v * 4) / 4;
+
+function _ffIsOff(d) { return timeOff.some(r => r.from && r.to && d >= r.from && d <= r.to); }
+function _ffDayCap(d) {
+  const dow = new Date(d + 'T00:00:00').getDay();
+  if (dow === 0 || dow === 6 || _ffIsOff(d)) return 0;
+  return Math.max(0, _ffR4(tsCapacity - (overheadWeekly || 0) / 5));
+}
+function _ffMonthEnd(ym) { const [y, m] = ym.split('-').map(Number); return localDateStr(new Date(y, m, 0)); }
+
+function _ffOverdueFlex(t0) {
+  const out = [];
+  const mine = del => { const d = normDelegated(del); return !d.length || d.includes('Me'); };
+  tasks.forEach(t => {
+    if (t.completed || t.recurrence || !mine(t.delegatedTo) || isProjArchived(t.project)) return;
+    const eff = t.workDate || t.due;
+    if (!eff || eff >= t0 || (t.workSpread && t.workDate)) return;
+    const rem = _ownPlannedHours(t);
+    if (rem < 0.25) return;
+    out.push({ id: t.id, name: t.name, project: t.project, subCode: t.subCode || '', hours: rem, _src: 'task', deadline: t.due || t0 });
+  });
+  bigProjs.forEach(bp => {
+    if (isProjArchived(bp.project)) return;
+    (bp.sessions || []).forEach(sess => {
+      const ssc = sess.subCode || bp.defaultSubCode || '';
+      if (!sess.done && !sess.recurrence && mine(sess.delegatedTo)) {
+        const eff = sess.workDate || sess.date;
+        if (eff && eff < t0 && !(sess.workSpread && sess.workDate)) {
+          const rem = _ownPlannedHours(sess);
+          if (rem >= 0.25) out.push({ id: sess.id, name: sess.desc, project: bp.project, subCode: ssc, hours: rem, _src: 'session', _projId: bp.id, deadline: sess.date || t0 });
+        }
+      }
+      (sess.subtasks || []).forEach(st => {
+        if (st.done || st.recurrence || !mine(st.delegatedTo)) return;
+        const eff = st.workDate || st.date;
+        if (!eff || eff >= t0 || (st.workSpread && st.workDate)) return;
+        const h = st.hours || 0; if (h < 0.25) return;
+        out.push({ id: st.id, name: st.desc, project: bp.project, subCode: st.subCode || ssc, hours: h, _src: 'subtask', _projId: bp.id, _sessionId: sess.id, deadline: st.date || t0 });
+      });
+    });
+  });
+  return out;
+}
+// opts.extra = one synthetic flexible item (the what-if). opts.horizonDays default 182.
+function forwardFill(opts = {}) {
+  const t0 = today();
+  const to = addDays(t0, opts.horizonDays || 182);
+  const fixed = {};
+  const flex = [];
+  const pinned = p => p._block || p._spread || p._recur || p._workDated;
+  const addFlex = (p, over) => {
+    const base = { key: p.id, id: p.id, name: p.name, hours: _ffR4(p.hours || 0), src: p._src, project: p.project, subCode: p.subCode || '',
+      projId: p._projId, sessionId: p._sessionId, teamId: p._teamId, earliest: t0, deadline: p.date, overdue: !!over, hold: false, relay: !!p._relayFuture };
+    if (p._allocHold) {
+      const ym = p.date.slice(0, 7), ms = ym + '-01', me = _ffMonthEnd(ym);
+      base.name = p.name.replace(/ \(hold\)$/, ''); base.hold = true;
+      base.earliest = ms > t0 ? ms : t0; base.deadline = me < t0 ? t0 : me; base.overdue = me < t0;
+    }
+    if (over) base.deadline = t0;
+    flex.push(base);
+  };
+  // Inside the horizon: pinned rows are load on their day, the rest is flexible.
+  plannedItems(t0, to).forEach(p => {
+    if (!p._allocHold && pinned(p)) { fixed[p.date] = (fixed[p.date] || 0) + (p.hours || 0); return; }
+    addFlex(p, false);
+  });
+  // Items dated before today (not pinned) are the ones that most need a
+  // home. Read from the raw arrays — plannedItems is windowed by date and a
+  // wide backward window would expand every recurrence for years. A passed
+  // deadline enters as due today (already late); a passed WORK date with a
+  // deadline still ahead simply becomes flexible up to that deadline.
+  // Missed recurring occurrences and past holds are the catch-up and holds
+  // tools' job, never re-placed here.
+  _ffOverdueFlex(t0).forEach(p => {
+    const late = p.deadline < t0;
+    flex.push({ key: p.id, id: p.id, name: p.name, hours: _ffR4(p.hours), src: p._src, project: p.project, subCode: p.subCode || '',
+      projId: p._projId, sessionId: p._sessionId, earliest: t0, deadline: late ? t0 : p.deadline, overdue: late, hold: false, relay: false });
+  });
+  allTsEntries().forEach(e => { if (e.date === t0) fixed[t0] = (fixed[t0] || 0) + (e.actualHours || 0); });
+  if (opts.extra) flex.push(Object.assign({ earliest: t0, overdue: false, hold: false, relay: false, src: 'whatif' }, opts.extra));
+  // EDF: earliest deadline first; bigger first within a day so small items fill gaps.
+  flex.sort((a, b) => a.deadline.localeCompare(b.deadline) || (b.hours - a.hours) || String(a.name).localeCompare(String(b.name)));
+  const days = [], free = {};
+  for (let d = t0; d <= to; d = addDays(d, 1)) { days.push(d); free[d] = Math.max(0, _ffR4(_ffDayCap(d) - (fixed[d] || 0))); }
+  const results = [];
+  const byDay = {};
+  flex.forEach(it => {
+    let rem = it.hours, finish = null;
+    const plan = [];
+    if (rem >= 0.25) {
+      for (const d of days) {
+        if (d < it.earliest || free[d] < 0.25) continue;
+        const take = Math.min(free[d], rem);
+        free[d] = _ffR4(free[d] - take); rem = _ffR4(rem - take);
+        plan.push({ date: d, hours: take });
+        byDay[d] = (byDay[d] || 0) + take;
+        finish = d;
+        if (rem < 0.25) break;
+      }
+    }
+    const unplaced = rem >= 0.25 ? rem : 0;
+    const late = finish && finish > it.deadline ? workingDays(addDays(it.deadline, 1), finish) : 0;
+    results.push(Object.assign({}, it, { finish, plan, late, unplaced, atRisk: late > 0 || unplaced > 0 }));
+  });
+  const bookedThrough = results.reduce((m, r) => (r.finish && r.finish > m ? r.finish : m), '');
+  let freeBefore = 0, freeAfter = 0, fixedTotal = 0;
+  days.forEach(d => { fixedTotal += fixed[d] || 0; if (bookedThrough && d <= bookedThrough) freeBefore += free[d]; else freeAfter += free[d]; });
+  const totalFlex = results.reduce((a, r) => a + r.hours, 0);
+  return { t0, to, days, free, fixed, byDay, results, bookedThrough, totalFlex, fixedTotal, freeBefore: _ffR4(freeBefore), freeAfter: _ffR4(freeAfter),
+    atRisk: results.filter(r => r.atRisk), cap: _ffDayCap(addDays(t0, 7)) };
+}
+
+// "N hours by D?" — simulate with the item in the EDF order, and again with
+// no deadline (placed after everything → the no-displacement answer).
+function ffWhatIf(hours, by) {
+  hours = _ffR4(Math.max(0, parseFloat(hours) || 0));
+  if (hours < 0.25) return null;
+  const base = forwardFill();
+  const baseRisk = new Set(base.atRisk.map(r => r.key));
+  const mk = deadline => ({ key: '__whatif', id: '__whatif', name: 'What-if', hours, deadline, src: 'whatif', project: '' });
+  const withDl = forwardFill({ extra: mk(by || '9999-12-31') });
+  const me = withDl.results.find(r => r.key === '__whatif');
+  const newlyLate = withDl.results.filter(r => r.key !== '__whatif' && r.atRisk && !baseRisk.has(r.key));
+  const last = by ? forwardFill({ extra: mk('9999-12-31') }).results.find(r => r.key === '__whatif') : me;
+  const fits = !!by && !!me.finish && me.finish <= by && !me.unplaced;
+  return { hours, by, fits, finish: me.finish, unplaced: me.unplaced, newlyLate, earliestClean: last.finish, earliestCleanUnplaced: last.unplaced, horizonEnd: base.to };
+}
+
+function _ffToggle() { _ffOpen = !_ffOpen; save('wt_ff_open', _ffOpen); renderCapacity(); }
+function ffWhatIfSubmit(ev) {
+  if (ev) ev.preventDefault();
+  const h = parseFloat(document.getElementById('ffHours')?.value || '0');
+  const by = document.getElementById('ffBy')?.value || '';
+  if (!(h > 0)) { showSyncToast('Enter the hours the work would take.', 'warn'); return false; }
+  _ffLastWhatIf = { hours: h, by };
+  renderCapacity();
+  return false;
+}
+function _ffWhatIfAnswerHtml(w) {
+  if (!w) return '';
+  const lateList = w.newlyLate.slice(0, 4).map(r => `${escHtml(r.name)} (due ${fmtDate(r.deadline)})`).join(', ') + (w.newlyLate.length > 4 ? ` +${w.newlyLate.length - 4} more` : '');
+  if (w.by) {
+    if (w.fits) {
+      const displaced = w.newlyLate.length ? ` — but it would push <strong>${w.newlyLate.length}</strong> past their deadline: ${lateList}` : ' without moving anything else late';
+      return `<span class="ff-yes">Yes</span> — ${fmtQ(w.hours)}h lands by <strong>${fmtDate(w.finish)}</strong>${displaced}.${w.earliestClean && w.earliestClean > (w.finish || '') && w.newlyLate.length ? ` Without displacing anything it would be done by <strong>${fmtDate(w.earliestClean)}</strong>.` : ''}`;
+    }
+    const earliest = w.unplaced ? `not within the next ${Math.round((new Date(w.horizonEnd) - new Date(today())) / 86400000 / 7)} weeks` : `the earliest is <strong>${fmtDate(w.finish)}</strong>`;
+    return `<span class="ff-no">No</span> — even ahead of later deadlines, ${earliest}${w.newlyLate.length ? `, and forcing it there would push ${w.newlyLate.length} late: ${lateList}` : ''}. Without displacing anything: <strong>${w.earliestCleanUnplaced ? 'beyond the horizon' : fmtDate(w.earliestClean)}</strong>.`;
+  }
+  return w.earliestCleanUnplaced
+    ? `${fmtQ(w.hours)}h does not fit inside the next ${Math.round((new Date(w.horizonEnd) - new Date(today())) / 86400000 / 7)} weeks after everything already dated.`
+    : `After everything already dated, ${fmtQ(w.hours)}h would be done by <strong>${fmtDate(w.earliestClean)}</strong>. Add a date to see what it would displace.`;
+}
+function _ffBasisText() {
+  const off = timeOff.filter(r => r.to >= today()).sort((a, b) => a.from.localeCompare(b.from));
+  const offTxt = off.length ? off.slice(0, 3).map(r => `${fmtDate(r.from)}${r.to !== r.from ? '–' + fmtDate(r.to) : ''}${r.label ? ' ' + escHtml(r.label) : ''}`).join(', ') + (off.length > 3 ? ` +${off.length - 3}` : '') : 'none set';
+  return `Room per day: <strong>${fmtQ(tsCapacity)}h</strong>${overheadWeekly ? ` − ${fmtQ(overheadWeekly)}h/wk overhead = <strong>${fmtQ(_ffDayCap(addDays(today(), 7)) || _ffR4(tsCapacity - overheadWeekly / 5))}h</strong>` : ''} · time off: ${offTxt}`;
+}
+function _renderForwardFill() {
+  const card = document.createElement('div');
+  card.className = 'ff-card';
+  const ff = forwardFill();
+  const w = _ffLastWhatIf ? ffWhatIf(_ffLastWhatIf.hours, _ffLastWhatIf.by) : null;
+  const nRisk = ff.atRisk.length;
+  const headline = !ff.results.length
+    ? 'Nothing dated to place — every open item is pinned, undated, or done.'
+    : ff.bookedThrough
+      ? `Dated work is placed through <strong>${fmtDate(ff.bookedThrough)}</strong>`
+      : 'Open work is dated but nothing could be placed';
+  const sub = ff.results.length
+    ? `${fmtQ(ff.totalFlex)}h to place · ${fmtQ(ff.fixedTotal)}h already pinned · ${nRisk ? `<span class="ff-risk">${nRisk} at risk</span>` : '<span class="ff-ok">every deadline fits</span>'} · ${fmtQ(ff.freeBefore)}h free before then`
+    : '';
+  let html = `<div class="ff-head">
+    <span class="ff-title">⏩ Forward fill<span class="info-i" onclick="showInfoPopover(event,'forwardFill')" title="How is this computed?">i</span></span>
+    <span class="ff-headline">${headline}</span>
+    <span class="ff-sub">${sub}</span>
+    <button class="btn ff-toggle" onclick="_ffToggle()">${_ffOpen ? 'details ▴' : 'details ▾'}</button>
+  </div>
+  <form class="ff-whatif" onsubmit="return ffWhatIfSubmit(event)">
+    <span class="ff-whatif-lbl">What if:</span>
+    <input type="number" id="ffHours" step="0.25" min="0.25" placeholder="hours" value="${_ffLastWhatIf ? _ffLastWhatIf.hours : ''}"> h
+    <span>by</span> <input type="date" id="ffBy" value="${_ffLastWhatIf ? escHtml(_ffLastWhatIf.by || '') : ''}">
+    <button type="submit" class="btn primary" style="font-size:11px;padding:4px 10px;">Check</button>
+    ${w ? `<span class="ff-answer">${_ffWhatIfAnswerHtml(w)}</span>` : '<span class="ff-answer quiet">"Do you have time for 6h by the 2nd?" — answer it here before you say yes.</span>'}
+  </form>
+  <div class="ff-basis">${_ffBasisText()} <button class="btn" onclick="openTimeOffModal()" style="font-size:10px;padding:2px 8px;">✎ time off &amp; overhead</button></div>`;
+  if (_ffOpen) html += _ffDetailsHtml(ff);
+  card.innerHTML = html;
+  return card;
+}
+function _ffDetailsHtml(ff) {
+  // Week strip: next 12 weeks, Sun–Sat, pinned (dark) + fill (mid) vs room.
+  const t0 = ff.t0;
+  const start = new Date(t0 + 'T00:00:00'); start.setDate(start.getDate() - start.getDay());
+  let weeks = '';
+  for (let w = 0; w < 12; w++) {
+    const ws = localDateStr(new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7));
+    let cap = 0, pin = 0, fill = 0, off = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(ws, i);
+      if (d < t0) continue;
+      const dow = new Date(d + 'T00:00:00').getDay();
+      if (dow !== 0 && dow !== 6 && _ffIsOff(d)) off++;
+      cap += _ffDayCap(d); pin += ff.fixed[d] || 0; fill += ff.byDay[d] || 0;
+    }
+    const denom = Math.max(cap, pin + fill, 0.25);
+    const pp = Math.min(100, pin / denom * 100), fp = Math.min(100 - pp, fill / denom * 100);
+    const over = pin + fill > cap + 0.001;
+    const label = fmtDate(ws);
+    weeks += `<div class="ff-week${over ? ' over' : ''}" title="${escHtml(label)}: ${fmtQ(pin)}h pinned + ${fmtQ(fill)}h placed of ${fmtQ(cap)}h room${off ? ` · ${off} day${off > 1 ? 's' : ''} off` : ''}">
+      <span class="ff-week-lbl">${label}${off ? ' 🏖' : ''}</span>
+      <span class="ff-week-bar"><span class="ff-week-pin" style="width:${pp.toFixed(1)}%"></span><span class="ff-week-fill" style="width:${fp.toFixed(1)}%"></span></span>
+      <span class="ff-week-num">${fmtQ(pin + fill)} / ${fmtQ(cap)}h${over ? ' ⚠' : ''}</span>
+    </div>`;
+  }
+  // At-risk list
+  let risk = '';
+  if (ff.atRisk.length) {
+    risk = `<div class="ff-sec-title">At risk — cannot fit before its deadline</div>` + ff.atRisk.map(r => {
+      const when = r.unplaced ? `${fmtQ(r.unplaced)}h has no room inside the horizon` : `finishes ${fmtDate(r.finish)} · ${r.late} working day${r.late > 1 ? 's' : ''} late`;
+      return `<div class="ff-risk-row"><span class="ff-risk-name">${escHtml(r.name)}${r.hold ? ' <span class="recur-badge">hold</span>' : ''}${r.relay ? ' <span class="recur-badge">◖ leg</span>' : ''}${r.overdue ? ' <span class="ff-risk">overdue</span>' : ''}</span><span class="ff-risk-meta">${fmtQ(r.hours)}h · due ${fmtDate(r.deadline)} · ${when}</span>${_ffPlanBtn(r)}</div>`;
+    }).join('');
+  }
+  // Placed list (compact) — what got a home and where
+  const placed = ff.results.filter(r => !r.atRisk && r.plan.length);
+  let placedHtml = '';
+  if (placed.length) {
+    placedHtml = `<div class="ff-sec-title">Placed (${placed.length}) — earliest deadline first</div>` + placed.slice(0, 40).map(r =>
+      `<div class="ff-placed-row"><span class="ff-risk-name">${escHtml(r.name)}${r.hold ? ' <span class="recur-badge">hold</span>' : ''}${r.relay ? ' <span class="recur-badge">◖ leg</span>' : ''}</span><span class="ff-risk-meta">${fmtQ(r.hours)}h · ${r.plan.length === 1 ? fmtDate(r.plan[0].date) : `${fmtDate(r.plan[0].date)} → ${fmtDate(r.finish)}`} · due ${fmtDate(r.deadline)}</span>${_ffPlanBtn(r)}</div>`
+    ).join('') + (placed.length > 40 ? `<div class="ff-risk-meta">+${placed.length - 40} more</div>` : '');
+  }
+  // Per-program totals of flexible hours
+  const byProj = {};
+  ff.results.forEach(r => { if (!r.project) return; byProj[r.project] = (byProj[r.project] || 0) + r.hours; });
+  const projChips = Object.entries(byProj).sort((a, b) => b[1] - a[1]).map(([k, h]) => `<span class="ff-proj-chip"><span class="proj-code-dot" style="background:${escHtml(projColor(k))};"></span>${escHtml(projLabel(k))} <strong>${fmtQ(h)}h</strong></span>`).join('');
+  return `<div class="ff-details">
+    <div class="ff-sec-title">Next 12 weeks — pinned (dark) + placed (light) vs room</div>
+    <div class="ff-weeks">${weeks}</div>
+    ${risk}${placedHtml}
+    ${projChips ? `<div class="ff-sec-title">Hours to place, by program</div><div class="ff-proj-row">${projChips}</div>` : ''}
+    <div class="ff-note">Read-only. <strong>📅 Plan</strong> commits an item to its placed days as a work date + spread plan through the normal placement path; recurring items, holds and relay legs are never re-placed here.</div>
+  </div>`;
+}
+function _ffPlanBtn(r) {
+  if (r.hold || r.relay || !r.plan.length || !['task', 'session', 'subtask'].includes(r.src)) return '';
+  return `<button class="btn ff-plan-btn" onclick="ffCommit('${r.src}','${r.id}','${r.projId || ''}','${r.sessionId || ''}')" title="Set the work date to the first placed day and spread the hours to the deadline">📅 Plan</button>`;
+}
+function _ffFindObj(src, id, projId, sessionId) {
+  if (src === 'task') return { obj: tasks.find(t => t.id === id), field: 'due', key: 'wt_tasks' };
+  const bp = bigProjs.find(p => p.id === projId); if (!bp) return null;
+  if (src === 'session') return { obj: bp.sessions.find(s => s.id === id), field: 'date', key: 'wt_bigprojs' };
+  let s = bp.sessions.find(x => x.id === sessionId);
+  if (!s) s = bp.sessions.find(x => (x.subtasks || []).some(st => st.id === id));
+  const st = s && (s.subtasks || []).find(x => x.id === id);
+  return st ? { obj: st, field: 'date', key: 'wt_bigprojs' } : null;
+}
+function ffCommit(src, id, projId, sessionId) {
+  const found = _ffFindObj(src, id, projId, sessionId);
+  if (!found || !found.obj) { showSyncToast('Could not find that item any more.', 'warn'); return; }
+  const { obj, field, key } = found;
+  if (obj.recurrence) { showSyncToast('Recurring items are never re-placed here — move a single occurrence from its row instead.', 'warn'); return; }
+  const r = forwardFill().results.find(x => x.src === src && x.id === id);
+  if (!r || !r.plan.length) { showSyncToast('Nothing to place for that item.', 'warn'); return; }
+  const start = r.plan[0].date;
+  const deadline = obj[field];
+  if (!deadline || deadline < today()) {
+    // Overdue / undated: the placed finish day becomes the new deadline (via the placement helper).
+    _capAssignOne(obj, field, r.finish);
+    if (start < r.finish) { obj.workDate = start; obj.workSpread = true; }
+  } else {
+    _capAssignOne(obj, field, start);                       // workDate = start (null if start is the deadline)
+    obj.workSpread = !!(obj.workDate && obj.workDate < obj[field]);
+  }
+  save(key, key === 'wt_tasks' ? tasks : bigProjs);
+  _afterDateChange(); renderCapacity();
+  showSyncToast(`📅 ${obj.name || obj.desc}: ${obj.workSpread ? `spread ${fmtDate(obj.workDate)} → ${fmtDate(obj[field])}` : `placed ${fmtDate(obj.workDate || obj[field])}`}`, 'success');
+}
+
+// ── Time off & overhead ──
+function openTimeOffModal() {
+  _renderTimeOffList();
+  const ov = document.getElementById('overheadWeeklyInput'); if (ov) ov.value = overheadWeekly || '';
+  const f = document.getElementById('timeOffFrom'), t = document.getElementById('timeOffTo'), l = document.getElementById('timeOffLabel');
+  if (f) f.value = ''; if (t) t.value = ''; if (l) l.value = '';
+  document.getElementById('timeOffModal').classList.add('open');
+}
+function closeTimeOffModal() { document.getElementById('timeOffModal').classList.remove('open'); renderCapacity(); }
+function _renderTimeOffList() {
+  const el = document.getElementById('timeOffList'); if (!el) return;
+  const rows = timeOff.slice().sort((a, b) => a.from.localeCompare(b.from));
+  el.innerHTML = rows.length ? rows.map(r => `<div class="timeoff-row${r.to < today() ? ' past' : ''}">
+      <span>${fmtDate(r.from)}${r.to !== r.from ? ' – ' + fmtDate(r.to) : ''}</span>
+      <span class="timeoff-lbl">${escHtml(r.label || '')}</span>
+      <span class="timeoff-days">${workingDays(r.from, r.to)} working day${workingDays(r.from, r.to) === 1 ? '' : 's'}</span>
+      <button class="row-edit-btn" onclick="timeOffDelete('${r.id}')" title="Remove" style="color:var(--danger);">×</button>
+    </div>`).join('') : '<div class="timeoff-empty">No time off set. Days here count as 0h room in the forward fill.</div>';
+}
+function timeOffAdd() {
+  const from = document.getElementById('timeOffFrom').value, to = document.getElementById('timeOffTo').value || from;
+  const label = (document.getElementById('timeOffLabel').value || '').trim().slice(0, 60);
+  if (!from) { showSyncToast('Pick a start date.', 'warn'); return; }
+  if (to < from) { showSyncToast('End date is before the start.', 'warn'); return; }
+  timeOff.push({ id: uid(), from, to, label });
+  save('wt_time_off', timeOff);
+  document.getElementById('timeOffFrom').value = ''; document.getElementById('timeOffTo').value = ''; document.getElementById('timeOffLabel').value = '';
+  _renderTimeOffList();
+}
+function timeOffDelete(id) {
+  const r = timeOff.find(x => x.id === id); if (!r) return;
+  timeOff = timeOff.filter(x => x.id !== id);
+  save('wt_time_off', timeOff);
+  _renderTimeOffList();
+  _performDelete(`Removed time off ${fmtDate(r.from)}`, () => {}, () => { timeOff.push(r); save('wt_time_off', timeOff); _renderTimeOffList(); renderCapacity(); });
+}
+function setOverheadWeekly(v) {
+  const n = Math.max(0, Math.min(tsCapacity * 5, snapQuarter(parseFloat(v) || 0)));
+  overheadWeekly = n;
+  save('wt_overhead_weekly', overheadWeekly);
+  const ov = document.getElementById('overheadWeeklyInput'); if (ov && String(ov.value) !== String(n)) ov.value = n || '';
+}
+
 function renderCapacity() {
   const container = document.getElementById('capContent');
   if (!container) return;
@@ -14011,6 +14419,9 @@ function renderCapacity() {
     <span style="color:${yearFree > 0 ? 'var(--success)' : 'var(--danger)'};font-weight:600;">${fmtQ(yearFree)}h free</span>
   `;
   container.insertBefore(summaryEl, container.firstChild);
+  // ⏩ Forward fill headline card sits above everything: the one-line answer to
+  // "how booked am I" plus the what-if box.
+  container.insertBefore(_renderForwardFill(), container.firstChild);
 }
 
 // Shared capacity calendar: one month of days showing committed (logged +
@@ -18570,6 +18981,10 @@ function _maybeShowWelcome() {
 // steps, and _TAB_TIPS below — all three are part of definition-of-done.
 
 const INFO_COPY = {
+  forwardFill: {
+    title: 'Forward fill — how booked am I, and when could X land?',
+    body: 'Every open dated item ahead is either <strong>pinned</strong> (a set work date, a spread plan, a work block, a recurring occurrence — it stays on its day) or <strong>flexible</strong> (placed on its deadline only: a plain due date, a month hold, a future relay leg). Flexible hours are packed <strong>earliest deadline first</strong> into the free room of coming working days — room = hours/day minus weekly overhead ÷ 5, zero on weekends and time off, minus what is already pinned. "Placed through" is the last day that packing needs. An item whose packing runs past its own deadline is <strong>at risk</strong>, with the working days it is late. <strong>What if</strong> drops a hypothetical item into the same packing: "Yes/No", the day it would land, and which existing deadlines it would push — plus the honest answer if you refuse to push anything. Overdue items enter as due today. Nothing here writes; <strong>📅 Plan</strong> commits one item to its placed start as a work date + spread through the normal placement path. Time off and overhead affect only this fill — the month bars and Timesheet targets are deliberately unchanged, because leave is billed to its own code here.'
+  },
   dash: {
     title: 'Dash — every program at a glance',
     body: 'One tile per active program, <strong>worst first</strong> (red → amber → green); programs with nothing open and no hours this month sit as small chips in a <strong>Quiet</strong> row at the bottom — still there, just not competing. Each tile says three things for the current month: <strong>burn vs plan</strong> (logged solid + planned light against the month\'s allocation — the same numbers as the Allocations Reconcile view; "no budget set" when nothing is allocated), <strong>your next deadline</strong> or the reason it needs attention (overdue, over budget, blocked, to delegate, waiting, Inbox items to triage — in that order), and <strong>who holds a baton</strong> on its deliverables. Deadlines count only work that is yours: an item delegated entirely to someone else is not your deadline. Click a tile to open that program\'s boards — the same three signals sit on each sub-code tile there.'
@@ -18731,6 +19146,10 @@ const _TAB_TIPS = {
   capacity: {
     title: 'Capacity — Tips',
     tips: [
+      '<strong>⏩ Forward fill</strong> (top card) answers "how booked am I?": every dated item that is not pinned to a day is packed earliest-deadline-first into the free room of coming working days, and the card says the last day that packing needs, what is <strong>at risk</strong> (cannot fit before its deadline), and how much room is free before then.',
+      '<strong>What if: N h by date</strong> — type the ask before you say yes. You get Yes/No, the day it would land, which existing deadlines it would push, and the honest "without displacing anything" date. Nothing is written.',
+      '<strong>✎ time off &amp; overhead</strong>: days off count as 0h room and weekly overhead (meetings, email) comes off each day — for the fill only; the month bars and Timesheet targets stay as they are because leave is billed to its own code.',
+      '<strong>📅 Plan</strong> next to a placed item commits it: work date = first placed day, hours spread to the deadline, through the normal placement path. Recurring items, holds and relay legs are never re-placed here.',
       'Each month bar = <strong>logged + planned vs weekdays × h/day</strong> — your personal headroom, with all recurrences expanded.',
       'Expand a month → <strong>projects → sub-codes → items</strong>, each with Done / Edit / Move / Delegate actions. On a <strong>▣ block row</strong>, ✓ Done and Move act on that block alone — the parent task (and its other blocks) stay put; Delegate lives on the parent\'s row. On a <strong>↻ recurring row</strong>, Move and ⏭ Skip act on that occurrence only — the series never re-anchors; ◇ month holds still move whole months.',
       '<strong>◷ Schedule work</strong> opens the board: select overdue, held, or undated items and click a day to place them — or <strong>Park</strong> them in a month to decide later.',
@@ -18912,6 +19331,8 @@ function reloadStateFromLocalStorage() {
   _focusMode = load('wt_focus_mode', false);
   boards = load('wt_boards', []) || [];
   boardCards = load('wt_board_cards', []) || [];
+  timeOff = load('wt_time_off', []) || [];
+  overheadWeekly = parseFloat(load('wt_overhead_weekly', 0)) || 0;
 }
 
 // Task "Waiting On" retired (Sep 2026): it was redundant with notes, which

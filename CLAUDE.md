@@ -75,7 +75,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | **Projects** | Lands on **⌂ Dash** (Sep 2026): one tile per active program, worst first, each saying burn vs plan for the month, my next deadline or the attention reason, and baton holders; quiet programs compress to chips. **▦ Boards**: one sticky-note whiteboard per sub-code plus 💭 Loose thoughts — the thinking surface — with a command panel of sub-code tiles carrying the same three signals above the board, a free-arrange view and a ⊞ Sort 2×2 view. **☰ List** is the per-sub-code ledger of every task/session/subtask/deliverable (metadata, members, bulk moves, close-outs). | `renderProjects()`, `renderProjDash()`, `_projSignals()`, `renderProjBoards()`, `renderProjCodeContent()` |
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
 | **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). Spreadsheet reconciliation via **Import & Audit**. | `renderTimesheet()`, `renderTsCapacityBar()`, `handleTsAuditImport()` |
-| **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, scheduler board, move/delegate. Answers "someone needs this by May — do I have time?" All recurrences expand so future load is true. | `renderCapacity()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
+| **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, scheduler board, move/delegate. Answers "someone needs this by May — do I have time?" All recurrences expand so future load is true. **⏩ Forward fill** (Sep 2026, top card): packs every flexible dated item earliest-deadline-first into coming working days → "placed through <date>", at-risk deadlines, a **What if: N h by date** box, time off + weekly overhead inputs, and 📅 Plan to commit one item. | `renderCapacity()`, `_renderForwardFill()`, `forwardFill()`, `ffWhatIf()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
 | **Allocations** | Budgeted vs actual hours per project/sub-code per month (BigTime import). Distinct from Capacity: Allocations = budget tracking, Capacity = personal headroom. | `renderAllocations()`, `handleAllocImport()` |
 
 Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
@@ -95,6 +95,8 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_allocations` | Monthly budget allocations, keyed `projKey|scId|YYYY-MM` |
 | `wt_person_allocs` | Per-person monthly hour allocations by billing code, keyed `person|projKey|scId|YYYY-MM` (drives the person-board allocation meters; parse keys from the END — names may contain `|`) |
 | `wt_boards` | Whiteboards: `{ id, projKey, scId, createdAt }` — one per sub-code plus `scId: ''` (the project's **Loose thoughts** board). Auto-created by `_ensureBoards` the first time a project's boards render; boards of inactive/removed sub-codes stay listed while they hold cards (never hide a thought). |
+| `wt_time_off` | Time-off ranges `{ id, from, to, label }` — 0h room in the forward fill only (see Math invariant #11). |
+| `wt_overhead_weekly` | Hours per week of meetings/admin churn that never become tasks — subtracted (÷5 per day) from forward-fill room only. |
 | `wt_board_cards` | Stickies: `{ id, boardId, kind: 'note' \| 'heading' \| 'ref' \| 'meeting', x, y, w, h, color, z, text, urgent, important, createdAt, updatedAt }`. `color` is a palette NAME (`BOARD_COLORS`), never a hex — it is rendered as a CSS class. `urgent`/`important` (`null` = unsorted) drive the ⊞ Sort 2×2 view (`_boardQuadOf`). **`ref` cards** (Sep 2026) carry `ref: { type: 'task' \| 'team' \| 'session' \| 'subtask', id, projId?, sessionId?, label }` and NO text — `_boardRefResolve` looks the item up on every render (due/status/who are never copied); `label` is only the fallback name shown when the item no longer exists. **`meeting` cards** carry `date` and `url` (rendered as a link only when `_boardSafeUrl` accepts an http(s) URL). **Cards carry no hours** — a task created from a card keeps est/dates/code on the task, and the task carries `_boardCard` (the sticky it came from; 💭 chip → `boardRevealCard`). |
 
 Plus ~20 smaller preference/UI keys (`wt_theme`, `wt_ts_capacity`, collapse
@@ -102,7 +104,8 @@ states, …). Anything that must survive across devices belongs in `SYNC_KEYS`.
 Board view state is device-local like `wt_focus_mode`: `wt_proj_view`
 (`dash` | `boards` | `list`, default `dash`), `wt_board_open` (`{projKey:
 boardId}`), `wt_board_view` (`{boardId: 'free' | 'grid'}`), `wt_board_panel`
-(`tiles` | `chips` — the command panel above a board).
+(`tiles` | `chips` — the command panel above a board), `wt_ff_open` (the
+forward-fill details toggle).
 
 ### Conventions
 - **IDs:** `uid()` = `'_' + Math.random().toString(36).slice(2, 11)`
@@ -439,6 +442,31 @@ preserve:
    days they didn't work. Scenario 20 enforces all of this against the real
    export shape.
 
+11. **The forward fill is a read-only lens with its own room formula** (Sep
+   2026 — Phase 3 of `docs/vision-2026-09-boards.md`). `forwardFill()`
+   classifies every open planned item in the next ~26 weeks as **pinned**
+   (`_workDated`, `_spread`, `_block`, `_recur` rows — load on their day) or
+   **flexible** (a plain deadline placement, a month hold bounded to its
+   month, a `_relayFuture` leg), plus items dated before today from the raw
+   arrays (`_ffOverdueFlex` — a passed deadline enters as due today; a
+   passed work date with a live deadline is flexible up to it; missed
+   recurring occurrences and past holds are never re-placed — those belong
+   to ⏩ catch-up and the holds board). Flexible hours pack
+   **earliest-deadline-first** into `room = tsCapacity − overheadWeekly/5`,
+   0 on weekends and `wt_time_off` days, minus pinned load (and today's
+   logged hours). "Placed through" is the last day the packing needs; an
+   item whose packing passes its deadline is **at risk** with its late
+   working days. `ffWhatIf(hours, by)` runs the same packing with a
+   synthetic item twice (in deadline order, and last) to answer fits /
+   lands / newly-late / no-displacement. **Time off and overhead affect
+   only the fill** — the Capacity month bars and Timesheet targets keep
+   `workingDays × tsCapacity` because leave is billed to its own code here
+   (Employee Leave / Holidays) and subtracting days would double-count once
+   the hours are logged. Nothing in the fill writes; **📅 Plan**
+   (`ffCommit`) commits one task/session/subtask through `_capAssignOne` +
+   `workSpread` (Math invariant #3) and refuses recurring items, holds and
+   relay legs. Scenario 25 enforces this.
+
 Known-open minor item (deliberate — see the audit's Minor section): `fmtQ`
 snaps legacy non-quarter values for display only (sums use raw values). The
 audit's other minor items (rounded color thresholds, negative import
@@ -489,6 +517,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Billing / logged hours | `_logRelayLeg`, `wt_completed`, `roundToQuarter`, `enforceQuarter` |
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls`, `payPeriodOf` |
 | Capacity planner / drill-down / scheduler | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold`, `_capAssignOne` |
+| Forward fill / what-if / time off & overhead | `forwardFill`, `_ffOverdueFlex`, `ffWhatIf`, `_renderForwardFill`, `_ffDetailsHtml`, `ffCommit`, `_ffDayCap`, `openTimeOffModal`, `timeOffAdd`, `setOverheadWeekly`, `wt_time_off`, `wt_overhead_weekly` |
 | Allocations / Excel import / rollovers | `renderAllocations`, `handleAllocImport`, `allocKey`, `_rollRemainingForward` |
 | Timesheet audit import (spreadsheet ↔ ledger) | `handleTsAuditImport`, `_buildTsAuditPlan`, `_tsaComputeGroups`, `_tsaActiveRows`, `_commitTsAuditPlan`, `_tsaEntryLocked`, `_tsaParseHours`, `_tsaParseDate`, `_tsaDetectColumns`, `_tsaIsTotalsRow` |
 | Import row ↔ project matching / merge suggestions | `_matchProject`, `_suggestProject`, `_parseBillingCode`, `_aipSetRowProj` |

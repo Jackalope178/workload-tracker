@@ -1,14 +1,24 @@
 # Vision — Boards, command panel, timeline, Capacity 2.0 (Sep 2026)
 
-Status: **Phases 0, 1 and 2 shipped (Sep 11, 2026)** — boards, stickies,
+Status: **Phases 0–3 shipped (Sep 11, 2026)** — boards, stickies,
 capture box, slide strip, ⊞ Sort 2×2, save-state chip (scenario 22);
 promote-to-task, 📌 pin, live linked cards, spatial heading rollups, meeting
 cards with ✂ Task from selection, 💭 back-links, `createdAt` stamping
 (scenario 23); ⌂ Dash landing view + command-panel tiles driven by
-`_projSignals` (scenario 24). Revised the same day after the owner answered
-the ten open questions (answers folded in below). Phase 3 (forward-fill
-schedule + what-if) is next; everything after it is sequenced but will be
-re-cut as each phase lands.
+`_projSignals` (scenario 24); ⏩ forward fill + what-if + time off/overhead +
+📅 Plan on the Capacity tab (scenario 25). Revised the same day after the
+owner answered the ten open questions (answers folded in below). Phase 4
+(timeline) is next; everything after it is sequenced but will be re-cut as
+each phase lands.
+
+**Phase 3 as built, where it differs from the plan below:** time off and
+overhead feed **only the forward fill**, not the month bars or Timesheet
+targets — leave is billed to its own code in this org (Employee Leave /
+Holidays), so subtracting days from those lenses would double-count once
+the leave hours are logged; the fill horizon is ~26 weeks; overdue items
+come from the raw arrays (a wide backward `plannedItems` window would
+expand every recurrence for years); 📅 Plan commits via work date + spread
+rather than generating work blocks.
 
 **Phase 2 as built, where it differs from the plan below:** the dash is a
 third segment of the view toggle (⌂ Dash · ▦ Boards · ☰ List) and the

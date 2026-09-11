@@ -42,7 +42,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | **Projects** | Lands on **⌂ Dash**: one tile per program, worst first — burn vs plan for the month, your next deadline or why it needs attention, who holds a baton; quiet programs compress to chips. **▦ Boards**: one sticky-note whiteboard per sub-code plus 💭 Loose thoughts, with the same signals on each sub-code tile above the board (free-arrange or ⊞ Sort 2×2 view; stickies carry no hours). **☰ List** is the per-sub-code ledger of tasks, sessions, subtasks and deliverables. | `renderProjects()`, `renderProjDash()`, `_projSignals()`, `renderProjBoards()`, `renderProjCodeContent()` |
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
 | **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). Spreadsheet reconciliation via **⬆ Import & Audit**. | `renderTimesheet()`, `renderTsCapacityBar()`, `handleTsAuditImport()` |
-| **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, move/delegate. | `renderCapacity()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
+| **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, move/delegate. **⏩ Forward fill** on top: flexible dated work packed earliest-deadline-first → "placed through", at-risk deadlines, **What if: N h by date**, time off + overhead (fill only), 📅 Plan. | `renderCapacity()`, `forwardFill()`, `ffWhatIf()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
 | **Allocations** | Budgeted vs actual hours per project/sub-code per month (BigTime import). | `renderAllocations()`, `handleAllocImport()` |
 
 Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
@@ -60,6 +60,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_projects_meta` | Project definitions: `{ label, color, billingCode, subCodes[], tags[] }` |
 | `wt_persons` | Team roster |
 | `wt_allocations` | Monthly budget allocations per person/project |
+| `wt_time_off` / `wt_overhead_weekly` | Time-off ranges and weekly overhead hours — they shape the ⏩ forward fill's room per day only |
 | `wt_boards` | Whiteboards, one per sub-code plus the project's 💭 Loose thoughts board: `{ id, projKey, scId, createdAt }` |
 | `wt_board_cards` | Stickies: `{ id, boardId, kind: note \| heading \| ref \| meeting, x, y, w, h, color, z, text, urgent, important, createdAt, updatedAt }` — no hours. `ref` cards link to a task/deliverable/work item and resolve it live (nothing copied); `meeting` cards carry a `date` and an http(s) `url` |
 
@@ -123,6 +124,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 | Task/session → deliverable hand-off (delegation) | `_handoffCreateDeliverable`, `handoffTaskAsDeliverable`, `handoffSessionAsDeliverable`, `delegatedTo`, `capDelegateItem` |
 | Billing / logged hours | `_logRelayLeg`, `wt_completed`, `roundToQuarter` |
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls` |
+| Forward fill / what-if / time off | `forwardFill`, `ffWhatIf`, `_renderForwardFill`, `ffCommit`, `openTimeOffModal` |
 | Capacity planner / drill-down | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold` |
 | Allocations / Excel import | `renderAllocations`, `handleAllocImport` |
 | Timesheet audit import (spreadsheet ↔ ledger) | `handleTsAuditImport`, `_buildTsAuditPlan`, `_tsaComputeGroups`, `_tsaActiveRows`, `_commitTsAuditPlan`, `_tsaEntryLocked` |
