@@ -256,7 +256,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    quick capture → Inbox). The board strip **never hides a board** — sliding
    changes which one is open, the strip stays; the ⊞ Sort 2×2 view keeps
    unsorted stickies in a visible tray, and headings stay out of the grid
-   (structure, not to-dos). Quadrant labels are verbs (Do now / Schedule /
+   (structure, not to-dos). Quadrant labels are verbs (Do now / Up next /
    Delegate / Park) on purpose. Press-and-release on a sticky edits, moving
    more than 6px drags — one gesture set for mouse, touch and pencil. Every
    board mutation goes through `_boardSave`, which drives the save-state chip
@@ -267,7 +267,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    / `_boardTaskFromSelection` create the task with `inbox: true` and no
    date/estimate (so it cannot touch Capacity until triaged), priority
    seeded from the quadrant (`_boardQuadPriority` — Do now → urgent,
-   Schedule → high, Delegate → med **and the modal opens on the Team
+   Up next → high, Delegate → med **and the modal opens on the Team
    section**, Park → low), `createdAt` stamped, and the card becomes a
    `ref`. Linked cards are **live and never copy fields**; a deleted item
    leaves a dashed "no longer exists" card whose ⋯ Unlink turns it back

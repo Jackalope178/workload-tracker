@@ -79,7 +79,7 @@ const { launch, step, done } = require('./_lib');
     const unchanged = tasks.find(t => t.id === '_t1').priority === before;
     return { layout, trayLabel, t2: t2.priority, stored, after, t3, s1, unchanged };
   });
-  step('linked cards sit by priority: urgent→Do now, high→Schedule, med→Delegate, low→Park; the sticky waits in 💭 Ideas', r.layout.do.includes('Urgent one') && r.layout.schedule.includes('Already placed') && r.layout.schedule.includes('Sub bit') && r.layout.delegate.includes('Work item') && r.layout.park.includes('Low one') && r.layout.tray.includes('An idea') && r.trayLabel.includes('Ideas'), r.layout);
+  step('linked cards sit by priority: urgent→Do now, high→Up next, med→Delegate, low→Park; the sticky waits in 💭 Ideas', r.layout.do.includes('Urgent one') && r.layout.schedule.includes('Already placed') && r.layout.schedule.includes('Sub bit') && r.layout.delegate.includes('Work item') && r.layout.park.includes('Low one') && r.layout.tray.includes('An idea') && r.trayLabel.includes('Ideas'), r.layout);
   step('dropping a docket card into Do now sets the task to urgent (saved) and it moves box', r.t2 === 'urgent' && r.stored === 'urgent' && r.after.includes('Low one'), r);
   step('stored linked cards and work items follow the same rule; dropping a task in Ideas never changes it', r.t3 === 'low' && r.s1 === 'high' && r.unchanged, r);
 
