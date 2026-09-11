@@ -3211,10 +3211,6 @@
   .bc-act { display:inline-flex; margin-left:auto; }
   .bc-act .row-edit-btn { font-size:11px; padding:1px 4px; }
   .bc-act + .bc-menu { margin-left:2px; }
-  .board-court { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:6px 14px; border-bottom:1px solid var(--border); background:#f3f8ff; font-size:11px; }
-  .board-court-lbl { font-weight:700; color:var(--accent2); white-space:nowrap; }
-  .board-court-chip { display:inline-flex; align-items:center; gap:4px; background:#fff; border:1px solid var(--border2); border-left:3px solid #7c3aed; border-radius:6px; padding:2px 4px 2px 8px; cursor:pointer; color:var(--text); }
-  .board-court-chip:hover { border-color:var(--accent); }
   .board-origin-chip.meet { display:inline-flex; align-items:center; gap:2px; }
   .dash-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:10px; }
   .dash-allquiet { padding:18px; text-align:center; color:var(--text2); font-size:13px; }
@@ -9554,7 +9550,12 @@ function _boardIsDocketItem(c) {
   return yes;
 }
 function _boardSetItemPriority(ref, pri) {
-  if (ref.type === 'task') { const t = tasks.find(x => x.id === ref.id); if (!t) return false; if (t._deliverableId) return 'mirror'; t.priority = pri; save('wt_tasks', tasks); return true; }
+  if (ref.type === 'task') {
+    const t = tasks.find(x => x.id === ref.id); if (!t) return false;
+    if (t._deliverableId) return 'mirror';
+    if (t.priority === 'meeting') return 'meeting';   // a meeting is a doorway to its board — demoting it by drag would orphan the notes
+    t.priority = pri; save('wt_tasks', tasks); return true;
+  }
   const bp = bigProjs.find(x => x.id === ref.projId); if (!bp) return false;
   const sess = bp.sessions.find(x => x.id === (ref.type === 'session' ? ref.id : ref.sessionId)); if (!sess) return false;
   const it = ref.type === 'session' ? sess : (sess.subtasks || []).find(x => x.id === ref.id); if (!it) return false;
@@ -9598,18 +9599,6 @@ function _assignBtnFor(ref) {
   return '';
 }
 
-// ── In my court (superseded by the docket; kept for meeting boards = none) ──
-function _boardCourtHtml(board) {
-  if (board.meetingTaskId) return '';
-  const pinned = new Set(boardCards.filter(c => c.boardId === board.id && c.kind === 'ref' && c.ref).map(c => c.ref.type + ':' + c.ref.id));
-  const items = teamItems.filter(d => d.project === board.projKey && (d.subCode || '') === (board.scId || '') && d.status !== 'complete' && _boardBatonOf(d) === 'Me' && !pinned.has('team:' + d.id));
-  if (!items.length) return '';
-  return `<div class="board-court"><span class="board-court-lbl" title="Deliverables where the baton is in your court on this code — 📌 to keep one on the board">◖ In my court</span>${items.map(d => {
-    const st = _isRelay(d) ? relayStage(d) : null;
-    const due = st && st.due ? st.due : d.due;
-    return `<span class="board-court-chip" onclick="openEditTeamModal('${d.id}')" title="Open the deliverable"><span>👥 ${escHtml(d.name)}${st ? ` · ${escHtml((RELAY_KINDS[st.kind] && RELAY_KINDS[st.kind].label) || st.kind)}` : ''}${due ? ` · due ${fmtDate(due)}` : ''}</span><button class="row-edit-btn" onclick="event.stopPropagation();boardPinItem('team','${d.id}')" title="Pin to this board">📌</button></span>`;
-  }).join('')}</div>`;
-}
 function boardOpen(projKey, boardId, dir) {
   _boardOpen[projKey] = boardId; save('wt_board_open', _boardOpen);
   _boardSlideDir = dir || 0;
@@ -10099,6 +10088,7 @@ function _boardSetQuadrant(id, quad) {
     if (!BOARD_QUAD_PRI[quad]) { showSyncToast('Tasks always sit by priority — drop it in Park to make it low.', 'warn'); return; }
     const r = _boardSetItemPriority(c.ref || {}, BOARD_QUAD_PRI[quad]);
     if (r === 'mirror') { showSyncToast('That is a relay leg — its priority lives on the deliverable.', 'warn'); return; }
+    if (r === 'meeting') { showSyncToast('Meetings live on their own board — change the priority in the task form if you really want to convert it.', 'warn'); return; }
     if (!r) { showSyncToast('Deliverables have no priority — use ◖ to move the baton instead.', 'warn'); return; }
     showSyncToast(`${_boardRefResolve(c.ref).name}: priority → ${BOARD_QUAD_PRI[quad]}`, 'success');
     renderTasks(); _boardRefreshBody();
@@ -10206,7 +10196,7 @@ function boardCardMenu(ev, id) {
     BOARD_COLORS.forEach(col => items.push({ value: 'color:' + col, label: col[0].toUpperCase() + col.slice(1), swatch: BOARD_COLOR_HEX[col] }));
     items.push({ value: 'kind', label: c.kind === 'heading' ? 'Turn into a sticky' : 'Turn into a heading' });
   }
-  if (_boardQuadOf(c)) items.push({ value: 'unsort', label: 'Clear urgent / important' });
+  if (c.kind !== 'ref' && _boardQuadOf(c)) items.push({ value: 'unsort', label: 'Clear urgent / important' });
   items.push({ value: 'front', label: 'Bring to front' });
   items.push({ value: 'delete', label: c.kind === 'ref' ? '🗑 Remove from board (the item stays)' : '🗑 Delete' });
   if (c.kind === 'ref' && !c.virtual && _boardIsDocketItem(c)) items.splice(items.findIndex(i => i.value === 'delete'), 1);   // docket items go back to the strip instead
@@ -10222,7 +10212,13 @@ function boardCardMenu(ev, id) {
       if (ref.type === 'task') showTaskAssignDropdown(fake, ref.id); else showAssignDropdown(fake, ref.projId, ref.type === 'session' ? ref.id : ref.sessionId, ref.type === 'subtask' ? ref.id : undefined);
       return;
     }
-    if (v.startsWith('baton:')) { showBatonMenu({ currentTarget: anchor, stopPropagation() {} }, v.slice(6)); return; }
+    if (v.startsWith('baton:')) {
+      // _ddSelect closes #dropdownMenu right after this callback — open the
+      // baton menu (same element) on the next tick or it vanishes unseen.
+      const anch = anchor, did = v.slice(6);
+      setTimeout(() => showBatonMenu({ currentTarget: anch, stopPropagation() {} }, did), 0);
+      return;
+    }
     if (v === 'unlink') {
       const r = _boardRefResolve(c.ref || {});
       c.kind = 'note'; c.text = (r.name || '').slice(0, 2000); c.ref = null; c.color = 'yellow'; c.h = Math.max(c.h || 0, 120);

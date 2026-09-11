@@ -24,7 +24,12 @@ of the owner's on that code is a virtual live card (strip in the free
 view; by priority in the 2×2, where dragging between boxes changes the
 priority); the tray is 💭 Ideas; ↗ Assign and ◖ Baton are reachable from
 cards, ☰ List rows and ▬ Timeline rows through the existing dropdowns
-(scenario 28). The ◖ In my court strip was superseded by the docket.
+(scenario 28). The ◖ In my court strip was superseded by the docket and
+removed. An Opus code review of that change caught one real bug before
+release (the baton submenu opened from a card's ⋯ menu was closed in the
+same tick by the generic dropdown) plus two guards (no "clear
+urgent/important" on linked cards; a pinned meeting can never be demoted
+by dropping it in a 2×2 box, which would orphan its meeting board).
 
 **Phase 4 as built, where it differs from the plan below:** the timeline
 is a fourth segment of the Projects view toggle (⌂ Dash · ▬ Timeline · ▦

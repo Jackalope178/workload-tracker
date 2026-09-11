@@ -104,5 +104,29 @@ const { launch, step, done } = require('./_lib');
   step('↗ Assign sits on task cards and timeline rows; ◖ Baton on ☰ List and timeline deliverable rows', r.assignOnCard && r.listBaton && r.tlBaton && r.tlAssign && r.tlAssignSub, r);
   step('the baton menu on my relay leg offers ✓ Finish (last leg) / ↩ Send back / open', r.menu.some(m => m.includes('Finish')) && r.menu.some(m => m.includes('Send back')) && r.menu.some(m => m.includes('Open deliverable')), r.menu);
 
+  // 5. Review fixes: baton menu from a card's ⋯ menu survives the dropdown close; no 'unsort' on linked cards; meetings never demoted by drag.
+  r = await page.evaluate(async () => {
+    _setProjView('boards'); boardOpen('pa', '_b1');
+    boardPinItem('team', '_d1');
+    const card = boardCards.find(c => c.boardId === '_b1' && c.kind === 'ref' && c.ref.id === '_d1');
+    const btn = document.querySelector(`.bcard[data-card-id="${card.id}"] .bc-menu`);
+    boardCardMenu({ currentTarget: btn, target: btn }, card.id);
+    const menu1 = [...document.querySelectorAll('#dropdownMenu .dropdown-item')].map(e => e.textContent.trim());
+    const unsortOnRef = menu1.some(m => m.includes('Clear urgent'));
+    const batonIdx = menu1.findIndex(m => m.includes('Baton'));
+    _ddSelect(batonIdx);
+    await new Promise(r => setTimeout(r, 30));
+    const open = document.getElementById('dropdownMenu').classList.contains('open');
+    const menu2 = [...document.querySelectorAll('#dropdownMenu .dropdown-item')].map(e => e.textContent.trim());
+    closeDropdown();
+    boardPinItem('task', '_t4');
+    const mcard = boardCards.find(c => c.boardId === '_b1' && c.kind === 'ref' && c.ref.id === '_t4');
+    _boardSetQuadrant(mcard.id, 'do');
+    const stillMeeting = tasks.find(x => x.id === '_t4').priority === 'meeting';
+    return { unsortOnRef, open, menu2, stillMeeting };
+  });
+  step('◖ Baton from a card\'s ⋯ menu opens the baton menu (survives the dropdown close)', r.open && r.menu2.some(m => m.includes('Finish') || m.includes('Pass')), r);
+  step('linked cards offer no "Clear urgent / important"; a pinned meeting is never demoted by dropping it in a box', !r.unsortOnRef && r.stillMeeting, r);
+
   await done(browser);
 })().catch(e => { console.error('FATAL:', e); process.exit(1); });
