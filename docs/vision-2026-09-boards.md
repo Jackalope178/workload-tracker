@@ -19,6 +19,13 @@ pre-seeded headings, no summaries. ◖ In my court above a sub-code board
 lists deliverables whose baton is the owner's, before any pinning
 (scenario 27).
 
+**Follow-up 2 (Sep 11):** the board is also the docket — every open item
+of the owner's on that code is a virtual live card (strip in the free
+view; by priority in the 2×2, where dragging between boxes changes the
+priority); the tray is 💭 Ideas; ↗ Assign and ◖ Baton are reachable from
+cards, ☰ List rows and ▬ Timeline rows through the existing dropdowns
+(scenario 28). The ◖ In my court strip was superseded by the docket.
+
 **Phase 4 as built, where it differs from the plan below:** the timeline
 is a fourth segment of the Projects view toggle (⌂ Dash · ▬ Timeline · ▦
 Boards · ☰ List) rather than a separate tab; the scale is a fixed 4 px per

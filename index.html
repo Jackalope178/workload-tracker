@@ -3202,6 +3202,15 @@
   .board-meet-empty { font-size:11px; color:var(--text3); font-style:italic; padding:2px 0; }
   .board-meet-past { font-family:inherit; font-size:10.5px; color:var(--text3); background:transparent; border:none; text-align:left; padding:3px 4px; cursor:pointer; }
   .board-meet-past:hover { color:var(--text); }
+  .board-docket { display:flex; align-items:flex-start; gap:8px; padding:8px 14px; border-bottom:1px solid var(--border); background:#f6f8fc; }
+  .board-docket-lbl { font-size:11px; font-weight:700; color:var(--accent2); white-space:nowrap; display:inline-flex; align-items:center; gap:4px; padding-top:6px; }
+  .board-docket-cards { display:flex; gap:8px; overflow-x:auto; flex:1; padding:2px 2px 6px; scrollbar-width:thin; }
+  .board-docket .bcard.bc-flow { width:190px; min-height:0; max-height:96px; flex-shrink:0; }
+  .board-docket .bc-ref-name { font-size:12px; }
+  .bcard.bc-virtual { border-style:dashed; }
+  .bc-act { display:inline-flex; margin-left:auto; }
+  .bc-act .row-edit-btn { font-size:11px; padding:1px 4px; }
+  .bc-act + .bc-menu { margin-left:2px; }
   .board-court { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:6px 14px; border-bottom:1px solid var(--border); background:#f3f8ff; font-size:11px; }
   .board-court-lbl { font-weight:700; color:var(--accent2); white-space:nowrap; }
   .board-court-chip { display:inline-flex; align-items:center; gap:4px; background:#fff; border:1px solid var(--border2); border-left:3px solid #7c3aed; border-radius:6px; padding:2px 4px 2px 8px; cursor:pointer; color:var(--text); }
@@ -9322,11 +9331,15 @@ const BOARD_COLORS = ['yellow', 'pink', 'blue', 'green', 'purple', 'orange', 'wh
 const BOARD_COLOR_HEX = { yellow: '#fff3a3', pink: '#ffd6e0', blue: '#d3e8ff', green: '#d5f5dc', purple: '#e8dcff', orange: '#ffe2c4', white: '#ffffff' };
 // Eisenhower quadrants. Labels are verbs on purpose — the box tells you what
 // to do with the thought, not what category it is in.
+// Tasks (and work items) sit in the 2×2 by PRIORITY, and dropping one in a box
+// sets the priority — one rule in both directions (matches promotion).
+const BOARD_PRI_QUAD = { urgent: 'do', high: 'schedule', med: 'delegate', low: 'park' };
+const BOARD_QUAD_PRI = { do: 'urgent', schedule: 'high', delegate: 'med', park: 'low' };
 const BOARD_QUADS = {
-  do:       { urgent: true,  important: true,  label: 'Do now',   hint: 'urgent + important' },
-  schedule: { urgent: false, important: true,  label: 'Schedule', hint: 'important, not urgent' },
-  delegate: { urgent: true,  important: false, label: 'Delegate', hint: 'urgent, not important' },
-  park:     { urgent: false, important: false, label: 'Park',     hint: 'neither — maybe later' }
+  do:       { urgent: true,  important: true,  label: 'Do now',   hint: 'urgent + important · tasks: urgent' },
+  schedule: { urgent: false, important: true,  label: 'Schedule', hint: 'important, not urgent · tasks: high' },
+  delegate: { urgent: true,  important: false, label: 'Delegate', hint: 'urgent, not important · tasks: med' },
+  park:     { urgent: false, important: false, label: 'Park',     hint: 'neither — maybe later · tasks: low' }
 };
 
 // save() wrapper that drives the per-board save chip — the trust signal after
@@ -9470,7 +9483,122 @@ function _boardMeetingsHtml(projKey, board) {
     ${past.length ? `<button class="board-meet-past" onclick="_boardTogglePast('${projKey}')">${open ? '▾' : '▸'} Past (${past.length})</button>${open ? past.map(row).join('') : ''}` : ''}
   </div>`;
 }
-// ── In my court: what is waiting on ME under this sub-code, before I pin anything ──
+// ── The docket: everything open on this sub-code, as live cards, without pinning ──
+// A sub-code board is an idea board AND the read-out of what is queued on
+// that code. Every open task / work item / subtask that is mine (or
+// co-assigned), plus any deliverable in my court that has no mirror task,
+// appears as a VIRTUAL linked card: in the free view on the docket strip
+// (drag one onto the canvas to give it a place — that stores a real card),
+// in the 2×2 view inside the box its PRIORITY maps to (drag between boxes
+// to change the priority). Items already stored as cards on this board are
+// not doubled. Meetings are doorways (their own boards), not docket cards.
+function _boardDocket(board) {
+  if (board.meetingTaskId) return [];
+  const t0 = today();
+  const mine = del => { const d = normDelegated(del); return !d.length || d.includes('Me'); };
+  const stored = new Set(boardCards.filter(c => c.boardId === board.id && c.kind === 'ref' && c.ref).map(c => c.ref.type + ':' + c.ref.id));
+  const storedTeam = new Set(boardCards.filter(c => c.boardId === board.id && c.kind === 'ref' && c.ref && c.ref.type === 'team').map(c => c.ref.id));
+  const out = [];
+  const mk = (type, id, extra, sortDate, name) => {
+    if (stored.has(type + ':' + id)) return;
+    const ref = Object.assign({ type, id, label: name }, extra || {});
+    out.push({ id: 'v:' + type + ':' + id, boardId: board.id, kind: 'ref', ref, virtual: true, x: 0, y: 0, w: 200, h: 120, color: 'white', z: 0, urgent: null, important: null, _sort: sortDate || '9999' });
+  };
+  tasks.forEach(t => {
+    if (t.completed || t.project !== board.projKey || (t.subCode || '') !== (board.scId || '') || t.priority === 'meeting' || !mine(t.delegatedTo) || isProjArchived(t.project)) return;
+    if (t._deliverableId && storedTeam.has(t._deliverableId)) return;   // its deliverable is already a card here
+    mk('task', t.id, null, t.workDate || t.due || (t.recurrence ? _nextUpcomingRecurrence(t) : ''), t.name);
+  });
+  bigProjs.forEach(bp => {
+    if (bp.project !== board.projKey || isProjArchived(bp.project)) return;
+    (bp.sessions || []).forEach(sess => {
+      const ssc = sess.subCode || bp.defaultSubCode || '';
+      if (!sess.done && ssc === (board.scId || '') && mine(sess.delegatedTo)) mk('session', sess.id, { projId: bp.id }, sess.workDate || sess.date || '', sess.desc);
+      (sess.subtasks || []).forEach(st => {
+        if (st.done || (st.subCode || ssc) !== (board.scId || '') || !mine(st.delegatedTo)) return;
+        mk('subtask', st.id, { projId: bp.id, sessionId: sess.id }, st.workDate || st.date || '', st.desc);
+      });
+    });
+  });
+  // Deliverables in my court that have no mirror task yet (the audit normally creates one).
+  teamItems.forEach(d => {
+    if (d.project !== board.projKey || (d.subCode || '') !== (board.scId || '') || d.status === 'complete' || _boardBatonOf(d) !== 'Me') return;
+    if (tasks.some(t => t._deliverableId === d.id && !t.completed)) return;
+    mk('team', d.id, null, d.due || '', d.name);
+  });
+  out.sort((a, b) => a._sort.localeCompare(b._sort) || (a.ref.label || '').localeCompare(b.ref.label || ''));
+  return out;
+}
+function _boardDocketHtml(board, docket) {
+  if (!docket.length) return '';
+  return `<div class="board-docket"><span class="board-docket-lbl" title="Everything open on this code — drag a card onto the board to give it a place, or ⊞ Sort 2×2 to set priorities by dragging">📋 On the docket <span class="board-tab-n">${docket.length}</span></span><div class="board-docket-cards">${docket.map(c => _boardCardHtml(c, true)).join('')}</div></div>`;
+}
+// A virtual docket card dropped on the canvas becomes a stored, positioned card.
+function _boardMaterialize(virtualId, x, y) {
+  const v = _boardVirtual[virtualId]; if (!v) return null;
+  const board = boards.find(b => b.id === v.boardId); if (!board) return null;
+  const c = { id: uid(), boardId: v.boardId, kind: 'ref', ref: Object.assign({}, v.ref), x: Math.max(0, Math.round((x == null ? 16 : x) / 10) * 10), y: Math.max(0, Math.round((y == null ? 16 : y) / 10) * 10), w: 200, h: 120, color: 'white', z: _boardNextZ(v.boardId), text: '', urgent: null, important: null, createdAt: today(), updatedAt: today() };
+  if (x == null) { const pos = _boardFreeSlot(v.boardId, c.w, c.h); c.x = pos.x; c.y = pos.y; }
+  boardCards.push(c);
+  _boardSave('wt_board_cards');
+  _boardRerender(board.projKey);
+  return c;
+}
+function _boardIsDocketItem(c) {
+  // Would this stored card come back as a docket card if removed? (mine + open + this code)
+  if (!c || c.kind !== 'ref' || !c.ref) return false;
+  const b = boards.find(x => x.id === c.boardId); if (!b || b.meetingTaskId) return false;
+  const saved = boardCards; boardCards = boardCards.filter(k => k.id !== c.id);
+  let yes = false;
+  try { yes = _boardDocket(b).some(v => v.ref.type === c.ref.type && v.ref.id === c.ref.id); } finally { boardCards = saved; }
+  return yes;
+}
+function _boardSetItemPriority(ref, pri) {
+  if (ref.type === 'task') { const t = tasks.find(x => x.id === ref.id); if (!t) return false; if (t._deliverableId) return 'mirror'; t.priority = pri; save('wt_tasks', tasks); return true; }
+  const bp = bigProjs.find(x => x.id === ref.projId); if (!bp) return false;
+  const sess = bp.sessions.find(x => x.id === (ref.type === 'session' ? ref.id : ref.sessionId)); if (!sess) return false;
+  const it = ref.type === 'session' ? sess : (sess.subtasks || []).find(x => x.id === ref.id); if (!it) return false;
+  it.priority = pri; save('wt_bigprojs', bigProjs); return true;
+}
+
+// ── Baton and assignment from anywhere ──
+// One menu for "whose court is it" on any deliverable, reachable from list
+// rows, cards and timeline rows — not just the Team tab.
+function showBatonMenu(e, itemId) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  const d = teamItems.find(t => t.id === itemId); if (!d) return;
+  const anchor = (e && (e.currentTarget || e.target)) || document.body;
+  if (!_isRelay(d)) { showHandoffDropdown({ currentTarget: anchor, stopPropagation() {} }, itemId); return; }
+  const items = [];
+  if (!_relayDone(d)) {
+    const idx = relayIdx(d), cur = relayStage(d), nx = d.relay[idx + 1];
+    if (cur && cur.who === 'Me') {
+      items.push({ value: 'advance', label: nx ? `Pass → ${_relayWho(nx.who)}${nx.due ? ' · due ' + fmtDate(nx.due) : ''}` : '✓ Finish — log time and close the relay' });
+      if (idx > 0) items.push({ value: 'back', label: `↩ Send back to ${_relayWho(d.relay[idx - 1].who)}` });
+    } else if (cur) {
+      items.push({ value: 'open', label: `◖ ${_relayWho(cur.who)} has it — open to change the stages` });
+    }
+  } else items.push({ value: 'open', label: 'Relay complete — open' });
+  items.push({ value: 'open', label: '↗ Open deliverable' });
+  showDropdown(anchor, items, '', v => {
+    if (v === 'advance') relayAdvance(itemId);
+    else if (v === 'back') relayBack(itemId);
+    else openEditTeamModal(itemId);
+  });
+}
+function _batonBtn(itemId) {
+  return `<button class="row-edit-btn" onclick="showBatonMenu(event,'${itemId}')" title="Baton — whose court is it, pass it on" style="opacity:0.8;font-size:12px;">◖</button>`;
+}
+function _assignBtnFor(ref) {
+  if (!ref) return '';
+  if (ref.type === 'task') { const t = tasks.find(x => x.id === ref.id); if (!t || t._deliverableId) return ''; return `<button class="row-edit-btn" onclick="showTaskAssignDropdown(event,'${t.id}')" title="Assign" style="opacity:0.8;font-size:12px;">↗</button>`; }
+  if (ref.type === 'session') return `<button class="row-edit-btn" onclick="event.stopPropagation();showAssignDropdown(event,'${ref.projId}','${ref.id}')" title="Assign" style="opacity:0.8;font-size:12px;">↗</button>`;
+  if (ref.type === 'subtask') return `<button class="row-edit-btn" onclick="event.stopPropagation();showAssignDropdown(event,'${ref.projId}','${ref.sessionId}','${ref.id}')" title="Assign" style="opacity:0.8;font-size:12px;">↗</button>`;
+  if (ref.type === 'team') return _batonBtn(ref.id);
+  return '';
+}
+
+// ── In my court (superseded by the docket; kept for meeting boards = none) ──
 function _boardCourtHtml(board) {
   if (board.meetingTaskId) return '';
   const pinned = new Set(boardCards.filter(c => c.boardId === board.id && c.kind === 'ref' && c.ref).map(c => c.ref.type + ':' + c.ref.id));
@@ -9540,6 +9668,8 @@ function renderProjBoards(projKey) {
   const idx = board ? bl.findIndex(b => b.id === board.id) : -1;
   const view = board ? (_boardViewPref[board.id] || 'free') : 'free';
   const cards = board ? boardCards.filter(c => c.boardId === board.id) : [];
+  const docket = board ? _boardDocket(board) : [];
+  _boardVirtual = {}; docket.forEach(v => { _boardVirtual[v.id] = v; });
 
   let html = `<div class="proj-right-header" style="margin-bottom:10px;">
     <div class="proj-code-dot" style="background:${escHtml(color)};width:12px;height:12px;border-radius:50%;"></div>
@@ -9594,14 +9724,15 @@ function renderProjBoards(projKey) {
       <input type="text" id="boardCapture" placeholder="Toss a thought on this board — Enter adds it, nothing else to decide" autocomplete="off" maxlength="2000">
       <button type="submit" class="btn primary" style="font-size:11px;padding:6px 12px;">Add</button>
     </form>
-    ${_boardCourtHtml(board)}
+    ${view === 'free' ? _boardDocketHtml(board, docket) : ''}
     <div class="board-body" id="boardBody"></div>
   </div>`;
   wrap.innerHTML = html;
   _boardSlideDir = 0;
   _boardChip();
   const body = document.getElementById('boardBody');
-  if (view === 'grid') _renderBoardGrid(body, board, cards); else _renderBoardFree(body, board, cards);
+  wrap.querySelectorAll('.board-docket .bcard').forEach(_boardBindCard);
+  if (view === 'grid') _renderBoardGrid(body, board, cards, docket); else _renderBoardFree(body, board, cards);
   _boardBindSwipe(wrap.querySelector('.board-head'), projKey);
 }
 
@@ -9612,16 +9743,17 @@ function _renderBoardFree(body, board, cards) {
   const canvasW = Math.max(body.clientWidth || 800, maxR + 260);
   const canvasH = Math.max(body.clientHeight || 500, maxB + 220);
   const sorted = cards.slice().sort((a, b) => (a.z || 0) - (b.z || 0));
-  body.innerHTML = `<div class="board-canvas" id="boardCanvas" style="width:${canvasW}px;height:${canvasH}px;">` +
+  body.innerHTML = `<div class="board-canvas" id="boardCanvas" data-drop="canvas" style="width:${canvasW}px;height:${canvasH}px;">` +
     (cards.length ? '' : '<div class="board-empty">Nothing here yet.<span>Type a thought above and press Enter — it lands here as a sticky. Drag to arrange, tap to edit, ⋯ for colour.</span></div>') +
     sorted.map(c => _boardCardHtml(c, false, cards)).join('') + '</div>';
   body.querySelectorAll('.bcard').forEach(_boardBindCard);
 }
 
-function _renderBoardGrid(body, board, cards) {
+function _renderBoardGrid(body, board, cards, docket) {
   body.className = 'board-body board-gridwrap';
-  const notes = cards.filter(c => c.kind !== 'heading');
-  const headings = cards.length - notes.length;
+  if (!docket) docket = Object.values(_boardVirtual).filter(v => v.boardId === board.id);
+  const notes = cards.filter(c => c.kind !== 'heading').concat(docket);
+  const headings = cards.length - cards.filter(c => c.kind !== 'heading').length;
   const byQ = { do: [], schedule: [], delegate: [], park: [], tray: [] };
   notes.forEach(c => byQ[_boardQuadOf(c) || 'tray'].push(c));
   const quad = q => `<div class="board-quad q-${q}" data-quad="${q}">
@@ -9634,7 +9766,7 @@ function _renderBoardGrid(body, board, cards) {
       ${quad('do')}${quad('schedule')}${quad('delegate')}${quad('park')}
     </div>
     <div class="board-tray" data-quad="tray">
-      <div class="board-quad-head"><strong>Unsorted</strong><span>drag a sticky into a box — nothing is hidden here</span><em>${byQ.tray.length}</em></div>
+      <div class="board-quad-head"><strong>💭 Ideas</strong><span>thoughts not sorted yet — drag one into a box; tasks sit by priority</span><em>${byQ.tray.length}</em></div>
       <div class="board-quad-cards">${byQ.tray.map(c => _boardCardHtml(c, true)).join('') || '<div class="board-quad-empty">everything is sorted ✓</div>'}</div>
       ${headings ? `<div class="board-tray-note">${headings} heading${headings > 1 ? 's' : ''} stay on the Free view — headings are structure, not to-dos.</div>` : ''}
     </div>`;
@@ -9659,8 +9791,9 @@ function _boardCardHtml(c, flow, allCards) {
     const dueHtml = r.found && r.due ? `<span class="bc-ref-due ${r.done ? '' : dueCls(r.due)}">${r.due < today() && !r.done ? '⚠ ' : ''}${fmtDate(r.due)}</span>` : '';
     const estHtml = r.found && r.est ? `<span>${fmtQ(r.est)}h</span>` : '';
     const badge = !r.found ? 'no longer exists' : r.done ? 'done ✓' : r.badge;
-    return `<div class="bcard bc-ref bc-${ref.type || 'task'}${r.done ? ' done' : ''}${r.found ? '' : ' missing'}${flow ? ' bc-flow' : ''}" data-card-id="${c.id}" style="${style}" title="${r.found ? 'Tap to open' : 'The linked item is gone — ⋯ to keep it as a sticky'}">
-      <div class="bc-top"><span class="bc-ref-kind">${r.icon} ${typeLbl}</span>${quadTag}${menuBtn}</div>
+    const act = r.found && !r.done ? `<span class="bc-act" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()">${_assignBtnFor(ref)}</span>` : '';
+    return `<div class="bcard bc-ref bc-${ref.type || 'task'}${r.done ? ' done' : ''}${r.found ? '' : ' missing'}${flow ? ' bc-flow' : ''}${c.virtual ? ' bc-virtual' : ''}" data-card-id="${c.id}" style="${style}" title="${r.found ? 'Tap to open · drag to place or to change priority' : 'The linked item is gone — ⋯ to keep it as a sticky'}">
+      <div class="bc-top"><span class="bc-ref-kind">${r.icon} ${typeLbl}</span>${quadTag}${act}${menuBtn}</div>
       <div class="bc-text bc-ref-name">${escHtml(r.name)}</div>
       <div class="bc-ref-meta">${dueHtml}${estHtml}${badge ? `<span class="bc-ref-badge">${escHtml(badge)}</span>` : ''}${r.who.length ? delegateTagsHtml(r.who) : ''}</div>
       ${resize}
@@ -9741,7 +9874,7 @@ function _boardRefResolve(ref) {
     out.found = true; out.name = d.name; out.done = d.status === 'complete'; out.due = d.due || ''; out.est = d.est || 0;
     const holder = _boardBatonOf(d); out.who = holder ? [holder] : [];
     out.badge = out.done ? '' : (_isRelay(d) ? relayStatusInfo(d).label : (STATUS_LABELS[d.status] || d.status || ''));
-    out.icon = '👥';
+    out.icon = '👥'; out.pri = null;   // deliverables carry no priority → no quadrant
   } else if (ref.type === 'session' || ref.type === 'subtask') {
     const bp = bigProjs.find(x => x.id === ref.projId); if (!bp) return out;
     const s = bp.sessions.find(x => x.id === (ref.type === 'session' ? ref.id : ref.sessionId)); if (!s) return out;
@@ -9763,9 +9896,16 @@ function _boardRefOpen(c) {
   else if (ref.type === 'subtask') openEditSubtaskModal(ref.projId, ref.sessionId, ref.id);
 }
 function _boardQuadOf(c) {
+  if (c.kind === 'ref') {
+    const r = _boardRefResolve(c.ref || {});
+    return r.found && r.pri ? (BOARD_PRI_QUAD[r.pri] || null) : null;
+  }
   if (c.urgent == null || c.important == null) return null;
   return c.urgent ? (c.important ? 'do' : 'delegate') : (c.important ? 'schedule' : 'park');
 }
+// Stored card or one of this render's virtual docket cards.
+let _boardVirtual = {};
+function _boardCardById(id) { return boardCards.find(k => k.id === id) || _boardVirtual[id] || null; }
 function _boardNextZ(boardId) {
   return boardCards.filter(c => c.boardId === boardId).reduce((m, c) => Math.max(m, c.z || 0), 0) + 1;
 }
@@ -9775,9 +9915,18 @@ function _boardRefreshBody() {
   const board = boards.find(b => b.id === stage.dataset.boardId); if (!board) return;
   const body = document.getElementById('boardBody'); if (!body) return;
   const cards = boardCards.filter(c => c.boardId === board.id);
+  const docket = _boardDocket(board);
+  _boardVirtual = {}; docket.forEach(v => { _boardVirtual[v.id] = v; });
   const sl = body.scrollLeft, st = body.scrollTop;
-  if ((_boardViewPref[board.id] || 'free') === 'grid') _renderBoardGrid(body, board, cards);
-  else _renderBoardFree(body, board, cards);
+  if ((_boardViewPref[board.id] || 'free') === 'grid') _renderBoardGrid(body, board, cards, docket);
+  else {
+    _renderBoardFree(body, board, cards);
+    const strip = stage.querySelector('.board-docket');
+    const html = _boardDocketHtml(board, docket);
+    if (strip) { if (html) strip.outerHTML = html; else strip.remove(); }
+    else if (html) body.insertAdjacentHTML('beforebegin', html);
+    stage.querySelectorAll('.board-docket .bcard').forEach(_boardBindCard);
+  }
   body.scrollLeft = sl; body.scrollTop = st;
 }
 
@@ -9875,7 +10024,7 @@ function _bcPointerUp(e) {
   d.el.classList.remove('dragging');
   if (!d.moved) {
     if (e.type === 'pointercancel') return;
-    const c = boardCards.find(k => k.id === d.id);
+    const c = _boardCardById(d.id);
     if (c && c.kind === 'ref') _boardRefOpen(c); else boardCardEdit(d.id);
     return;
   }
@@ -9926,7 +10075,7 @@ function _bcGhostMove(d, e) {
 }
 function _bcQuadAt(x, y) {
   const under = document.elementFromPoint(x, y);
-  return under ? under.closest('[data-quad]') : null;
+  return under ? under.closest('[data-quad], [data-drop="canvas"]') : null;
 }
 function _bcGhostDrop(d, e) {
   const q = _bcQuadAt(e.clientX, e.clientY);
@@ -9934,10 +10083,27 @@ function _bcGhostDrop(d, e) {
   d.el.classList.remove('bc-lifted');
   document.querySelectorAll('.board-quad.over, .board-tray.over').forEach(x => x.classList.remove('over'));
   if (!q) return;
+  if (q.dataset.drop === 'canvas') {
+    // Docket card dropped onto the free board: give it a place.
+    if (!_boardVirtual[d.id]) return;
+    const rect = q.getBoundingClientRect();
+    _boardMaterialize(d.id, e.clientX - rect.left - 40, e.clientY - rect.top - 20);
+    return;
+  }
   _boardSetQuadrant(d.id, q.dataset.quad);
 }
 function _boardSetQuadrant(id, quad) {
-  const c = boardCards.find(k => k.id === id); if (!c) return;
+  const c = _boardCardById(id); if (!c) return;
+  if (c.kind === 'ref') {
+    // Linked cards sit by the item's priority: the box IS the priority.
+    if (!BOARD_QUAD_PRI[quad]) { showSyncToast('Tasks always sit by priority — drop it in Park to make it low.', 'warn'); return; }
+    const r = _boardSetItemPriority(c.ref || {}, BOARD_QUAD_PRI[quad]);
+    if (r === 'mirror') { showSyncToast('That is a relay leg — its priority lives on the deliverable.', 'warn'); return; }
+    if (!r) { showSyncToast('Deliverables have no priority — use ◖ to move the baton instead.', 'warn'); return; }
+    showSyncToast(`${_boardRefResolve(c.ref).name}: priority → ${BOARD_QUAD_PRI[quad]}`, 'success');
+    renderTasks(); _boardRefreshBody();
+    return;
+  }
   if (!BOARD_QUADS[quad]) { c.urgent = null; c.important = null; }
   else { c.urgent = BOARD_QUADS[quad].urgent; c.important = BOARD_QUADS[quad].important; }
   c.updatedAt = today();
@@ -10014,13 +10180,27 @@ function boardCardEdit(id) {
 
 // ── Card menu / delete ──
 function boardCardMenu(ev, id) {
-  const c = boardCards.find(k => k.id === id); if (!c) return;
+  const c = _boardCardById(id); if (!c) return;
   const items = [];
+  const anchor = ev.currentTarget || ev.target;
   if (c.kind === 'note') items.push({ value: 'promote', label: '☐ Make this a task' });
   if (c.kind === 'ref') {
     const r = _boardRefResolve(c.ref || {});
+    const ref = c.ref || {};
     if (r.found) items.push({ value: 'open', label: '↗ Open' });
-    items.push({ value: 'unlink', label: '💭 Unlink — keep as a sticky' });
+    if (r.found && ref.type === 'task') {
+      const t = tasks.find(x => x.id === ref.id);
+      if (t && !t._deliverableId) items.push({ value: 'assign', label: '↗ Assign to…' });
+      if (t && t._deliverableId) {
+        const d = teamItems.find(x => x.id === t._deliverableId);
+        if (d && _isRelay(d) && !_relayDone(d) && relayStage(d)?.who === 'Me') items.push({ value: 'baton:' + d.id, label: d.relay[relayIdx(d) + 1] ? '◖ Pass the baton →' : '◖ ✓ Finish the relay' });
+      }
+    }
+    if (r.found && (ref.type === 'session' || ref.type === 'subtask')) items.push({ value: 'assign', label: '↗ Assign to…' });
+    if (r.found && ref.type === 'team') items.push({ value: 'baton:' + ref.id, label: '◖ Baton — pass it on' });
+    if (c.virtual) items.push({ value: 'pin', label: '📌 Give it a place on the board' });
+    else if (_boardIsDocketItem(c)) items.push({ value: 'todocket', label: '↩ Back to the docket strip' });
+    else items.push({ value: 'unlink', label: '💭 Unlink — keep as a sticky' });
   }
   if (c.kind === 'note' || c.kind === 'heading') {
     BOARD_COLORS.forEach(col => items.push({ value: 'color:' + col, label: col[0].toUpperCase() + col.slice(1), swatch: BOARD_COLOR_HEX[col] }));
@@ -10029,10 +10209,20 @@ function boardCardMenu(ev, id) {
   if (_boardQuadOf(c)) items.push({ value: 'unsort', label: 'Clear urgent / important' });
   items.push({ value: 'front', label: 'Bring to front' });
   items.push({ value: 'delete', label: c.kind === 'ref' ? '🗑 Remove from board (the item stays)' : '🗑 Delete' });
-  showDropdown(ev.currentTarget || ev.target, items, 'color:' + (c.color || 'yellow'), v => {
+  if (c.kind === 'ref' && !c.virtual && _boardIsDocketItem(c)) items.splice(items.findIndex(i => i.value === 'delete'), 1);   // docket items go back to the strip instead
+  if (c.virtual) { items.splice(items.findIndex(i => i.value === 'front'), 2); }   // no z-order / delete for docket cards
+  showDropdown(anchor, items, 'color:' + (c.color || 'yellow'), v => {
     if (v === 'delete') { boardCardDelete(id); return; }
+    if (v === 'todocket') { boardCards = boardCards.filter(k => k.id !== id); _boardSave('wt_board_cards'); _boardRefreshBody(); showSyncToast('Back on the docket strip.', 'success'); return; }
+    if (v === 'pin') { _boardMaterialize(id, null, null); return; }
     if (v === 'promote') { boardPromoteCard(id); return; }
     if (v === 'open') { _boardRefOpen(c); return; }
+    if (v === 'assign') {
+      const ref = c.ref || {}; const fake = { currentTarget: anchor, stopPropagation() {} };
+      if (ref.type === 'task') showTaskAssignDropdown(fake, ref.id); else showAssignDropdown(fake, ref.projId, ref.type === 'session' ? ref.id : ref.sessionId, ref.type === 'subtask' ? ref.id : undefined);
+      return;
+    }
+    if (v.startsWith('baton:')) { showBatonMenu({ currentTarget: anchor, stopPropagation() {} }, v.slice(6)); return; }
     if (v === 'unlink') {
       const r = _boardRefResolve(c.ref || {});
       c.kind = 'note'; c.text = (r.name || '').slice(0, 2000); c.ref = null; c.color = 'yellow'; c.h = Math.max(c.h || 0, 120);
@@ -10374,7 +10564,7 @@ function _tlItems() {
       const ssc = s.subCode || bp.defaultSubCode || '';
       if (!s.done || _tlShowDone) {
         const who = normDelegated(s.delegatedTo);
-        out.push({ key: 'session:' + s.id, type: 'session', id: s.id, projKey: bp.project, scId: ssc, name: s.desc, done: !!s.done,
+        out.push({ key: 'session:' + s.id, type: 'session', id: s.id, projId: bp.id, projKey: bp.project, scId: ssc, name: s.desc, done: !!s.done,
           start: s.recurrence ? null : (s.start || s.createdAt || null), end: s.recurrence ? (_nextUpcomingRecurrence(s, 'date') || s.date || null) : (s.date || null),
           workDate: s.workDate || null, hold: !s.date && s.allocMonth ? s.allocMonth : null, blocks: [], who: who.length ? who : ['Me'], mine: mine(s.delegatedTo),
           hours: s.hours || 0, recur: !!s.recurrence, open: `openEditSessionModal('${bp.id}','${s.id}')`, move: s.recurrence ? '' : `capMoveItem('session','${bp.id}','${s.id}')` });
@@ -10382,7 +10572,7 @@ function _tlItems() {
       (s.subtasks || []).forEach(st => {
         if (st.done && !_tlShowDone) return;
         const who = normDelegated(st.delegatedTo);
-        out.push({ key: 'subtask:' + st.id, type: 'subtask', id: st.id, projKey: bp.project, scId: st.subCode || ssc, name: '╰ ' + st.desc, done: !!st.done,
+        out.push({ key: 'subtask:' + st.id, type: 'subtask', id: st.id, projId: bp.id, sessionId: s.id, projKey: bp.project, scId: st.subCode || ssc, name: '╰ ' + st.desc, done: !!st.done,
           start: st.start || st.createdAt || null, end: st.date || null, workDate: st.workDate || null, hold: !st.date && st.allocMonth ? st.allocMonth : null, blocks: [],
           who: who.length ? who : ['Me'], mine: mine(st.delegatedTo), hours: st.hours || 0, recur: !!st.recurrence,
           open: `openEditSubtaskModal('${bp.id}','${s.id}','${st.id}')`, move: st.recurrence ? '' : `capMoveItem('subtask','${bp.id}','${s.id}','${st.id}')` });
@@ -10546,7 +10736,7 @@ function _tlRowHtml(it, x, W, t0) {
   }
   const whoHtml = (!it.mine || it.type === 'team' || it.who.length > 1) ? delegateTagsHtml(it.who) : '';
   return `<div class="tl-row tl-item${it.done ? ' done' : ''}" data-key="${it.key}">
-    <div class="tl-label"><span class="tl-name" onclick="${it.open}" title="Open">${icon}${escHtml(it.name)}</span>${whoHtml}${it.move && !it.done ? `<button class="row-edit-btn tl-move" onclick="event.stopPropagation();${it.move}" title="Move to another month">⇄</button>` : ''}</div>
+    <div class="tl-label"><span class="tl-name" onclick="${it.open}" title="Open">${icon}${escHtml(it.name)}</span>${whoHtml}${it.done ? '' : (it.type === 'team' ? _batonBtn(it.id) : _assignBtnFor({ type: it.type, id: it.id, projId: it.projId, sessionId: it.sessionId }))}${it.move && !it.done ? `<button class="row-edit-btn tl-move" onclick="event.stopPropagation();${it.move}" title="Move to another month">⇄</button>` : ''}</div>
     <div class="tl-track" style="width:${W}px;">${track}</div>
   </div>`;
 }
@@ -11227,7 +11417,7 @@ function renderProjItemRow(item, projKey, scId) {
       <div class="session-date">${fmtDate(ti.due)}</div>
       <div class="session-hours">—</div>
       <span class="status-badge ${STATUS_CLS[ti.status] || ''}" style="cursor:pointer;white-space:nowrap;" onclick="event.stopPropagation();showStatusDropdown(event,'${ti.id}')">${STATUS_LABELS[ti.status] || ti.status}</span>
-      <div class="session-row-actions" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">${_boardPinBtn('team', ti.id)}</div>
+      <div class="session-row-actions" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">${isDone ? '' : _batonBtn(ti.id)}${_boardPinBtn('team', ti.id)}</div>
     </div>`;
   }
 
@@ -19410,7 +19600,7 @@ const INFO_COPY = {
   },
   boards: {
     title: 'Boards — the thinking surface for a project',
-    body: 'Each project has one <strong>board per sub-code</strong> plus a <strong>💭 Loose thoughts</strong> board for ideas not filed to a code yet. Type into the capture box and press <strong>Enter</strong> — the thought lands as a sticky, no other decisions needed. Drag stickies to arrange them, tap one to edit, <strong>⋯</strong> for colour / heading / delete. <strong>⊞ Sort 2×2</strong> lays the same stickies into urgent/important boxes (Do now · Schedule · Delegate · Park); unsorted ones wait in a tray underneath, never hidden. Slide between boards with the arrows, <strong>←/→</strong>, or a swipe on the board title. <strong>Stickies carry no hours</strong> and count nowhere — Capacity, Timesheet and Allocations only see tasks. A sticky becomes work via <strong>⋯ → Make this a task</strong>: the task lands in your Inbox (no date yet, so it can\'t touch Capacity until you triage it) and the card turns into a <strong>live linked card</strong> showing its due date, status and who holds it — tap it to open the task. <strong>📌</strong> on any task, work item or deliverable row pins it to its board the same way. A <strong>+ Meeting</strong> card is dated and can carry a link to the notes (Loop page); highlight words in it and click <strong>✂ Task from selection</strong> to pull a task out while the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked beneath it (open count, next deadline, who). The <strong>📅 Meetings</strong> list beside the sub-code tiles shows every meeting-priority task on this program (title + date); click one to open <strong>that meeting\'s own board</strong> — notes to bring before, notes taken during — and past meetings fold behind "Past (n)" so old notes stay reachable without clutter. <strong>◖ In my court</strong> above a board lists deliverables whose baton is yours on this code, with 📌 to keep one on the board. <strong>☰ List</strong> is the full per-sub-code ledger of every task, session and deliverable.'
+    body: 'Each project has one <strong>board per sub-code</strong> plus a <strong>💭 Loose thoughts</strong> board for ideas not filed to a code yet. Type into the capture box and press <strong>Enter</strong> — the thought lands as a sticky, no other decisions needed. Drag stickies to arrange them, tap one to edit, <strong>⋯</strong> for colour / heading / delete. <strong>⊞ Sort 2×2</strong> lays the same stickies into urgent/important boxes (Do now · Schedule · Delegate · Park); unsorted ones wait in a tray underneath, never hidden. Slide between boards with the arrows, <strong>←/→</strong>, or a swipe on the board title. <strong>Stickies carry no hours</strong> and count nowhere — Capacity, Timesheet and Allocations only see tasks. A sticky becomes work via <strong>⋯ → Make this a task</strong>: the task lands in your Inbox (no date yet, so it can\'t touch Capacity until you triage it) and the card turns into a <strong>live linked card</strong> showing its due date, status and who holds it — tap it to open the task. <strong>📌</strong> on any task, work item or deliverable row pins it to its board the same way. A <strong>+ Meeting</strong> card is dated and can carry a link to the notes (Loop page); highlight words in it and click <strong>✂ Task from selection</strong> to pull a task out while the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked beneath it (open count, next deadline, who). The <strong>📅 Meetings</strong> list beside the sub-code tiles shows every meeting-priority task on this program (title + date); click one to open <strong>that meeting\'s own board</strong> — notes to bring before, notes taken during — and past meetings fold behind "Past (n)" so old notes stay reachable without clutter. <strong>📋 On the docket</strong> above a board is everything open on this code — every task, work item and subtask that is yours, as dashed live cards; drag one onto the board to give it a place, or open <strong>⊞ Sort 2×2</strong> where tasks sit in the box their priority maps to (Do now = urgent · Schedule = high · Delegate = med · Park = low) and dragging between boxes <strong>changes the priority</strong>. Thoughts you have not sorted wait in <strong>💭 Ideas</strong>. ↗ on a card assigns it; ◖ on a deliverable passes the baton — the same controls sit on ☰ List and ▬ Timeline rows. <strong>☰ List</strong> is the full per-sub-code ledger of every task, session and deliverable.'
   },
   payPeriodBar: {
     title: 'Pay-period bar — logged hours only',
@@ -19521,7 +19711,7 @@ const _TAB_TIPS = {
       '<strong>⊞ Sort 2×2</strong> drops the same stickies into Do now / Schedule / Delegate / Park boxes. Unsorted ones sit in the tray below — nothing is ever hidden. Stickies carry <strong>no hours</strong> and never touch Capacity or the Timesheet.',
       'Slide between boards with <strong>‹ ›</strong>, the <strong>← →</strong> keys, or a swipe on the board title. The chip next to the view toggle says whether the board is <strong>synced</strong> or saved on this device only.',
       '<strong>⋯ → Make this a task</strong> turns a sticky into an Inbox task and the card into a <strong>live linked card</strong> (due, status, who holds it — tap to open). From the Delegate box it opens the task\'s Team section first. <strong>📌</strong> on any row pins an existing item to its board; <strong>💭</strong> on a task jumps back to the sticky it came from.',
-      '<strong>📅 Meetings</strong> (beside the sub-code tiles) lists this program\'s meeting-priority tasks by date; click one to open that meeting\'s own board for notes to bring and notes taken. Past meetings fold behind "Past (n)". From My Tasks, the 📅💭 chip on a meeting row jumps straight to its board. <strong>◖ In my court</strong> above a board shows deliverables waiting on you under that code — 📌 keeps one on the board.',
+      '<strong>📅 Meetings</strong> (beside the sub-code tiles) lists this program\'s meeting-priority tasks by date; click one to open that meeting\'s own board for notes to bring and notes taken. Past meetings fold behind "Past (n)". From My Tasks, the 📅💭 chip on a meeting row jumps straight to its board. <strong>📋 On the docket</strong> above a board shows everything open on that code as dashed live cards — drag one onto the board to place it; in <strong>⊞ Sort 2×2</strong> tasks sit by priority and dragging between boxes changes it. <strong>💭 Ideas</strong> holds unsorted thoughts. ↗ assigns, ◖ passes a baton — from cards, ☰ List rows and ▬ Timeline rows alike.',
       '<strong>+ Meeting</strong> adds a dated notes card (paste from Loop, keep the link). Highlight words, click <strong>✂ Task from selection</strong> — the task is created and the note keeps its text. A <strong>heading</strong> rolls up the linked cards stacked under it: open count, next deadline, baton holders.',
       '<strong>☰ List</strong> is the full ledger: every task, session, subtask and deliverable grouped by sub-code. Click a <strong>project card</strong> there to expand it and see sessions/subtasks.',
       'Use <strong>+ Add Session</strong> to create work items within a project.',

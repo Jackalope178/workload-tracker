@@ -312,11 +312,32 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    No pre-seeded headings, no summaries on the row beyond a sticky count.
    A meeting board is never a sub-code tile and → from it lands on the
    first sub-code board. The My Tasks row of a meeting carries a 📅💭 chip
-   (`boardGoMeeting`) straight onto its board. **◖ In my court**
-   (`_boardCourtHtml`) sits above a sub-code board listing deliverables
-   whose baton is `'Me'` on that code that are not yet pinned — the board
-   shows what is waiting on you before you pin anything. Scenario 27
+   (`boardGoMeeting`) straight onto its board. Scenario 27 enforces this.
+   **A sub-code board is an idea board AND the docket** (Sep 2026 —
+   `_boardDocket`). Every open task / work item / subtask that is mine or
+   co-assigned on that code, plus a deliverable in my court with no mirror
+   task, renders as a **virtual** linked card (id `v:<type>:<id>`, dashed,
+   in `_boardVirtual`, never stored): on the 📋 docket strip in the free
+   view, and inside the 2×2 box its **priority** maps to in ⊞ Sort 2×2
+   (`BOARD_PRI_QUAD` / `BOARD_QUAD_PRI`: urgent/high/med/low ↔ Do now /
+   Schedule / Delegate / Park — the same rule promotion uses). Dropping a
+   linked card in a box **sets the item's priority**
+   (`_boardSetItemPriority`; relay legs and deliverables refuse with a
+   toast); dropping one on the canvas **materialises** a stored card
+   (`_boardMaterialize`); removing a stored docket card sends it back to the
+   strip (`_boardIsDocketItem`). Items already stored as cards are never
+   doubled (a stored deliverable card also hides its mirror leg). Meetings,
+   completed and delegated-away items never enter. The tray is **💭 Ideas**
+   — unsorted stickies only; linked cards never sit there. Every lookup
+   that may hit a docket card goes through `_boardCardById`. Scenario 28
    enforces this.
+   **Assign and baton from anywhere** (Sep 2026): `showBatonMenu(e, id)`
+   is the one "whose court" control for deliverables (relay: Pass → /
+   ✓ Finish / ↩ Send back for my leg, open otherwise; non-relay: the
+   existing `showHandoffDropdown`), and `_assignBtnFor(ref)` /
+   `_batonBtn(id)` put ↗ Assign / ◖ Baton on linked cards, ☰ List
+   deliverable rows and ▬ Timeline rows, all routing to the existing
+   dropdowns — never a second assignment path.
 
 ## Math Invariants (July 2026 audit)
 
@@ -550,7 +571,9 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Reconcile view (plan vs budget, one month) | `_renderAllocReconcile`, `_allocProjMonthTotals`, `_allocReconShift` |
 | Projects & metadata | `renderProjects`, `renderProjCodeContent`, `wt_projects_meta` |
 | Boards / stickies / 2×2 sort (Projects tab default view) | `renderProjBoards`, `_boardsForProject`, `_ensureBoards`, `boardAddCard`, `boardCaptureSubmit`, `_boardCardHtml`, `_bcPointerDown`, `boardCardEdit`, `boardCardMenu`, `_boardSetQuadrant`, `boardSlide`, `_boardSave`, `_setProjView`, `BOARD_QUADS` |
-| Meeting boards / 📅 Meetings list / In my court | `_projMeetings`, `_meetingInfo`, `boardOpenMeeting`, `boardGoMeeting`, `_boardMeetingsHtml`, `_boardTogglePast`, `_boardCourtHtml`, `meetingTaskId` |
+| Meeting boards / 📅 Meetings list | `_projMeetings`, `_meetingInfo`, `boardOpenMeeting`, `boardGoMeeting`, `_boardMeetingsHtml`, `_boardTogglePast`, `meetingTaskId` |
+| Docket (virtual live cards) / priority by quadrant / Ideas tray | `_boardDocket`, `_boardDocketHtml`, `_boardVirtual`, `_boardCardById`, `_boardMaterialize`, `_boardIsDocketItem`, `_boardSetItemPriority`, `BOARD_PRI_QUAD`, `BOARD_QUAD_PRI` |
+| Assign / baton from anywhere | `showBatonMenu`, `_batonBtn`, `_assignBtnFor`, `showHandoffDropdown`, `showTaskAssignDropdown`, `showAssignDropdown`, `relayAdvance`, `relayBack` |
 | Linked cards / promote / pin / meeting cards / heading rollups | `boardPromoteCard`, `_boardTaskFromSelection`, `boardPinItem`, `_boardPinBtn`, `_boardRefResolve`, `_boardRefOpen`, `_boardHeadingRollup`, `boardAddMeeting`, `_boardSafeUrl`, `boardRevealCard`, `_boardOriginChip`, `_boardCard`, `createdAt` |
 | ⌂ Dash / command-panel tiles / program signals | `renderProjDash`, `_projSignals`, `_SIG_RANK`, `_sigBurnHtml`, `_sigNextHtml`, `_sigBatonHtml`, `_scTileHtml`, `boardTogglePanel`, `wt_board_panel` |
 | ▬ Timeline / bars / relay segments / Start & After fields | `renderProjTimeline`, `_tlItems`, `_tlRowHtml`, `_tlDerivedStart`, `_tlToggleProj`, `_tlToggleDone`, `_populateDependsOn`, `editStart`, `editDependsOn`, `dependsOn`, `createdAt` |

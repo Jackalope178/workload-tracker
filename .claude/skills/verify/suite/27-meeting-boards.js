@@ -74,21 +74,18 @@ const off = n => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.get
   });
   step('Past (n) unfolds the past meetings; a deleted meeting\'s board still opens with its notes', r.rows.length === 4 && r.rows.includes('Old retro (deleted)') && r.cur === '_bOrphan' && r.note === 'kept note' && (r.title || '').includes('Old retro'), r);
 
-  // 4. In my court tray on the sub-code board; pinning removes the chip.
+  // 4. The docket on the sub-code board: the relay at my review reaches it through its mirror task.
   r = await page.evaluate(() => {
     const sc1 = _boardsForProject('pa').find(b => b.scId === 'sc1');
     boardOpen('pa', sc1.id);
-    const chips = [...document.querySelectorAll('.board-court-chip')].map(e => e.textContent.trim());
+    const cards = [...document.querySelectorAll('.board-docket .bcard')].map(e => e.querySelector('.bc-ref-name').textContent.trim());
     boardPinItem('team', '_d1');
-    const after = document.querySelectorAll('.board-court-chip').length;
+    const after = [...document.querySelectorAll('.board-docket .bcard')].map(e => e.querySelector('.bc-ref-name').textContent.trim());
     const pinned = boardCards.some(c => c.boardId === sc1.id && c.kind === 'ref' && c.ref.id === '_d1');
-    const loose = _boardsForProject('pa').find(b => b.scId === '');
-    boardOpen('pa', loose.id);
-    const looseTray = !!document.querySelector('.board-court');
-    return { chips, after, pinned, looseTray };
+    return { cards, after, pinned };
   });
-  step('◖ In my court lists only deliverables whose baton is Me on this code (with the current leg + due)', r.chips.length === 1 && r.chips[0].includes('Relay at my review') && r.chips[0].includes('Review') && !r.chips[0].includes('With Jordan'), r.chips);
-  step('📌 on a court chip pins it as a linked card and the chip leaves the tray; a code with nothing in my court shows no tray', r.after === 0 && r.pinned && !r.looseTray, r);
+  step('the docket lists my open items on this code (the relay via its mirror leg), not items held by others', r.cards.some(n => n.includes('Relay at my review')) && !r.cards.some(n => n.includes('With Jordan')), r.cards);
+  step('pinning the deliverable stores a card and its mirror leg leaves the docket (no double)', r.pinned && !r.after.some(n => n.includes('Relay at my review')), r.after);
 
   // 5. My Tasks: the meeting row carries a 📅💭 chip that jumps onto the meeting board.
   r = await page.evaluate(() => {
