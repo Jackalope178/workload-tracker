@@ -5145,6 +5145,18 @@ const SYNC_KEYS = [
   'wt_boards', 'wt_board_cards', 'wt_time_off', 'wt_overhead_weekly'
 ];
 
+// Boot-phase writes never count as edits (Nov 2026 data-loss fix). Script
+// load seeds empty defaults (wt_tasks = [], DEFAULT_PROJECTS, …) and runs
+// migrations BEFORE anyone signs in. If save() stamped those with "now", a
+// brand-new browser's empty seed looked newer than the real cloud data at
+// sign-in: loadFromSupabase kept the empty local value and the post-load
+// flush pushed it OVER the cloud. While this flag is set, save() writes
+// localStorage but leaves the _ts_ stamp alone (absent → 0 → cloud wins;
+// existing → keeps its true age). Cleared in initApp(), the moment the app
+// becomes usable — after loadFromSupabase has merged — so every real edit is
+// stamped as before.
+let _bootSeeding = true;
+
 async function cloudSave(key, data) {
   if (!_supabase || !_currentUser) return;
   const { error } = await _supabase.from('user_data').upsert({
@@ -6028,7 +6040,7 @@ function load(key, fallback) {
 function save(key, data) {
   try {
     localStorage.setItem(key, JSON.stringify(data));
-    if (SYNC_KEYS.includes(key)) _setLocalTimestamp(key, Date.now());
+    if (SYNC_KEYS.includes(key) && !_bootSeeding) _setLocalTimestamp(key, Date.now());
   } catch (e) {
     console.error('localStorage save failed for', key, e);
     showSyncToast('Local storage full — some changes may not be saved.', 'warn');
@@ -20041,6 +20053,7 @@ function _migrateTaskWaitingNotes() {
 }
 
 function initApp() {
+  _bootSeeding = false;   // app is usable from here: saves are real edits again
   try {
     if (_currentUser) {
       reloadStateFromLocalStorage();

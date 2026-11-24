@@ -546,6 +546,19 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
   shadow the real cloud data and get pushed over it. `wt_last_user`,
   `wt_local_snapshot`, and `_ts_*` are device-local; never add them to
   `SYNC_KEYS`.
+- **Boot-phase writes are never stamped** (Nov 2026 data-loss fix —
+  `_bootSeeding`). Script load seeds empty defaults (`wt_tasks = []`,
+  `DEFAULT_PROJECTS`, …) and runs migrations before anyone signs in. When
+  those saves stamped `_ts_` with "now", a **brand-new browser's empty seed
+  looked newer than the real cloud data**: sign-in kept the empty local
+  value and the post-load flush pushed `[]` over the cloud. While
+  `_bootSeeding` is true, `save()` writes localStorage but leaves the stamp
+  alone (absent → 0 → cloud wins; existing → keeps its true age); `initApp()`
+  clears it, after `loadFromSupabase` has merged, so every real edit is
+  stamped as before. Any new code that writes a synced key at script load
+  or during `boot()` is covered automatically — **don't move the flag's
+  reset earlier than `initApp()`** and don't stamp `_ts_` by hand during
+  boot. Scenario 29 enforces this.
 - A `window 'online'` listener flushes pending local changes
   (`syncToCloud()`) when connectivity returns — background `cloudSave`
   failures otherwise leave the cloud stale until that key's next save.
@@ -587,7 +600,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Linked cards / promote / pin / meeting cards / heading rollups | `boardPromoteCard`, `_boardTaskFromSelection`, `boardPinItem`, `_boardPinBtn`, `_boardRefResolve`, `_boardRefOpen`, `_boardHeadingRollup`, `boardAddMeeting`, `_boardSafeUrl`, `boardRevealCard`, `_boardOriginChip`, `_boardCard`, `createdAt` |
 | ⌂ Dash / command-panel tiles / program signals | `renderProjDash`, `_projSignals`, `_SIG_RANK`, `_sigBurnHtml`, `_sigNextHtml`, `_sigBatonHtml`, `_scTileHtml`, `boardTogglePanel`, `wt_board_panel` |
 | ▬ Timeline / bars / relay segments / Start & After fields | `renderProjTimeline`, `_tlItems`, `_tlRowHtml`, `_tlDerivedStart`, `_tlToggleProj`, `_tlToggleDone`, `_populateDependsOn`, `editStart`, `editDependsOn`, `dependsOn`, `createdAt` |
-| Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase` |
+| Cloud sync / auth | `SYNC_KEYS`, `cloudSave`, `loadFromSupabase`, `_bootSeeding`, `_syncGuardUser` |
 | In-app orientation / ⓘ help | `INFO_COPY`, `infoIcon`, `showWelcome`, `_TAB_TIPS` |
 | Tabs / navigation | `_switchTab`, `data-tab` |
 | Theming (light-only) | `applyTheme`, `data-theme`, `:root` |

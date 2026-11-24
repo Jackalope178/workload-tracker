@@ -109,6 +109,7 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
 
 - `save(key, data)` → localStorage + a per-key timestamp + `cloudSave(key, data)` (upsert into Supabase `user_data`, conflict key `user_id,key`, payload `{ value: <blob> }`).
 - **Sign-in is a per-key timestamped merge, not an overwrite:** cloud wins only when its copy is newer; local-newer keys are pushed up right after the pull, and a reconnect listener flushes pending changes when the browser comes back online.
+- **Boot-time writes never count as edits** (`_bootSeeding`, Nov 2026): the empty defaults a fresh browser seeds before sign-in are left unstamped, so the cloud always wins on a new device. (Before this fix, signing in on a new browser could push those empty defaults over the real cloud data.)
 - An **account-switch guard** (`_syncGuardUser`) keeps one account's local data from shadowing another's cloud data: on a switch it stashes a device-local snapshot (`wt_local_snapshot`) and lets the cloud win. `wt_last_user` / `wt_local_snapshot` / `_ts_*` are device-local — never in `SYNC_KEYS`.
 - Offline / signed-out mode works fully on localStorage; the header shows "Offline" and a persistent red banner warns that nothing is backed up (click it to sign in).
 - Supabase URL/key default to the baked-in project but can be overridden via the settings modal (`wt_supabase_config`).
