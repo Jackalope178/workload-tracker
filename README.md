@@ -29,12 +29,12 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 |---|---|---|
 | CSS | 7–2,730 | One `<style>` block. Light-only theme (dark retired July 2026): permanent `data-theme="light"` over dark `:root` base variables. |
 | CDN loads | 2,732–2,741 | Supabase, XLSX (with a fallback CDN retry). |
-| HTML body | 2,743–4,081 | Tab bar (`.tabs`, ~line 2,856), six tab panels, all modals (setup, settings, brain-dump, welcome). |
+| HTML body | 2,743–4,081 | Tab bar (`.tabs`, ~line 2,856), seven tab panels, all modals (setup, settings, brain-dump, welcome). |
 | Sync + auth | 4,082–~4,600 | `_supabase` client, login, `SYNC_KEYS` list, `cloudSave`/`cloudLoad`/`loadFromSupabase`. |
 | Core helpers | ~5,100 | `uid()`, `load(key, fallback)`, `save(key, data)`. |
 | Tab renderers + logic | ~5,900–end | The bulk of the app; see the tab table below. |
 
-## The six tabs
+## The seven tabs
 
 | Tab | Purpose | Entry function(s) |
 |---|---|---|
@@ -43,6 +43,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
 | **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). Spreadsheet reconciliation via **⬆ Import & Audit**. | `renderTimesheet()`, `renderTsCapacityBar()`, `handleTsAuditImport()` |
 | **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, move/delegate. **⏩ Forward fill** on top: flexible dated work packed earliest-deadline-first → "placed through", at-risk deadlines, **What if: N h by date**, time off + overhead (fill only), 📅 Plan. | `renderCapacity()`, `forwardFill()`, `ffWhatIf()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
+| **Proposals** | A **what-if** (Nov 2026): grant/contract proposals stacked on the existing plate, month by month. Hours chart (grey base = the Capacity month number; one segment per ticked proposal; solid = awarded, hatched = idea/submitted), a dollars strip (hours × consulting rate, in the month worked), and a proposal list that opens to a people × months grid. **Just me / Whole team** toggle. Never creates tasks. | `renderProposals()`, `_propStacks()`, `_propBaseData()`, `propApplySeed()` |
 | **Allocations** | Budgeted vs actual hours per project/sub-code per month (BigTime import). | `renderAllocations()`, `handleAllocImport()` |
 
 Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
@@ -61,6 +62,7 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_persons` | Team roster |
 | `wt_allocations` | Monthly budget allocations per person/project |
 | `wt_time_off` / `wt_overhead_weekly` | Time-off ranges and weekly overhead hours — they shape the ⏩ forward fill's room per day only |
+| `wt_proposals` / `wt_prop_people` / `wt_prop_baseline` | Proposals tab: proposals with hours per person per month, the people + consulting-rate roster (one marked `me`), and the team / routine-work baselines. Loaded from a seed file or typed in — never stored in the source. |
 | `wt_boards` | Whiteboards, one per sub-code plus the project's 💭 Loose thoughts board: `{ id, projKey, scId, createdAt }`; meeting boards add `meetingTaskId` (one board per meeting-priority task, opened from the 📅 Meetings list) |
 | `wt_board_cards` | Stickies: `{ id, boardId, kind: note \| heading \| ref \| meeting, x, y, w, h, color, z, text, urgent, important, createdAt, updatedAt }` — no hours. `ref` cards link to a task/deliverable/work item and resolve it live (nothing copied); `meeting` cards carry a `date` and an http(s) `url` |
 

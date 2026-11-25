@@ -1658,6 +1658,84 @@
   }
   .cap-summary strong { color: var(--text); }
 
+  /* PROPOSALS TAB (what-if: proposal hours stacked on the existing plate) */
+  .prop-root {
+    --prop-base: #8b93a5; --prop-base2: #c3c8d3; --prop-grid: #e6e9ef;
+    --prop-s0: #257de0; --prop-s1: #f47230; --prop-s2: #00b894; --prop-s3: #f2a600;
+    --prop-s4: #ee7fac; --prop-s5: #008a17; --prop-s6: #6a4ce2; --prop-s7: #ec4647;
+  }
+  .prop-mode { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .prop-mode button { border: 0; background: var(--bg2); color: var(--text2); font-size: 11px; font-weight: 600; padding: 5px 12px; cursor: pointer; font-family: inherit; }
+  .prop-mode button + button { border-left: 1px solid var(--border); }
+  .prop-mode button.on { background: var(--accent2); color: #fff; }
+  .prop-notice { margin: 10px 14px 0; padding: 8px 12px; border: 1px solid var(--warn); border-radius: 6px; font-size: 11px; color: var(--text); background: var(--bg2); }
+  .prop-notice + .prop-notice { margin-top: 6px; }
+  .prop-zone { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .prop-zone-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .prop-zone-h small { font-weight: 400; font-size: 11px; color: var(--text3); }
+  .prop-zone-h strong { font-weight: 700; }
+  .prop-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+  .prop-legend span.sw, .prop-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; flex: none; }
+  .prop-legend span.ln { display: inline-block; width: 14px; border-top: 2px dashed var(--text2); margin-right: 4px; vertical-align: 3px; }
+  .prop-chart { width: 100%; overflow: hidden; }
+  .prop-chart svg { display: block; }
+  .prop-chart text { font-family: inherit; font-size: 10px; fill: var(--text3); }
+  .prop-chart text.over { fill: var(--danger); font-weight: 700; font-size: 11px; }
+  .prop-chart text.cur { fill: var(--text); font-weight: 700; }
+  .prop-chart .hit { fill: transparent; cursor: pointer; }
+  .prop-chart .hit:hover, .prop-chart .hit.sel { fill: rgba(79,156,249,.09); }
+  .prop-tip { position: fixed; z-index: 9000; pointer-events: none; display: none; max-width: 300px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.14); padding: 8px 10px; font-size: 11px; color: var(--text2); }
+  .prop-tip b { color: var(--text); }
+  .prop-tip .r { display: flex; justify-content: space-between; gap: 14px; margin-top: 2px; }
+  .prop-tip .r span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prop-detail { margin-top: 8px; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: var(--text2); background: var(--bg2); }
+  .prop-detail h4 { margin: 0 0 6px; font-size: 12px; color: var(--text); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px 12px; }
+  .prop-detail table { border-collapse: collapse; width: 100%; }
+  .prop-detail td { padding: 3px 8px 3px 0; border-top: 1px solid var(--border); vertical-align: top; }
+  .prop-detail td.n { text-align: right; white-space: nowrap; font-weight: 600; color: var(--text); width: 70px; }
+  .prop-detail td small { color: var(--text3); }
+  .prop-row { border: 1px solid var(--border); border-radius: 6px; margin-top: 6px; background: var(--bg2); }
+  .prop-row-head { display: grid; grid-template-columns: 18px 12px minmax(120px,2fr) minmax(80px,1.2fr) 84px 90px 70px 14px; gap: 10px; align-items: center; padding: 8px 10px; font-size: 12px; cursor: pointer; user-select: none; }
+  .prop-row-head:hover { background: var(--bg3); }
+  .prop-row.off .prop-row-head { opacity: .55; }
+  .prop-name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prop-funder { color: var(--text3); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prop-status { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--border); border-radius: 10px; padding: 2px 8px; text-align: center; color: var(--text2); }
+  .prop-status.awarded { border-color: var(--success); color: var(--success); }
+  .prop-num { text-align: right; color: var(--text2); font-size: 11px; white-space: nowrap; }
+  .prop-body { border-top: 1px solid var(--border); padding: 10px; }
+  .prop-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 10px; margin-bottom: 10px; }
+  .prop-fields label { display: flex; flex-direction: column; gap: 2px; font-size: 10px; color: var(--text3); }
+  .prop-fields label.wide { grid-column: 1 / -1; }
+  .prop-fields input, .prop-fields select, .prop-set input[type=text], .prop-set input[type=number], .prop-set select, .prop-addsel {
+    font: inherit; font-size: 12px; padding: 4px 6px; background: var(--bg2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; min-width: 0;
+  }
+  .prop-gridwrap { overflow-x: auto; }
+  table.prop-grid { border-collapse: collapse; font-size: 11px; }
+  table.prop-grid th { font-weight: 600; color: var(--text3); padding: 3px 4px; text-align: center; white-space: nowrap; }
+  table.prop-grid th.in, table.prop-grid td.in { background: rgba(79,156,249,.08); }
+  table.prop-grid td { padding: 2px; }
+  table.prop-grid td.who { padding-right: 10px; white-space: nowrap; color: var(--text); font-weight: 600; min-width: 130px; }
+  table.prop-grid td.who small { font-weight: 400; color: var(--text3); }
+  table.prop-grid td.tot { padding-left: 10px; text-align: right; white-space: nowrap; color: var(--text); font-weight: 600; }
+  table.prop-grid td.tot small { font-weight: 400; color: var(--text3); }
+  input.prop-cell { width: 50px; font: inherit; font-size: 11px; text-align: right; padding: 3px 4px; background: var(--bg2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; }
+  input.prop-cell:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .prop-nums { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 10px; font-size: 11px; color: var(--text3); }
+  .prop-nums b { display: block; font-size: 14px; color: var(--text); }
+  .prop-nums .warnv b, .prop-nums .warnv { color: var(--danger); }
+  .prop-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .prop-set { padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--bg3); }
+  .prop-set h4 { margin: 14px 0 6px; font-size: 12px; color: var(--text); }
+  .prop-set h4:first-child { margin-top: 0; }
+  .prop-set p { margin: 0 0 6px; font-size: 11px; color: var(--text3); max-width: 760px; }
+  .prop-set table.ppl td { padding: 2px 6px 2px 0; font-size: 11px; color: var(--text2); }
+  .prop-empty { padding: 26px 14px; text-align: center; font-size: 12px; color: var(--text3); }
+  @media (max-width: 720px) {
+    .prop-row-head { grid-template-columns: 18px 12px 1fr 78px 14px; }
+    .prop-row-head .prop-funder, .prop-row-head .prop-num { display: none; }
+  }
+
   /* CAPACITY SCHEDULER (click-to-assign board) */
   .cap-sched-head {
     display: flex; align-items: center; gap: 10px; padding: 10px 14px;
@@ -3411,6 +3489,7 @@ if (typeof XLSX === 'undefined') {
   <div class="tab" data-tab="team" role="tab" aria-selected="false" aria-controls="panel-team" tabindex="-1">Team Deliverables</div>
   <div class="tab" data-tab="timesheet" role="tab" aria-selected="false" aria-controls="panel-timesheet" tabindex="-1">Timesheet</div>
   <div class="tab" data-tab="capacity" role="tab" aria-selected="false" aria-controls="panel-capacity" tabindex="-1">Capacity</div>
+  <div class="tab" data-tab="proposals" id="tab-proposals" role="tab" aria-selected="false" aria-controls="panel-proposals" tabindex="-1">Proposals</div>
   <div class="tab" data-tab="allocations" role="tab" aria-selected="false" aria-controls="panel-allocations" tabindex="-1">Allocations</div>
 </div>
 
@@ -3596,6 +3675,25 @@ if (typeof XLSX === 'undefined') {
       <span style="margin-left:6px;font-size:10px;color:var(--text3);">Bar = logged + planned vs working-day capacity</span>
     </div>
     <div id="capContent"></div>
+  </div>
+
+  <!-- PROPOSALS — what-if: proposal hours stacked on the existing plate -->
+  <div class="panel" id="panel-proposals" role="tabpanel" aria-labelledby="tab-proposals">
+    <div class="cap-toolbar" style="flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:600;color:var(--text);">Proposal Workload<span class="info-i" onclick="showInfoPopover(event,'proposals')" title="What does this chart count?">i</span></span>
+      <div class="prop-mode" role="group" aria-label="Whose hours">
+        <button type="button" id="propModeMe" onclick="propSetMode('me')">Just me</button>
+        <button type="button" id="propModeTeam" onclick="propSetMode('team')">Whole team</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button class="btn" onclick="propYearShift(-1)" title="Previous year" aria-label="Previous year">‹</button>
+        <span id="propYearLabel" style="font-size:12px;min-width:50px;text-align:center;color:var(--text2);font-weight:600;"></span>
+        <button class="btn" onclick="propYearShift(1)" title="Next year" aria-label="Next year">›</button>
+      </div>
+      <button class="btn" id="propSettingsBtn" onclick="propToggleSettings()" style="font-size:11px;padding:4px 10px;margin-left:auto;">⚙ Rates &amp; baseline</button>
+    </div>
+    <div id="propContent" class="prop-root"></div>
+    <div id="propTip" class="prop-tip"></div>
   </div>
 
   <!-- ALLOCATIONS -->
@@ -4623,13 +4721,14 @@ if (typeof XLSX === 'undefined') {
     </div>
 
     <div class="welcome-step" data-step="1">
-      <h3>Your 6 Tabs</h3>
+      <h3>Your 7 Tabs</h3>
       <div class="welcome-tip"><span class="welcome-tip-icon">1</span><span><strong>My Tasks</strong> — your personal billable work: timers, priorities, recurring tasks, week planner.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">2</span><span><strong>Projects</strong> — a ⌂ Dash of every program (burn, next deadline, batons), a ▬ Timeline of bars and relay stages, a sticky-note <strong>board per sub-code</strong> for thoughts, and the ☰ List ledger under each code.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">3</span><span><strong>Team Deliverables</strong> — cross-team work and relay hand-offs (who has the baton).</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">4</span><span><strong>Timesheet</strong> — logged hours by pay period (billing record) and by month (headroom).</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">5</span><span><strong>Capacity</strong> — 12-month forward planner plus the ⏩ forward fill: "how booked am I, and can I fit 6h by the 2nd?" — answered before you say yes.</span></div>
-      <div class="welcome-tip"><span class="welcome-tip-icon">6</span><span><strong>Allocations</strong> — budgeted vs actual hours per project/sub-code, with a Reconcile view for plan-vs-budget.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">6</span><span><strong>Proposals</strong> — a what-if: grant and contract proposals stacked on top of your existing plate, month by month, in hours and dollars. Nothing here creates tasks.</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">7</span><span><strong>Allocations</strong> — budgeted vs actual hours per project/sub-code, with a Reconcile view for plan-vs-budget.</span></div>
     </div>
 
     <div class="welcome-step" data-step="2">
@@ -4669,7 +4768,7 @@ if (typeof XLSX === 'undefined') {
 
     <div class="welcome-step" data-step="6">
       <h3>Shortcuts & Getting Help</h3>
-      <div class="welcome-tip"><span class="welcome-tip-icon">⌨</span><span><strong>N</strong> = quick capture &nbsp; <strong>Shift+N</strong> = full task form &nbsp; <strong>1-6</strong> = switch tabs &nbsp; <strong>/</strong> = search &nbsp; <strong>Esc</strong> = close modal &nbsp; <strong>Ctrl+Z</strong> = undo delete</span></div>
+      <div class="welcome-tip"><span class="welcome-tip-icon">⌨</span><span><strong>N</strong> = quick capture &nbsp; <strong>Shift+N</strong> = full task form &nbsp; <strong>1-7</strong> = switch tabs &nbsp; <strong>/</strong> = search &nbsp; <strong>Esc</strong> = close modal &nbsp; <strong>Ctrl+Z</strong> = undo delete</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">ⓘ</span><span>Look for the small <strong>ⓘ icons</strong> next to meters and boards — click one for a plain-English explanation of exactly what that component counts.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">☁</span><span>Your data syncs to the cloud automatically. Click the <strong>cloud icon</strong> in the header to force a sync.</span></div>
       <div class="welcome-tip"><span class="welcome-tip-icon">ℹ</span><span>Click the <strong>(i)</strong> button in the bottom-right corner anytime for tips on the current tab — or to replay this tour.</span></div>
@@ -5142,7 +5241,8 @@ const SYNC_KEYS = [
   'wt_onboarded', 'wt_xlsx_alloc_imported',
   'wt_alloc_rollovers', 'wt_collapsed_task_sections',
   'wt_alloc_aliases', 'wt_person_colors', 'wt_person_allocs',
-  'wt_boards', 'wt_board_cards', 'wt_time_off', 'wt_overhead_weekly'
+  'wt_boards', 'wt_board_cards', 'wt_time_off', 'wt_overhead_weekly',
+  'wt_proposals', 'wt_prop_people', 'wt_prop_baseline'
 ];
 
 async function cloudSave(key, data) {
@@ -16066,6 +16166,848 @@ function _capDelegateApply(type, ids, name) {
 }
 
 // =============================================
+// PROPOSALS TAB — what-if: proposal hours on top of the existing plate
+// =============================================
+// A read-only lens over Capacity plus its own three stores. Proposals NEVER
+// create tasks and nothing in plannedItems / Timesheet / Capacity / Allocations
+// reads them (Phase 1 of the proposal-workload spec, Nov 2026). Every inline
+// handler below passes array INDICES only — names, funders and ids can come
+// from an imported seed or a restored backup and must never ride in a handler.
+const PROP_COLORS = ['#257de0', '#f47230', '#00b894', '#f2a600', '#ee7fac', '#008a17', '#6a4ce2', '#ec4647'];
+const PROP_NEUTRAL = '#8b93a5', PROP_NEUTRAL2 = '#c3c8d3';
+const PROP_STATUSES = ['idea', 'submitted', 'awarded'];
+
+function _propStr(v, max) { return (v == null ? '' : String(v)).slice(0, max || 200); }
+function _propYm(v) { return typeof v === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(v) ? v : ''; }
+function _propNum(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+function _propNormHours(list) {
+  const seen = {}, out = [];
+  (Array.isArray(list) ? list : []).forEach(h => {
+    if (!h || typeof h !== 'object') return;
+    const row = { person: _propStr(h.person, 80).trim(), month: _propYm(h.month), hours: _propNum(h.hours) || 0,
+      rateType: _propStr(h.rateType || h.rate_type, 20) || 'consulting' };
+    if (!row.person || !row.month || row.hours <= 0) return;
+    const k = row.person + '\n' + row.month;
+    if (seen[k] !== undefined) { out[seen[k]] = row; return; }
+    seen[k] = out.length; out.push(row);
+  });
+  return out;
+}
+function _propNormOne(p) {
+  p = (p && typeof p === 'object') ? p : {};
+  const hours = _propNormHours(p.hours);
+  const people = [];
+  (Array.isArray(p.people) ? p.people : []).forEach(n => { n = _propStr(n, 80).trim(); if (n && !people.includes(n)) people.push(n); });
+  hours.forEach(h => { if (!people.includes(h.person)) people.push(h.person); });
+  return {
+    id: _propStr(p.id, 40) || uid(),
+    name: _propStr(p.name, 200).trim(), funder: _propStr(p.funder, 200).trim(),
+    projectCode: _propStr(p.projectCode, 60).trim(),
+    status: PROP_STATUSES.includes(p.status) ? p.status : 'idea',
+    included: p.included !== false,
+    awardAmount: _propNum(p.awardAmount), partnerAmount: _propNum(p.partnerAmount),
+    dateSubmitted: /^\d{4}-\d{2}-\d{2}$/.test(p.dateSubmitted || '') ? p.dateSubmitted : '',
+    startMonth: _propYm(p.startMonth), endMonth: _propYm(p.endMonth),
+    notes: _propStr(p.notes, 2000),
+    // A palette SLOT, never a hex — it indexes PROP_COLORS at render.
+    color: Number.isInteger(p.color) && p.color >= 0 && p.color < PROP_COLORS.length ? p.color : 0,
+    people, hours
+  };
+}
+function _propNormList(list) { return (Array.isArray(list) ? list : []).map(_propNormOne); }
+function _propNormPeople(list) {
+  const out = [];
+  (Array.isArray(list) ? list : []).forEach(x => {
+    if (!x || typeof x !== 'object') return;
+    const name = _propStr(x.name, 80).trim();
+    if (!name || out.some(o => o.name === name)) return;
+    out.push({ name, rate: _propNum(x.rate) || 0, me: !!x.me && !out.some(o => o.me) });
+  });
+  return out;
+}
+function _propNormBase(b) {
+  b = (b && typeof b === 'object') ? b : {};
+  const team = [];
+  (Array.isArray(b.team) ? b.team : []).forEach(r => {
+    if (!r || typeof r !== 'object') return;
+    const row = { person: _propStr(r.person, 80).trim(), month: _propYm(r.month), hours: _propNum(r.hours) || 0 };
+    if (row.person && row.month && row.hours > 0 && !team.some(t => t.person === row.person && t.month === row.month)) team.push(row);
+  });
+  const labels = [];
+  (Array.isArray(b.teamLabels) ? b.teamLabels : []).forEach(n => { n = _propStr(n, 80).trim(); if (n && !labels.includes(n)) labels.push(n); });
+  team.forEach(r => { if (!labels.includes(r.person)) labels.push(r.person); });
+  const routine = {};
+  if (b.routine && typeof b.routine === 'object') Object.keys(b.routine).forEach(k => {
+    const n = _propNum(b.routine[k]);
+    if (_propYm(k) && n > 0) routine[k] = n;
+  });
+  return { team, teamLabels: labels, routine, routineProj: _propStr(b.routineProj, 80) };
+}
+
+let proposals = _propNormList(load('wt_proposals', []));
+let propPeople = _propNormPeople(load('wt_prop_people', []));
+let propBase = _propNormBase(load('wt_prop_baseline', null));
+let _propMode = load('wt_prop_mode', 'me') === 'team' ? 'team' : 'me';   // device-local view state
+let _propYear = null;
+let _propSelMonth = null;
+let _propSettingsOpen = false;
+const _propOpen = new Set();
+let _propBaseCache = null;
+let _propTipData = { h: [], d: [] };
+let _propSaveTimer = null;
+
+function _propReload() {
+  proposals = _propNormList(load('wt_proposals', []));
+  propPeople = _propNormPeople(load('wt_prop_people', []));
+  propBase = _propNormBase(load('wt_prop_baseline', null));
+  _propBaseCache = null;
+}
+function _propSave(key) {
+  return save(key, key === 'wt_proposals' ? proposals : key === 'wt_prop_people' ? propPeople : propBase);
+}
+function _propSaveSoon() {
+  clearTimeout(_propSaveTimer);
+  _propSaveTimer = setTimeout(() => { _propSaveTimer = null; _propSave('wt_proposals'); }, 500);
+}
+function _propFlush() {
+  if (_propSaveTimer) { clearTimeout(_propSaveTimer); _propSaveTimer = null; _propSave('wt_proposals'); }
+}
+
+function _propMe() { const p = propPeople.find(x => x.me); return p ? p.name : null; }
+function _propRate(name) { const p = propPeople.find(x => x.name === name); return p ? (Number(p.rate) || 0) : 0; }
+function _propMonths() { return Array.from({ length: 12 }, (_, i) => _propYear + '-' + String(i + 1).padStart(2, '0')); }
+function _propH(h) { return (Math.round((h || 0) * 100) / 100).toString(); }
+function _propMoney(n) { const v = Math.round(n || 0); return (v < 0 ? '−$' : '$') + Math.abs(v).toLocaleString('en-US'); }
+function _propHoursAt(p, person, ym) { const r = p.hours.find(h => h.person === person && h.month === ym); return r ? r.hours : 0; }
+function _propMonthHours(p, ym, mode, me) {
+  let s = 0;
+  p.hours.forEach(h => { if (h.month === ym && (mode === 'team' || h.person === me)) s += h.hours; });
+  return s;
+}
+function _propMonthDollars(p, ym, mode, me) {
+  let s = 0;
+  p.hours.forEach(h => { if (h.month === ym && (mode === 'team' || h.person === me)) s += h.hours * _propRate(h.person); });
+  return s;
+}
+// Whole-proposal totals: every person, every month, at consulting rates.
+function _propTotals(p) {
+  let hours = 0, value = 0;
+  p.hours.forEach(h => { hours += h.hours; value += h.hours * _propRate(h.person); });
+  return { hours, value };
+}
+function _propSetHours(p, person, ym, val) {
+  const n = _propNum(val) || 0;
+  const i = p.hours.findIndex(h => h.person === person && h.month === ym);
+  if (n <= 0) { if (i >= 0) p.hours.splice(i, 1); }
+  else if (i >= 0) p.hours[i].hours = n;
+  else p.hours.push({ person, month: ym, hours: n, rateType: 'consulting' });
+  if (!p.people.includes(person)) p.people.push(person);
+}
+function _propNextColor() {
+  const used = PROP_COLORS.map(() => 0);
+  proposals.forEach(p => { used[p.color] = (used[p.color] || 0) + 1; });
+  let best = 0;
+  used.forEach((n, i) => { if (n < used[best]) best = i; });
+  return best;
+}
+function _propDefaultYear() {
+  const cur = today().slice(0, 7);
+  let first = null;
+  proposals.forEach(p => {
+    if (p.included === false) return;
+    p.hours.forEach(h => { if (h.month >= cur && (!first || h.month < first)) first = h.month; });
+  });
+  return Number((first || cur).slice(0, 4));
+}
+
+// Baseline per month of the visible year. "capH" is exactly the Capacity tab's
+// month number (logged + planned). The routine estimate fills ONLY months where
+// Capacity holds no recurring hours on the chosen routine project — it is never
+// added on top of hours that are already there.
+function _propBaseData() {
+  if (_propBaseCache && _propBaseCache.year === _propYear) return _propBaseCache.rows;
+  const rp = propBase.routineProj;
+  const entries = allTsEntries();
+  const rows = _propMonths().map(ym => {
+    const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5, 7));
+    const ms = ym + '-01', me = localDateStr(new Date(y, m, 0));
+    const logged = entries.reduce((a, e) => a + (e.date >= ms && e.date <= me ? (e.actualHours || 0) : 0), 0);
+    const planned = plannedItems(ms, me);
+    const plannedH = planned.reduce((a, p) => a + (p.hours || 0), 0);
+    const recur = (rp && rp !== '*') ? planned.reduce((a, p) => a + (p._recur && p.project === rp ? (p.hours || 0) : 0), 0) : 0;
+    const estRaw = Number(propBase.routine[ym]) || 0;
+    const est = (estRaw > 0 && rp && recur <= 0) ? estRaw : 0;
+    const team = propBase.team.reduce((a, r) => a + (r.month === ym ? r.hours : 0), 0);
+    return { ym, logged, plannedH, capH: logged + plannedH, recur, estRaw, est, team, cap: workingDays(ms, me) * tsCapacity };
+  });
+  _propBaseCache = { year: _propYear, rows };
+  return rows;
+}
+
+function _propStacks() {
+  const me = _propMe(), mode = _propMode, base = _propBaseData();
+  const inc = proposals.map((p, pi) => ({ p, pi })).filter(x => x.p.included !== false);
+  const hours = [], dollars = [];
+  base.forEach(b => {
+    const hs = [{ label: 'Existing plate (Capacity)', v: b.capH, fill: PROP_NEUTRAL }];
+    if (b.est > 0) hs.push({ label: 'Routine work (estimate)', v: b.est, hatch: 'n' });
+    if (mode === 'team' && b.team > 0) hs.push({ label: 'Team routine', v: b.team, fill: PROP_NEUTRAL2 });
+    const ds = [];
+    inc.forEach(({ p }) => {
+      const pend = p.status !== 'awarded';
+      const h = _propMonthHours(p, b.ym, mode, me);
+      if (h > 0) hs.push({ label: p.name || 'Untitled', v: h, slot: p.color, pend });
+      const d = _propMonthDollars(p, b.ym, mode, me);
+      if (d > 0) ds.push({ label: p.name || 'Untitled', v: d, slot: p.color, pend });
+    });
+    const total = hs.reduce((a, s) => a + s.v, 0);
+    hours.push({ ym: b.ym, segs: hs, total, line: mode === 'me' ? b.cap : null, over: mode === 'me' && total > b.cap + 1e-9 ? total - b.cap : 0 });
+    dollars.push({ ym: b.ym, segs: ds, total: ds.reduce((a, s) => a + s.v, 0),
+      awarded: ds.reduce((a, s) => a + (s.pend ? 0 : s.v), 0) });
+  });
+  return { hours, dollars, inc };
+}
+
+function _propNice(max) {
+  if (!(max > 0)) return { top: 1, step: 1 };
+  const rough = max / 4, pow = Math.pow(10, Math.floor(Math.log10(rough))), n = rough / pow;
+  const step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * pow;
+  return { step, top: Math.ceil(max / step - 1e-9) * step };
+}
+function _propSvg(o) {
+  const W = o.W, H = o.H, mL = 46, mR = 8, mT = 20, mB = 22;
+  const pw = W - mL - mR, ph = H - mT - mB, band = pw / 12;
+  const bw = Math.max(8, Math.min(46, band * 0.62));
+  let max = 0;
+  o.cols.forEach(c => { max = Math.max(max, c.total, c.line || 0); });
+  const nice = _propNice(max * 1.08);
+  const y = v => mT + ph - (v / nice.top) * ph;
+  const cur = today().slice(0, 7);
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria}"><defs>`;
+  const pat = (id, c) => `<pattern id="${o.id}${id}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="${c}" fill-opacity=".22"/><rect width="2.5" height="6" fill="${c}"/></pattern>`;
+  s += pat('n', PROP_NEUTRAL) + PROP_COLORS.map((c, i) => pat(i, c)).join('') + '</defs>';
+  for (let v = 0; v <= nice.top + 1e-9; v += nice.step) {
+    const yy = Math.round(y(v)) + 0.5;
+    s += `<line x1="${mL}" x2="${W - mR}" y1="${yy}" y2="${yy}" stroke="${v === 0 ? '#b9bfcc' : '#e6e9ef'}" stroke-width="1"/>`;
+    s += `<text x="${mL - 6}" y="${yy + 3}" text-anchor="end">${o.fmt(v)}</text>`;
+  }
+  o.cols.forEach((c, i) => {
+    const x0 = mL + i * band + (band - bw) / 2;
+    let acc = 0;
+    c.segs.forEach(sg => {
+      if (!(sg.v > 0)) return;
+      const yTop = y(acc + sg.v), full = y(acc) - yTop;
+      const hgt = Math.max(1, full - (acc > 0 && full > 3 ? 2 : 0));   // 2px surface gap between segments
+      const fill = sg.hatch ? `url(#${o.id}${sg.hatch})` : sg.slot !== undefined ? (sg.pend ? `url(#${o.id}${sg.slot})` : PROP_COLORS[sg.slot]) : sg.fill;
+      s += `<rect x="${x0.toFixed(1)}" y="${yTop.toFixed(1)}" width="${bw.toFixed(1)}" height="${hgt.toFixed(1)}" rx="2" fill="${fill}"/>`;
+      acc += sg.v;
+    });
+    if (c.line != null) {
+      const yy = y(c.line).toFixed(1);
+      const oh = Math.max(1, Math.min(7, (band - bw) / 2 - 1));
+      s += `<line x1="${(x0 - oh).toFixed(1)}" x2="${(x0 + bw + oh).toFixed(1)}" y1="${yy}" y2="${yy}" stroke="#4a5068" stroke-width="2" stroke-dasharray="4 3"/>`;
+    }
+    if (c.over > 0) s += `<text class="over" x="${(x0 + bw / 2).toFixed(1)}" y="${(y(Math.max(c.total, c.line || 0)) - 5).toFixed(1)}" text-anchor="middle">+${_propH(Math.round(c.over * 4) / 4)} h</text>`;
+    const mi = Number(c.ym.slice(5, 7)) - 1;
+    s += `<text class="${c.ym === cur ? 'cur' : ''}" x="${(mL + i * band + band / 2).toFixed(1)}" y="${H - 7}" text-anchor="middle">${band < 40 ? MONTH_NAMES[mi][0] : MONTH_NAMES[mi]}</text>`;
+    s += `<rect class="hit${_propSelMonth === i ? ' sel' : ''}" x="${(mL + i * band).toFixed(1)}" y="${mT - 14}" width="${band.toFixed(1)}" height="${ph + 14}" onclick="propSelectMonth(${i})" onmousemove="_propTip(event,${i},'${o.kind}')" onmouseleave="_propTipHide()"><title>${MONTH_NAMES[mi]} ${c.ym.slice(0, 4)}</title></rect>`;
+  });
+  return s + '</svg>';
+}
+function _propSwatch(slot, pend) {
+  const c = PROP_COLORS[slot] || PROP_NEUTRAL;
+  return pend ? `background:repeating-linear-gradient(45deg,${c} 0 2px,${c}38 2px 5px);` : `background:${c};`;
+}
+
+function _propDrawCharts() {
+  const hEl = document.getElementById('propHoursChart'), dEl = document.getElementById('propDollarsChart');
+  if (!hEl || !dEl) return;
+  const st = _propStacks();
+  _propTipData = { h: st.hours, d: st.dollars };
+  const W = Math.max(320, Math.floor(hEl.clientWidth || document.getElementById('propContent').clientWidth - 28 || 960));
+  const me = _propMe();
+
+  // Legend: one entry per series actually drawn this year.
+  const drawn = new Set();
+  st.hours.forEach(c => c.segs.forEach(s => { if (s.slot !== undefined) drawn.add(s.label + '\n' + s.slot + '\n' + (s.pend ? 1 : 0)); }));
+  let lg = `<span><span class="sw" style="background:${PROP_NEUTRAL};"></span>Existing plate (Capacity: logged + planned)</span>`;
+  if (st.hours.some(c => c.segs.some(s => s.hatch))) lg += `<span><span class="sw" style="background:repeating-linear-gradient(45deg,${PROP_NEUTRAL} 0 2px,${PROP_NEUTRAL}38 2px 5px);"></span>Routine work (estimate)</span>`;
+  if (_propMode === 'team') lg += `<span><span class="sw" style="background:${PROP_NEUTRAL2};"></span>Team routine</span>`;
+  st.inc.forEach(({ p }) => {
+    const pend = p.status !== 'awarded';
+    if (!drawn.has((p.name || 'Untitled') + '\n' + p.color + '\n' + (pend ? 1 : 0))) return;
+    lg += `<span><span class="sw" style="${_propSwatch(p.color, pend)}"></span>${escHtml(p.name || 'Untitled')}${pend ? ' <small>(' + p.status + ')</small>' : ''}</span>`;
+  });
+  if (_propMode === 'me') lg += `<span><span class="ln"></span>Capacity (${_propH(tsCapacity)} h per working day)</span>`;
+  document.getElementById('propLegend').innerHTML = lg;
+
+  hEl.innerHTML = _propSvg({ id: 'pH', kind: 'h', W, H: 280, cols: st.hours, fmt: v => _propH(v),
+    aria: 'Hours per month: existing plate plus included proposals' });
+  dEl.innerHTML = _propSvg({ id: 'pD', kind: 'd', W, H: 150, cols: st.dollars,
+    fmt: v => v >= 1000 ? '$' + _propH(v / 1000) + 'k' : '$' + _propH(v), aria: 'Dollars per month at consulting rates' });
+
+  const tot = st.dollars.reduce((a, c) => a + c.total, 0), aw = st.dollars.reduce((a, c) => a + c.awarded, 0);
+  document.getElementById('propDollarsHead').innerHTML =
+    `Dollars <small>hours × consulting rate, in the month the hours are worked · ${_propMode === 'me' ? 'my hours only' : 'all staff'}</small>`
+    + `<span style="margin-left:auto;font-weight:400;font-size:11px;color:var(--text2);"><strong id="propDollarsTotal">${_propMoney(tot)}</strong> in ${_propYear}`
+    + ` · ${_propMoney(aw)} awarded · ${_propMoney(tot - aw)} not awarded yet</span>`;
+  const over = st.hours.filter(c => c.over > 0);
+  document.getElementById('propHoursHead').innerHTML =
+    `Hours <small>${_propMode === 'me' ? (me ? 'my existing plate + my hours on included proposals' : 'my existing plate — no proposal hours until you say which person is you') : 'my plate + team routine + everyone\'s hours on included proposals'}</small>`
+    + (_propMode === 'me' ? `<span style="margin-left:auto;font-weight:400;font-size:11px;color:${over.length ? 'var(--danger)' : 'var(--text2)'};">${over.length ? '⚠ ' + over.length + ' month' + (over.length === 1 ? '' : 's') + ' over capacity' : 'No month over capacity'}</span>` : '');
+  _propDrawDetail();
+}
+
+function _propTip(ev, i, kind) {
+  const tip = document.getElementById('propTip'), c = (_propTipData[kind] || [])[i];
+  if (!tip || !c) return;
+  const f = kind === 'd' ? _propMoney : v => _propH(v) + ' h';
+  let h = `<b>${MONTH_NAMES[Number(c.ym.slice(5, 7)) - 1]} ${c.ym.slice(0, 4)}</b>`;
+  c.segs.slice().reverse().forEach(s => {
+    if (!(s.v > 0)) return;
+    const sw = s.slot !== undefined ? _propSwatch(s.slot, s.pend) : s.hatch ? `background:repeating-linear-gradient(45deg,${PROP_NEUTRAL} 0 2px,${PROP_NEUTRAL}38 2px 5px);` : `background:${s.fill};`;
+    h += `<div class="r"><span><span class="prop-dot" style="${sw}"></span>${escHtml(s.label)}</span><b>${f(s.v)}</b></div>`;
+  });
+  h += `<div class="r" style="border-top:1px solid var(--border);margin-top:4px;padding-top:3px;"><span>Total</span><b>${f(c.total)}</b></div>`;
+  if (kind === 'h' && c.line != null) h += `<div class="r"><span>Capacity</span><b>${f(c.line)}</b></div>`
+    + (c.over > 0 ? `<div class="r" style="color:var(--danger);"><span>Over</span><b style="color:var(--danger);">+${f(c.over)}</b></div>` : '');
+  if (!c.segs.some(s => s.v > 0)) h += '<div class="r"><span>Nothing this month</span></div>';
+  tip.innerHTML = h;
+  tip.style.display = 'block';
+  const r = tip.getBoundingClientRect();
+  tip.style.left = Math.max(6, Math.min(ev.clientX + 14, window.innerWidth - r.width - 6)) + 'px';
+  tip.style.top = Math.max(6, Math.min(ev.clientY + 14, window.innerHeight - r.height - 6)) + 'px';
+}
+function _propTipHide() { const t = document.getElementById('propTip'); if (t) t.style.display = 'none'; }
+
+function propSelectMonth(i) {
+  _propSelMonth = _propSelMonth === i ? null : i;
+  _propDrawCharts();
+}
+// Hours by person for the tapped month — always everyone, so "whose hours need
+// scheduling" is answered in either mode.
+function _propDrawDetail() {
+  const el = document.getElementById('propMonthDetail');
+  if (!el) return;
+  if (_propSelMonth == null) { el.innerHTML = ''; return; }
+  const b = _propBaseData()[_propSelMonth], me = _propMe();
+  const by = {}, order = [];
+  proposals.forEach(p => {
+    if (p.included === false) return;
+    p.hours.forEach(h => {
+      if (h.month !== b.ym) return;
+      if (!by[h.person]) { by[h.person] = { total: 0, parts: [] }; order.push(h.person); }
+      by[h.person].total += h.hours;
+      by[h.person].parts.push(escHtml(p.name || 'Untitled') + ' ' + _propH(h.hours));
+    });
+  });
+  order.sort((a, c) => (c === me) - (a === me) || by[c].total - by[a].total);
+  let rows = `<tr><td>My existing plate <small>Capacity: ${_propH(b.logged)} logged + ${_propH(b.plannedH)} planned</small></td><td class="n">${_propH(b.capH)} h</td></tr>`;
+  if (b.est > 0) rows += `<tr><td>My routine work <small>estimate — Capacity has no recurring hours for it this month</small></td><td class="n">${_propH(b.est)} h</td></tr>`;
+  if (b.team > 0) rows += `<tr><td>Team routine <small>${_propMode === 'me' ? 'not counted in Just me' : 'baseline for everyone else'}</small></td><td class="n">${_propH(b.team)} h</td></tr>`;
+  order.forEach(n => {
+    rows += `<tr><td>${escHtml(n)}${n === me ? ' <small>(me)</small>' : ''} <small>${by[n].parts.join(' · ')}</small></td><td class="n">${_propH(by[n].total)} h</td></tr>`;
+  });
+  if (!order.length) rows += '<tr><td colspan="2"><small>No included proposal has hours in this month.</small></td></tr>';
+  const mine = b.capH + b.est + (me && by[me] ? by[me].total : 0);
+  el.innerHTML = `<div class="prop-detail"><h4><span>${MONTH_NAMES[Number(b.ym.slice(5, 7)) - 1]} ${b.ym.slice(0, 4)} — hours by person</span>`
+    + `<span style="font-weight:400;font-size:11px;color:${mine > b.cap ? 'var(--danger)' : 'var(--text3)'};">me ${_propH(mine)} h of ${_propH(b.cap)} h capacity</span></h4><table>${rows}</table></div>`;
+}
+
+// ---------- Zone 3: proposal list ----------
+function _propHeadInner(p, pi) {
+  const t = _propTotals(p);
+  return `<input type="checkbox" ${p.included !== false ? 'checked' : ''} onclick="event.stopPropagation()" onchange="propSetIncluded(${pi},this.checked)" title="Include in the what-if" aria-label="Include in the what-if">`
+    + `<span class="prop-dot" style="${_propSwatch(p.color, p.status !== 'awarded')}margin:0;"></span>`
+    + `<span class="prop-name">${escHtml(p.name || 'Untitled')}</span>`
+    + `<span class="prop-funder">${escHtml(p.funder)}</span>`
+    + `<span class="prop-status ${p.status}">${p.status}</span>`
+    + `<span class="prop-num" title="Award to CWP">${p.awardAmount == null ? '—' : _propMoney(p.awardAmount)}</span>`
+    + `<span class="prop-num" title="Total hours, everyone, all months">${_propH(t.hours)} h</span>`
+    + `<span class="ts-month-chevron${_propOpen.has(p.id) ? ' open' : ''}">›</span>`;
+}
+function _propNumsHtml(p) {
+  const t = _propTotals(p);
+  let h = `<div><b>${_propMoney(t.value)}</b>Value of hours at consulting rates</div>`
+    + `<div><b>${p.awardAmount == null ? '—' : _propMoney(p.awardAmount)}</b>Award to CWP</div>`;
+  if (p.awardAmount != null) {
+    const d = Math.round(p.awardAmount - t.value);
+    h += d > 0 ? `<div><b>+${_propMoney(d)}</b>Not tied to hours (direct costs or program support)</div>`
+      : d < 0 ? `<div class="warnv"><b>${_propMoney(d)}</b>⚠ Hours cost more than the award pays</div>`
+      : `<div><b>$0</b>Hours match the award</div>`;
+  }
+  const noRate = p.people.filter(n => p.hours.some(x => x.person === n) && !_propRate(n));
+  if (noRate.length) h += `<div class="warnv"><b>${noRate.length}</b>${noRate.length === 1 ? 'person has' : 'people have'} no rate — counted at $0 (⚙ Rates)</div>`;
+  return h;
+}
+function _propPersonTotal(p, person) {
+  const months = _propMonths();
+  let all = 0, inWin = 0;
+  p.hours.forEach(h => { if (h.person !== person) return; all += h.hours; if (months.includes(h.month)) inWin += h.hours; });
+  return `${_propH(all)} h` + (all - inWin > 1e-9 ? ` <small>(${_propH(all - inWin)} outside ${_propYear})</small>` : '');
+}
+function _propBodyHtml(p, pi) {
+  const months = _propMonths();
+  const inRange = ym => (p.startMonth || p.endMonth) && (!p.startMonth || ym >= p.startMonth) && (!p.endMonth || ym <= p.endMonth);
+  const fld = (label, html, wide) => `<label${wide ? ' class="wide"' : ''}>${label}${html}</label>`;
+  const txt = (f, v, extra) => `<input type="text" value="${escHtml(v)}" onchange="propSetField(${pi},'${f}',this.value)" ${extra || ''}>`;
+  let h = '<div class="prop-fields">'
+    + fld('Name', txt('name', p.name, `id="propName_${pi}"`))
+    + fld('Funder', txt('funder', p.funder))
+    + fld('Status', `<select onchange="propSetField(${pi},'status',this.value)">${PROP_STATUSES.map(s => `<option value="${s}"${p.status === s ? ' selected' : ''}>${s}</option>`).join('')}</select>`)
+    + fld('Award to CWP ($)', `<input type="number" min="0" step="100" value="${p.awardAmount == null ? '' : p.awardAmount}" onchange="propSetField(${pi},'awardAmount',this.value)">`)
+    + fld('To partners ($, reference only)', `<input type="number" min="0" step="100" value="${p.partnerAmount == null ? '' : p.partnerAmount}" onchange="propSetField(${pi},'partnerAmount',this.value)">`)
+    + fld('Start month', `<input type="month" value="${p.startMonth}" onchange="propSetField(${pi},'startMonth',this.value)">`)
+    + fld('End month', `<input type="month" value="${p.endMonth}" onchange="propSetField(${pi},'endMonth',this.value)">`)
+    + fld('Date submitted', `<input type="date" value="${p.dateSubmitted}" onchange="propSetField(${pi},'dateSubmitted',this.value)">`)
+    + fld('Project code', txt('projectCode', p.projectCode))
+    + fld('Notes', txt('notes', p.notes), true)
+    + '</div>';
+  h += `<div class="prop-gridwrap"><table class="prop-grid"><thead><tr><th style="text-align:left;">Hours in ${_propYear}</th>`
+    + months.map(ym => `<th class="${inRange(ym) ? 'in' : ''}">${MONTH_NAMES[Number(ym.slice(5, 7)) - 1]}</th>`).join('')
+    + '<th style="text-align:right;">All months</th><th></th></tr></thead><tbody>';
+  p.people.forEach((n, ri) => {
+    const rate = _propRate(n);
+    h += `<tr><td class="who">${escHtml(n)} <small>${rate ? '$' + _propH(rate) + '/h' : 'no rate'}</small></td>`
+      + months.map((ym, mi) => {
+        const v = _propHoursAt(p, n, ym);
+        return `<td class="${inRange(ym) ? 'in' : ''}"><input class="prop-cell" type="number" min="0" step="0.5" inputmode="decimal" value="${v || ''}" aria-label="Hours" oninput="propCell(${pi},${ri},${mi},this.value)" onchange="_propFlush()"></td>`;
+      }).join('')
+      + `<td class="tot" id="propPT_${pi}_${ri}">${_propPersonTotal(p, n)}</td>`
+      + `<td><button class="btn" style="font-size:10px;padding:1px 6px;" title="Remove this person from the proposal" aria-label="Remove person" onclick="propRemoveRow(${pi},${ri})">✕</button></td></tr>`;
+  });
+  if (!p.people.length) h += `<tr><td colspan="15" style="color:var(--text3);padding:6px 0;">No one on this proposal yet — add a person to enter hours.</td></tr>`;
+  h += '</tbody></table></div>';
+  const avail = propPeople.map((x, i) => ({ x, i })).filter(o => !p.people.includes(o.x.name));
+  h += `<div class="prop-actions"><select class="prop-addsel" onchange="propAddRow(${pi},this.value)" aria-label="Add person"><option value="">+ Add person…</option>`
+    + avail.map(o => `<option value="${o.i}">${escHtml(o.x.name)}</option>`).join('') + '<option value="new">New person…</option></select>'
+    + `<span style="font-size:10px;color:var(--text3);">Shaded months are inside the proposal's start–end. Use ‹ › in the toolbar for other years.</span>`
+    + `<button class="btn" style="margin-left:auto;font-size:11px;color:var(--danger);" onclick="propDelete(${pi})">Delete proposal</button></div>`;
+  h += `<div class="prop-nums" id="propNums_${pi}">${_propNumsHtml(p)}</div>`;
+  return h;
+}
+function _propDrawList() {
+  const el = document.getElementById('propList');
+  if (!el) return;
+  let h = `<div class="prop-zone-h">Proposals <small>tick the box to include one in the what-if · hatched = not awarded yet</small>`
+    + `<button class="btn primary" style="margin-left:auto;font-size:11px;padding:4px 10px;" onclick="propAdd()">+ Add proposal</button></div>`;
+  if (!proposals.length) {
+    h += `<div class="prop-empty">No proposals yet. Add one, or load a seed file: `
+      + `<label class="btn" style="font-size:11px;padding:4px 10px;cursor:pointer;">Import seed<input type="file" accept=".json,application/json" hidden onchange="propImportSeed(event)"></label></div>`;
+  }
+  proposals.forEach((p, pi) => {
+    const open = _propOpen.has(p.id);
+    h += `<div class="prop-row${p.included === false ? ' off' : ''}" id="propRow_${pi}">`
+      + `<div class="prop-row-head" id="propHd_${pi}" onclick="propToggleOpen(${pi})">${_propHeadInner(p, pi)}</div>`
+      + (open ? `<div class="prop-body">${_propBodyHtml(p, pi)}</div>` : '') + '</div>';
+  });
+  el.innerHTML = h;
+}
+function _propRefreshRow(pi) {
+  const p = proposals[pi];
+  const hd = document.getElementById('propHd_' + pi), row = document.getElementById('propRow_' + pi);
+  if (p && hd) hd.innerHTML = _propHeadInner(p, pi);
+  if (p && row) row.classList.toggle('off', p.included === false);
+  const nums = document.getElementById('propNums_' + pi);
+  if (p && nums) nums.innerHTML = _propNumsHtml(p);
+}
+
+function propToggleOpen(pi) {
+  const p = proposals[pi]; if (!p) return;
+  _propFlush();
+  if (_propOpen.has(p.id)) _propOpen.delete(p.id); else _propOpen.add(p.id);
+  _propDrawList();
+}
+function propSetIncluded(pi, on) {
+  const p = proposals[pi]; if (!p) return;
+  p.included = !!on;
+  _propSave('wt_proposals');
+  _propRefreshRow(pi);
+  _propDrawCharts();
+}
+function propSetField(pi, f, val) {
+  const p = proposals[pi]; if (!p) return;
+  if (f === 'name' || f === 'funder') p[f] = _propStr(val, 200).trim();
+  else if (f === 'projectCode') p.projectCode = _propStr(val, 60).trim();
+  else if (f === 'notes') p.notes = _propStr(val, 2000);
+  else if (f === 'status') p.status = PROP_STATUSES.includes(val) ? val : 'idea';
+  else if (f === 'awardAmount' || f === 'partnerAmount') p[f] = _propNum(val);
+  else if (f === 'startMonth' || f === 'endMonth') p[f] = _propYm(val);
+  else if (f === 'dateSubmitted') p.dateSubmitted = /^\d{4}-\d{2}-\d{2}$/.test(val || '') ? val : '';
+  else return;
+  _propSave('wt_proposals');
+  if (f === 'startMonth' || f === 'endMonth') _propDrawList(); else _propRefreshRow(pi);
+  _propDrawCharts();
+}
+function propCell(pi, ri, mi, val) {
+  const p = proposals[pi]; if (!p) return;
+  const person = p.people[ri], ym = _propMonths()[mi];
+  if (!person || !ym) return;
+  _propSetHours(p, person, ym, val);
+  const pt = document.getElementById('propPT_' + pi + '_' + ri);
+  if (pt) pt.innerHTML = _propPersonTotal(p, person);
+  _propRefreshRow(pi);
+  _propDrawCharts();
+  _propSaveSoon();
+}
+function propAddRow(pi, val) {
+  const p = proposals[pi]; if (!p || val === '') return;
+  let name = null;
+  if (val === 'new') {
+    name = _propStr(prompt('Name of the person (or a role, e.g. "Intern"):'), 80).trim();
+    if (!name) { _propDrawList(); return; }
+    if (!propPeople.some(x => x.name === name)) {
+      const r = _propNum(prompt('Consulting rate for ' + name + ' in $ per hour (you can change it later in ⚙ Rates):', ''));
+      propPeople.push({ name, rate: r || 0, me: false });
+      _propSave('wt_prop_people');
+    }
+  } else {
+    const x = propPeople[Number(val)];
+    name = x ? x.name : null;
+  }
+  if (name && !p.people.includes(name)) { p.people.push(name); _propSave('wt_proposals'); }
+  renderProposals();
+}
+function propRemoveRow(pi, ri) {
+  const p = proposals[pi]; if (!p) return;
+  const person = p.people[ri]; if (!person) return;
+  const hrs = p.hours.filter(h => h.person === person).reduce((a, h) => a + h.hours, 0);
+  if (hrs > 0 && !confirm('Remove ' + person + ' and their ' + _propH(hrs) + ' h (all months) from this proposal?')) return;
+  p.hours = p.hours.filter(h => h.person !== person);
+  p.people.splice(ri, 1);
+  _propSave('wt_proposals');
+  renderProposals();
+}
+function propAdd() {
+  _propFlush();
+  const p = _propNormOne({ name: 'New proposal', status: 'idea', color: _propNextColor() });
+  proposals.push(p);
+  _propOpen.add(p.id);
+  _propSave('wt_proposals');
+  renderProposals();
+  const inp = document.getElementById('propName_' + (proposals.length - 1));
+  if (inp) { inp.focus(); inp.select(); }
+}
+function propDelete(pi) {
+  const p = proposals[pi]; if (!p) return;
+  if (!confirm('Delete "' + (p.name || 'Untitled') + '" and all its hours? This cannot be undone.')) return;
+  _propFlush();
+  _propOpen.delete(p.id);
+  proposals.splice(pi, 1);
+  _propSave('wt_proposals');
+  renderProposals();
+}
+function propSetMode(m) {
+  _propMode = m === 'team' ? 'team' : 'me';
+  save('wt_prop_mode', _propMode);
+  renderProposals();
+}
+function propYearShift(d) {
+  _propFlush();
+  _propYear += d;
+  save('wt_prop_year', _propYear);
+  _propSelMonth = null;
+  renderProposals();
+}
+function propToggleSettings() { _propSettingsOpen = !_propSettingsOpen; renderProposals(); }
+
+// ---------- Settings: rates, team baseline, routine estimate ----------
+function _propRoutineReport() {
+  const rows = _propBaseData(), rp = propBase.routineProj;
+  const withEst = rows.filter(r => r.estRaw > 0);
+  if (!withEst.length) return `No routine estimate is loaded for ${_propYear}.`;
+  if (!rp) return `An estimate is loaded for ${withEst.length} month${withEst.length === 1 ? '' : 's'} of ${_propYear} but is <strong>not being used</strong> — choose the routine project above so it can be checked against Capacity first.`;
+  const names = l => l.map(r => MONTH_NAMES[Number(r.ym.slice(5, 7)) - 1]).join(', ');
+  if (rp === '*') return `Estimate used for every month that has one in ${_propYear}: ${names(withEst)}.`;
+  const has = rows.filter(r => r.recur > 0), filled = withEst.filter(r => r.est > 0);
+  return `Capacity has recurring hours on <strong>${escHtml(projLabel(rp))}</strong> in <strong>${has.length} of 12</strong> months of ${_propYear}`
+    + (has.length ? ` (${names(has)})` : '') + '. '
+    + (filled.length ? `The estimate fills the other${filled.length === withEst.length ? '' : 's that have one'}: ${names(filled)}.` : 'The estimate is not used in any month.');
+}
+function _propDrawSettings() {
+  const el = document.getElementById('propSettings');
+  if (!el) return;
+  const btn = document.getElementById('propSettingsBtn');
+  if (btn) btn.classList.toggle('primary', _propSettingsOpen);
+  if (!_propSettingsOpen) { el.innerHTML = ''; return; }
+  const months = _propMonths();
+  const mh = months.map(ym => `<th>${MONTH_NAMES[Number(ym.slice(5, 7)) - 1]}</th>`).join('');
+  let h = '<div class="prop-set"><h4>People and consulting rates</h4>'
+    + '<p>Dollars = hours × this rate. Tick <strong>me</strong> on your own row — “Just me” shows only that person\'s proposal hours.</p><table class="ppl">';
+  propPeople.forEach((x, i) => {
+    h += `<tr><td><input type="text" value="${escHtml(x.name)}" style="width:190px;" aria-label="Name" onchange="propPersonField(${i},'name',this.value)"></td>`
+      + `<td>$ <input type="number" min="0" step="5" value="${x.rate || ''}" style="width:70px;" aria-label="Rate" onchange="propPersonField(${i},'rate',this.value)"> /h</td>`
+      + `<td><label style="cursor:pointer;"><input type="radio" name="propMeRadio" ${x.me ? 'checked' : ''} onchange="propSetMe(${i})"> me</label></td>`
+      + `<td><button class="btn" style="font-size:10px;padding:1px 6px;" aria-label="Remove person" onclick="propRemovePerson(${i})">✕</button></td></tr>`;
+  });
+  h += `</table><div class="prop-actions" style="margin-top:6px;"><button class="btn" style="font-size:11px;" onclick="propAddPerson()">+ Add person</button></div>`;
+
+  h += `<h4>My routine work estimate — ${_propYear}</h4>`
+    + '<p>Hours per month of routine work that may not be in the tracker yet. It is used <strong>only in months where Capacity has no recurring hours on the routine project</strong>, so it can never double-count what Capacity already holds.</p>'
+    + `<div class="prop-actions" style="margin:0 0 6px;"><label style="font-size:11px;color:var(--text2);">Routine project in the tracker `
+    + `<select onchange="propSetRoutineProj(this.selectedIndex)" id="propRoutineSel"><option${!propBase.routineProj ? ' selected' : ''}>Not chosen — estimate off</option>`
+    + `<option${propBase.routineProj === '*' ? ' selected' : ''}>None in the tracker — always use the estimate</option>`
+    + Object.keys(PROJECTS).map(k => `<option${propBase.routineProj === k ? ' selected' : ''}>${escHtml(projLabel(k))}</option>`).join('') + '</select></label></div>'
+    + `<div class="prop-gridwrap"><table class="prop-grid"><thead><tr>${mh}</tr></thead><tbody><tr>`
+    + months.map((ym, mi) => `<td><input class="prop-cell" type="number" min="0" step="0.5" value="${propBase.routine[ym] || ''}" aria-label="Estimate" onchange="propRoutineCell(${mi},this.value)"></td>`).join('')
+    + `</tr></tbody></table></div><p id="propRoutineReport" style="margin-top:6px;">${_propRoutineReport()}</p>`;
+
+  h += `<h4>Team routine baseline — ${_propYear}</h4><p>Routine hours for everyone other than you. Added to the baseline in “Whole team” only.</p>`
+    + `<div class="prop-gridwrap"><table class="prop-grid"><thead><tr><th></th>${mh}<th></th></tr></thead><tbody>`;
+  propBase.teamLabels.forEach((n, ri) => {
+    h += `<tr><td class="who">${escHtml(n)}</td>` + months.map((ym, mi) => {
+      const r = propBase.team.find(t => t.person === n && t.month === ym);
+      return `<td><input class="prop-cell" type="number" min="0" step="0.5" value="${r ? r.hours : ''}" aria-label="Hours" onchange="propTeamCell(${ri},${mi},this.value)"></td>`;
+    }).join('') + `<td><button class="btn" style="font-size:10px;padding:1px 6px;" aria-label="Remove row" onclick="propRemoveTeamRow(${ri})">✕</button></td></tr>`;
+  });
+  h += `</tbody></table></div><div class="prop-actions" style="margin-top:6px;"><button class="btn" style="font-size:11px;" onclick="propAddTeamRow()">+ Add row</button></div>`;
+
+  h += '<h4>Seed file</h4><p>Loads proposals, hours, rates and baselines from a <code>proposals-seed.json</code>. Importing the same file twice changes nothing: proposals match on name, hours on proposal + person + month. The file wins on anything it names and never deletes what it does not mention.</p>'
+    + `<label class="btn" style="font-size:11px;padding:4px 10px;cursor:pointer;">Import seed<input type="file" accept=".json,application/json" hidden onchange="propImportSeed(event)"></label></div>`;
+  el.innerHTML = h;
+}
+function propPersonField(i, f, val) {
+  const x = propPeople[i]; if (!x) return;
+  if (f === 'rate') x.rate = _propNum(val) || 0;
+  else if (f === 'name') {
+    const name = _propStr(val, 80).trim();
+    if (!name || name === x.name) { renderProposals(); return; }
+    if (propPeople.some(o => o.name === name)) { showSyncToast('There is already a person called ' + name + '.', 'warn'); renderProposals(); return; }
+    const old = x.name;
+    proposals.forEach(p => {
+      p.hours.forEach(h => { if (h.person === old) h.person = name; });
+      p.people = p.people.map(n => n === old ? name : n);
+    });
+    x.name = name;
+    _propSave('wt_proposals');
+  }
+  _propSave('wt_prop_people');
+  renderProposals();
+}
+function propSetMe(i) {
+  propPeople.forEach((x, k) => { x.me = k === i; });
+  _propSave('wt_prop_people');
+  renderProposals();
+}
+function propAddPerson() {
+  const name = _propStr(prompt('Name of the person (or a role, e.g. "Intern"):'), 80).trim();
+  if (!name) return;
+  if (propPeople.some(x => x.name === name)) { showSyncToast('There is already a person called ' + name + '.', 'warn'); return; }
+  propPeople.push({ name, rate: 0, me: false });
+  _propSave('wt_prop_people');
+  renderProposals();
+}
+function propRemovePerson(i) {
+  const x = propPeople[i]; if (!x) return;
+  const n = proposals.filter(p => p.hours.some(h => h.person === x.name)).length;
+  if (n) { showSyncToast(x.name + ' has hours on ' + n + ' proposal' + (n === 1 ? '' : 's') + ' — remove them there first.', 'warn'); return; }
+  propPeople.splice(i, 1);
+  _propSave('wt_prop_people');
+  renderProposals();
+}
+function propSetRoutineProj(idx) {
+  const keys = Object.keys(PROJECTS);
+  propBase.routineProj = idx <= 0 ? '' : idx === 1 ? '*' : (keys[idx - 2] || '');
+  _propSave('wt_prop_baseline');
+  renderProposals();
+}
+function propRoutineCell(mi, val) {
+  const ym = _propMonths()[mi]; if (!ym) return;
+  const n = _propNum(val) || 0;
+  if (n > 0) propBase.routine[ym] = n; else delete propBase.routine[ym];
+  _propSave('wt_prop_baseline');
+  _propBaseCache = null;
+  _propDrawCharts();
+  const rep = document.getElementById('propRoutineReport');
+  if (rep) rep.innerHTML = _propRoutineReport();
+  _propDrawNotices();
+}
+function propTeamCell(ri, mi, val) {
+  const person = propBase.teamLabels[ri], ym = _propMonths()[mi];
+  if (!person || !ym) return;
+  const n = _propNum(val) || 0;
+  const i = propBase.team.findIndex(t => t.person === person && t.month === ym);
+  if (n <= 0) { if (i >= 0) propBase.team.splice(i, 1); }
+  else if (i >= 0) propBase.team[i].hours = n;
+  else propBase.team.push({ person, month: ym, hours: n });
+  _propSave('wt_prop_baseline');
+  _propBaseCache = null;
+  _propDrawCharts();
+}
+function propAddTeamRow() {
+  const name = _propStr(prompt('Label for this baseline row (a person, or e.g. "Team routine"):'), 80).trim();
+  if (!name || propBase.teamLabels.includes(name)) return;
+  propBase.teamLabels.push(name);
+  _propSave('wt_prop_baseline');
+  renderProposals();
+}
+function propRemoveTeamRow(ri) {
+  const person = propBase.teamLabels[ri]; if (!person) return;
+  const hrs = propBase.team.filter(t => t.person === person).reduce((a, t) => a + t.hours, 0);
+  if (hrs > 0 && !confirm('Remove "' + person + '" and its ' + _propH(hrs) + ' h (all months) from the team baseline?')) return;
+  propBase.team = propBase.team.filter(t => t.person !== person);
+  propBase.teamLabels.splice(ri, 1);
+  _propSave('wt_prop_baseline');
+  renderProposals();
+}
+
+// ---------- Seed import ----------
+// Idempotent merge: proposals match on name, hours on proposal + person + month,
+// people on name, team baseline on label + month. The file wins on what it names
+// and never deletes anything it does not mention. Everything is coerced through
+// the same normalisers as stored data — a seed is untrusted input.
+function propApplySeed(seed) {
+  const sum = { added: 0, updated: 0, hours: 0, people: 0, team: 0, routine: 0 };
+  if (!seed || typeof seed !== 'object') return sum;
+  (Array.isArray(seed.people) ? seed.people : []).forEach(x => {
+    if (!x || typeof x !== 'object') return;
+    const name = _propStr(x.name, 80).trim(); if (!name) return;
+    const rate = _propNum(x.consulting_rate !== undefined ? x.consulting_rate : x.rate) || 0;
+    const cur = propPeople.find(o => o.name === name);
+    if (cur) cur.rate = rate; else propPeople.push({ name, rate, me: false });
+    sum.people++;
+  });
+  (Array.isArray(seed.team_baseline) ? seed.team_baseline : []).forEach(r => {
+    if (!r || typeof r !== 'object') return;
+    const person = _propStr(r.person, 80).trim(), month = _propYm(r.month), hours = _propNum(r.hours) || 0;
+    if (!person || !month) return;
+    const i = propBase.team.findIndex(t => t.person === person && t.month === month);
+    if (hours <= 0) { if (i >= 0) propBase.team.splice(i, 1); }
+    else if (i >= 0) propBase.team[i].hours = hours;
+    else propBase.team.push({ person, month, hours });
+    if (!propBase.teamLabels.includes(person)) propBase.teamLabels.push(person);
+    sum.team++;
+  });
+  // "<first name>_routine_..._<year>...": quarterly subtask hours → an even monthly estimate.
+  Object.keys(seed).forEach(k => {
+    const m = /^([a-z]+)_routine_.*?(\d{4})/i.exec(k), v = seed[k];
+    if (!m || !v || typeof v !== 'object' || !v.by_quarter || typeof v.by_quarter !== 'object') return;
+    const q = [0, 0, 0, 0];
+    Object.keys(v.by_quarter).forEach(sub => {
+      const arr = v.by_quarter[sub];
+      if (Array.isArray(arr)) for (let i = 0; i < 4; i++) q[i] += _propNum(arr[i]) || 0;
+    });
+    q.forEach((tot, qi) => {
+      for (let j = 0; j < 3; j++) {
+        const ym = m[2] + '-' + String(qi * 3 + j + 1).padStart(2, '0');
+        const per = Math.round(tot / 3 * 100) / 100;
+        if (per > 0) propBase.routine[ym] = per; else delete propBase.routine[ym];
+        sum.routine++;
+      }
+    });
+    if (!propPeople.some(x => x.me)) {
+      const who = propPeople.find(x => x.name.toLowerCase().startsWith(m[1].toLowerCase()));
+      if (who) who.me = true;
+    }
+  });
+  const list = (Array.isArray(seed.proposals) ? seed.proposals : []).filter(s => s && typeof s === 'object' && _propStr(s.name, 200).trim());
+  // Colour slots go to proposals that actually draw (have hours) first.
+  const fresh = list.filter(s => !proposals.some(p => p.name === _propStr(s.name, 200).trim()));
+  const slotFor = new Map();
+  fresh.slice().sort((a, b) => (Array.isArray(b.hours) && b.hours.length ? 1 : 0) - (Array.isArray(a.hours) && a.hours.length ? 1 : 0))
+    .forEach(s => {
+      const used = PROP_COLORS.map(() => 0);
+      proposals.forEach(p => { used[p.color]++; });
+      slotFor.forEach(v => { used[v]++; });
+      let best = 0; used.forEach((n, i) => { if (n < used[best]) best = i; });
+      slotFor.set(s, best);
+    });
+  list.forEach(s => {
+    const name = _propStr(s.name, 200).trim();
+    let p = proposals.find(o => o.name === name);
+    const fields = { name, funder: s.funder, projectCode: s.project_code, status: s.status, awardAmount: s.award_amount,
+      partnerAmount: s.partner_amount, dateSubmitted: s.date_submitted, startMonth: s.start_month, endMonth: s.end_month, notes: s.notes };
+    if (p) {
+      const n = _propNormOne(Object.assign({}, fields, { id: p.id, color: p.color, included: p.included, people: p.people, hours: p.hours }));
+      Object.assign(p, n);
+      sum.updated++;
+    } else {
+      p = _propNormOne(Object.assign({}, fields, { color: slotFor.get(s) || 0 }));
+      proposals.push(p);
+      sum.added++;
+    }
+    _propNormHours(s.hours).forEach(h => { _propSetHours(p, h.person, h.month, h.hours); sum.hours++; });
+  });
+  propPeople = _propNormPeople(propPeople);
+  _propSave('wt_prop_people');
+  _propSave('wt_prop_baseline');
+  _propSave('wt_proposals');
+  _propBaseCache = null;
+  return sum;
+}
+function propImportSeed(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let seed;
+    try { seed = JSON.parse(reader.result); } catch (e) { seed = null; }
+    if (!seed || typeof seed !== 'object' || !(Array.isArray(seed.proposals) || Array.isArray(seed.people) || Array.isArray(seed.team_baseline))) {
+      showSyncToast('That file is not a proposals seed (no proposals, people or team_baseline found).', 'warn');
+      return;
+    }
+    const np = Array.isArray(seed.proposals) ? seed.proposals.length : 0;
+    const nh = Array.isArray(seed.proposals) ? seed.proposals.reduce((a, s) => a + (s && Array.isArray(s.hours) ? s.hours.length : 0), 0) : 0;
+    const npl = Array.isArray(seed.people) ? seed.people.length : 0;
+    if (!confirm('Import seed: ' + np + ' proposals, ' + nh + ' hour rows, ' + npl + ' people.\n\nMatching proposals, hours and rates are updated from the file; nothing is deleted. Tasks and Capacity are not touched.')) return;
+    _propFlush();
+    const s = propApplySeed(seed);
+    _propYear = _propDefaultYear();
+    save('wt_prop_year', _propYear);
+    renderProposals();
+    showSyncToast('Seed imported: ' + s.added + ' added, ' + s.updated + ' updated, ' + s.hours + ' hour rows set.', 'success');
+  };
+  reader.readAsText(file);
+}
+
+// ---------- Render ----------
+function _propDrawNotices() {
+  const el = document.getElementById('propNotices');
+  if (!el) return;
+  let h = '';
+  if (proposals.some(p => p.hours.length) && !_propMe()) {
+    h += `<div class="prop-notice"><strong>Which person is you?</strong> “Just me” cannot show proposal hours until one person is marked as me — open <strong>⚙ Rates &amp; baseline</strong> and tick <strong>me</strong> on your row.</div>`;
+  }
+  if (!propBase.routineProj && Object.keys(propBase.routine).some(k => k.slice(0, 4) === String(_propYear))) {
+    h += `<div class="prop-notice"><strong>Routine estimate loaded but not used yet.</strong> Open <strong>⚙ Rates &amp; baseline</strong> and choose which tracker project holds your routine work, so the estimate only fills months Capacity does not already cover.</div>`;
+  }
+  el.innerHTML = h;
+}
+function renderProposals() {
+  const c = document.getElementById('propContent');
+  if (!c) return;
+  if (_propYear == null) _propYear = Number(load('wt_prop_year', 0)) || _propDefaultYear();
+  _propBaseCache = null;
+  _propTipHide();
+  document.getElementById('propYearLabel').textContent = _propYear;
+  document.getElementById('propModeMe').classList.toggle('on', _propMode === 'me');
+  document.getElementById('propModeTeam').classList.toggle('on', _propMode === 'team');
+  document.getElementById('propModeMe').setAttribute('aria-pressed', _propMode === 'me');
+  document.getElementById('propModeTeam').setAttribute('aria-pressed', _propMode === 'team');
+  c.innerHTML = '<div id="propSettings"></div><div id="propNotices"></div>'
+    + '<div class="prop-zone"><div class="prop-zone-h" id="propHoursHead"></div><div class="prop-legend" id="propLegend"></div>'
+    + '<div class="prop-chart" id="propHoursChart"></div><div id="propMonthDetail"></div></div>'
+    + '<div class="prop-zone"><div class="prop-zone-h" id="propDollarsHead"></div><div class="prop-chart" id="propDollarsChart"></div></div>'
+    + '<div class="prop-zone" id="propList"></div>';
+  _propDrawSettings();
+  _propDrawNotices();
+  _propDrawCharts();
+  _propDrawList();
+}
+let _propResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_propResizeTimer);
+  _propResizeTimer = setTimeout(() => {
+    if (document.getElementById('panel-proposals')?.classList.contains('active')) _propDrawCharts();
+  }, 150);
+});
+
+// =============================================
 // ALLOCATIONS TAB
 // =============================================
 
@@ -19493,6 +20435,7 @@ function _switchTab(tab) {
   else if (t === 'team') renderTeam();
   else if (t === 'timesheet') renderTimesheet();
   else if (t === 'capacity') renderCapacity();
+  else if (t === 'proposals') renderProposals();
   else if (t === 'allocations') renderAllocations();
   updateHeaderMeta();
   // Update help panel context if open
@@ -19662,6 +20605,10 @@ function _maybeShowWelcome() {
 // steps, and _TAB_TIPS below — all three are part of definition-of-done.
 
 const INFO_COPY = {
+  proposals: {
+    title: 'Proposals — what each month looks like if these land',
+    body: 'A <strong>what-if</strong>, not a plan: nothing here creates tasks or changes Capacity, the Timesheet or Allocations. <strong>Hours chart:</strong> the grey base of each column is your existing plate — exactly the Capacity tab\'s number for that month (logged + planned, recurrences expanded). On top sits one coloured segment per <strong>ticked</strong> proposal; solid = awarded, hatched = idea or submitted. <strong>Just me</strong> counts only your own proposal hours and draws your capacity line (hours per working day × working days); a month over the line is labelled in red with the hours over. <strong>Whole team</strong> adds the team routine baseline and everyone\'s proposal hours, with no capacity line. A hatched grey segment is your <strong>routine estimate</strong> — used only in months where Capacity has no recurring hours on the routine project, so it never double-counts. <strong>Dollars strip:</strong> hours × each person\'s consulting rate, in the month the hours are worked. Under an open proposal, <strong>Value of hours</strong> vs <strong>Award to CWP</strong> shows whether the award covers the time: a positive difference is money not tied to hours, a negative one means the hours cost more than the award pays. Click a column for hours by person that month.'
+  },
   timeline: {
     title: 'Timeline — where the flow is, who is on it, how programs cross over',
     body: 'One row per open item under its program and sub-code. A bar runs from the item\'s <strong>start</strong> (a Start you set, else the day it was entered) to its <strong>◆ deadline</strong>; older items with no entry date draw the deadline alone, recurring tasks show their next occurrence ↻. ▲ marks a work date, small squares are work blocks. <strong>Relay deliverables</strong> draw one segment per stage in the assignee\'s colour — the outlined one is current, ✓ ones are done, a dashed left edge means the first stage\'s start was derived from its estimate. <strong>After</strong> (in the task form\'s 📅 section) pulls a task\'s start to the task it waits on and draws a dotted lead-in. Undated items and month holds keep their rows as chips — nothing is hidden. The header\'s shaded band is your <strong>forward-fill load</strong> per day (darker = fuller, red = over, hatched = off), with a red today line. Read-only: click a name to open it, ⇄ to move it through the normal month-move.'
@@ -19845,6 +20792,19 @@ const _TAB_TIPS = {
       'Distinct from Allocations: Capacity is <strong>your headroom</strong>; Allocations tracks <strong>project budgets</strong>.'
     ]
   },
+  proposals: {
+    title: 'Proposals — Tips',
+    tips: [
+      'This tab is a <strong>what-if</strong>: it stacks proposal hours on top of your existing plate so you can see pile-ups before you submit and again when an award arrives. It never creates tasks and never changes Capacity.',
+      '<strong>Just me / Whole team</strong> switches whose hours are counted. Just me draws your capacity line and labels over-capacity months in red (for example <strong>+18 h</strong>); Whole team adds the team routine baseline and has no capacity line.',
+      '<strong>Tick or untick</strong> a proposal to include it in the what-if. Solid colour = awarded; hatched = idea or submitted. A proposal that does not win is simply deleted.',
+      'Open a proposal to type <strong>hours per person per month</strong> — both charts redraw as you type. Use <strong>‹ ›</strong> in the toolbar to reach other years; a multi-year grant keeps its hours in every year.',
+      'The three numbers under the grid compare the <strong>value of the hours at consulting rates</strong> with the <strong>award to CWP</strong>. Negative means the hours cost more than the award pays — common for grants that pay direct rates.',
+      '<strong>Click a column</strong> to see hours by person for that month — whose time needs to be scheduled.',
+      '<strong>⚙ Rates &amp; baseline</strong> holds consulting rates, which person is you, the team routine baseline, your routine-work estimate, and <strong>Import seed</strong>. Importing the same seed file twice changes nothing.',
+      'The <strong>routine estimate</strong> only fills months where Capacity has no recurring hours on the routine project you choose — it is never added on top of hours Capacity already holds. The settings panel reports which months it filled.'
+    ]
+  },
   allocations: {
     title: 'Allocations — Tips',
     tips: [
@@ -19956,8 +20916,8 @@ document.addEventListener('keydown', e => {
     }
   }
 
-  // 1-6: switch tabs
-  if (e.key >= '1' && e.key <= '6' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+  // 1-7: switch tabs
+  if (e.key >= '1' && e.key <= '7' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const tabs = document.querySelectorAll('.tab');
     const idx = parseInt(e.key) - 1;
     if (tabs[idx]) { e.preventDefault(); tabs[idx].click(); }
@@ -19973,7 +20933,7 @@ document.addEventListener('keydown', e => {
   // ?: show keyboard shortcuts help
   if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
     e.preventDefault();
-    showSyncToast('Keys: N=quick capture, Shift+N=full task, 1-6=tabs, /=search, Esc=close, Ctrl+Z=undo', 'success');
+    showSyncToast('Keys: N=quick capture, Shift+N=full task, 1-7=tabs, /=search, Esc=close, Ctrl+Z=undo', 'success');
   }
 });
 
@@ -20019,6 +20979,7 @@ function reloadStateFromLocalStorage() {
   boards = load('wt_boards', []) || [];
   boardCards = load('wt_board_cards', []) || [];
   timeOff = load('wt_time_off', []) || [];
+  _propReload();
   overheadWeekly = parseFloat(load('wt_overhead_weekly', 0)) || 0;
 }
 
@@ -20058,6 +21019,7 @@ function initApp() {
     if (_capInput) _capInput.value = tsCapacity;
     renderTimesheet();
     renderAllocations();
+    renderProposals();
     updateHeaderMeta();
     _ensureTickerRunning();
     updateActiveStrip();
@@ -20097,6 +21059,7 @@ function initApp() {
     if (_capInput) _capInput.value = tsCapacity;
     renderTimesheet();
     renderAllocations();
+    renderProposals();
     updateHeaderMeta();
     _ensureTickerRunning();
     updateActiveStrip();

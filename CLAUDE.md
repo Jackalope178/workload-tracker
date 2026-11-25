@@ -24,7 +24,10 @@ drives the app in headless Chromium and asserts the documented invariants
 (billing/recurrence/capacity math, relay bill-once, hand-off hours-move-once,
 board rules, XSS escaping). Add a scenario under
 `.claude/skills/verify/suite/` when you add an invariant. There is no other
-test suite, linter, or build. For ad-hoc end-to-end checks,
+test suite, linter, or build. (Known quirk: the app's `today()` is Eastern
+time while scenarios 23 and 25 compute dates in the runner's zone, so on a
+UTC machine they fail between 00:00 and ~05:00 UTC — re-run later before
+blaming a change.) For ad-hoc end-to-end checks,
 `.claude/skills/verify/SKILL.md` records a working Playwright + Chromium
 recipe (seed `wt_*` localStorage, drive the real UI, assert on state) —
 including the gotcha that `load()` JSON-parses, so seeded string values must
@@ -61,13 +64,13 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 |---|---|---|
 | CSS | 7–2,730 | One `<style>` block. **Light-only** (dark retired July 2026): permanent `data-theme="light"`; the dark `:root` variables remain as the base layer the light overrides sit on — don't remove either side. |
 | CDN loads | 2,732–2,741 | Supabase, XLSX. |
-| HTML body | 2,743–4,080 | Tab bar (`class="tabs"`, ~2,856), six tab panels, all modals. |
+| HTML body | 2,743–4,080 | Tab bar (`class="tabs"`, ~2,856), seven tab panels, all modals. |
 | Sync + auth | ~4,082–4,600 | `_supabase` client, login, `SYNC_KEYS` (~4,451), `cloudSave`/`cloudLoad`/`loadFromSupabase`. |
 | Core helpers | ~5,139 | `uid()`, `load(key, fallback)`, `save(key, data)`. |
 | Date/recurrence/timer helpers | ~5,280–5,760 | Timers, quarter-hour billing, `nextRecurrenceAfter`, pay periods. |
 | Tab renderers + logic | ~5,900–end | The bulk of the app; see the tab table below. |
 
-## The six tabs
+## The seven tabs
 
 | Tab | Purpose | Entry function(s) |
 |---|---|---|
@@ -76,6 +79,7 @@ Line numbers drift as the file grows; use them as landmarks and confirm with gre
 | **Team Deliverables** | Cross-team assignments with multi-stage **relay** hand-offs and per-person boards. | `renderTeam()`, `renderTeamBoard()` |
 | **Timesheet** | Logged time per project; pay-period view (backward-looking) and month/year view (forward-looking). Spreadsheet reconciliation via **Import & Audit**. | `renderTimesheet()`, `renderTsCapacityBar()`, `handleTsAuditImport()` |
 | **Capacity** | 12-month personal headroom planner: logged + planned vs capacity, drill-down, scheduler board, move/delegate. Answers "someone needs this by May — do I have time?" All recurrences expand so future load is true. **⏩ Forward fill** (Sep 2026, top card): packs every flexible dated item earliest-deadline-first into coming working days → "placed through <date>", at-risk deadlines, a **What if: N h by date** box, time off + weekly overhead inputs, and 📅 Plan to commit one item. | `renderCapacity()`, `_renderForwardFill()`, `forwardFill()`, `ffWhatIf()`, `_renderCapMonthDetail()`, `_renderCapItemList()`, `capMoveItem()`, `capDelegateItem()` |
+| **Proposals** | A **what-if** (Nov 2026): grant/contract proposals stacked on the existing plate, month by month. Hours chart (grey base = the Capacity month number; one segment per ticked proposal; solid = awarded, hatched = idea/submitted), a dollars strip (hours × consulting rate, in the month worked), and a proposal list that opens to a people × months grid. **Just me / Whole team** toggle. Never creates tasks. | `renderProposals()`, `_propStacks()`, `_propBaseData()`, `propApplySeed()` |
 | **Allocations** | Budgeted vs actual hours per project/sub-code per month (BigTime import). Distinct from Capacity: Allocations = budget tracking, Capacity = personal headroom. | `renderAllocations()`, `handleAllocImport()` |
 
 Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
@@ -97,6 +101,9 @@ Tab switching: `_switchTab(tab)`; active tab persists in `wt_active_tab`.
 | `wt_boards` | Whiteboards: `{ id, projKey, scId, createdAt }` — one per sub-code plus `scId: ''` (the project's **Loose thoughts** board). Auto-created by `_ensureBoards` the first time a project's boards render; boards of inactive/removed sub-codes stay listed while they hold cards (never hide a thought). **Meeting boards** (Sep 2026) add `meetingTaskId` (a meeting-priority task's id) plus `title`/`date` snapshots: created on first open from the 📅 Meetings list, never listed as sub-code tiles (`_boardsForProject` filters them), and kept reachable under "Past" while they hold cards even after the meeting task is deleted. |
 | `wt_time_off` | Time-off ranges `{ id, from, to, label }` — 0h room in the forward fill only (see Math invariant #11). |
 | `wt_overhead_weekly` | Hours per week of meetings/admin churn that never become tasks — subtracted (÷5 per day) from forward-fill room only. |
+| `wt_proposals` | Proposals tab: `{ id, name, funder, projectCode, status: 'idea' \| 'submitted' \| 'awarded', included, awardAmount, partnerAmount, dateSubmitted, startMonth, endMonth, notes, color, people[], hours[] }`. `hours[]` = `{ person, month: 'YYYY-MM', hours, rateType }` (one row per person+month; `rateType` is stored for Phase 2 and not shown). `color` is a palette SLOT (index into `PROP_COLORS`), never a hex. `people[]` keeps a person's grid row alive when their last cell is cleared. There is **no lost/declined status** — a proposal that does not win is deleted. |
+| `wt_prop_people` | Proposals tab roster: `{ name, rate, me }` — consulting rate in $/h; exactly one row may be `me` (the person "Just me" counts). Separate from `wt_persons` on purpose: proposal staff need not be on the team roster, and names/rates arrive from the seed file, never from the source. |
+| `wt_prop_baseline` | `{ team: [{ person, month, hours }], teamLabels[], routine: { 'YYYY-MM': hours }, routineProj }` — the team routine baseline (Whole team only), the owner's routine-work estimate, and which tracker project holds routine work (`''` = not chosen, estimate off; `'*'` = none in the tracker, always use the estimate; else a project key). |
 | `wt_board_cards` | Stickies: `{ id, boardId, kind: 'note' \| 'heading' \| 'ref' \| 'meeting', x, y, w, h, color, z, text, urgent, important, createdAt, updatedAt }`. `color` is a palette NAME (`BOARD_COLORS`), never a hex — it is rendered as a CSS class. `urgent`/`important` (`null` = unsorted) drive the ⊞ Sort 2×2 view (`_boardQuadOf`). **`ref` cards** (Sep 2026) carry `ref: { type: 'task' \| 'team' \| 'session' \| 'subtask', id, projId?, sessionId?, label }` and NO text — `_boardRefResolve` looks the item up on every render (due/status/who are never copied); `label` is only the fallback name shown when the item no longer exists. **`meeting` cards** carry `date` and `url` (rendered as a link only when `_boardSafeUrl` accepts an http(s) URL). **Cards carry no hours** — a task created from a card keeps est/dates/code on the task, and the task carries `_boardCard` (the sticky it came from; 💭 chip → `boardRevealCard`). |
 
 Plus ~20 smaller preference/UI keys (`wt_theme`, `wt_ts_capacity`, collapse
@@ -105,7 +112,8 @@ Board view state is device-local like `wt_focus_mode`: `wt_proj_view`
 (`dash` | `boards` | `list`, default `dash`), `wt_board_open` (`{projKey:
 boardId}`), `wt_board_view` (`{boardId: 'free' | 'grid'}`), `wt_board_panel`
 (`tiles` | `chips` — the command panel above a board), `wt_ff_open` (the
-forward-fill details toggle), `wt_tl_collapsed` / `wt_tl_show_done` (the
+forward-fill details toggle), `wt_prop_mode` (`me` | `team`) / `wt_prop_year` (the
+Proposals tab's toggle and visible year), `wt_tl_collapsed` / `wt_tl_show_done` (the
 timeline's collapsed programs and ✓ Done toggle).
 
 ### Conventions
@@ -349,6 +357,36 @@ These look like inconsistencies or bugs but are intentional. Violating them is a
    deliverable rows and ▬ Timeline rows, all routing to the existing
    dropdowns — never a second assignment path.
 
+14. **Proposals are a what-if lens, never a planner** (Nov 2026). The tab
+   reads Capacity and writes only its own three stores (`wt_proposals`,
+   `wt_prop_people`, `wt_prop_baseline`): it **never creates tasks**, and
+   `plannedItems`, the Timesheet, Capacity and Allocations never read it.
+   The grey base of each column **is the Capacity month number** (logged +
+   planned, via `allTsEntries` + `plannedItems` — `_propBaseData`); don't
+   give it its own formula. The **routine estimate fills only months where
+   Capacity has no RECURRING hours on the routine project** (`_recur`
+   planned items on `routineProj`) — it is never added on top of hours
+   already there, a one-off task on that project does not suppress it, and
+   with no routine project chosen it is not used at all (the tab says so).
+   **Just me** counts only the `me` person's proposal hours and draws the
+   capacity line (`workingDays × tsCapacity`) with a red `+N h` label on
+   over months; **Whole team** adds the team baseline and everyone's hours
+   and deliberately has **no capacity line**. Dollars = hours × the
+   person's consulting rate **in the month the hours are worked** (the
+   only multi-year rule), and follow the same Just me / Whole team toggle.
+   Awarded draws solid, idea/submitted hatched. Under an open proposal,
+   award − value-of-hours may be **negative** ("Hours cost more than the
+   award pays") — that is the point, not a bug. Proposal hours are **not
+   quarter-snapped** (they are budget estimates, not billing). The seed
+   import (`propApplySeed`) is **idempotent** — proposals match on name,
+   hours on proposal + person + month, people on name; the file wins on
+   what it names and never deletes — and runs everything through the
+   `_propNorm*` normalisers because a seed is untrusted input. **People,
+   rates and proposal data are never baked into `index.html` or committed**
+   (the repo serves a public page); they arrive only via Import seed or the
+   UI. No Sustainability Fund tiers, no direct-rate levels, no task links —
+   those are Phase 2. Scenario 29 enforces all of this.
+
 ## Math Invariants (July 2026 audit)
 
 `docs/math-audit-2026-07.md` is the full audit record — 11 verified findings,
@@ -575,6 +613,7 @@ allocations, weekend 15th in `capMoveItem`) were subsequently fixed.
 | Timesheet bars & colors | `renderTimesheet`, `renderTsCapacityBar`, `mCls`, `wCls`, `payPeriodOf` |
 | Capacity planner / drill-down / scheduler | `renderCapacity`, `plannedItems`, `capMoveItem`, `capDelegateItem`, `_allocHold`, `_capAssignOne` |
 | Forward fill / what-if / time off & overhead | `forwardFill`, `_ffOverdueFlex`, `ffWhatIf`, `_renderForwardFill`, `_ffDetailsHtml`, `ffCommit`, `_ffDayCap`, `openTimeOffModal`, `timeOffAdd`, `setOverheadWeekly`, `wt_time_off`, `wt_overhead_weekly` |
+| Proposals tab (what-if hours + dollars, seed import) | `renderProposals`, `_propStacks`, `_propBaseData`, `_propSvg`, `_propDrawCharts`, `_propDrawList`, `_propBodyHtml`, `propCell`, `propSetField`, `_propDrawSettings`, `propSetRoutineProj`, `propApplySeed`, `propImportSeed`, `_propNormOne`, `PROP_COLORS` |
 | Allocations / Excel import / rollovers | `renderAllocations`, `handleAllocImport`, `allocKey`, `_rollRemainingForward` |
 | Timesheet audit import (spreadsheet ↔ ledger) | `handleTsAuditImport`, `_buildTsAuditPlan`, `_tsaComputeGroups`, `_tsaActiveRows`, `_commitTsAuditPlan`, `_tsaEntryLocked`, `_tsaParseHours`, `_tsaParseDate`, `_tsaDetectColumns`, `_tsaIsTotalsRow` |
 | Import row ↔ project matching / merge suggestions | `_matchProject`, `_suggestProject`, `_parseBillingCode`, `_aipSetRowProj` |
@@ -676,7 +715,11 @@ A change that "cleans up" or "simplifies" any of them reintroduces a real bug.
    `_tsaToggleDay` / `_tsaToggleGroup` / `_tsaToggleCollapse` address groups
    and days **by index into `groupsCache`**, never by key. Don't "simplify"
    those back to key arguments — a crafted `.xlsx` label would break straight
-   out of the `onchange`.
+   out of the `onchange`. The **Proposals tab** is the same again: proposal
+   names, funders, people names and even ids can come from a seed file or a
+   restored backup, so every `prop*` handler takes **array indices only**
+   (`propCell(pi, ri, mi, …)`, `propSetRoutineProj(selectedIndex)`), and
+   the colour is a palette slot, never a stored hex.
 6. **RLS is the security boundary.** Data is per-user (`auth.uid() = user_id`);
    the baked-in anon key is public and safe *only* because RLS is enforced.
    Don't add tables/queries that bypass it.
